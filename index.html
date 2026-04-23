@@ -699,9 +699,9 @@ select.config-input option { background: #1e0a10; color: var(--text); }
           </div>
           <div v-else-if="personalList.length === 0" class="empty-state">
             <div class="empty-icon">👤</div>
-            <p>Sin usuarios configurados</p>
-            <button class="btn-ingresar" style="margin-top:12px;" @click="loginStep='setup'">
-              Configurar primero
+            <p>Sin usuarios aún</p>
+            <button class="btn-ingresar" style="margin-top:12px;" @click="loginStep='bootstrap'">
+              Crear primer administrador
             </button>
           </div>
           <div v-else class="staff-grid">
@@ -757,7 +757,35 @@ select.config-input option { background: #1e0a10; color: var(--text); }
           </button>
         </div>
 
-        <!-- Setup inicial (cuando no hay personal) -->
+        <!-- Bootstrap: crear primer administrador sin login -->
+        <div v-else-if="loginStep === 'bootstrap'">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
+            <button @click="loginStep='select'" style="color:var(--text-muted);font-size:18px;">←</button>
+            <div style="font-size:15px;font-weight:700;">Primer administrador</div>
+          </div>
+          <div class="config-section" style="margin-bottom:14px;">
+            <div class="config-label">Nombre</div>
+            <input v-model="bootstrapNombre" class="config-input" placeholder="Tu nombre">
+          </div>
+          <div class="config-section" style="margin-bottom:14px;">
+            <div class="config-label">Rol</div>
+            <select v-model="bootstrapRol" class="config-input">
+              <option value="Administrador">Administrador</option>
+              <option value="Supervisor">Supervisor</option>
+            </select>
+          </div>
+          <div class="config-section" style="margin-bottom:14px;">
+            <div class="config-label">PIN (4 dígitos)</div>
+            <input v-model="bootstrapPin" class="config-input" type="password" maxlength="4" placeholder="····">
+          </div>
+          <div v-if="loginError" class="login-error">{{ loginError }}</div>
+          <button class="btn-ingresar" :disabled="!bootstrapNombre || bootstrapPin.length !== 4 || loginLoading" @click="crearPrimerAdmin">
+            <span v-if="loginLoading">Creando...</span>
+            <span v-else>Crear y entrar</span>
+          </button>
+        </div>
+
+        <!-- Setup URL (solo si URL no configurada) -->
         <div v-else-if="loginStep === 'setup'">
           <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">
             Configura la URL del servidor primero
@@ -1482,6 +1510,9 @@ createApp({
     const loginError     = ref('');
     const loginLoading   = ref(false);
     const setupApiUrl    = ref('');
+    const bootstrapNombre = ref('');
+    const bootstrapRol    = ref('Administrador');
+    const bootstrapPin    = ref('');
 
     // Personal Master modal
     const pmModal = ref({ show: false, editId: null, nombre: '', rol: 'Operador', pin: '' });
@@ -1548,6 +1579,21 @@ createApp({
           loginPin.value = '';
         }
       } catch(e) { loginError.value = 'Error de conexión.'; }
+      finally { loginLoading.value = false; }
+    }
+
+    async function crearPrimerAdmin() {
+      if (!bootstrapNombre.value || bootstrapPin.value.length !== 4) return;
+      loginLoading.value = true; loginError.value = '';
+      try {
+        const r = await apiPost({ accion: 'crear_personal', nombre: bootstrapNombre.value, rol: bootstrapRol.value, pin: bootstrapPin.value });
+        if (r.ok && r.data.ok) {
+          // Auto-login con el usuario recién creado
+          session.value = { ok: true, id: r.data.id, nombre: bootstrapNombre.value, rol: bootstrapRol.value, loginAt: Date.now() };
+          localStorage.setItem('ps_session', JSON.stringify(session.value));
+          await loadModuleData('dashboard');
+        } else { loginError.value = 'Error al crear usuario: ' + (r.error || ''); }
+      } catch(e) { loginError.value = 'Error de conexión con el servidor.'; }
       finally { loginLoading.value = false; }
     }
 
@@ -1678,6 +1724,7 @@ createApp({
       session, currentModule, currentView, navModules,
       moduleData, moduleLoading, showInfoPanel,
       personalList, loadingPersonal, loginStep, loginSelected, loginPin, loginError, loginLoading, setupApiUrl,
+      bootstrapNombre, bootstrapRol, bootstrapPin, crearPrimerAdmin,
       pmModal, toast,
       iniciales, pinPress, verificarPin, guardarSetupUrl,
       goModule, handleAction, guardarPersonal
