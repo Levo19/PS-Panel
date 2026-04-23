@@ -643,6 +643,46 @@ input  { outline: none; border: none; background: none; color: inherit; font: in
 .user-menu-danger { color:#f87171; }
 .user-menu-install { color:var(--gold); }
 
+/* Orbit en el chip del sidebar (avatar 32px → wrapper 40px) */
+.chip-orbit-wrap {
+  position: relative;
+  width: 40px; height: 40px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.chip-orbit-wrap .orbit-gold {
+  width: 38px; height: 38px; top: 1px; left: 1px;
+}
+.chip-orbit-wrap .orbit-dot-wrap {
+  width: 40px; height: 40px; top: 0; left: 0;
+}
+.chip-orbit-wrap .orbit-dot {
+  width: 7px; height: 7px; margin-left: -3.5px;
+}
+.chip-orbit-wrap .user-chip-avatar { position: relative; z-index: 2; }
+
+/* Flecha del chip — apunta arriba por defecto (menú sube) */
+.chip-chevron {
+  font-size: 11px; color: var(--gold);
+  transition: transform 0.22s cubic-bezier(0.4,0,0.2,1);
+  display: inline-block; flex-shrink: 0;
+}
+.chip-chevron.open { transform: rotate(180deg); }
+
+/* Menú en landscape: abre hacia arriba desde el footer del sidebar */
+@media (orientation: landscape) and (min-width: 640px) {
+  .user-menu {
+    top: auto; bottom: 70px;
+    right: auto; left: 12px;
+    transform-origin: bottom left;
+    animation-name: menu-rise;
+  }
+}
+@keyframes menu-rise {
+  from { opacity:0; transform: scale(0.92) translateY(6px); }
+  to   { opacity:1; transform: scale(1)    translateY(0); }
+}
+
 /* ── Info panel (módulo documentación) ─────────────────── */
 .info-overlay {
   position: fixed; inset: 0;
@@ -1189,31 +1229,6 @@ select.config-input option { background: #1e0a10; color: var(--text); }
           </div>
         </header>
 
-        <!-- User dropdown -->
-        <transition name="fade">
-          <div v-if="showUserMenu" class="user-menu-overlay" @click="showUserMenu=false">
-            <div class="user-menu" @click.stop>
-              <div class="user-menu-head">
-                <div class="user-menu-avatar">{{ iniciales(session.nombre) }}</div>
-                <div>
-                  <div class="user-menu-name">{{ session.nombre }}</div>
-                  <div class="user-menu-rol">{{ session.rol }}</div>
-                </div>
-              </div>
-              <div class="user-menu-sep"></div>
-              <button class="user-menu-item" @click="goModule('config'); showUserMenu=false">
-                <span class="mi-icon">⚙️</span> Configuración
-              </button>
-              <button v-if="canInstall" class="user-menu-item user-menu-install" @click="installPWA()">
-                <span class="mi-icon">📲</span> Instalar app
-              </button>
-              <div class="user-menu-sep"></div>
-              <button class="user-menu-item user-menu-danger" @click="handleAction({type:'logout'}); showUserMenu=false">
-                <span class="mi-icon">↩️</span> Cerrar sesión
-              </button>
-            </div>
-          </div>
-        </transition>
         <div class="content-area">
           <keep-alive include="ViewLanchas,ViewFinanzas">
             <component :is="currentView" :data="moduleData" :loading="moduleLoading" @action="handleAction" />
@@ -1243,13 +1258,19 @@ select.config-input option { background: #1e0a10; color: var(--text); }
             </button>
           </div>
           <div class="sidebar-footer">
-            <div class="user-chip" @click="goModule('config')">
-              <div class="user-chip-avatar">{{ iniciales(session.nombre) }}</div>
+            <div class="user-chip" @click.stop="showUserMenu = !showUserMenu">
+              <div class="chip-orbit-wrap">
+                <div class="orbit-gold"></div>
+                <div class="orbit-dot-wrap" :class="orbitDotState">
+                  <div class="orbit-dot" :class="orbitDotState"></div>
+                </div>
+                <div class="user-chip-avatar">{{ iniciales(session.nombre) }}</div>
+              </div>
               <div class="user-chip-info">
                 <div class="user-chip-name">{{ session.nombre }}</div>
                 <div class="user-chip-rol">{{ session.rol }}</div>
               </div>
-              <span style="color:var(--text-muted);font-size:14px;">⚙</span>
+              <span class="chip-chevron" :class="{ open: showUserMenu }">▴</span>
             </div>
           </div>
         </nav>
@@ -1259,6 +1280,32 @@ select.config-input option { background: #1e0a10; color: var(--text); }
           </keep-alive>
         </div>
       </div>
+
+      <!-- User dropdown (global — portrait & landscape) -->
+      <transition name="fade">
+        <div v-if="showUserMenu" class="user-menu-overlay" @click="showUserMenu=false">
+          <div class="user-menu" @click.stop>
+            <div class="user-menu-head">
+              <div class="user-menu-avatar">{{ iniciales(session.nombre) }}</div>
+              <div>
+                <div class="user-menu-name">{{ session.nombre }}</div>
+                <div class="user-menu-rol">{{ session.rol }}</div>
+              </div>
+            </div>
+            <div class="user-menu-sep"></div>
+            <button class="user-menu-item" @click="goModule('config'); showUserMenu=false">
+              <span class="mi-icon">⚙️</span> Configuración
+            </button>
+            <button v-if="canInstall" class="user-menu-item user-menu-install" @click="installPWA()">
+              <span class="mi-icon">📲</span> Instalar app
+            </button>
+            <div class="user-menu-sep"></div>
+            <button class="user-menu-item user-menu-danger" @click="handleAction({type:'logout'}); showUserMenu=false">
+              <span class="mi-icon">↩️</span> Cerrar sesión
+            </button>
+          </div>
+        </div>
+      </transition>
 
       <!-- FAB info (solo en Lanchas) -->
       <button v-if="currentModule==='lanchas'" class="fab-info" @click="showInfoPanel=true">?</button>
