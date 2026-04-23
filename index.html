@@ -1886,6 +1886,104 @@ const ViewLanchas = {
 
     const selectedCajaDia = ref(null);
 
+    const opModal = ref({ show: false, mode: 'crear', saving: false, error: '',
+      id: '', hora_salida: '', id_bote: '', id_capitan: '', id_guia: '',
+      estado: 'Activa', foto_zarpe_url: '', destino: '' });
+    const embarcaciones = ref([]);
+    const personalOps   = ref([]);
+
+    function to24h(t) {
+      if (!t || !t.includes(' ')) return t || '';
+      const [time, ampm] = t.split(' ');
+      let [h, m] = time.split(':').map(Number);
+      if (ampm === 'PM' && h !== 12) h += 12;
+      if (ampm === 'AM' && h === 12) h = 0;
+      return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+    }
+    function to12h(t) {
+      if (!t || t.includes(' ')) return t || '';
+      let [h, m] = t.split(':').map(Number);
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      h = h % 12 || 12;
+      return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')} ${ampm}`;
+    }
+
+    async function loadCatalogos() {
+      if (embarcaciones.value.length && personalOps.value.length) return;
+      const [rB, rP] = await Promise.all([
+        apiGet('listar_embarcaciones'),
+        apiGet('listar_personal_ops')
+      ]);
+      if (rB.ok) embarcaciones.value = rB.data;
+      if (rP.ok) personalOps.value   = rP.data;
+    }
+
+    function openOpModal(op = null) {
+      loadCatalogos();
+      if (op) {
+        opModal.value = { show: true, mode: 'editar', saving: false, error: '',
+          id: op.id,
+          hora_salida: to24h(op.hora_salida),
+          id_bote: op.id_bote,
+          id_capitan: op.id_capitan,
+          id_guia: op.id_guia || '',
+          estado: op.estado || 'Activa',
+          foto_zarpe_url: op.foto_zarpe_url || '',
+          destino: op.destino || '' };
+      } else {
+        opModal.value = { show: true, mode: 'crear', saving: false, error: '',
+          id: '', hora_salida: '', id_bote: '', id_capitan: '', id_guia: '',
+          estado: 'Activa', foto_zarpe_url: '', destino: '' };
+      }
+    }
+
+    async function guardarOp() {
+      const m = opModal.value;
+      if (!m.hora_salida || !m.id_bote || !m.id_capitan) {
+        m.error = 'Hora, bote y capitán son obligatorios'; return;
+      }
+      m.saving = true; m.error = '';
+      try {
+        const session = JSON.parse(localStorage.getItem('ps_session') || '{}');
+        const body = {
+          action: m.mode === 'crear' ? 'crear_operacion' : 'actualizar_operacion',
+          fecha: currentFecha.value,
+          hora_salida: to12h(m.hora_salida),
+          id_bote: m.id_bote,
+          id_capitan: m.id_capitan,
+          id_guia: m.id_guia,
+          estado: m.estado,
+          foto_zarpe_url: m.foto_zarpe_url,
+          destino: m.destino,
+          creado_por: session.nombre || session.email || 'PS'
+        };
+        if (m.mode === 'editar') body.id = m.id;
+        const r = await apiPost(body);
+        if (!r.ok) throw new Error(r.error || 'Error al guardar');
+        opModal.value.show = false;
+        const fecha = currentFecha.value;
+        cache.value = { ...cache.value, [fecha]: { loaded: false, loading: false } };
+        loadFecha(fecha);
+      } catch(e) {
+        m.error = e.message;
+      } finally {
+        m.saving = false;
+      }
+    }
+
+    async function confirmarEliminarOp(id) {
+      if (!confirm('¿Eliminar esta operación? Esta acción no se puede deshacer.')) return;
+      try {
+        const r = await apiPost({ action: 'eliminar_operacion', id });
+        if (!r.ok) throw new Error(r.error || 'Error al eliminar');
+        const fecha = currentFecha.value;
+        cache.value = { ...cache.value, [fecha]: { loaded: false, loading: false } };
+        loadFecha(fecha);
+      } catch(e) {
+        alert('Error: ' + e.message);
+      }
+    }
+
     const datesByMonth = computed(() => {
       const groups = {};
       fechas.value.forEach(f => {
@@ -1944,7 +2042,8 @@ const ViewLanchas = {
              showDatePicker, datesByMonth, fmtMes, pickDate,
              selectedMov, contactColorByTipo, movPayments, montoPayStyle, openMovModal, allCajaDia,
              selectedPase, pagoStatusStyle, openPaseModal,
-             isIngreso, metodoIcon, cajaRowStyle, selectedCajaDia };
+             isIngreso, metodoIcon, cajaRowStyle, selectedCajaDia,
+             opModal, embarcaciones, personalOps, openOpModal, guardarOp, confirmarEliminarOp };
   },
   template: `
     <div>
@@ -1998,12 +2097,17 @@ const ViewLanchas = {
         <!-- Cuerpo -->
         <div class="date-view-body">
 
-          <!-- Botón reporte -->
-          <button v-if="cache[currentFecha]?.loaded" class="btn-report"
-            @click="openReport(currentFecha)"
-            style="width:100%;justify-content:center;margin-bottom:12px;padding:9px;">
-            📊 Ver Reporte del día
-          </button>
+          <!-- Botones reporte + nueva op -->
+          <div v-if="cache[currentFecha]?.loaded" style="display:flex;gap:8px;margin-bottom:12px;">
+            <button class="btn-report" @click="openReport(currentFecha)"
+              style="flex:1;justify-content:center;padding:9px;">
+              📊 Reporte
+            </button>
+            <button class="btn-report" @click="openOpModal(null)"
+              style="flex:1;justify-content:center;padding:9px;background:rgba(201,168,76,0.15);border-color:rgba(201,168,76,0.5);color:var(--gold);">
+              ＋ Nueva Op
+            </button>
+          </div>
 
           <!-- Tabs -->
           <div class="tab-bar" style="margin-bottom:12px;">
@@ -2134,12 +2238,14 @@ const ViewLanchas = {
               </div>
               <div v-for="op in (cache[currentFecha].operaciones||[])" :key="op.id" class="boat-card" :class="boatBorderClass(op.estado)">
                 <div class="boat-header" @click="toggleOp(op.id)">
-                  <!-- Fila 1: nombre bote · estado · descuadre | monto · chevron -->
+                  <!-- Fila 1: nombre bote · estado · descuadre | monto · edit · chevron -->
                   <div style="display:flex;align-items:center;gap:7px;margin-bottom:4px;">
                     <span class="boat-title" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ op.nombre_bote || op.id_bote }}</span>
                     <span style="font-size:13px;font-weight:900;flex-shrink:0;" :style="estadoIconColor(op.estado)">{{ estadoIcon(op.estado) }}</span>
                     <span v-if="op.descuadre" style="font-size:14px;color:#ef4444;flex-shrink:0;" title="Descuadre de caja">💰</span>
                     <span style="font-size:13px;font-weight:800;color:var(--gold);flex-shrink:0;">S/ {{ fmt(op.ingresos_operador) }}</span>
+                    <button @click.stop="openOpModal(op)" title="Editar operación"
+                      style="width:24px;height:24px;border-radius:6px;background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);color:var(--gold);font-size:13px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;padding:0;">✏</button>
                     <span style="color:var(--text-muted);font-size:12px;flex-shrink:0;">{{ expandedOps.has(op.id) ? '▴' : '▾' }}</span>
                   </div>
                   <!-- Fila 2: capitan · guia | pax -->
@@ -2179,6 +2285,13 @@ const ViewLanchas = {
                       <span style="font-size:11px;color:var(--text-muted);">{{ totalMovs(op.movimientos||[]).pax }} pax total</span>
                       <span style="font-size:12px;font-weight:800;color:var(--gold);">S/ {{ fmt(totalMovs(op.movimientos||[]).monto) }}</span>
                     </div>
+                  </div>
+                  <!-- Eliminar operación -->
+                  <div style="padding-top:10px;border-top:1px solid var(--border);margin-top:4px;">
+                    <button @click.stop="confirmarEliminarOp(op.id)"
+                      style="width:100%;padding:8px;border-radius:8px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);color:#f87171;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+                      🗑 Eliminar operación
+                    </button>
                   </div>
                 </div>
               </div>
@@ -2394,6 +2507,104 @@ const ViewLanchas = {
               <!-- Adicionales -->
               <div v-if="selectedPase.adicionales"
                 style="font-size:12px;color:var(--text-muted);">📝 {{ selectedPase.adicionales }}</div>
+
+            </div>
+          </div>
+        </div>
+      </teleport>
+
+      <!-- Op CRUD Modal -->
+      <teleport to="body">
+        <div v-if="opModal.show" class="date-picker-overlay" @click.self="opModal.show=false">
+          <div class="date-picker-modal" style="max-width:400px;">
+            <div class="date-picker-header">
+              <span style="font-weight:800;">{{ opModal.mode==='crear' ? '＋ Nueva Operación' : '✏ Editar Operación' }}</span>
+              <button @click="opModal.show=false" style="font-size:18px;color:var(--text-muted);">✕</button>
+            </div>
+            <div style="overflow-y:auto;max-height:70vh;padding:16px;display:flex;flex-direction:column;gap:14px;">
+
+              <!-- Hora salida -->
+              <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text-muted);">
+                Hora de salida *
+                <input type="time" v-model="opModal.hora_salida"
+                  style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);color-scheme:dark;" />
+              </label>
+
+              <!-- Bote -->
+              <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text-muted);">
+                Embarcación *
+                <select v-model="opModal.id_bote"
+                  style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);appearance:none;">
+                  <option value="">— seleccionar —</option>
+                  <option v-for="b in embarcaciones" :key="b.id" :value="b.id">{{ b.nombre }}</option>
+                </select>
+              </label>
+
+              <!-- Capitán -->
+              <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text-muted);">
+                Capitán *
+                <select v-model="opModal.id_capitan"
+                  style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);appearance:none;">
+                  <option value="">— seleccionar —</option>
+                  <option v-for="p in personalOps.filter(x=>x.rol&&x.rol.toLowerCase().includes('capit'))" :key="p.id" :value="p.id">{{ p.nombre }}</option>
+                </select>
+              </label>
+
+              <!-- Guía -->
+              <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text-muted);">
+                Guía
+                <select v-model="opModal.id_guia"
+                  style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);appearance:none;">
+                  <option value="">— ninguno —</option>
+                  <option v-for="p in personalOps.filter(x=>x.rol&&x.rol.toLowerCase().includes('guia'))" :key="p.id" :value="p.id">{{ p.nombre }}</option>
+                </select>
+              </label>
+
+              <!-- Estado -->
+              <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text-muted);">
+                Estado
+                <select v-model="opModal.estado"
+                  style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);appearance:none;">
+                  <option>Activa</option>
+                  <option>En viaje</option>
+                  <option>Cerrada</option>
+                  <option>Cancelada</option>
+                </select>
+              </label>
+
+              <!-- Destino -->
+              <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text-muted);">
+                Destino
+                <input type="text" v-model="opModal.destino" placeholder="Ej: Palomino, Las Palmas…"
+                  style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);" />
+              </label>
+
+              <!-- URL foto zarpe -->
+              <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text-muted);">
+                URL foto zarpe
+                <input type="url" v-model="opModal.foto_zarpe_url" placeholder="https://…"
+                  style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);" />
+              </label>
+
+              <!-- Error -->
+              <div v-if="opModal.error"
+                style="padding:10px 12px;border-radius:8px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);font-size:13px;color:#f87171;">
+                ⚠ {{ opModal.error }}
+              </div>
+
+              <!-- Botones -->
+              <div style="display:flex;gap:10px;padding-top:4px;">
+                <button @click="opModal.show=false"
+                  style="flex:1;padding:10px;border-radius:10px;background:transparent;border:1px solid var(--border);font-size:14px;cursor:pointer;color:var(--text-muted);">
+                  Cancelar
+                </button>
+                <button @click="guardarOp()" :disabled="opModal.saving"
+                  style="flex:2;padding:10px;border-radius:10px;background:var(--gold);border:none;font-size:14px;font-weight:800;color:#1a0a05;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;"
+                  :style="opModal.saving?'opacity:0.6;cursor:default':''">
+                  <span v-if="opModal.saving" class="spin" style="width:14px;height:14px;border-color:rgba(26,10,5,0.3);border-top-color:#1a0a05;"></span>
+                  {{ opModal.saving ? 'Guardando…' : (opModal.mode==='crear' ? 'Crear operación' : 'Guardar cambios') }}
+                </button>
+              </div>
 
             </div>
           </div>

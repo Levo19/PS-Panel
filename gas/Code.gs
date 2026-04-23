@@ -14,6 +14,12 @@ function doGet(e) {
       case 'listar_personal':
         try { data = listarPersonal(); } catch(e) { data = []; }
         break;
+      case 'listar_embarcaciones':
+        data = listarEmbarcaciones();
+        break;
+      case 'listar_personal_ops':
+        data = listarPersonalOps();
+        break;
       case 'dashboard':
         const fecha = e.parameter.fecha || hoy();
         data = getDashboardKPIs(fecha);
@@ -52,7 +58,10 @@ function doPost(e) {
       case 'crear_personal':      data = crearPersonal(body.nombre, body.rol, body.pin); break;
       case 'actualizar_personal': data = actualizarPersonal(body.id, body.nombre, body.rol, body.pin); break;
       case 'eliminar_personal':   data = eliminarPersonal(body.id); break;
-      case 'guardar_config':      data = guardarConfig(body.clave, body.valor); break;
+      case 'guardar_config':        data = guardarConfig(body.clave, body.valor); break;
+      case 'crear_operacion':       data = crearOperacion(body); break;
+      case 'actualizar_operacion':  data = actualizarOperacion(body); break;
+      case 'eliminar_operacion':    data = eliminarOperacion(body.id); break;
       default: data = { ok: false, error: 'Acción desconocida: ' + accion };
     }
     return jsonResponse({ ok: true, data });
@@ -353,4 +362,89 @@ function getOrCreateConfigSheet() {
     sh.appendRow(['clave', 'valor', 'timestamp']);
   }
   return sh;
+}
+
+// ── Catálogos de operaciones ──────────────────────────────────
+function getSS_OPS() {
+  return SpreadsheetApp.openById(
+    PropertiesService.getScriptProperties().getProperty('SS_OPERACIONES_ID')
+  );
+}
+
+function listarEmbarcaciones() {
+  const sh = getSS_OPS().getSheetByName('Embarcaciones');
+  if (!sh) return [];
+  const d = sh.getDataRange().getValues();
+  const result = [];
+  for (let i = 1; i < d.length; i++) {
+    if (d[i][0]) result.push({ id: String(d[i][0]), nombre: String(d[i][1] || '') });
+  }
+  return result;
+}
+
+function listarPersonalOps() {
+  const sh = getSS_OPS().getSheetByName('Personal');
+  if (!sh) return [];
+  const d = sh.getDataRange().getValues();
+  const result = [];
+  for (let i = 1; i < d.length; i++) {
+    if (!d[i][0]) continue;
+    const estado = String(d[i][4] || '').toLowerCase();
+    if (estado === 'inactivo' || estado === 'baja') continue;
+    result.push({ id: String(d[i][0]), nombre: String(d[i][1] || ''), rol: String(d[i][2] || '') });
+  }
+  return result;
+}
+
+// ── CRUD Operaciones ──────────────────────────────────────────
+function crearOperacion(body) {
+  const sh = getSS_OPS().getSheetByName('Operaciones');
+  if (!sh) throw new Error('Sheet Operaciones no encontrada');
+  const id = 'OP-' + Math.floor(100000 + Math.random() * 900000);
+  sh.appendRow([
+    id,
+    new Date(body.fecha),
+    body.hora_salida || '',
+    body.id_bote || '',
+    body.id_capitan || '',
+    body.id_guia || '',
+    body.estado || 'Abierta',
+    body.creado_por || '',
+    new Date(),
+    body.foto_zarpe_url || '',
+    body.destino || ''
+  ]);
+  return { id };
+}
+
+function actualizarOperacion(body) {
+  const sh = getSS_OPS().getSheetByName('Operaciones');
+  if (!sh) throw new Error('Sheet Operaciones no encontrada');
+  const d = sh.getDataRange().getValues();
+  for (let i = 1; i < d.length; i++) {
+    if (String(d[i][0]) !== String(body.id)) continue;
+    const row = i + 1;
+    sh.getRange(row, 3).setValue(body.hora_salida || '');
+    sh.getRange(row, 4).setValue(body.id_bote || '');
+    sh.getRange(row, 5).setValue(body.id_capitan || '');
+    sh.getRange(row, 6).setValue(body.id_guia || '');
+    sh.getRange(row, 7).setValue(body.estado || '');
+    sh.getRange(row, 10).setValue(body.foto_zarpe_url || '');
+    sh.getRange(row, 11).setValue(body.destino || '');
+    return { ok: true };
+  }
+  throw new Error('Operación no encontrada: ' + body.id);
+}
+
+function eliminarOperacion(id) {
+  const sh = getSS_OPS().getSheetByName('Operaciones');
+  if (!sh) throw new Error('Sheet Operaciones no encontrada');
+  const d = sh.getDataRange().getValues();
+  for (let i = 1; i < d.length; i++) {
+    if (String(d[i][0]) === String(id)) {
+      sh.deleteRow(i + 1);
+      return { ok: true };
+    }
+  }
+  throw new Error('Operación no encontrada: ' + id);
 }
