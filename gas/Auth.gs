@@ -3,10 +3,14 @@
 // Gestión de Personal Master: verificación de PIN, CRUD
 // ============================================================
 
-const SS_PS = SpreadsheetApp.openById(PropertiesService.getScriptProperties().getProperty('SS_PS_ID'));
+function getSS_PS() {
+  const id = PropertiesService.getScriptProperties().getProperty('SS_PS_ID');
+  if (!id) throw new Error('SS_PS_ID no configurado en Script Properties');
+  return SpreadsheetApp.openById(id);
+}
 
 function getPersonalMasterSheet() {
-  let sh = SS_PS.getSheetByName('PERSONAL_MASTER');
+  let sh = getSS_PS().getSheetByName('PERSONAL_MASTER');
   if (!sh) {
     sh = SS_PS.insertSheet('PERSONAL_MASTER');
     sh.appendRow(['id', 'nombre', 'rol', 'pin', 'activo', 'foto_url', 'timestamp']);

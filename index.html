@@ -1517,12 +1517,13 @@ createApp({
 
     // ── Login ─────────────────────────────────────────────────
     async function cargarPersonal() {
-      if (API_URL === 'ENLACE_DE_TU_SCRIPT_GAS_AQUI') { loginStep.value = 'setup'; return; }
+      if (API_URL.includes('ENLACE_DE_TU')) { loginStep.value = 'setup'; return; }
       loadingPersonal.value = true;
       try {
         const r = await apiGet('listar_personal');
-        if (r.ok) personalList.value = r.data;
-      } catch(e) { loginStep.value = 'setup'; }
+        if (r.ok) personalList.value = r.data || [];
+        // Si el GAS falla (properties no configuradas aún) mostramos lista vacía, no setup
+      } catch(e) { personalList.value = []; }
       finally { loadingPersonal.value = false; }
     }
 

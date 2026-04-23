@@ -13,7 +13,7 @@ function doGet(e) {
   try {
     switch (accion) {
       case 'listar_personal':
-        data = listarPersonal();
+        try { data = listarPersonal(); } catch(e) { data = []; }
         break;
       case 'dashboard':
         const fecha = e.parameter.fecha || Utilities.formatDate(new Date(), 'America/Lima', 'yyyy-MM-dd');
@@ -199,7 +199,7 @@ function guardarConfig(clave, valor) {
 }
 
 function getOrCreateConfigSheet() {
-  let sh = SS_PS.getSheetByName('CONFIG_PANEL');
+  let sh = getSS_PS().getSheetByName('CONFIG_PANEL');
   if (!sh) {
     sh = SS_PS.insertSheet('CONFIG_PANEL');
     sh.appendRow(['clave', 'valor', 'timestamp']);
