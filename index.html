@@ -992,7 +992,7 @@ async function apiGet(accion, params = {}) {
 async function apiPost(body) {
   const r = await fetchWithTimeout(API_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'text/plain' },
     body: JSON.stringify(body)
   });
   return r.json();
