@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#7B2030">
 <meta name="mobile-web-app-capable" content="yes">
-<title>PS · Panel MOS</title>
+<title>PS · Panel</title>
 <link rel="manifest" href="./manifest.json">
 <script src="https://unpkg.com/vue@3.4.21/dist/vue.global.prod.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
@@ -1234,7 +1234,7 @@ select.config-input option { background: #1e0a10; color: var(--text); }
         <nav class="sidebar">
           <div class="sidebar-logo">
             <div class="ps-mark shimmer">PS</div>
-            <div class="ps-sub">Panel MOS</div>
+            <div class="ps-sub">Panel PS</div>
           </div>
           <div class="sidebar-nav">
             <button v-for="m in navModules" :key="m.id" class="sidebar-item" :class="{ active: currentModule===m.id }" @click="goModule(m.id)">
