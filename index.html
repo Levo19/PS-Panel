@@ -1,0 +1,1703 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#7B2030">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>PS · Panel MOS</title>
+<link rel="manifest" href="./manifest.json">
+<script src="https://unpkg.com/vue@3.4.21/dist/vue.global.prod.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<style>
+/* ── Variables ──────────────────────────────────────────── */
+:root {
+  --guinda:       #7B2030;
+  --guinda-dark:  #5a1722;
+  --guinda-deep:  #3e0f17;
+  --guinda-light: #9d2a3e;
+  --gold:         #C9A84C;
+  --gold-light:   #e8c46a;
+  --gold-dark:    #a88835;
+  --gold-pale:    #f5e9c8;
+  --bg:           #0e0608;
+  --bg2:          #160a0d;
+  --surface:      rgba(255,255,255,0.04);
+  --surface2:     rgba(255,255,255,0.08);
+  --border:       rgba(201,168,76,0.18);
+  --text:         #f0e6d3;
+  --text-muted:   rgba(240,230,211,0.55);
+  --radius:       14px;
+  --radius-sm:    8px;
+  --nav-h:        64px;
+  --sidebar-w:    220px;
+  --shadow:       0 8px 32px rgba(0,0,0,0.6);
+}
+
+/* ── Reset + Base ───────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+button { cursor: pointer; border: none; outline: none; background: none; color: inherit; font: inherit; }
+input  { outline: none; border: none; background: none; color: inherit; font: inherit; }
+
+/* ── Scrollbar ──────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--gold-dark); border-radius: 2px; }
+
+/* ── Gold shimmer text ──────────────────────────────────── */
+.shimmer {
+  background: linear-gradient(90deg, var(--gold-dark) 0%, var(--gold-light) 40%, var(--gold) 50%, var(--gold-light) 60%, var(--gold-dark) 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 3s linear infinite;
+}
+@keyframes shimmer { to { background-position: 200% center; } }
+
+/* ── Glassmorphism card ─────────────────────────────────── */
+.glass {
+  background: var(--surface);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.glass-strong {
+  background: rgba(90,23,34,0.45);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(201,168,76,0.3);
+  border-radius: var(--radius);
+}
+
+/* ── App shell ──────────────────────────────────────────── */
+#app { height: 100vh; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+
+/* ── Background glow orbs ───────────────────────────────── */
+.bg-orb {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+  z-index: 0;
+}
+.orb1 { width: 400px; height: 400px; background: rgba(123,32,48,0.35); top: -100px; right: -100px; }
+.orb2 { width: 300px; height: 300px; background: rgba(201,168,76,0.12); bottom: -50px; left: -50px; }
+.orb3 { width: 250px; height: 250px; background: rgba(123,32,48,0.2); top: 40%; left: 30%; animation: orb-float 8s ease-in-out infinite; }
+@keyframes orb-float { 0%,100% { transform: translate(0,0); } 50% { transform: translate(30px,-20px); } }
+
+/* ── LOGIN ──────────────────────────────────────────────── */
+.login-screen {
+  position: fixed; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(160deg, var(--guinda-deep) 0%, var(--bg) 60%);
+  z-index: 1000;
+  padding: 20px;
+}
+.login-card {
+  width: 100%; max-width: 400px;
+  padding: 36px 28px;
+}
+.login-logo {
+  text-align: center; margin-bottom: 32px;
+}
+.login-logo .brand-ps {
+  font-size: 56px; font-weight: 900; letter-spacing: -2px;
+  line-height: 1;
+}
+.login-logo .brand-sub {
+  font-size: 13px; letter-spacing: 3px; text-transform: uppercase;
+  color: var(--text-muted); margin-top: 4px;
+}
+.login-logo .gold-bar {
+  width: 48px; height: 3px;
+  background: linear-gradient(90deg, var(--gold-dark), var(--gold-light));
+  margin: 10px auto 0;
+  border-radius: 2px;
+}
+
+/* Staff selector */
+.staff-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;
+  margin-bottom: 20px;
+}
+.staff-btn {
+  padding: 12px 8px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  text-align: center;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+.staff-btn:hover { border-color: var(--gold); background: var(--surface2); }
+.staff-btn.selected {
+  border-color: var(--gold);
+  background: rgba(201,168,76,0.12);
+  box-shadow: 0 0 16px rgba(201,168,76,0.2);
+}
+.staff-avatar {
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--guinda-light), var(--guinda-dark));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; font-weight: 700;
+  margin: 0 auto 6px;
+  color: var(--gold-pale);
+}
+.staff-name { font-size: 13px; font-weight: 600; }
+.staff-rol  { font-size: 11px; color: var(--text-muted); }
+
+/* PIN pad */
+.pin-display {
+  display: flex; gap: 10px; justify-content: center;
+  margin: 16px 0;
+}
+.pin-dot {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--gold);
+  transition: all 0.15s;
+}
+.pin-dot.filled { background: var(--gold); box-shadow: 0 0 8px rgba(201,168,76,0.5); }
+
+.pin-pad {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+}
+.pin-key {
+  height: 54px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 20px; font-weight: 600;
+  transition: all 0.12s;
+  display: flex; align-items: center; justify-content: center;
+}
+.pin-key:active, .pin-key.pressed {
+  transform: scale(0.93);
+  background: rgba(201,168,76,0.15);
+  border-color: var(--gold);
+}
+.pin-key.del { font-size: 16px; color: var(--text-muted); }
+
+.btn-ingresar {
+  width: 100%; padding: 16px;
+  background: linear-gradient(135deg, var(--guinda-light), var(--guinda-dark));
+  border: 1px solid rgba(201,168,76,0.3);
+  border-radius: var(--radius);
+  font-size: 15px; font-weight: 700;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--gold-pale);
+  margin-top: 18px;
+  transition: all 0.2s;
+  box-shadow: 0 4px 20px rgba(123,32,48,0.5);
+}
+.btn-ingresar:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--guinda), var(--guinda-light));
+  box-shadow: 0 6px 28px rgba(123,32,48,0.7);
+  transform: translateY(-1px);
+}
+.btn-ingresar:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.login-error {
+  text-align: center; color: #ff6b6b;
+  font-size: 13px; margin-top: 10px;
+  animation: shake 0.3s ease;
+}
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  75% { transform: translateX(6px); }
+}
+
+/* ── PORTRAIT LAYOUT (bottom nav) ──────────────────────── */
+.main-portrait {
+  display: flex; flex-direction: column; height: 100%; position: relative; z-index: 1;
+}
+.content-area {
+  flex: 1; overflow-y: auto; overflow-x: hidden;
+  padding: 16px 16px 0;
+}
+.bottom-nav {
+  height: var(--nav-h);
+  background: rgba(14,6,8,0.92);
+  backdrop-filter: blur(20px);
+  border-top: 1px solid var(--border);
+  display: flex; align-items: center;
+  padding: 0 8px;
+  flex-shrink: 0;
+  position: relative; z-index: 10;
+}
+.nav-item {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 3px; padding: 8px 4px;
+  border-radius: var(--radius-sm);
+  transition: all 0.2s;
+  position: relative;
+}
+.nav-item.active { color: var(--gold); }
+.nav-item.active .nav-icon { color: var(--gold); }
+.nav-active-dot {
+  position: absolute; bottom: 2px;
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: var(--gold);
+  box-shadow: 0 0 6px var(--gold);
+}
+.nav-icon { font-size: 22px; }
+.nav-label { font-size: 10px; font-weight: 600; letter-spacing: 0.5px; color: var(--text-muted); }
+.nav-item.active .nav-label { color: var(--gold); }
+
+/* ── LANDSCAPE LAYOUT (sidebar) ────────────────────────── */
+.main-landscape {
+  display: flex; height: 100%; position: relative; z-index: 1;
+}
+.sidebar {
+  width: var(--sidebar-w);
+  background: rgba(14,6,8,0.9);
+  backdrop-filter: blur(24px);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  padding: 20px 12px;
+  flex-shrink: 0;
+}
+.sidebar-logo {
+  text-align: center; margin-bottom: 28px; padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-logo .ps-mark {
+  font-size: 36px; font-weight: 900; letter-spacing: -1px;
+}
+.sidebar-logo .ps-sub {
+  font-size: 10px; letter-spacing: 2px; color: var(--text-muted);
+}
+.sidebar-nav { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.sidebar-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 14px;
+  border-radius: var(--radius-sm);
+  transition: all 0.2s;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 14px; font-weight: 500;
+}
+.sidebar-item:hover { background: var(--surface2); color: var(--text); }
+.sidebar-item.active {
+  background: linear-gradient(90deg, rgba(123,32,48,0.5), rgba(123,32,48,0.2));
+  color: var(--gold);
+  border-left: 2px solid var(--gold);
+}
+.sidebar-item .s-icon { font-size: 18px; width: 22px; text-align: center; }
+.sidebar-footer {
+  border-top: 1px solid var(--border); padding-top: 14px;
+}
+.user-chip {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.user-chip-avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--guinda-light), var(--guinda-dark));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; color: var(--gold-pale);
+  flex-shrink: 0;
+}
+.user-chip-info { flex: 1; overflow: hidden; }
+.user-chip-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.user-chip-rol  { font-size: 11px; color: var(--text-muted); }
+.landscape-content {
+  flex: 1; overflow-y: auto; overflow-x: hidden;
+  padding: 24px;
+}
+
+/* ── Responsive trigger ─────────────────────────────────── */
+.layout-portrait { display: flex !important; }
+.layout-landscape { display: none !important; }
+@media (orientation: landscape) and (min-width: 640px) {
+  .layout-portrait { display: none !important; }
+  .layout-landscape { display: flex !important; }
+}
+
+/* ── Module header ──────────────────────────────────────── */
+.module-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 20px;
+}
+.module-title {
+  font-size: 22px; font-weight: 800; letter-spacing: -0.5px;
+}
+.module-date { font-size: 12px; color: var(--text-muted); }
+
+/* ── KPI Cards ──────────────────────────────────────────── */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.kpi-grid-3 { grid-template-columns: repeat(3, 1fr); }
+.kpi-card {
+  padding: 16px;
+  position: relative; overflow: hidden;
+}
+.kpi-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  opacity: 0.6;
+}
+.kpi-label {
+  font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.8px;
+  color: var(--text-muted); margin-bottom: 6px;
+}
+.kpi-value {
+  font-size: 26px; font-weight: 800; letter-spacing: -0.5px;
+  line-height: 1;
+}
+.kpi-value.big { font-size: 32px; }
+.kpi-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+.kpi-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 11px; font-weight: 700;
+  margin-top: 6px;
+}
+.badge-green  { background: rgba(34,197,94,0.15); color: #4ade80; }
+.badge-red    { background: rgba(239,68,68,0.15); color: #f87171; }
+.badge-gold   { background: rgba(201,168,76,0.15); color: var(--gold); }
+.badge-blue   { background: rgba(99,179,237,0.15); color: #90cdf4; }
+.badge-purple { background: rgba(167,139,250,0.15); color: #a78bfa; }
+
+/* ── Section card ───────────────────────────────────────── */
+.section-card { padding: 18px; margin-bottom: 16px; }
+.section-title {
+  font-size: 13px; font-weight: 700; letter-spacing: 0.5px;
+  color: var(--gold); text-transform: uppercase;
+  margin-bottom: 14px;
+  display: flex; align-items: center; gap: 8px;
+}
+.section-title::after {
+  content: ''; flex: 1; height: 1px;
+  background: linear-gradient(90deg, var(--gold-dark), transparent);
+  opacity: 0.4;
+}
+
+/* ── Chart container ────────────────────────────────────── */
+.chart-wrap {
+  position: relative; height: 180px;
+}
+.chart-wrap-sm { height: 140px; }
+
+/* ── Operaciones list ───────────────────────────────────── */
+.op-card {
+  padding: 14px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.op-card:hover { background: var(--surface2); transform: translateY(-1px); }
+.op-header { display: flex; align-items: center; justify-content: space-between; }
+.op-title { font-size: 15px; font-weight: 700; }
+.op-sub   { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+.op-stats { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.op-stat  {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 12px; color: var(--text-muted);
+  background: var(--surface2);
+  padding: 3px 8px; border-radius: 20px;
+}
+.estado-chip {
+  padding: 3px 10px; border-radius: 20px;
+  font-size: 11px; font-weight: 700;
+}
+.estado-activa   { background: rgba(34,197,94,0.15); color: #4ade80; }
+.estado-cerrada  { background: rgba(100,100,100,0.15); color: #9ca3af; }
+.estado-pendiente{ background: rgba(251,191,36,0.15); color: #fbbf24; }
+
+/* ── Movimientos table ──────────────────────────────────── */
+.mov-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.mov-table th {
+  text-align: left; padding: 8px 10px;
+  color: var(--text-muted); font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border);
+}
+.mov-table td {
+  padding: 10px 10px; border-bottom: 1px solid rgba(255,255,255,0.04);
+  vertical-align: middle;
+}
+.tipo-badge {
+  padding: 2px 8px; border-radius: 4px;
+  font-size: 11px; font-weight: 700;
+}
+.tipo-Directo     { background: rgba(34,197,94,0.15); color: #4ade80; }
+.tipo-Agencia     { background: rgba(99,179,237,0.15); color: #90cdf4; }
+.tipo-Comisionado { background: rgba(167,139,250,0.15); color: #a78bfa; }
+.tipo-PaseIN      { background: rgba(251,191,36,0.15); color: #fbbf24; }
+.tipo-PaseOUT     { background: rgba(251,146,60,0.15); color: #fb923c; }
+.tipo-Aliado      { background: rgba(240,171,252,0.15); color: #f0abfc; }
+
+/* ── Info panel (módulo documentación) ─────────────────── */
+.info-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.75);
+  z-index: 500;
+  display: flex; align-items: flex-end;
+}
+.info-panel {
+  width: 100%; max-height: 85vh;
+  background: linear-gradient(180deg, #1e0a10 0%, #0e0608 100%);
+  border-top: 1px solid var(--border);
+  border-radius: 20px 20px 0 0;
+  padding: 24px 20px;
+  overflow-y: auto;
+}
+.info-handle {
+  width: 40px; height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  margin: 0 auto 20px;
+}
+.info-section { margin-bottom: 24px; }
+.info-section h3 {
+  font-size: 14px; font-weight: 700;
+  color: var(--gold); margin-bottom: 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+.info-section p { font-size: 13px; color: var(--text-muted); line-height: 1.6; margin-bottom: 8px; }
+.info-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 8px; }
+.info-table th {
+  text-align: left; padding: 6px 8px;
+  background: var(--surface2); color: var(--gold);
+  font-size: 11px; font-weight: 700;
+}
+.info-table td {
+  padding: 8px 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  color: var(--text-muted);
+  vertical-align: top;
+}
+.info-table td strong { color: var(--text); }
+.formula-box {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  color: var(--gold-light);
+  margin: 8px 0;
+}
+
+/* ── Hotel room grid ────────────────────────────────────── */
+.room-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+}
+.room-card {
+  padding: 14px 10px;
+  text-align: center; cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+.room-number {
+  font-size: 20px; font-weight: 800; margin-bottom: 4px;
+}
+.room-type  { font-size: 11px; color: var(--text-muted); }
+.room-status {
+  position: absolute; top: 8px; right: 8px;
+  width: 8px; height: 8px; border-radius: 50%;
+}
+.room-libre   { background: #4ade80; box-shadow: 0 0 6px #4ade80; }
+.room-ocupada { background: var(--guinda-light); box-shadow: 0 0 6px var(--guinda-light); }
+.room-limpieza { background: #fbbf24; box-shadow: 0 0 6px #fbbf24; }
+
+/* ── Config / Personal Master ───────────────────────────── */
+.config-section { margin-bottom: 24px; }
+.config-label   { font-size: 12px; color: var(--text-muted); font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 8px; }
+.config-input   {
+  width: 100%; padding: 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  color: var(--text);
+  transition: border-color 0.2s;
+}
+.config-input:focus { border-color: var(--gold); }
+.config-input::placeholder { color: var(--text-muted); }
+
+.pm-card {
+  display: flex; align-items: center;
+  padding: 12px 14px; margin-bottom: 8px;
+  gap: 12px; cursor: pointer;
+  transition: all 0.2s;
+}
+.pm-card:hover { background: var(--surface2); }
+.pm-avatar {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--guinda-light), var(--guinda-dark));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 700; color: var(--gold-pale);
+  flex-shrink: 0;
+}
+.pm-info { flex: 1; }
+.pm-name { font-size: 14px; font-weight: 600; }
+.pm-rol  { font-size: 12px; color: var(--text-muted); }
+.pm-actions { display: flex; gap: 6px; }
+.btn-icon {
+  width: 32px; height: 32px;
+  border-radius: var(--radius-sm);
+  background: var(--surface2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; transition: all 0.2s;
+}
+.btn-icon:hover { background: var(--surface); color: var(--gold); }
+
+/* ── FAB de información ─────────────────────────────────── */
+.fab-info {
+  position: fixed; bottom: calc(var(--nav-h) + 16px); right: 16px;
+  width: 44px; height: 44px;
+  background: linear-gradient(135deg, var(--guinda-light), var(--guinda-dark));
+  border: 1px solid rgba(201,168,76,0.4);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; font-weight: 700;
+  color: var(--gold-pale);
+  box-shadow: 0 4px 20px rgba(123,32,48,0.5);
+  z-index: 100;
+  transition: all 0.2s;
+}
+.fab-info:hover { transform: scale(1.08); box-shadow: 0 6px 28px rgba(123,32,48,0.7); }
+
+/* Landscape FAB adjustment */
+@media (orientation: landscape) and (min-width: 640px) {
+  .fab-info { bottom: 16px; }
+}
+
+/* ── Modal base ─────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.75);
+  z-index: 800;
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.modal-box {
+  width: 100%; max-width: 440px; max-height: 85vh;
+  overflow-y: auto;
+  padding: 24px;
+}
+.modal-title { font-size: 18px; font-weight: 700; margin-bottom: 20px; }
+.modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+.btn-primary {
+  flex: 1; padding: 13px;
+  background: linear-gradient(135deg, var(--guinda-light), var(--guinda-dark));
+  border: 1px solid rgba(201,168,76,0.3);
+  border-radius: var(--radius-sm);
+  font-size: 14px; font-weight: 700;
+  color: var(--gold-pale);
+  transition: all 0.2s;
+}
+.btn-primary:hover { opacity: 0.9; }
+.btn-secondary {
+  flex: 1; padding: 13px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 14px; font-weight: 600;
+  color: var(--text-muted);
+  transition: all 0.2s;
+}
+.btn-secondary:hover { background: var(--surface2); color: var(--text); }
+
+/* ── Select ─────────────────────────────────────────────── */
+select.config-input {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23C9A84C' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+  cursor: pointer;
+}
+select.config-input option { background: #1e0a10; color: var(--text); }
+
+/* ── Spinner ────────────────────────────────────────────── */
+.spin {
+  width: 24px; height: 24px;
+  border: 2px solid var(--border);
+  border-top-color: var(--gold);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Separator ──────────────────────────────────────────── */
+.sep { height: 1px; background: var(--border); margin: 16px 0; opacity: 0.5; }
+
+/* ── Empty state ────────────────────────────────────────── */
+.empty-state {
+  text-align: center; padding: 40px 20px;
+  color: var(--text-muted); font-size: 14px;
+}
+.empty-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.5; }
+
+/* ── Toast ──────────────────────────────────────────────── */
+.toast {
+  position: fixed; bottom: calc(var(--nav-h) + 12px); left: 50%;
+  transform: translateX(-50%);
+  background: rgba(30,10,16,0.95);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 10px 20px;
+  font-size: 13px; font-weight: 600;
+  z-index: 9999;
+  white-space: nowrap;
+  animation: toast-in 0.25s ease;
+}
+@keyframes toast-in { from { opacity: 0; transform: translateX(-50%) translateY(10px); } }
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- Background orbs -->
+  <div class="bg-orb orb1"></div>
+  <div class="bg-orb orb2"></div>
+  <div class="bg-orb orb3"></div>
+
+  <div v-cloak>
+
+    <!-- ═══ LOGIN SCREEN ═══════════════════════════════════ -->
+    <div v-if="!session" class="login-screen">
+      <div class="login-card glass-strong">
+        <div class="login-logo">
+          <div class="brand-ps shimmer">PS</div>
+          <div class="brand-sub">Panel de Control MOS</div>
+          <div class="gold-bar"></div>
+        </div>
+
+        <!-- Step 1: seleccionar personal -->
+        <div v-if="loginStep === 'select'">
+          <div style="font-size:13px;color:var(--text-muted);margin-bottom:14px;text-align:center;">
+            Selecciona tu perfil
+          </div>
+          <div v-if="loadingPersonal" style="display:flex;justify-content:center;padding:30px 0;">
+            <div class="spin"></div>
+          </div>
+          <div v-else-if="personalList.length === 0" class="empty-state">
+            <div class="empty-icon">👤</div>
+            <p>Sin usuarios configurados</p>
+            <button class="btn-ingresar" style="margin-top:12px;" @click="loginStep='setup'">
+              Configurar primero
+            </button>
+          </div>
+          <div v-else class="staff-grid">
+            <button
+              v-for="p in personalList" :key="p.id"
+              class="staff-btn"
+              :class="{ selected: loginSelected?.id === p.id }"
+              @click="loginSelected = p"
+            >
+              <div class="staff-avatar">{{ iniciales(p.nombre) }}</div>
+              <div class="staff-name">{{ p.nombre }}</div>
+              <div class="staff-rol">{{ p.rol }}</div>
+            </button>
+          </div>
+          <button
+            v-if="loginSelected"
+            class="btn-ingresar"
+            @click="loginStep = 'pin'"
+          >
+            Continuar →
+          </button>
+        </div>
+
+        <!-- Step 2: PIN -->
+        <div v-else-if="loginStep === 'pin'">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
+            <button @click="loginStep='select';loginPin='';" style="color:var(--text-muted);font-size:18px;">←</button>
+            <div>
+              <div style="font-size:15px;font-weight:700;">{{ loginSelected.nombre }}</div>
+              <div style="font-size:12px;color:var(--text-muted);">{{ loginSelected.rol }}</div>
+            </div>
+          </div>
+          <div style="text-align:center;font-size:13px;color:var(--text-muted);margin-bottom:10px;">
+            Ingresa tu PIN
+          </div>
+          <div class="pin-display">
+            <div v-for="i in 4" :key="i" class="pin-dot" :class="{ filled: loginPin.length >= i }"></div>
+          </div>
+          <div class="pin-pad">
+            <button v-for="n in [1,2,3,4,5,6,7,8,9]" :key="n" class="pin-key" @click="pinPress(String(n))">{{ n }}</button>
+            <button class="pin-key" @click="pinPress('clear')" style="color:var(--text-muted);font-size:13px;">CLR</button>
+            <button class="pin-key" @click="pinPress('0')">0</button>
+            <button class="pin-key del" @click="pinPress('del')">⌫</button>
+          </div>
+          <div v-if="loginError" class="login-error">{{ loginError }}</div>
+          <button
+            class="btn-ingresar"
+            :disabled="loginPin.length !== 4 || loginLoading"
+            @click="verificarPin"
+          >
+            <span v-if="loginLoading">Verificando...</span>
+            <span v-else>INGRESAR</span>
+          </button>
+        </div>
+
+        <!-- Setup inicial (cuando no hay personal) -->
+        <div v-else-if="loginStep === 'setup'">
+          <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">
+            Configura la URL del servidor primero
+          </div>
+          <div class="config-label">URL del servidor GAS</div>
+          <input v-model="setupApiUrl" class="config-input" placeholder="https://script.google.com/macros/s/...">
+          <button class="btn-ingresar" style="margin-top:14px;" @click="guardarSetupUrl">Guardar y continuar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ MAIN APP ════════════════════════════════════════ -->
+    <template v-else>
+
+      <!-- Portrait layout -->
+      <div class="layout-portrait main-portrait">
+        <div class="content-area">
+          <component :is="currentView" :data="moduleData" :loading="moduleLoading" @action="handleAction" />
+        </div>
+        <nav class="bottom-nav">
+          <button v-for="m in navModules" :key="m.id" class="nav-item" :class="{ active: currentModule===m.id }" @click="goModule(m.id)">
+            <span class="nav-icon">{{ m.icon }}</span>
+            <span class="nav-label">{{ m.label }}</span>
+            <div v-if="currentModule===m.id" class="nav-active-dot"></div>
+          </button>
+        </nav>
+      </div>
+
+      <!-- Landscape layout -->
+      <div class="layout-landscape main-landscape">
+        <nav class="sidebar">
+          <div class="sidebar-logo">
+            <div class="ps-mark shimmer">PS</div>
+            <div class="ps-sub">Panel MOS</div>
+          </div>
+          <div class="sidebar-nav">
+            <button v-for="m in navModules" :key="m.id" class="sidebar-item" :class="{ active: currentModule===m.id }" @click="goModule(m.id)">
+              <span class="s-icon">{{ m.icon }}</span>
+              <span>{{ m.label }}</span>
+            </button>
+          </div>
+          <div class="sidebar-footer">
+            <div class="user-chip" @click="goModule('config')">
+              <div class="user-chip-avatar">{{ iniciales(session.nombre) }}</div>
+              <div class="user-chip-info">
+                <div class="user-chip-name">{{ session.nombre }}</div>
+                <div class="user-chip-rol">{{ session.rol }}</div>
+              </div>
+              <span style="color:var(--text-muted);font-size:14px;">⚙</span>
+            </div>
+          </div>
+        </nav>
+        <div class="landscape-content">
+          <component :is="currentView" :data="moduleData" :loading="moduleLoading" @action="handleAction" />
+        </div>
+      </div>
+
+      <!-- FAB info (solo en Lanchas) -->
+      <button v-if="currentModule==='lanchas'" class="fab-info" @click="showInfoPanel=true">?</button>
+
+      <!-- Info panel overlay -->
+      <transition name="slide-up">
+        <div v-if="showInfoPanel" class="info-overlay" @click.self="showInfoPanel=false">
+          <div class="info-panel">
+            <div class="info-handle"></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+              <div style="font-size:18px;font-weight:800;" class="shimmer">Guía de Lanchas</div>
+              <button @click="showInfoPanel=false" style="font-size:20px;color:var(--text-muted);">✕</button>
+            </div>
+
+            <div class="info-section">
+              <h3>⛵ ¿Qué es un Movimiento?</h3>
+              <p>Un movimiento es una fila de PAX asociada a una operación (salida). Registra cuántos pasajeros viajan, bajo qué tipo de acuerdo comercial, y cuánto se cobra.</p>
+            </div>
+
+            <div class="info-section">
+              <h3>📋 Tipos de Movimiento</h3>
+              <table class="info-table">
+                <tr><th>Tipo</th><th>Descripción</th><th>Efecto en caja</th></tr>
+                <tr>
+                  <td><span class="tipo-badge tipo-Directo">Directo</span></td>
+                  <td><strong>Cliente directo.</strong> Paga al operador en efectivo o transferencia.</td>
+                  <td>100% ingreso empresa</td>
+                </tr>
+                <tr>
+                  <td><span class="tipo-badge tipo-Agencia">Agencia</span></td>
+                  <td><strong>Agencia de viajes</strong> trae clientes. El operador cobra y registra.</td>
+                  <td>100% ingreso empresa</td>
+                </tr>
+                <tr>
+                  <td><span class="tipo-badge tipo-Comisionado">Comisionado</span></td>
+                  <td><strong>Comisionado</strong> trae clientes. Operador cobra el precio lleno. Debe el exceso al comisionado.</td>
+                  <td>Solo margen empresa</td>
+                </tr>
+                <tr>
+                  <td><span class="tipo-badge tipo-PaseIN">PaseIN</span></td>
+                  <td><strong>Recibe PAX de aliado.</strong> El operador maneja esos PAX y los debe de vuelta (en PAX o en plata).</td>
+                  <td>Deuda hacia aliado</td>
+                </tr>
+                <tr>
+                  <td><span class="tipo-badge tipo-PaseOUT">PaseOUT</span></td>
+                  <td><strong>Envía PAX a aliado.</strong> El aliado maneja esos PAX y te debe (PAX o plata). "Comprar" cierra esta deuda.</td>
+                  <td>Cobro pendiente de aliado</td>
+                </tr>
+                <tr>
+                  <td><span class="tipo-badge tipo-Aliado">Aliado</span></td>
+                  <td><strong>Aliado cobra por ti.</strong> El aliado recauda y luego te transfiere tu parte.</td>
+                  <td>Cobro pendiente de aliado</td>
+                </tr>
+              </table>
+            </div>
+
+            <div class="info-section">
+              <h3>💰 Fórmula Comisionado</h3>
+              <p>En el movimiento se registra <strong>precio_unitario_aplicado</strong> = lo que se cobra al cliente final. En la tabla Contactos existe <strong>precio_pax_defecto</strong> = la porción que queda en la empresa.</p>
+              <div class="formula-box">
+Margen empresa   = precio_pax_defecto  × cant_pax
+Deuda comisionado = (precio_aplicado − precio_pax_defecto) × cant_pax
+              </div>
+              <p>Ejemplo: cobras S/50 al cliente, precio defecto es S/35 → empresa retiene S/35/pax, debes S/15/pax al comisionado.</p>
+            </div>
+
+            <div class="info-section">
+              <h3>🔄 Operación "Comprar"</h3>
+              <p>Un PaseOUT registra PAX que enviaste a un aliado. La operación <strong>Comprar</strong> convierte esa deuda de PAX en un pago en efectivo, liquidando el pendiente.</p>
+            </div>
+
+            <div class="info-section">
+              <h3>📊 KPIs del Dashboard</h3>
+              <table class="info-table">
+                <tr><th>KPI</th><th>¿Qué mide?</th></tr>
+                <tr><td><strong>Ingresos operador</strong></td><td>Lo que queda en la empresa después de descontar deudas a comisionados.</td></tr>
+                <tr><td><strong>Deuda comisionados</strong></td><td>Suma de (precio_aplicado − precio_defecto) × pax de todos los movimientos Comisionado activos.</td></tr>
+                <tr><td><strong>Pendiente aliados</strong></td><td>PaseOUT + Aliado sin liquidar (monto total − monto ya comprado).</td></tr>
+                <tr><td><strong>Caja efectivo</strong></td><td>Suma de ingresos de Caja_Operador clasificados como efectivo en el día.</td></tr>
+              </table>
+            </div>
+
+            <div class="info-section">
+              <h3>🏨 Hotel KPIs</h3>
+              <p>Alojamiento no lleva IGV. Consumos (restaurante/bar) llevan IGV 18%. El panel muestra ambos separados y el total combinado.</p>
+            </div>
+          </div>
+        </div>
+      </transition>
+
+      <!-- Modal de Personal Master -->
+      <div v-if="pmModal.show" class="modal-overlay" @click.self="pmModal.show=false">
+        <div class="modal-box glass-strong">
+          <div class="modal-title">{{ pmModal.editId ? 'Editar' : 'Nuevo' }} Usuario</div>
+          <div class="config-section">
+            <div class="config-label">Nombre</div>
+            <input v-model="pmModal.nombre" class="config-input" placeholder="Nombre completo">
+          </div>
+          <div class="config-section">
+            <div class="config-label">Rol</div>
+            <select v-model="pmModal.rol" class="config-input">
+              <option value="Administrador">Administrador</option>
+              <option value="Supervisor">Supervisor</option>
+              <option value="Operador">Operador</option>
+            </select>
+          </div>
+          <div class="config-section">
+            <div class="config-label">PIN (4 dígitos){{ pmModal.editId ? ' — dejar vacío para no cambiar' : '' }}</div>
+            <input v-model="pmModal.pin" class="config-input" type="password" maxlength="4" placeholder="····">
+          </div>
+          <div class="modal-actions">
+            <button class="btn-secondary" @click="pmModal.show=false">Cancelar</button>
+            <button class="btn-primary" @click="guardarPersonal">Guardar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Toast -->
+      <transition name="fade">
+        <div v-if="toast.show" class="toast">{{ toast.msg }}</div>
+      </transition>
+
+    </template>
+  </div>
+</div>
+
+<script>
+const { createApp, ref, computed, onMounted, watch, nextTick } = Vue;
+
+// ── API URL ──────────────────────────────────────────────────
+const API_URL_KEY = 'ps_api_url';
+let API_URL = localStorage.getItem(API_URL_KEY) || 'ENLACE_DE_TU_SCRIPT_GAS_AQUI';
+
+// ── Helper API ───────────────────────────────────────────────
+async function apiGet(accion, params = {}) {
+  const url = new URL(API_URL);
+  url.searchParams.set('accion', accion);
+  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+  const r = await fetch(url.toString());
+  return r.json();
+}
+async function apiPost(body) {
+  const r = await fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  return r.json();
+}
+
+// ── Module views ─────────────────────────────────────────────
+const ViewDashboard = {
+  name: 'ViewDashboard',
+  props: ['data', 'loading'],
+  emits: ['action'],
+  setup(props) {
+    const chartBar = ref(null);
+    const chartDonut = ref(null);
+    let barInst = null, donutInst = null;
+
+    function buildCharts() {
+      if (!props.data?.historico) return;
+      const hist = props.data.historico;
+      const labels = hist.map(h => h.fecha.slice(5));
+
+      if (chartBar.value) {
+        if (barInst) barInst.destroy();
+        barInst = new Chart(chartBar.value, {
+          type: 'bar',
+          data: {
+            labels,
+            datasets: [
+              { label: 'Lanchas', data: hist.map(h => h.ingresos_lanchas), backgroundColor: 'rgba(123,32,48,0.7)', borderRadius: 4 },
+              { label: 'Hotel',   data: hist.map(h => h.ingresos_hotel),   backgroundColor: 'rgba(201,168,76,0.5)', borderRadius: 4 }
+            ]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { labels: { color: '#f0e6d3', font: { size: 11 } } } },
+            scales: {
+              x: { ticks: { color: '#8a7060', font: { size: 10 } }, grid: { display: false } },
+              y: { ticks: { color: '#8a7060', font: { size: 10 }, callback: v => 'S/'+v }, grid: { color: 'rgba(255,255,255,0.04)' } }
+            }
+          }
+        });
+      }
+
+      if (chartDonut.value && props.data.hoy?.lanchas?.por_tipo) {
+        const pt = props.data.hoy.lanchas.por_tipo;
+        const keys = Object.keys(pt).filter(k => pt[k] > 0);
+        const COLORS = { Directo: '#4ade80', Agencia: '#90cdf4', Comisionado: '#a78bfa', PaseIN: '#fbbf24', PaseOUT: '#fb923c', Aliado: '#f0abfc' };
+        if (donutInst) donutInst.destroy();
+        donutInst = new Chart(chartDonut.value, {
+          type: 'doughnut',
+          data: {
+            labels: keys,
+            datasets: [{ data: keys.map(k => pt[k]), backgroundColor: keys.map(k => COLORS[k] || '#888'), borderWidth: 0 }]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            cutout: '65%',
+            plugins: { legend: { labels: { color: '#f0e6d3', font: { size: 11 }, boxWidth: 12 } } }
+          }
+        });
+      }
+    }
+
+    watch(() => props.data, () => nextTick(buildCharts), { deep: true });
+
+    return { chartBar, chartDonut };
+  },
+  template: `
+    <div>
+      <div class="module-header">
+        <div>
+          <div class="module-title shimmer">Dashboard</div>
+          <div class="module-date">{{ data?.hoy?.fecha || '—' }}</div>
+        </div>
+        <button @click="$emit('action',{type:'refresh'})" style="color:var(--text-muted);font-size:20px;" :style="loading?'animation:spin 1s linear infinite':''">↻</button>
+      </div>
+
+      <div v-if="loading" style="display:flex;justify-content:center;padding:60px 0;"><div class="spin"></div></div>
+
+      <template v-else-if="data?.hoy">
+        <!-- Resumen total -->
+        <div class="kpi-grid" style="margin-bottom:16px;">
+          <div class="kpi-card glass">
+            <div class="kpi-label">Ingresos Totales</div>
+            <div class="kpi-value big shimmer">S/ {{ fmt(data.hoy.total_ingresos) }}</div>
+            <div class="kpi-sub">Lanchas + Hotel</div>
+          </div>
+          <div class="kpi-card glass">
+            <div class="kpi-label">Deudas Pendientes</div>
+            <div class="kpi-value" style="color:#f87171;">S/ {{ fmt(data.hoy.total_deudas) }}</div>
+            <div class="kpi-sub">Comisionados + Aliados</div>
+          </div>
+        </div>
+
+        <!-- Lanchas KPIs -->
+        <div class="section-card glass">
+          <div class="section-title">⛵ Lanchas</div>
+          <div class="kpi-grid kpi-grid-3">
+            <div class="kpi-card" style="padding:12px;">
+              <div class="kpi-label">PAX Total</div>
+              <div class="kpi-value" style="font-size:22px;">{{ data.hoy.lanchas.pax_total }}</div>
+              <div class="kpi-sub">{{ data.hoy.lanchas.operaciones_hoy }} operaciones</div>
+            </div>
+            <div class="kpi-card" style="padding:12px;">
+              <div class="kpi-label">Ingreso Op.</div>
+              <div class="kpi-value" style="font-size:22px;color:var(--gold);">S/ {{ fmt(data.hoy.lanchas.ingresos_operador) }}</div>
+            </div>
+            <div class="kpi-card" style="padding:12px;">
+              <div class="kpi-label">Debe Comis.</div>
+              <div class="kpi-value" style="font-size:22px;color:#f87171;">S/ {{ fmt(data.hoy.lanchas.deuda_comisionados) }}</div>
+            </div>
+          </div>
+          <div class="kpi-grid" style="margin-top:10px;margin-bottom:0;">
+            <div class="kpi-card" style="padding:12px;">
+              <div class="kpi-label">Efectivo caja</div>
+              <div class="kpi-value" style="font-size:18px;">S/ {{ fmt(data.hoy.lanchas.caja_efectivo) }}</div>
+            </div>
+            <div class="kpi-card" style="padding:12px;">
+              <div class="kpi-label">Pendiente Aliados</div>
+              <div class="kpi-value" style="font-size:18px;color:#fbbf24;">S/ {{ fmt(data.hoy.lanchas.pendiente_aliados) }}</div>
+            </div>
+          </div>
+          <!-- Donut PAX por tipo -->
+          <div v-if="data.hoy.lanchas.pax_total > 0" style="margin-top:16px;">
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">PAX por tipo de movimiento</div>
+            <div class="chart-wrap-sm"><canvas ref="chartDonut"></canvas></div>
+          </div>
+        </div>
+
+        <!-- Hotel KPIs -->
+        <div class="section-card glass">
+          <div class="section-title">🏨 Hotel</div>
+          <div class="kpi-grid kpi-grid-3">
+            <div class="kpi-card" style="padding:12px;">
+              <div class="kpi-label">Ocupación</div>
+              <div class="kpi-value" style="font-size:22px;color:var(--gold);">{{ data.hoy.hotel.ocupacion_pct }}%</div>
+              <div class="kpi-sub">{{ data.hoy.hotel.habitaciones_ocupadas }}/{{ data.hoy.hotel.total_habitaciones }} hab.</div>
+            </div>
+            <div class="kpi-card" style="padding:12px;">
+              <div class="kpi-label">Alojamiento</div>
+              <div class="kpi-value" style="font-size:22px;">S/ {{ fmt(data.hoy.hotel.ingresos_alojamiento) }}</div>
+            </div>
+            <div class="kpi-card" style="padding:12px;">
+              <div class="kpi-label">Consumos</div>
+              <div class="kpi-value" style="font-size:22px;">S/ {{ fmt(data.hoy.hotel.ingresos_consumos) }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Histórico 7 días -->
+        <div v-if="data.historico?.length" class="section-card glass" style="margin-bottom:24px;">
+          <div class="section-title">📈 Últimos 7 días</div>
+          <div class="chart-wrap"><canvas ref="chartBar"></canvas></div>
+        </div>
+      </template>
+
+      <div v-else class="empty-state">
+        <div class="empty-icon">📊</div>
+        <p>Sin datos. Verifica la conexión al servidor.</p>
+      </div>
+    </div>
+  `,
+  methods: {
+    fmt(v) { return (parseFloat(v) || 0).toLocaleString('es-PE', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
+  }
+};
+
+const ViewLanchas = {
+  name: 'ViewLanchas',
+  props: ['data', 'loading'],
+  emits: ['action'],
+  setup() {
+    const selectedOp = ref(null);
+    return { selectedOp };
+  },
+  template: `
+    <div>
+      <div class="module-header">
+        <div>
+          <div class="module-title">⛵ Lanchas</div>
+          <div class="module-date">Operaciones del día</div>
+        </div>
+        <button @click="$emit('action',{type:'refresh_lanchas'})" style="color:var(--text-muted);font-size:20px;">↻</button>
+      </div>
+
+      <div v-if="loading" style="display:flex;justify-content:center;padding:60px 0;"><div class="spin"></div></div>
+
+      <template v-else>
+        <!-- Sin operacion seleccionada: lista -->
+        <div v-if="!selectedOp">
+          <div v-if="!data?.operaciones?.length" class="empty-state">
+            <div class="empty-icon">⛵</div>
+            <p>No hay operaciones hoy</p>
+          </div>
+          <div v-for="op in (data?.operaciones || [])" :key="op.id" class="op-card glass" @click="selectedOp=op">
+            <div class="op-header">
+              <div>
+                <div class="op-title">{{ op.destino || op.id_bote }}</div>
+                <div class="op-sub">🕐 {{ op.hora_salida }} · Bote: {{ op.id_bote }}</div>
+              </div>
+              <span class="estado-chip" :class="estadoClass(op.estado)">{{ op.estado }}</span>
+            </div>
+            <div class="op-stats">
+              <span class="op-stat">👨‍✈️ {{ op.id_capitan }}</span>
+              <span class="op-stat">🗺 {{ op.id_guia || '—' }}</span>
+              <span class="op-stat">🆔 {{ op.id.slice(-6) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Detalle de operación -->
+        <div v-else>
+          <button @click="selectedOp=null;$emit('action',{type:'refresh_lanchas'})" style="color:var(--text-muted);font-size:14px;margin-bottom:16px;display:flex;align-items:center;gap:6px;">
+            ← Volver
+          </button>
+          <div class="op-card glass" style="cursor:default;margin-bottom:16px;">
+            <div class="op-header">
+              <div>
+                <div class="op-title">{{ selectedOp.destino || selectedOp.id_bote }}</div>
+                <div class="op-sub">{{ selectedOp.fecha }} · {{ selectedOp.hora_salida }}</div>
+              </div>
+              <span class="estado-chip" :class="estadoClass(selectedOp.estado)">{{ selectedOp.estado }}</span>
+            </div>
+          </div>
+
+          <!-- Movimientos -->
+          <div class="section-card glass">
+            <div class="section-title">Movimientos</div>
+            <div v-if="!data?.movimientos?.length" class="empty-state" style="padding:20px 0;">
+              <p>Sin movimientos</p>
+            </div>
+            <div v-else style="overflow-x:auto;">
+              <table class="mov-table">
+                <thead>
+                  <tr>
+                    <th>Tipo</th>
+                    <th>Contacto</th>
+                    <th>PAX</th>
+                    <th>Precio</th>
+                    <th>Monto</th>
+                    <th>Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="m in data.movimientos" :key="m.id_mov">
+                    <td><span class="tipo-badge" :class="'tipo-'+m.tipo">{{ m.tipo }}</span></td>
+                    <td>{{ m.nombre_contacto }}</td>
+                    <td style="text-align:center;font-weight:700;">{{ m.cant_pax }}</td>
+                    <td>S/ {{ m.precio_aplicado }}</td>
+                    <td style="font-weight:700;">S/ {{ m.monto_total }}</td>
+                    <td><span class="estado-chip" :class="estadoMovClass(m.estado)" style="font-size:10px;padding:2px 7px;">{{ m.estado }}</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </template>
+    </div>
+  `,
+  methods: {
+    estadoClass(e) {
+      if (!e) return '';
+      const s = String(e).toLowerCase();
+      if (s.includes('activ') || s.includes('abierta')) return 'estado-activa';
+      if (s.includes('cerr')) return 'estado-cerrada';
+      return 'estado-pendiente';
+    },
+    estadoMovClass(e) {
+      if (!e) return '';
+      const s = String(e).toLowerCase();
+      if (s === 'embarcado') return 'badge badge-green';
+      if (s === 'pasado') return 'badge badge-blue';
+      if (s === 'cancelado') return 'badge badge-red';
+      return 'badge badge-gold';
+    }
+  }
+};
+
+const ViewHotel = {
+  name: 'ViewHotel',
+  props: ['data', 'loading'],
+  emits: ['action'],
+  template: `
+    <div>
+      <div class="module-header">
+        <div>
+          <div class="module-title">🏨 Hotel</div>
+          <div class="module-date">Estado actual</div>
+        </div>
+        <button @click="$emit('action',{type:'refresh_hotel'})" style="color:var(--text-muted);font-size:20px;">↻</button>
+      </div>
+
+      <div v-if="loading" style="display:flex;justify-content:center;padding:60px 0;"><div class="spin"></div></div>
+
+      <template v-else>
+        <!-- Ocupación rápida -->
+        <div class="kpi-grid" style="margin-bottom:16px;">
+          <div class="kpi-card glass">
+            <div class="kpi-label">Ocupación</div>
+            <div class="kpi-value shimmer">{{ ocupacionPct }}%</div>
+            <div class="kpi-sub">{{ ocupadas }}/{{ total }} habitaciones</div>
+          </div>
+          <div class="kpi-card glass">
+            <div class="kpi-label">Ingresos hoy</div>
+            <div class="kpi-value" style="color:var(--gold);">S/ {{ fmt(data?.dashboard?.hotel?.ingresos_total || 0) }}</div>
+            <div class="kpi-sub">Aloj. + Consumos</div>
+          </div>
+        </div>
+
+        <!-- Mapa de habitaciones -->
+        <div class="section-card glass">
+          <div class="section-title">Habitaciones</div>
+          <div class="room-grid" v-if="data?.habitaciones?.length">
+            <div v-for="h in data.habitaciones" :key="h.id" class="room-card glass">
+              <div class="room-status" :class="roomStatusClass(h.estado)"></div>
+              <div class="room-number">{{ h.numero }}</div>
+              <div class="room-type">{{ h.tipo }}</div>
+              <div style="font-size:11px;margin-top:4px;" :style="roomColor(h.estado)">{{ h.estado }}</div>
+            </div>
+          </div>
+          <div v-else class="empty-state" style="padding:20px 0;"><p>Sin habitaciones registradas</p></div>
+        </div>
+
+        <!-- Reservas del día -->
+        <div class="section-card glass" style="margin-bottom:24px;">
+          <div class="section-title">Reservas de hoy</div>
+          <div v-if="!data?.reservas?.length" class="empty-state" style="padding:20px 0;"><p>Sin reservas hoy</p></div>
+          <div v-for="r in (data?.reservas || [])" :key="r.id" class="pm-card" style="cursor:default;">
+            <div class="pm-avatar" style="font-size:13px;">{{ r.habitacion }}</div>
+            <div class="pm-info">
+              <div class="pm-name">{{ r.huesped }}</div>
+              <div class="pm-rol">{{ r.noches }} noche(s) · S/ {{ r.total }}</div>
+            </div>
+            <span class="estado-chip" :class="reservaClass(r.estado)" style="font-size:10px;">{{ r.estado }}</span>
+          </div>
+        </div>
+      </template>
+    </div>
+  `,
+  computed: {
+    total()     { return (this.data?.habitaciones || []).length; },
+    ocupadas()  { return (this.data?.habitaciones || []).filter(h => String(h.estado).toLowerCase().includes('ocup')).length; },
+    ocupacionPct() { return this.total > 0 ? Math.round(this.ocupadas / this.total * 100) : 0; }
+  },
+  methods: {
+    fmt(v) { return (parseFloat(v)||0).toLocaleString('es-PE',{minimumFractionDigits:0,maximumFractionDigits:0}); },
+    roomStatusClass(e) {
+      const s = String(e).toLowerCase();
+      if (s.includes('ocup')) return 'room-ocupada';
+      if (s.includes('limp')) return 'room-limpieza';
+      return 'room-libre';
+    },
+    roomColor(e) {
+      const s = String(e).toLowerCase();
+      if (s.includes('ocup')) return 'color:var(--guinda-light)';
+      if (s.includes('limp')) return 'color:#fbbf24';
+      return 'color:#4ade80';
+    },
+    reservaClass(e) {
+      const s = String(e).toLowerCase();
+      if (s.includes('activ') || s.includes('check')) return 'estado-activa';
+      if (s.includes('cancel')) return 'badge badge-red';
+      return 'estado-pendiente';
+    }
+  }
+};
+
+const ViewFinanzas = {
+  name: 'ViewFinanzas',
+  props: ['data', 'loading'],
+  emits: ['action'],
+  template: `
+    <div>
+      <div class="module-header">
+        <div>
+          <div class="module-title">💰 Finanzas</div>
+          <div class="module-date">Resumen consolidado</div>
+        </div>
+        <button @click="$emit('action',{type:'refresh'})" style="color:var(--text-muted);font-size:20px;">↻</button>
+      </div>
+
+      <div v-if="loading" style="display:flex;justify-content:center;padding:60px 0;"><div class="spin"></div></div>
+
+      <template v-else-if="data?.hoy">
+        <!-- Ingresos hoy -->
+        <div class="section-card glass">
+          <div class="section-title">Ingresos de hoy</div>
+          <div class="kpi-grid">
+            <div class="kpi-card" style="padding:12px;">
+              <div class="kpi-label">Lanchas</div>
+              <div class="kpi-value" style="font-size:20px;color:var(--gold);">S/ {{ fmt(data.hoy.lanchas.ingresos_operador) }}</div>
+              <div class="kpi-sub">Directo + Agencia + Margen comis.</div>
+            </div>
+            <div class="kpi-card" style="padding:12px;">
+              <div class="kpi-label">Hotel</div>
+              <div class="kpi-value" style="font-size:20px;color:var(--gold);">S/ {{ fmt(data.hoy.hotel.ingresos_total) }}</div>
+              <div class="kpi-sub">Alojamiento + Consumos</div>
+            </div>
+          </div>
+          <div class="sep"></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;">
+            <span style="font-size:14px;font-weight:700;">Total empresa hoy</span>
+            <span style="font-size:22px;font-weight:800;" class="shimmer">S/ {{ fmt(data.hoy.total_ingresos) }}</span>
+          </div>
+        </div>
+
+        <!-- Deudas y pendientes -->
+        <div class="section-card glass">
+          <div class="section-title">Deudas y pendientes</div>
+          <div class="kpi-grid">
+            <div class="kpi-card" style="padding:12px;">
+              <div class="kpi-label">Debes a Comisionados</div>
+              <div class="kpi-value" style="font-size:20px;color:#f87171;">S/ {{ fmt(data.hoy.lanchas.deuda_comisionados) }}</div>
+            </div>
+            <div class="kpi-card" style="padding:12px;">
+              <div class="kpi-label">Te deben Aliados</div>
+              <div class="kpi-value" style="font-size:20px;color:#fbbf24;">S/ {{ fmt(data.hoy.lanchas.pendiente_aliados) }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Caja operadores -->
+        <div class="section-card glass" style="margin-bottom:24px;">
+          <div class="section-title">Caja operadores</div>
+          <div class="kpi-grid">
+            <div class="kpi-card" style="padding:12px;">
+              <div class="kpi-label">Efectivo</div>
+              <div class="kpi-value" style="font-size:20px;">S/ {{ fmt(data.hoy.lanchas.caja_efectivo) }}</div>
+            </div>
+            <div class="kpi-card" style="padding:12px;">
+              <div class="kpi-label">Transferencias</div>
+              <div class="kpi-value" style="font-size:20px;">S/ {{ fmt(data.hoy.lanchas.caja_transferencia) }}</div>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <div v-else class="empty-state"><div class="empty-icon">💰</div><p>Sin datos</p></div>
+    </div>
+  `,
+  methods: {
+    fmt(v) { return (parseFloat(v)||0).toLocaleString('es-PE',{minimumFractionDigits:0,maximumFractionDigits:0}); }
+  }
+};
+
+const ViewConfig = {
+  name: 'ViewConfig',
+  props: ['data', 'loading'],
+  emits: ['action'],
+  template: `
+    <div>
+      <div class="module-header">
+        <div class="module-title">⚙ Configuración</div>
+      </div>
+
+      <!-- Conexión -->
+      <div class="section-card glass">
+        <div class="section-title">Servidor</div>
+        <div class="config-section">
+          <div class="config-label">URL del GAS (Web App)</div>
+          <input v-model="apiUrl" class="config-input" placeholder="https://script.google.com/macros/s/...">
+        </div>
+        <button class="btn-primary" style="width:100%;padding:12px;" @click="$emit('action',{type:'save_api_url',url:apiUrl})">
+          Guardar URL
+        </button>
+      </div>
+
+      <!-- Personal Master -->
+      <div class="section-card glass" style="margin-bottom:24px;">
+        <div class="section-title" style="justify-content:space-between;">
+          <span>Personal Master</span>
+          <button class="btn-icon" @click="$emit('action',{type:'pm_nuevo'})" style="width:auto;padding:4px 12px;font-size:12px;font-weight:700;color:var(--gold);">+ Nuevo</button>
+        </div>
+        <div v-if="!data?.personal?.length" class="empty-state" style="padding:20px 0;">
+          <p>Sin usuarios configurados</p>
+        </div>
+        <div v-for="p in (data?.personal || [])" :key="p.id" class="pm-card glass" style="margin-bottom:8px;">
+          <div class="pm-avatar">{{ iniciales(p.nombre) }}</div>
+          <div class="pm-info">
+            <div class="pm-name">{{ p.nombre }}</div>
+            <div class="pm-rol">{{ p.rol }}</div>
+          </div>
+          <div class="pm-actions">
+            <button class="btn-icon" @click="$emit('action',{type:'pm_editar',personal:p})">✏️</button>
+            <button class="btn-icon" @click="$emit('action',{type:'pm_eliminar',id:p.id})">🗑</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cerrar sesión -->
+      <div style="padding:0 0 32px;">
+        <button class="btn-secondary" style="width:100%;padding:14px;" @click="$emit('action',{type:'logout'})">
+          Cerrar sesión
+        </button>
+      </div>
+    </div>
+  `,
+  data() {
+    return { apiUrl: localStorage.getItem('ps_api_url') || '' };
+  },
+  methods: { iniciales(n) { if (!n) return '?'; return n.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase(); } }
+};
+
+// ── Main app ─────────────────────────────────────────────────
+createApp({
+  components: { ViewDashboard, ViewLanchas, ViewHotel, ViewFinanzas, ViewConfig },
+
+  setup() {
+    const session        = ref(JSON.parse(localStorage.getItem('ps_session') || 'null'));
+    const currentModule  = ref('dashboard');
+    const moduleData     = ref({});
+    const moduleLoading  = ref(false);
+    const showInfoPanel  = ref(false);
+
+    // Login state
+    const personalList   = ref([]);
+    const loadingPersonal= ref(false);
+    const loginStep      = ref('select');
+    const loginSelected  = ref(null);
+    const loginPin       = ref('');
+    const loginError     = ref('');
+    const loginLoading   = ref(false);
+    const setupApiUrl    = ref('');
+
+    // Personal Master modal
+    const pmModal = ref({ show: false, editId: null, nombre: '', rol: 'Operador', pin: '' });
+
+    // Toast
+    const toast = ref({ show: false, msg: '' });
+    let toastTimer = null;
+
+    // Nav modules
+    const navModules = [
+      { id: 'dashboard', icon: '📊', label: 'Inicio' },
+      { id: 'lanchas',   icon: '⛵', label: 'Lanchas' },
+      { id: 'hotel',     icon: '🏨', label: 'Hotel' },
+      { id: 'finanzas',  icon: '💰', label: 'Finanzas' },
+      { id: 'config',    icon: '⚙',  label: 'Config' }
+    ];
+
+    const currentView = computed(() => {
+      const map = { dashboard: 'ViewDashboard', lanchas: 'ViewLanchas', hotel: 'ViewHotel', finanzas: 'ViewFinanzas', config: 'ViewConfig' };
+      return map[currentModule.value] || 'ViewDashboard';
+    });
+
+    function iniciales(n) {
+      if (!n) return '?';
+      return n.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+    }
+
+    function showToast(msg, dur = 2500) {
+      if (toastTimer) clearTimeout(toastTimer);
+      toast.value = { show: true, msg };
+      toastTimer = setTimeout(() => { toast.value.show = false; }, dur);
+    }
+
+    // ── Login ─────────────────────────────────────────────────
+    async function cargarPersonal() {
+      if (API_URL === 'ENLACE_DE_TU_SCRIPT_GAS_AQUI') { loginStep.value = 'setup'; return; }
+      loadingPersonal.value = true;
+      try {
+        const r = await apiGet('listar_personal');
+        if (r.ok) personalList.value = r.data;
+      } catch(e) { loginStep.value = 'setup'; }
+      finally { loadingPersonal.value = false; }
+    }
+
+    function pinPress(key) {
+      loginError.value = '';
+      if (key === 'del') { loginPin.value = loginPin.value.slice(0, -1); return; }
+      if (key === 'clear') { loginPin.value = ''; return; }
+      if (loginPin.value.length < 4) loginPin.value += key;
+    }
+
+    async function verificarPin() {
+      if (loginPin.value.length !== 4 || !loginSelected.value) return;
+      loginLoading.value = true; loginError.value = '';
+      try {
+        const r = await apiPost({ accion: 'verificar_pin', nombre: loginSelected.value.nombre, pin: loginPin.value });
+        if (r.ok && r.data.ok) {
+          session.value = { ...r.data, loginAt: Date.now() };
+          localStorage.setItem('ps_session', JSON.stringify(session.value));
+          await loadModuleData('dashboard');
+        } else {
+          loginError.value = 'PIN incorrecto. Intenta de nuevo.';
+          loginPin.value = '';
+        }
+      } catch(e) { loginError.value = 'Error de conexión.'; }
+      finally { loginLoading.value = false; }
+    }
+
+    function guardarSetupUrl() {
+      if (!setupApiUrl.value.includes('script.google.com')) { showToast('URL inválida'); return; }
+      API_URL = setupApiUrl.value;
+      localStorage.setItem(API_URL_KEY, API_URL);
+      loginStep.value = 'select';
+      cargarPersonal();
+    }
+
+    // ── Module loading ────────────────────────────────────────
+    const today = () => new Date().toISOString().slice(0, 10);
+
+    async function loadModuleData(mod) {
+      moduleLoading.value = true;
+      try {
+        switch(mod) {
+          case 'dashboard': {
+            const [kpiR, histR] = await Promise.all([
+              apiGet('dashboard', { fecha: today() }),
+              apiGet('historico')
+            ]);
+            moduleData.value = {
+              hoy: kpiR.ok ? kpiR.data : null,
+              historico: histR.ok ? histR.data : []
+            };
+            break;
+          }
+          case 'lanchas': {
+            const opsR = await apiGet('lanchas_operaciones', { fecha: today() });
+            moduleData.value = { operaciones: opsR.ok ? opsR.data : [], movimientos: [] };
+            break;
+          }
+          case 'hotel': {
+            const [habR, resR, dashR] = await Promise.all([
+              apiGet('hotel_habitaciones'),
+              apiGet('hotel_reservas', { fecha: today() }),
+              apiGet('dashboard', { fecha: today() })
+            ]);
+            moduleData.value = {
+              habitaciones: habR.ok ? habR.data : [],
+              reservas: resR.ok ? resR.data : [],
+              dashboard: dashR.ok ? dashR.data : null
+            };
+            break;
+          }
+          case 'finanzas': {
+            const kpiR = await apiGet('dashboard', { fecha: today() });
+            moduleData.value = { hoy: kpiR.ok ? kpiR.data : null };
+            break;
+          }
+          case 'config': {
+            const pmR = await apiGet('listar_personal');
+            moduleData.value = { personal: pmR.ok ? pmR.data : [] };
+            break;
+          }
+        }
+      } catch(e) { showToast('Error cargando datos'); }
+      finally { moduleLoading.value = false; }
+    }
+
+    async function goModule(mod) {
+      currentModule.value = mod;
+      showInfoPanel.value = false;
+      await loadModuleData(mod);
+    }
+
+    // ── Actions from child views ──────────────────────────────
+    async function handleAction(ev) {
+      switch(ev.type) {
+        case 'refresh': await loadModuleData(currentModule.value); break;
+        case 'refresh_lanchas': await loadModuleData('lanchas'); break;
+        case 'refresh_hotel': await loadModuleData('hotel'); break;
+
+        case 'logout':
+          session.value = null;
+          localStorage.removeItem('ps_session');
+          loginStep.value = 'select'; loginPin.value = ''; loginSelected.value = null;
+          break;
+
+        case 'save_api_url':
+          API_URL = ev.url;
+          localStorage.setItem(API_URL_KEY, ev.url);
+          showToast('URL guardada ✓');
+          break;
+
+        case 'pm_nuevo':
+          pmModal.value = { show: true, editId: null, nombre: '', rol: 'Operador', pin: '' };
+          break;
+        case 'pm_editar':
+          pmModal.value = { show: true, editId: ev.personal.id, nombre: ev.personal.nombre, rol: ev.personal.rol, pin: '' };
+          break;
+        case 'pm_eliminar':
+          if (confirm('¿Eliminar usuario?')) {
+            await apiPost({ accion: 'eliminar_personal', id: ev.id });
+            await loadModuleData('config');
+            showToast('Usuario eliminado');
+          }
+          break;
+      }
+    }
+
+    async function guardarPersonal() {
+      if (!pmModal.value.nombre) { showToast('Ingresa un nombre'); return; }
+      if (!pmModal.value.editId && pmModal.value.pin.length !== 4) { showToast('El PIN debe tener 4 dígitos'); return; }
+      try {
+        let r;
+        if (pmModal.value.editId) {
+          r = await apiPost({ accion: 'actualizar_personal', id: pmModal.value.editId, nombre: pmModal.value.nombre, rol: pmModal.value.rol, pin: pmModal.value.pin || null });
+        } else {
+          r = await apiPost({ accion: 'crear_personal', nombre: pmModal.value.nombre, rol: pmModal.value.rol, pin: pmModal.value.pin });
+        }
+        if (r.ok) {
+          pmModal.value.show = false;
+          await loadModuleData('config');
+          showToast('Guardado ✓');
+        } else { showToast('Error: ' + r.error); }
+      } catch(e) { showToast('Error de conexión'); }
+    }
+
+    onMounted(() => {
+      if (!session.value) cargarPersonal();
+      else loadModuleData('dashboard');
+    });
+
+    return {
+      session, currentModule, currentView, navModules,
+      moduleData, moduleLoading, showInfoPanel,
+      personalList, loadingPersonal, loginStep, loginSelected, loginPin, loginError, loginLoading, setupApiUrl,
+      pmModal, toast,
+      iniciales, pinPress, verificarPin, guardarSetupUrl,
+      goModule, handleAction, guardarPersonal
+    };
+  }
+}).mount('#app');
+
+// ── Service Worker ───────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').then(reg => {
+    reg.addEventListener('updatefound', () => {
+      const nw = reg.installing;
+      nw.addEventListener('statechange', () => {
+        if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+          nw.postMessage('SKIP_WAITING');
+          window.location.reload();
+        }
+      });
+    });
+  });
+}
+</script>
+</body>
+</html>
