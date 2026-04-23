@@ -12,7 +12,7 @@ function getSS_PS() {
 function getPersonalMasterSheet() {
   let sh = getSS_PS().getSheetByName('PERSONAL_MASTER');
   if (!sh) {
-    sh = SS_PS.insertSheet('PERSONAL_MASTER');
+    sh = getSS_PS().insertSheet('PERSONAL_MASTER');
     sh.appendRow(['id', 'nombre', 'rol', 'pin', 'activo', 'foto_url', 'timestamp']);
     sh.getRange(1, 1, 1, 7).setFontWeight('bold');
   }
