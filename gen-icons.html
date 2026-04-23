@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Generar iconos PS</title>
+<style>
+  body { font-family: system-ui; background:#0e0608; color:#f0e6d3; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; gap:24px; margin:0; }
+  canvas { border-radius:24px; box-shadow:0 8px 32px rgba(0,0,0,0.8); }
+  button { padding:12px 28px; border-radius:10px; border:1px solid #C9A84C; background:rgba(201,168,76,0.15); color:#C9A84C; font-size:15px; font-weight:700; cursor:pointer; }
+  button:hover { background:rgba(201,168,76,0.25); }
+  .row { display:flex; gap:32px; align-items:flex-end; flex-wrap:wrap; justify-content:center; }
+  .col { display:flex; flex-direction:column; align-items:center; gap:12px; }
+  p { color:rgba(240,230,211,0.55); font-size:13px; }
+</style>
+</head>
+<body>
+<p>Abre esta página → descarga los dos íconos → colócalos en la carpeta PS junto a index.html</p>
+<div class="row">
+  <div class="col">
+    <canvas id="c192" width="192" height="192"></canvas>
+    <button onclick="dl('c192','icon-192.png')">⬇ icon-192.png</button>
+  </div>
+  <div class="col">
+    <canvas id="c512" width="512" height="512"></canvas>
+    <button onclick="dl('c512','icon-512.png')">⬇ icon-512.png</button>
+  </div>
+</div>
+
+<script>
+function drawIcon(canvas) {
+  const s = canvas.width;
+  const ctx = canvas.getContext('2d');
+  const r = s * 0.18; // corner radius
+
+  // Background rounded rect
+  ctx.beginPath();
+  ctx.moveTo(r, 0);
+  ctx.lineTo(s - r, 0);
+  ctx.quadraticCurveTo(s, 0, s, r);
+  ctx.lineTo(s, s - r);
+  ctx.quadraticCurveTo(s, s, s - r, s);
+  ctx.lineTo(r, s);
+  ctx.quadraticCurveTo(0, s, 0, s - r);
+  ctx.lineTo(0, r);
+  ctx.quadraticCurveTo(0, 0, r, 0);
+  ctx.closePath();
+
+  const grad = ctx.createRadialGradient(s*0.4, s*0.35, 0, s*0.5, s*0.5, s*0.65);
+  grad.addColorStop(0, '#9d2a3e');
+  grad.addColorStop(1, '#3e0f17');
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Gold ring
+  ctx.beginPath();
+  ctx.arc(s/2, s/2, s*0.44, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(201,168,76,0.18)';
+  ctx.lineWidth = s * 0.015;
+  ctx.stroke();
+
+  // PS text
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = `900 ${s * 0.44}px 'Inter', 'Segoe UI', system-ui, sans-serif`;
+
+  // Gold shimmer gradient on text
+  const tg = ctx.createLinearGradient(s*0.2, 0, s*0.8, 0);
+  tg.addColorStop(0,   '#a88835');
+  tg.addColorStop(0.4, '#e8c46a');
+  tg.addColorStop(0.5, '#C9A84C');
+  tg.addColorStop(0.6, '#e8c46a');
+  tg.addColorStop(1,   '#a88835');
+  ctx.fillStyle = tg;
+  ctx.fillText('PS', s/2, s/2 + s*0.02);
+
+  // Subtle bottom glow
+  const gg = ctx.createRadialGradient(s/2, s, 0, s/2, s, s*0.5);
+  gg.addColorStop(0, 'rgba(201,168,76,0.12)');
+  gg.addColorStop(1, 'rgba(201,168,76,0)');
+  ctx.fillStyle = gg;
+  ctx.fillRect(0, 0, s, s);
+}
+
+function dl(id, name) {
+  const a = document.createElement('a');
+  a.download = name;
+  a.href = document.getElementById(id).toDataURL('image/png');
+  a.click();
+}
+
+drawIcon(document.getElementById('c192'));
+drawIcon(document.getElementById('c512'));
+</script>
+</body>
+</html>

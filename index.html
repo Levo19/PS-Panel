@@ -9,6 +9,7 @@
 <link rel="manifest" href="./manifest.json">
 <script src="https://unpkg.com/vue@3.4.21/dist/vue.global.prod.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 /* ── Variables ──────────────────────────────────────────── */
 :root {
@@ -38,10 +39,11 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; overflow: hidden; }
 body {
-  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   background: var(--bg);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 button { cursor: pointer; border: none; outline: none; background: none; color: inherit; font: inherit; }
 input  { outline: none; border: none; background: none; color: inherit; font: inherit; }
@@ -64,18 +66,20 @@ input  { outline: none; border: none; background: none; color: inherit; font: in
 
 /* ── Glassmorphism card ─────────────────────────────────── */
 .glass {
-  background: var(--surface);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: var(--radius);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
 }
 .glass-strong {
-  background: rgba(90,23,34,0.45);
+  background: linear-gradient(145deg, rgba(90,23,34,0.4), rgba(62,15,23,0.6));
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(201,168,76,0.3);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
 }
 
 /* ── App shell ──────────────────────────────────────────── */
@@ -170,42 +174,47 @@ input  { outline: none; border: none; background: none; color: inherit; font: in
 .pin-dot.filled { background: var(--gold); box-shadow: 0 0 8px rgba(201,168,76,0.5); }
 
 .pin-pad {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
 }
 .pin-key {
-  height: 54px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  font-size: 20px; font-weight: 600;
-  transition: all 0.12s;
+  height: 58px;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  font-size: 22px; font-weight: 600;
+  transition: transform 0.1s cubic-bezier(0.4, 0.0, 0.2, 1), background 0.2s, border-color 0.2s;
   display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }
 .pin-key:active, .pin-key.pressed {
-  transform: scale(0.93);
-  background: rgba(201,168,76,0.15);
+  transform: scale(0.90);
+  background: rgba(201,168,76,0.2);
   border-color: var(--gold);
 }
-.pin-key.del { font-size: 16px; color: var(--text-muted); }
+.pin-key.del { font-size: 18px; color: var(--text-muted); }
 
 .btn-ingresar {
   width: 100%; padding: 16px;
-  background: linear-gradient(135deg, var(--guinda-light), var(--guinda-dark));
-  border: 1px solid rgba(201,168,76,0.3);
+  background: linear-gradient(135deg, var(--guinda-light) 0%, var(--guinda-dark) 100%);
+  border: 1px solid rgba(255,255,255,0.1);
   border-radius: var(--radius);
   font-size: 15px; font-weight: 700;
   letter-spacing: 1.5px; text-transform: uppercase;
-  color: var(--gold-pale);
+  color: #fff;
   margin-top: 18px;
-  transition: all 0.2s;
-  box-shadow: 0 4px 20px rgba(123,32,48,0.5);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 20px rgba(123,32,48,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
 }
 .btn-ingresar:hover:not(:disabled) {
-  background: linear-gradient(135deg, var(--guinda), var(--guinda-light));
-  box-shadow: 0 6px 28px rgba(123,32,48,0.7);
-  transform: translateY(-1px);
+  background: linear-gradient(135deg, #b03046 0%, var(--guinda) 100%);
+  box-shadow: 0 8px 25px rgba(123,32,48,0.6), inset 0 1px 0 rgba(255,255,255,0.2);
+  transform: translateY(-2px);
 }
-.btn-ingresar:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-ingresar:active:not(:disabled) {
+  transform: scale(0.97) translateY(0);
+}
+.btn-ingresar:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(50%); }
 
 .login-error {
   text-align: center; color: #ff6b6b;
@@ -239,23 +248,142 @@ input  { outline: none; border: none; background: none; color: inherit; font: in
 .nav-item {
   flex: 1; display: flex; flex-direction: column;
   align-items: center; justify-content: center;
-  gap: 3px; padding: 8px 4px;
+  gap: 3px; padding: 6px 4px;
+  min-height: 56px;
   border-radius: var(--radius-sm);
-  transition: all 0.2s;
+  cursor: pointer; color: var(--text-muted);
+  transition: color 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+.nav-item:active { transform: scale(0.88); transition: transform 0.08s; }
+.nav-item.active  { color: var(--gold); }
+
+/* Pill flotante detrás del ícono */
+.nav-icon-pill {
+  width: 52px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 11px;
+  transition: all 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform: scale(0.9);
+}
+.nav-item.active .nav-icon-pill {
+  background: rgba(201,168,76,0.13);
+  border: 1px solid rgba(201,168,76,0.24);
+  box-shadow: 0 2px 14px rgba(201,168,76,0.18), inset 0 1px 0 rgba(255,255,255,0.05);
+  transform: scale(1);
+}
+
+/* SVG icon */
+.nav-icon {
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.25s;
+  color: var(--text-muted);
+}
+.nav-icon svg { display: block; }
+.nav-item.active .nav-icon {
+  color: var(--gold);
+  filter: drop-shadow(0 0 6px rgba(201,168,76,0.55));
+}
+
+.nav-label {
+  font-size: 10px; font-weight: 600;
+  letter-spacing: 0.4px; color: var(--text-muted);
+  transition: color 0.2s, font-weight 0.2s;
+}
+.nav-item.active .nav-label { color: var(--gold); font-weight: 700; }
+
+/* ── PORTRAIT TOP BAR ───────────────────────────────────── */
+.portrait-topbar {
+  height: 50px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 16px;
+  flex-shrink: 0;
+  background: rgba(14,6,8,0.90);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  position: relative; z-index: 10;
+}
+.topbar-ps {
+  font-size: 26px; font-weight: 900; letter-spacing: -1px;
+}
+
+/* Avatar orbit */
+.topbar-avatar {
   position: relative;
+  width: 44px; height: 44px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; flex-shrink: 0;
 }
-.nav-item.active { color: var(--gold); }
-.nav-item.active .nav-icon { color: var(--gold); }
-.nav-active-dot {
-  position: absolute; bottom: 2px;
-  width: 4px; height: 4px;
+.topbar-avatar-inner {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--guinda-light), var(--guinda-dark));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; color: var(--gold-pale);
+  border: 1px solid rgba(201,168,76,0.25);
+  position: relative; z-index: 2; flex-shrink: 0;
+}
+.topbar-chevron {
+  position: absolute; bottom: 0; right: 0;
+  font-size: 9px; color: var(--gold);
+  z-index: 3; line-height: 1;
+  animation: chevron-bob 2.2s ease-in-out infinite;
+}
+@keyframes chevron-bob {
+  0%,100% { transform: translateY(0); }
+  50%      { transform: translateY(2px); }
+}
+
+/* Gold orbit arc — slow */
+.orbit-gold {
+  position: absolute;
+  width: 42px; height: 42px; top: 1px; left: 1px;
+  border-radius: 50%; pointer-events: none;
+  border: 1.5px solid transparent;
+  border-top-color: var(--gold);
+  border-right-color: rgba(201,168,76,0.4);
+  border-bottom-color: rgba(201,168,76,0.08);
+  animation: orbit-spin 2.8s linear infinite;
+}
+
+/* Green dot wrapper — fast (2× the gold) */
+.orbit-dot-wrap {
+  position: absolute;
+  width: 44px; height: 44px; top: 0; left: 0;
+  border-radius: 50%; pointer-events: none;
+  animation: orbit-spin 1.4s linear infinite;
+}
+.orbit-dot {
+  position: absolute;
+  top: 0; left: 50%;
+  width: 8px; height: 8px;
+  margin-left: -4px; margin-top: -1px;
   border-radius: 50%;
-  background: var(--gold);
-  box-shadow: 0 0 6px var(--gold);
+  background: #4ade80;
+  box-shadow: 0 0 5px #4ade80, 0 0 10px rgba(74,222,128,0.5);
+  animation: dot-glow 0.9s ease-in-out infinite;
 }
-.nav-icon { font-size: 22px; }
-.nav-label { font-size: 10px; font-weight: 600; letter-spacing: 0.5px; color: var(--text-muted); }
-.nav-item.active .nav-label { color: var(--gold); }
+
+@keyframes orbit-spin { to { transform: rotate(360deg); } }
+@keyframes dot-glow {
+  0%,100% { opacity:1; transform:scale(1); }
+  50%      { opacity:0.4; transform:scale(0.55); }
+}
+
+/* Offline — todo parado, gris */
+.orbit-dot-wrap.offline { animation-play-state: paused; }
+.orbit-dot.offline {
+  background: #4b5563;
+  box-shadow: none;
+  animation-play-state: paused;
+}
+/* Cargando — ámbar, ultra rápido */
+.orbit-dot-wrap.loading { animation-duration: 0.22s; }
+.orbit-dot.loading {
+  background: #fbbf24;
+  box-shadow: 0 0 6px #fbbf24, 0 0 14px rgba(251,191,36,0.55);
+  animation-duration: 0.15s;
+}
 
 /* ── LANDSCAPE LAYOUT (sidebar) ────────────────────────── */
 .main-landscape {
@@ -297,7 +425,12 @@ input  { outline: none; border: none; background: none; color: inherit; font: in
   color: var(--gold);
   border-left: 2px solid var(--gold);
 }
-.sidebar-item .s-icon { font-size: 18px; width: 22px; text-align: center; }
+.sidebar-item .s-icon {
+  width: 22px; display: flex; align-items: center; justify-content: center;
+  transition: filter 0.2s;
+}
+.sidebar-item .s-icon svg { display: block; }
+.sidebar-item.active .s-icon { filter: drop-shadow(0 0 5px rgba(201,168,76,0.5)); }
 .sidebar-footer {
   border-top: 1px solid var(--border); padding-top: 14px;
 }
@@ -405,12 +538,23 @@ input  { outline: none; border: none; background: none; color: inherit; font: in
 
 /* ── Operaciones list ───────────────────────────────────── */
 .op-card {
-  padding: 14px;
-  margin-bottom: 10px;
+  padding: 16px;
+  margin-bottom: 12px;
   cursor: pointer;
-  transition: all 0.2s;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.op-card:hover { background: var(--surface2); transform: translateY(-1px); }
+.op-card:hover { 
+  background: rgba(255, 255, 255, 0.06); 
+  transform: translateY(-2px);
+  border-color: rgba(201,168,76,0.3);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+.op-card:active {
+  transform: scale(0.98);
+}
 .op-header { display: flex; align-items: center; justify-content: space-between; }
 .op-title { font-size: 15px; font-weight: 700; }
 .op-sub   { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
@@ -448,9 +592,56 @@ input  { outline: none; border: none; background: none; color: inherit; font: in
 .tipo-Directo     { background: rgba(34,197,94,0.15); color: #4ade80; }
 .tipo-Agencia     { background: rgba(99,179,237,0.15); color: #90cdf4; }
 .tipo-Comisionado { background: rgba(167,139,250,0.15); color: #a78bfa; }
-.tipo-PaseIN      { background: rgba(251,191,36,0.15); color: #fbbf24; }
-.tipo-PaseOUT     { background: rgba(251,146,60,0.15); color: #fb923c; }
-.tipo-Aliado      { background: rgba(240,171,252,0.15); color: #f0abfc; }
+.tipo-PaseIN         { background: rgba(251,191,36,0.15); color: #fbbf24; }
+.tipo-PaseOUT        { background: rgba(251,146,60,0.15); color: #fb923c; }
+.tipo-Aliado         { background: rgba(240,171,252,0.15); color: #f0abfc; }
+.tipo-AliadoPaseOut  { background: rgba(240,171,252,0.15); color: #f0abfc; }
+
+/* ── User dropdown menu ─────────────────────────────────── */
+.user-menu-overlay {
+  position: fixed; inset: 0; z-index: 390;
+}
+.user-menu {
+  position: fixed; top: 58px; right: 12px;
+  min-width: 210px;
+  background: linear-gradient(145deg, rgba(78,20,30,0.97), rgba(10,4,6,0.98));
+  border: 1px solid rgba(201,168,76,0.25);
+  border-radius: 14px; padding: 6px;
+  z-index: 391;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.7), 0 0 0 1px rgba(201,168,76,0.08);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  transform-origin: top right;
+  animation: menu-drop 0.14s ease-out;
+}
+@keyframes menu-drop {
+  from { opacity:0; transform: scale(0.92) translateY(-6px); }
+  to   { opacity:1; transform: scale(1)    translateY(0); }
+}
+.user-menu-head {
+  display:flex; align-items:center; gap:10px;
+  padding:10px 10px 8px;
+}
+.user-menu-avatar {
+  width:36px; height:36px; border-radius:50%; flex-shrink:0;
+  background: linear-gradient(135deg, var(--guinda-light), var(--guinda-dark));
+  display:flex; align-items:center; justify-content:center;
+  font-size:13px; font-weight:700; color:var(--gold-pale);
+  border:1px solid rgba(201,168,76,0.25);
+}
+.user-menu-name  { font-size:13px; font-weight:700; }
+.user-menu-rol   { font-size:11px; color:var(--text-muted); }
+.user-menu-sep   { height:1px; background:var(--border); margin:4px 6px; }
+.user-menu-item  {
+  display:flex; align-items:center; gap:10px;
+  width:100%; padding:11px 12px; border-radius:9px;
+  font-size:14px; font-weight:500; color:var(--text);
+  text-align:left; transition: background 0.15s;
+}
+.user-menu-item:active { background:var(--surface2); }
+.user-menu-item .mi-icon { font-size:17px; width:22px; text-align:center; }
+.user-menu-danger { color:#f87171; }
+.user-menu-install { color:var(--gold); }
 
 /* ── Info panel (módulo documentación) ─────────────────── */
 .info-overlay {
@@ -511,8 +702,16 @@ input  { outline: none; border: none; background: none; color: inherit; font: in
 .room-card {
   padding: 14px 10px;
   text-align: center; cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
+}
+.room-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+  border-color: rgba(201,168,76,0.5);
+}
+.room-card:active {
+  transform: scale(0.95);
 }
 .room-number {
   font-size: 20px; font-weight: 800; margin-bottom: 4px;
@@ -651,10 +850,185 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 
 /* ── Empty state ────────────────────────────────────────── */
 .empty-state {
-  text-align: center; padding: 40px 20px;
-  color: var(--text-muted); font-size: 14px;
+  text-align: center; padding: 50px 20px;
+  color: var(--text-muted); font-size: 15px;
+  background: rgba(255,255,255,0.02);
+  border-radius: var(--radius);
+  border: 1px dashed rgba(255,255,255,0.1);
+  margin: 20px 0;
 }
-.empty-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.5; }
+.empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.6; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3)); }
+
+/* ── Lanchas: date carousel view ────────────────────────── */
+.date-view-frame {
+  border: 1px solid rgba(201,168,76,0.45);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: rgba(201,168,76,0.02);
+}
+.date-view-nav {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px;
+  background: rgba(123,32,48,0.18);
+  border-bottom: 1px solid rgba(201,168,76,0.2);
+}
+.date-nav-arrow {
+  width: 40px; height: 40px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 10px; border: 1px solid rgba(201,168,76,0.35);
+  background: rgba(201,168,76,0.08); color: var(--gold);
+  font-size: 22px; font-weight: 900; cursor: pointer;
+  transition: all 0.15s; user-select: none;
+}
+.date-nav-arrow:hover:not(:disabled) { background: rgba(201,168,76,0.2); border-color: var(--gold); }
+.date-nav-arrow:disabled { opacity: 0.2; cursor: default; }
+.date-view-center { flex: 1; text-align: center; }
+.date-view-label  { font-size: 16px; font-weight: 800; }
+.date-view-kpis-row {
+  display: flex; gap: 8px; flex-wrap: wrap;
+  justify-content: center; align-items: center; margin-top: 5px;
+}
+.date-view-body { padding: 14px; }
+.date-semaforo { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.sem-verde    { background: #4ade80; box-shadow: 0 0 6px #4ade80; }
+.sem-amarillo { background: #fbbf24; box-shadow: 0 0 6px #fbbf24; }
+.sem-gris     { background: #6b7280; }
+.date-kpi-chip {
+  font-size: 11px; font-weight: 700; padding: 3px 9px;
+  border-radius: 20px; background: var(--surface2); white-space: nowrap;
+}
+.date-loading { display: flex; justify-content: center; padding: 24px 0; }
+
+/* Date picker modal */
+.date-picker-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.65);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+}
+.date-picker-modal {
+  background: var(--bg2); border: 1px solid rgba(201,168,76,0.35);
+  border-radius: var(--radius); width: 100%; max-width: 340px;
+  max-height: 72vh; display: flex; flex-direction: column; overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+}
+.date-picker-header {
+  padding: 14px 16px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.date-picker-list { overflow-y: auto; flex: 1; padding: 8px; }
+.date-picker-month {
+  font-size: 11px; font-weight: 800; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.08em; padding: 8px 8px 4px;
+}
+.date-picker-item {
+  padding: 9px 12px; border-radius: 8px; cursor: pointer; font-size: 13px;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  transition: background 0.12s;
+}
+.date-picker-item:hover { background: rgba(201,168,76,0.1); }
+.date-picker-item.active { background: rgba(201,168,76,0.18); color: var(--gold); font-weight: 700; }
+
+.btn-report {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 12px; border-radius: var(--radius-sm);
+  font-size: 11px; font-weight: 700;
+  background: rgba(201,168,76,0.12);
+  border: 1px solid rgba(201,168,76,0.3);
+  color: var(--gold);
+  transition: all 0.2s; flex-shrink: 0;
+}
+.btn-report:hover { background: rgba(201,168,76,0.2); }
+
+/* Clickable movement rows */
+.mov-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 10px; border-radius: 8px; cursor: pointer; gap: 8px;
+  transition: background 0.12s; border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.mov-row:last-child { border-bottom: none; }
+.mov-row:hover { background: rgba(255,255,255,0.05); }
+.mov-row.mov-cancelled { opacity: 0.4; }
+
+/* Boat cards */
+.boat-card {
+  margin-bottom: 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+.boat-card.border-activa  { border-color: rgba(74,222,128,0.4); }
+.boat-card.border-cerrada { border-color: rgba(100,100,100,0.25); }
+.boat-card.border-pendiente { border-color: rgba(251,191,36,0.35); }
+.boat-header {
+  display: flex; flex-direction: column; gap: 0;
+  padding: 12px 14px; cursor: pointer;
+  background: rgba(255,255,255,0.03);
+  transition: background 0.2s;
+}
+.boat-header:hover { background: rgba(255,255,255,0.06); }
+.boat-title { font-size: 14px; font-weight: 800; }
+.type-chips { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 5px; }
+.type-chip  { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; }
+.descuadre-badge-unused {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 2px 8px; border-radius: 20px;
+  font-size: 10px; font-weight: 700;
+  background: rgba(239,68,68,0.15); color: #f87171;
+}
+.boat-body { background: rgba(0,0,0,0.2); }
+
+/* Tabs */
+.tab-bar {
+  display: flex; border-bottom: 1px solid var(--border);
+  padding: 0 14px;
+}
+.tab-btn {
+  padding: 10px 14px; font-size: 12px; font-weight: 700;
+  color: var(--text-muted); border-bottom: 2px solid transparent;
+  transition: all 0.2s; margin-bottom: -1px;
+}
+.tab-btn.active { color: var(--gold); border-bottom-color: var(--gold); }
+.tab-content { padding: 14px; }
+
+/* Totals row */
+.totals-row td { border-top: 1px solid var(--border); font-weight: 700; background: rgba(255,255,255,0.03); }
+
+/* Pases sueltos */
+.pases-section {
+  margin-top: 12px; padding: 14px;
+  background: rgba(251,191,36,0.04);
+  border: 1px solid rgba(251,191,36,0.15);
+  border-radius: var(--radius);
+}
+.pases-title { font-size: 12px; font-weight: 700; color: #fbbf24; margin-bottom: 10px; }
+
+/* Search bar */
+.search-bar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; margin-bottom: 14px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.search-bar input { flex: 1; font-size: 14px; color: var(--text); }
+.search-bar input::placeholder { color: var(--text-muted); }
+.search-icon { color: var(--text-muted); font-size: 16px; }
+
+/* Date nav */
+.date-nav {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px;
+}
+.date-nav-btn {
+  padding: 8px 14px; border-radius: var(--radius-sm);
+  background: var(--surface); border: 1px solid var(--border);
+  font-size: 16px; transition: all 0.15s;
+  color: var(--text-muted);
+}
+.date-nav-btn:hover:not(:disabled) { color: var(--gold); border-color: var(--gold); }
+.date-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
 /* ── Toast ──────────────────────────────────────────────── */
 .toast {
@@ -803,14 +1177,54 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 
       <!-- Portrait layout -->
       <div class="layout-portrait main-portrait">
+        <header class="portrait-topbar">
+          <div class="topbar-ps shimmer">PS</div>
+          <div class="topbar-avatar" @click.stop="showUserMenu = !showUserMenu">
+            <div class="orbit-gold"></div>
+            <div class="orbit-dot-wrap" :class="orbitDotState">
+              <div class="orbit-dot" :class="orbitDotState"></div>
+            </div>
+            <div class="topbar-avatar-inner">{{ iniciales(session.nombre) }}</div>
+            <span class="topbar-chevron">▾</span>
+          </div>
+        </header>
+
+        <!-- User dropdown -->
+        <transition name="fade">
+          <div v-if="showUserMenu" class="user-menu-overlay" @click="showUserMenu=false">
+            <div class="user-menu" @click.stop>
+              <div class="user-menu-head">
+                <div class="user-menu-avatar">{{ iniciales(session.nombre) }}</div>
+                <div>
+                  <div class="user-menu-name">{{ session.nombre }}</div>
+                  <div class="user-menu-rol">{{ session.rol }}</div>
+                </div>
+              </div>
+              <div class="user-menu-sep"></div>
+              <button class="user-menu-item" @click="goModule('config'); showUserMenu=false">
+                <span class="mi-icon">⚙️</span> Configuración
+              </button>
+              <button v-if="canInstall" class="user-menu-item user-menu-install" @click="installPWA()">
+                <span class="mi-icon">📲</span> Instalar app
+              </button>
+              <div class="user-menu-sep"></div>
+              <button class="user-menu-item user-menu-danger" @click="handleAction({type:'logout'}); showUserMenu=false">
+                <span class="mi-icon">↩️</span> Cerrar sesión
+              </button>
+            </div>
+          </div>
+        </transition>
         <div class="content-area">
-          <component :is="currentView" :data="moduleData" :loading="moduleLoading" @action="handleAction" />
+          <keep-alive include="ViewLanchas,ViewFinanzas">
+            <component :is="currentView" :data="moduleData" :loading="moduleLoading" @action="handleAction" />
+          </keep-alive>
         </div>
         <nav class="bottom-nav">
           <button v-for="m in navModules" :key="m.id" class="nav-item" :class="{ active: currentModule===m.id }" @click="goModule(m.id)">
-            <span class="nav-icon">{{ m.icon }}</span>
+            <div class="nav-icon-pill">
+              <span class="nav-icon" v-html="navIcon(m.id)"></span>
+            </div>
             <span class="nav-label">{{ m.label }}</span>
-            <div v-if="currentModule===m.id" class="nav-active-dot"></div>
           </button>
         </nav>
       </div>
@@ -824,7 +1238,7 @@ select.config-input option { background: #1e0a10; color: var(--text); }
           </div>
           <div class="sidebar-nav">
             <button v-for="m in navModules" :key="m.id" class="sidebar-item" :class="{ active: currentModule===m.id }" @click="goModule(m.id)">
-              <span class="s-icon">{{ m.icon }}</span>
+              <span class="s-icon" v-html="navIcon(m.id)"></span>
               <span>{{ m.label }}</span>
             </button>
           </div>
@@ -840,7 +1254,9 @@ select.config-input option { background: #1e0a10; color: var(--text); }
           </div>
         </nav>
         <div class="landscape-content">
-          <component :is="currentView" :data="moduleData" :loading="moduleLoading" @action="handleAction" />
+          <keep-alive include="ViewLanchas,ViewFinanzas">
+            <component :is="currentView" :data="moduleData" :loading="moduleLoading" @action="handleAction" />
+          </keep-alive>
         </div>
       </div>
 
@@ -858,70 +1274,114 @@ select.config-input option { background: #1e0a10; color: var(--text); }
             </div>
 
             <div class="info-section">
-              <h3>⛵ ¿Qué es un Movimiento?</h3>
-              <p>Un movimiento es una fila de PAX asociada a una operación (salida). Registra cuántos pasajeros viajan, bajo qué tipo de acuerdo comercial, y cuánto se cobra.</p>
+              <h3>📑 3 Pestañas del día</h3>
+              <table class="info-table">
+                <tr><th>Pestaña</th><th>¿Qué muestra?</th></tr>
+                <tr><td><strong>⛵ Operaciones</strong></td><td>Cards de cada bote del día. Al expandir: manifiesto de PAX (Movimientos), con colores de contacto y estado de cobro.</td></tr>
+                <tr><td><strong>🔀 Pases</strong></td><td>Todos los movimientos de tipo Aliado(PaseOut) y PaseIN del día — tanto los vinculados a un bote como los PASE_DIRECTO.</td></tr>
+                <tr><td><strong>💵 Caja</strong></td><td>Todos los registros de Caja_Operador del día (vinculados a botes y sueltos). Verde = ingreso, Rojo = salida.</td></tr>
+              </table>
+            </div>
+
+            <div class="info-section">
+              <h3>⛵ Card de bote — íconos</h3>
+              <table class="info-table">
+                <tr><th>Ícono</th><th>Estado</th></tr>
+                <tr><td style="color:#4ade80;font-weight:900;">✓</td><td>Operación <strong>cerrada / pasada</strong></td></tr>
+                <tr><td style="color:#fbbf24;font-weight:900;">▶</td><td>Operación <strong>en viaje</strong></td></tr>
+                <tr><td style="color:#6b7280;font-weight:900;">✕</td><td>Operación <strong>cancelada</strong></td></tr>
+                <tr><td style="color:rgba(240,230,211,0.45);font-weight:900;">●</td><td>Operación <strong>abierta</strong></td></tr>
+                <tr><td style="color:#ef4444;">💰</td><td><strong>Descuadre</strong>: caja registrada ≠ monto de movimientos (diferencia &gt; S/0.50)</td></tr>
+              </table>
+            </div>
+
+            <div class="info-section">
+              <h3>🎨 Colores en manifiesto</h3>
+              <p>El nombre del contacto en cada fila lleva el color de su tipo comercial:</p>
+              <table class="info-table">
+                <tr><th>Color</th><th>Tipo</th></tr>
+                <tr><td><span style="color:#4ade80;">■</span> Verde</td><td>Directo (cliente propio)</td></tr>
+                <tr><td><span style="color:#60a5fa;">■</span> Azul</td><td>Agencia</td></tr>
+                <tr><td><span style="color:#fbbf24;">■</span> Amarillo</td><td>Comisionado</td></tr>
+                <tr><td><span style="color:#f0abfc;">■</span> Rosado</td><td>Aliado / PaseOut</td></tr>
+                <tr><td><span style="color:#fb923c;">■</span> Naranja</td><td>PaseIN</td></tr>
+              </table>
+              <p style="margin-top:8px;">El monto de cada movimiento muestra el estado de cobro:</p>
+              <table class="info-table">
+                <tr><th>Color monto</th><th>Significado</th></tr>
+                <tr><td style="color:#4ade80;">Verde</td><td>Pagado completo (≥ 99% del total)</td></tr>
+                <tr><td style="color:#fbbf24;">Amarillo</td><td>Pago parcial</td></tr>
+                <tr><td style="color:#f87171;">Rojo</td><td>Sin pago registrado</td></tr>
+              </table>
             </div>
 
             <div class="info-section">
               <h3>📋 Tipos de Movimiento</h3>
               <table class="info-table">
-                <tr><th>Tipo</th><th>Descripción</th><th>Efecto en caja</th></tr>
+                <tr><th>Tipo</th><th>Descripción</th><th>Efecto</th></tr>
                 <tr>
                   <td><span class="tipo-badge tipo-Directo">Directo</span></td>
-                  <td><strong>Cliente directo.</strong> Paga al operador en efectivo o transferencia.</td>
+                  <td><strong>Cliente directo.</strong> Paga al operador en el momento.</td>
                   <td>100% ingreso empresa</td>
                 </tr>
                 <tr>
                   <td><span class="tipo-badge tipo-Agencia">Agencia</span></td>
-                  <td><strong>Agencia de viajes</strong> trae clientes. El operador cobra y registra.</td>
+                  <td><strong>Agencia</strong> trae clientes y el operador cobra.</td>
                   <td>100% ingreso empresa</td>
                 </tr>
                 <tr>
                   <td><span class="tipo-badge tipo-Comisionado">Comisionado</span></td>
-                  <td><strong>Comisionado</strong> trae clientes. Operador cobra el precio lleno. Debe el exceso al comisionado.</td>
-                  <td>Solo margen empresa</td>
+                  <td>Se cobra el precio lleno pero solo el margen (precio_defecto) queda en la empresa.</td>
+                  <td>Solo margen</td>
                 </tr>
                 <tr>
                   <td><span class="tipo-badge tipo-PaseIN">PaseIN</span></td>
-                  <td><strong>Recibe PAX de aliado.</strong> El operador maneja esos PAX y los debe de vuelta (en PAX o en plata).</td>
+                  <td><strong>Recibe PAX de aliado.</strong> El aliado te manda sus clientes.</td>
                   <td>Deuda hacia aliado</td>
                 </tr>
                 <tr>
-                  <td><span class="tipo-badge tipo-PaseOUT">PaseOUT</span></td>
-                  <td><strong>Envía PAX a aliado.</strong> El aliado maneja esos PAX y te debe (PAX o plata). "Comprar" cierra esta deuda.</td>
-                  <td>Cobro pendiente de aliado</td>
-                </tr>
-                <tr>
-                  <td><span class="tipo-badge tipo-Aliado">Aliado</span></td>
-                  <td><strong>Aliado cobra por ti.</strong> El aliado recauda y luego te transfiere tu parte.</td>
-                  <td>Cobro pendiente de aliado</td>
+                  <td><span class="tipo-badge tipo-AliadoPaseOut">Aliado(PaseOut)</span></td>
+                  <td><strong>Envías PAX a aliado.</strong> El aliado lleva tus clientes. El aliado te debe ese cobro.</td>
+                  <td>Cobro pendiente</td>
                 </tr>
               </table>
             </div>
 
             <div class="info-section">
+              <h3>🔁 PASE_DIRECTO</h3>
+              <p>Un <span class="tipo-badge tipo-AliadoPaseOut" style="font-size:10px;">Aliado(PaseOut)</span> sin bote asignado se registra como <em>PASE_DIRECTO</em>. Aparece solo en la pestaña <strong>Pases</strong>. Ocurre cuando se envía PAX a un aliado sin embarcarlos primero en un viaje propio.</p>
+            </div>
+
+            <div class="info-section">
               <h3>💰 Fórmula Comisionado</h3>
-              <p>En el movimiento se registra <strong>precio_unitario_aplicado</strong> = lo que se cobra al cliente final. En la tabla Contactos existe <strong>precio_pax_defecto</strong> = la porción que queda en la empresa.</p>
               <div class="formula-box">
-Margen empresa   = precio_pax_defecto  × cant_pax
+Margen empresa    = precio_pax_defecto × cant_pax
 Deuda comisionado = (precio_aplicado − precio_pax_defecto) × cant_pax
               </div>
-              <p>Ejemplo: cobras S/50 al cliente, precio defecto es S/35 → empresa retiene S/35/pax, debes S/15/pax al comisionado.</p>
+              <p>Ejemplo: cobras S/50 al cliente, precio_defecto = S/35 → empresa retiene S/35/pax, debes S/15/pax al comisionado.</p>
             </div>
 
             <div class="info-section">
-              <h3>🔄 Operación "Comprar"</h3>
-              <p>Un PaseOUT registra PAX que enviaste a un aliado. La operación <strong>Comprar</strong> convierte esa deuda de PAX en un pago en efectivo, liquidando el pendiente.</p>
+              <h3>💵 Pestaña Caja</h3>
+              <p>Muestra todos los registros de <strong>Caja_Operador</strong> del día:</p>
+              <table class="info-table">
+                <tr><th>Ícono</th><th>Significado</th></tr>
+                <tr><td>💵</td><td>Pago en efectivo / cash</td></tr>
+                <tr><td>💳</td><td>Pago virtual (Yape, transferencia, etc.)</td></tr>
+                <tr><td>⛵</td><td>Registro vinculado a un bote específico</td></tr>
+                <tr><td>ⓘ</td><td>Tiene nota/comentario adicional</td></tr>
+              </table>
+              <p style="margin-top:8px;">Fila verde = ingreso (cobro/venta). Fila roja = salida (gasto/adelanto).</p>
             </div>
 
             <div class="info-section">
-              <h3>📊 KPIs del Dashboard</h3>
+              <h3>📊 KPIs del día</h3>
               <table class="info-table">
                 <tr><th>KPI</th><th>¿Qué mide?</th></tr>
-                <tr><td><strong>Ingresos operador</strong></td><td>Lo que queda en la empresa después de descontar deudas a comisionados.</td></tr>
-                <tr><td><strong>Deuda comisionados</strong></td><td>Suma de (precio_aplicado − precio_defecto) × pax de todos los movimientos Comisionado activos.</td></tr>
-                <tr><td><strong>Pendiente aliados</strong></td><td>PaseOUT + Aliado sin liquidar (monto total − monto ya comprado).</td></tr>
-                <tr><td><strong>Caja efectivo</strong></td><td>Suma de ingresos de Caja_Operador clasificados como efectivo en el día.</td></tr>
+                <tr><td><strong>Ingresos operador</strong></td><td>Neto empresa: Directo + Agencia + margen Comisionado.</td></tr>
+                <tr><td><strong>Deuda comisionados</strong></td><td>(precio_aplicado − precio_defecto) × PAX de todos los Comisionado activos.</td></tr>
+                <tr><td><strong>Caja efectivo</strong></td><td>Suma de Caja_Operador con método "efectivo" del día.</td></tr>
+                <tr><td><strong>Caja virtual</strong></td><td>Suma de Caja_Operador con método no efectivo del día.</td></tr>
               </table>
             </div>
 
@@ -970,7 +1430,7 @@ Deuda comisionado = (precio_aplicado − precio_pax_defecto) × cant_pax
 </div>
 
 <script>
-const { createApp, ref, computed, onMounted, watch, nextTick } = Vue;
+const { createApp, ref, computed, onMounted, onActivated, onDeactivated, watch, nextTick } = Vue;
 
 // ── API URL ──────────────────────────────────────────────────
 const API_URL_KEY = 'ps_api_url';
@@ -1164,112 +1624,765 @@ const ViewLanchas = {
   name: 'ViewLanchas',
   props: ['data', 'loading'],
   emits: ['action'],
-  setup() {
-    const selectedOp = ref(null);
-    return { selectedOp };
+  setup(props, { emit }) {
+    const fechas        = ref([]);
+    const cache         = ref({});
+    const currentFecha  = ref('');
+    const expandedOps   = ref(new Set());
+    const tabs          = ref({});
+    const dateTab       = ref('operaciones');
+    const loadingFechas = ref(true);
+    const fetchError    = ref('');
+    const today         = new Date().toISOString().slice(0, 10);
+
+    const fechaIdx = computed(() => fechas.value.indexOf(currentFecha.value));
+
+    async function loadFechas() {
+      loadingFechas.value = true;
+      fetchError.value = '';
+      try {
+        const r = await apiGet('lanchas_fechas');
+        if (r.ok && Array.isArray(r.data)) {
+          fechas.value = r.data;
+          const si = r.data.includes(today) ? r.data.indexOf(today) : 0;
+          currentFecha.value = r.data[si] || '';
+          // Preload current + both neighbors
+          [si - 1, si, si + 1].forEach(i => { if (r.data[i]) loadFecha(r.data[i]); });
+        } else {
+          fetchError.value = r.error || 'GAS no reconoce lanchas_fechas — actualiza Code.gs';
+        }
+      } catch(e) {
+        fetchError.value = 'Error de conexión: ' + e.message;
+      } finally {
+        loadingFechas.value = false;
+      }
+    }
+
+    async function loadFecha(fecha) {
+      if (cache.value[fecha]?.loaded || cache.value[fecha]?.loading) return;
+      cache.value = { ...cache.value, [fecha]: { loaded: false, loading: true } };
+      try {
+        const r = await apiGet('lanchas_dia', { fecha });
+        cache.value = { ...cache.value, [fecha]: {
+          loaded: true, loading: false,
+          ...(r.ok ? r.data : { operaciones: [], pases_sueltos: [], kpis: {} })
+        }};
+      } catch(e) {
+        cache.value = { ...cache.value, [fecha]: { loaded: true, loading: false, operaciones: [], pases_sueltos: [], kpis: {} } };
+      }
+    }
+
+    function navigate(dir) {
+      const ni = fechaIdx.value + dir;
+      const target = fechas.value[ni];
+      if (!target) return;
+      currentFecha.value = target;
+      dateTab.value = 'operaciones';
+      loadFecha(target);
+      // Preload both neighbors of new target
+      if (fechas.value[ni - 1]) loadFecha(fechas.value[ni - 1]);
+      if (fechas.value[ni + 1]) loadFecha(fechas.value[ni + 1]);
+    }
+
+    function toggleOp(id) {
+      const s = new Set(expandedOps.value);
+      if (s.has(id)) s.delete(id); else s.add(id);
+      expandedOps.value = s;
+    }
+
+    function getTab(id)    { return tabs.value[id] || 'manifiesto'; }
+    function setTab(id, t) { tabs.value = { ...tabs.value, [id]: t }; }
+
+    function tipoBadgeClass(tipo) {
+      return 'tipo-' + String(tipo || '').replace(/[^a-zA-Z0-9]/g, '');
+    }
+
+    function allPasesDia(fecha) {
+      const d = cache.value[fecha];
+      if (!d?.loaded) return [];
+      const isPase = t => t.includes('Pase') || t.includes('Aliado');
+      const result = [];
+      (d.operaciones || []).forEach(op => {
+        (op.movimientos || []).forEach(m => {
+          if (isPase(String(m.tipo || '')) && m.estado !== 'Cancelado')
+            result.push({ ...m, _bote: op.destino || op.id_bote, _hora: op.hora_salida });
+        });
+      });
+      (d.pases_sueltos || []).forEach(m => {
+        if (isPase(String(m.tipo || '')) && m.estado !== 'Cancelado')
+          result.push({ ...m, _bote: '—', _hora: '—' });
+      });
+      return result;
+    }
+
+    function estadoIcon(estado) {
+      const s = String(estado||'').toLowerCase();
+      if (s.includes('cancel'))            return '✕';
+      if (s.includes('cerr')||s.includes('pasad')) return '✓';
+      if (s.includes('viaje'))             return '▶';
+      return '●';
+    }
+
+    function estadoIconColor(estado) {
+      const s = String(estado||'').toLowerCase();
+      if (s.includes('cancel'))            return 'color:#6b7280';
+      if (s.includes('cerr')||s.includes('pasad')) return 'color:#4ade80';
+      if (s.includes('viaje'))             return 'color:#fbbf24';
+      return 'color:rgba(240,230,211,0.45)';
+    }
+
+    function boatBorderClass(estado) {
+      const s = String(estado || '').toLowerCase();
+      if (s.includes('activ') || s.includes('abierta') || s.includes('viaje')) return 'border-activa';
+      if (s.includes('cerr') || s.includes('pasad'))   return 'border-cerrada';
+      return 'border-pendiente';
+    }
+
+    function movEstadoClass(e) {
+      const s = String(e || '').toLowerCase();
+      if (s === 'embarcado') return 'estado-activa';
+      if (s === 'cancelado') return 'badge-red';
+      return 'estado-cerrada';
+    }
+
+    function openReport(fecha) {
+      window.open(`./report.html?fecha=${fecha}&api=${encodeURIComponent(API_URL)}`, '_blank');
+    }
+
+    function fmtFecha(f) {
+      if (!f) return '';
+      const [y, m, d] = f.split('-');
+      const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+      const label = `${d} ${meses[parseInt(m)-1]}`;
+      return f === today ? `Hoy · ${label}` : label;
+    }
+
+    function fmt(v) { return (parseFloat(v)||0).toLocaleString('es-PE',{minimumFractionDigits:0,maximumFractionDigits:0}); }
+
+    function totalMovs(movs) {
+      const activos = movs.filter(m => m.estado !== 'Cancelado');
+      return {
+        pax:   activos.reduce((s, m) => s + (parseFloat(m.cant_pax)||0), 0),
+        monto: activos.reduce((s, m) => s + (parseFloat(m.monto_total)||0), 0)
+      };
+    }
+
+    const showDatePicker = ref(false);
+    const selectedMov    = ref(null);
+
+    function contactColorByTipo(tipo) {
+      const t = String(tipo||'').toLowerCase();
+      if (t.includes('agencia'))              return '#60a5fa';
+      if (t.includes('comisionado'))          return '#fbbf24';
+      if (t.includes('aliado')||t.includes('paseout')) return '#f0abfc';
+      if (t.includes('pase'))                 return '#fb923c';
+      return '#4ade80';
+    }
+
+    function movPayments(op, movId) {
+      return (op.caja||[]).filter(c => String(c.id_movimiento||'') === String(movId||''));
+    }
+
+    function montoPayStyle(op, mov) {
+      if (mov.estado === 'Cancelado') return 'color:#6b7280;text-decoration:line-through';
+      const paid  = movPayments(op, mov.id_mov).reduce((s,c) => s+(parseFloat(c.monto)||0), 0);
+      const total = parseFloat(mov.monto_total)||0;
+      if (total === 0)            return 'color:var(--text-muted)';
+      if (paid >= total * 0.99)   return 'color:#4ade80';
+      if (paid > 0)               return 'color:#fbbf24';
+      return 'color:#f87171';
+    }
+
+    function openMovModal(op, mov) {
+      selectedMov.value = { mov, op, payments: movPayments(op, mov.id_mov) };
+    }
+
+    const selectedPase = ref(null);
+
+    function pagoStatusStyle(p) {
+      const t = String(p.tipo||'').toLowerCase();
+      if (t.includes('aliado') || t.includes('paseout')) {
+        return p.id_agencia_comprada ? 'color:#4ade80' : 'color:#f87171';
+      }
+      return 'color:var(--gold)';
+    }
+
+    function openPaseModal(p) {
+      selectedPase.value = p;
+    }
+
+    function allCajaDia(fecha) {
+      const d = cache.value[fecha];
+      if (!d?.loaded) return [];
+      const entries = [];
+      (d.operaciones||[]).forEach(op =>
+        (op.caja||[]).forEach(c => entries.push({ ...c, _bote: op.nombre_bote || op.id_bote }))
+      );
+      (d.caja_suelta||[]).forEach(c => entries.push({ ...c, _bote: '' }));
+      return entries;
+    }
+
+    function isIngreso(c) {
+      const cat = String(c.categoria||'').toLowerCase();
+      return cat.includes('cobro') || cat.includes('ingreso') || cat.includes('venta');
+    }
+    function metodoIcon(c) {
+      const m = String(c.metodo_pago||'').toLowerCase();
+      if (m.includes('efect') || m === 'cash') return '💵';
+      return '💳';
+    }
+    function cajaRowStyle(c) {
+      return isIngreso(c)
+        ? 'background:rgba(74,222,128,0.07);border-left:3px solid rgba(74,222,128,0.45);'
+        : 'background:rgba(239,68,68,0.07);border-left:3px solid rgba(239,68,68,0.35);';
+    }
+
+    const selectedCajaDia = ref(null);
+
+    const datesByMonth = computed(() => {
+      const groups = {};
+      fechas.value.forEach(f => {
+        const [y, m] = f.split('-');
+        const key = `${y}-${m}`;
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(f);
+      });
+      return groups;
+    });
+
+    function fmtMes(key) {
+      const [y, m] = key.split('-');
+      const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+      return `${meses[parseInt(m)-1]} ${y}`;
+    }
+
+    function pickDate(f) {
+      const ni = fechas.value.indexOf(f);
+      if (ni < 0) return;
+      currentFecha.value = f;
+      dateTab.value = 'operaciones';
+      loadFecha(f);
+      if (fechas.value[ni - 1]) loadFecha(fechas.value[ni - 1]);
+      if (fechas.value[ni + 1]) loadFecha(fechas.value[ni + 1]);
+      showDatePicker.value = false;
+    }
+
+    let refreshInterval = null;
+
+    function silentRefresh() {
+      if (!currentFecha.value || cache.value[currentFecha.value]?.loading) return;
+      const fecha = currentFecha.value;
+      apiGet('lanchas_dia', { fecha }).then(r => {
+        if (r.ok) cache.value = { ...cache.value, [fecha]: { loaded: true, loading: false, ...r.data } };
+      }).catch(() => {});
+    }
+
+    onMounted(() => {
+      if (!fechas.value.length) loadFechas();
+      refreshInterval = setInterval(silentRefresh, 60000);
+    });
+    onActivated(() => {
+      if (!fechas.value.length && !loadingFechas.value) loadFechas();
+      if (!refreshInterval) refreshInterval = setInterval(silentRefresh, 60000);
+    });
+    onDeactivated(() => {
+      clearInterval(refreshInterval);
+      refreshInterval = null;
+    });
+
+    return { fechas, cache, currentFecha, fechaIdx, expandedOps, tabs, dateTab,
+             loadingFechas, fetchError, today, navigate, loadFechas,
+             toggleOp, getTab, setTab, boatBorderClass, movEstadoClass, estadoIcon, estadoIconColor,
+             openReport, fmtFecha, fmt, totalMovs, allPasesDia, tipoBadgeClass,
+             showDatePicker, datesByMonth, fmtMes, pickDate,
+             selectedMov, contactColorByTipo, movPayments, montoPayStyle, openMovModal, allCajaDia,
+             selectedPase, pagoStatusStyle, openPaseModal,
+             isIngreso, metodoIcon, cajaRowStyle, selectedCajaDia };
   },
   template: `
     <div>
+      <!-- Header -->
       <div class="module-header">
-        <div>
-          <div class="module-title">⛵ Lanchas</div>
-          <div class="module-date">Operaciones del día</div>
-        </div>
-        <button @click="$emit('action',{type:'refresh_lanchas'})" style="color:var(--text-muted);font-size:20px;">↻</button>
+        <div class="module-title">⛵ Lanchas</div>
+        <button @click="loadFechas()" style="color:var(--text-muted);font-size:20px;" title="Recargar">↻</button>
       </div>
 
-      <div v-if="loading" style="display:flex;justify-content:center;padding:60px 0;"><div class="spin"></div></div>
+      <!-- Cargando fechas -->
+      <div v-if="loadingFechas" style="display:flex;justify-content:center;padding:60px 0;">
+        <div class="spin"></div>
+      </div>
 
-      <template v-else>
-        <!-- Sin operacion seleccionada: lista -->
-        <div v-if="!selectedOp">
-          <div v-if="!data?.operaciones?.length" class="empty-state">
-            <div class="empty-icon">⛵</div>
-            <p>No hay operaciones hoy</p>
-          </div>
-          <div v-for="op in (data?.operaciones || [])" :key="op.id" class="op-card glass" @click="selectedOp=op">
-            <div class="op-header">
-              <div>
-                <div class="op-title">{{ op.destino || op.id_bote }}</div>
-                <div class="op-sub">🕐 {{ op.hora_salida }} · Bote: {{ op.id_bote }}</div>
+      <div v-else-if="fetchError" class="empty-state" style="border-color:rgba(239,68,68,0.3);">
+        <div class="empty-icon" style="font-size:32px;">⚠️</div>
+        <p style="color:#f87171;font-size:13px;margin-bottom:8px;">{{ fetchError }}</p>
+        <button @click="loadFechas()" style="padding:8px 16px;background:rgba(123,32,48,0.3);border:1px solid var(--border);border-radius:8px;font-size:13px;cursor:pointer;">
+          Reintentar
+        </button>
+      </div>
+      <div v-else-if="!fechas.length" class="empty-state">
+        <div class="empty-icon">⛵</div>
+        <p>Sin operaciones registradas</p>
+      </div>
+
+      <!-- ── Vista carousel ── -->
+      <div v-else class="date-view-frame">
+
+        <!-- Navegación + KPIs en cabecera -->
+        <div class="date-view-nav">
+          <button class="date-nav-arrow" :disabled="fechaIdx >= fechas.length - 1" @click="navigate(1)">‹</button>
+          <div class="date-view-center">
+            <div class="date-view-label" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;" @click="showDatePicker=true">
+              {{ fmtFecha(currentFecha) }}
+              <span style="font-size:11px;opacity:0.7;">▼</span>
+            </div>
+            <template v-if="cache[currentFecha]?.loaded">
+              <div class="date-view-kpis-row">
+                <span class="date-kpi-chip" style="color:var(--gold);">{{ cache[currentFecha].kpis?.pax_total || 0 }} PAX</span>
+                <span class="date-kpi-chip" style="color:#4ade80;">S/ {{ fmt(cache[currentFecha].kpis?.ingresos_operador) }}</span>
+                <span v-if="cache[currentFecha].kpis?.deuda_comisionados > 0" class="date-kpi-chip" style="color:#f87171;">-S/ {{ fmt(cache[currentFecha].kpis?.deuda_comisionados) }}</span>
+                <div class="date-semaforo" :class="'sem-'+(cache[currentFecha].kpis?.semaforo||'gris')" style="display:inline-block;vertical-align:middle;"></div>
               </div>
-              <span class="estado-chip" :class="estadoClass(op.estado)">{{ op.estado }}</span>
-            </div>
-            <div class="op-stats">
-              <span class="op-stat">👨‍✈️ {{ op.id_capitan }}</span>
-              <span class="op-stat">🗺 {{ op.id_guia || '—' }}</span>
-              <span class="op-stat">🆔 {{ op.id.slice(-6) }}</span>
-            </div>
+            </template>
+            <div v-else-if="cache[currentFecha]?.loading" style="margin-top:6px;"><div class="spin" style="width:14px;height:14px;display:inline-block;"></div></div>
           </div>
+          <button class="date-nav-arrow" :disabled="fechaIdx <= 0" @click="navigate(-1)">›</button>
         </div>
 
-        <!-- Detalle de operación -->
-        <div v-else>
-          <button @click="selectedOp=null;$emit('action',{type:'refresh_lanchas'})" style="color:var(--text-muted);font-size:14px;margin-bottom:16px;display:flex;align-items:center;gap:6px;">
-            ← Volver
+        <!-- Cuerpo -->
+        <div class="date-view-body">
+
+          <!-- Botón reporte -->
+          <button v-if="cache[currentFecha]?.loaded" class="btn-report"
+            @click="openReport(currentFecha)"
+            style="width:100%;justify-content:center;margin-bottom:12px;padding:9px;">
+            📊 Ver Reporte del día
           </button>
-          <div class="op-card glass" style="cursor:default;margin-bottom:16px;">
-            <div class="op-header">
-              <div>
-                <div class="op-title">{{ selectedOp.destino || selectedOp.id_bote }}</div>
-                <div class="op-sub">{{ selectedOp.fecha }} · {{ selectedOp.hora_salida }}</div>
-              </div>
-              <span class="estado-chip" :class="estadoClass(selectedOp.estado)">{{ selectedOp.estado }}</span>
-            </div>
+
+          <!-- Tabs -->
+          <div class="tab-bar" style="margin-bottom:12px;">
+            <button class="tab-btn" :class="{active: dateTab==='operaciones'}" @click="dateTab='operaciones'">
+              ⛵ Ops ({{ (cache[currentFecha]?.operaciones||[]).length }})
+            </button>
+            <button class="tab-btn" :class="{active: dateTab==='pases'}" @click="dateTab='pases'">
+              🔀 Pases ({{ allPasesDia(currentFecha).length }})
+            </button>
+            <button class="tab-btn" :class="{active: dateTab==='caja'}" @click="dateTab='caja'">
+              💵 Caja ({{ allCajaDia(currentFecha).length }})
+            </button>
           </div>
 
-          <!-- Movimientos -->
-          <div class="section-card glass">
-            <div class="section-title">Movimientos</div>
-            <div v-if="!data?.movimientos?.length" class="empty-state" style="padding:20px 0;">
-              <p>Sin movimientos</p>
+          <!-- Loading día -->
+          <div v-if="!cache[currentFecha]?.loaded" class="date-loading"><div class="spin"></div></div>
+
+          <template v-else>
+
+            <!-- TAB PASES -->
+            <div v-if="dateTab==='pases'">
+              <div v-if="!allPasesDia(currentFecha).length" class="empty-state" style="padding:20px;">
+                <div class="empty-icon" style="font-size:28px;">🔀</div>
+                <p style="font-size:13px;">Sin pases registrados este día</p>
+              </div>
+              <template v-else>
+                <!-- Chips resumen por tipo -->
+                <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+                  <span v-for="tipo in [...new Set(allPasesDia(currentFecha).map(p=>p.tipo))]" :key="tipo"
+                    class="tipo-badge" :class="tipoBadgeClass(tipo)"
+                    style="padding:3px 10px;font-size:11px;">
+                    {{ tipo }}
+                    ×{{ allPasesDia(currentFecha).filter(p=>p.tipo===tipo).reduce((s,p)=>s+(parseFloat(p.cant_pax)||0),0) }} pax
+                  </span>
+                </div>
+                <!-- Cards -->
+                <div v-for="p in allPasesDia(currentFecha)" :key="p.id_mov"
+                  class="mov-row" :class="{'mov-cancelled': p.estado==='Cancelado'}"
+                  @click="openPaseModal(p)">
+                  <!-- Izquierda: badge + origen → destino -->
+                  <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;">
+                    <span class="tipo-badge" :class="tipoBadgeClass(p.tipo)" style="font-size:9px;padding:1px 5px;flex-shrink:0;">{{ p.tipo }}</span>
+                    <div style="min-width:0;">
+                      <div style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+                        :style="'color:'+contactColorByTipo(p.tipo)">{{ p.nombre_contacto }}</div>
+                      <div v-if="p.nombre_contacto_pase || p.id_contacto_pase"
+                        style="font-size:11px;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                        → {{ p.nombre_contacto_pase || p.id_contacto_pase }}
+                      </div>
+                    </div>
+                  </div>
+                  <!-- Derecha: pax + monto + chevron -->
+                  <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
+                    <span style="font-size:12px;color:var(--text-muted);">{{ p.cant_pax }} pax</span>
+                    <span style="font-size:14px;font-weight:800;" :style="pagoStatusStyle(p)">S/ {{ fmt(p.monto_total) }}</span>
+                    <span style="color:var(--text-muted);font-size:14px;">›</span>
+                  </div>
+                </div>
+                <!-- Total -->
+                <div style="display:flex;justify-content:space-between;padding:8px 10px;border-top:1px solid var(--border);margin-top:2px;">
+                  <span style="font-size:11px;color:var(--text-muted);">
+                    {{ allPasesDia(currentFecha).reduce((s,p)=>s+(parseFloat(p.cant_pax)||0),0) }} pax total
+                  </span>
+                  <span style="font-size:12px;font-weight:800;color:var(--gold);">
+                    S/ {{ fmt(allPasesDia(currentFecha).reduce((s,p)=>s+(parseFloat(p.monto_total)||0),0)) }}
+                  </span>
+                </div>
+              </template>
             </div>
-            <div v-else style="overflow-x:auto;">
-              <table class="mov-table">
-                <thead>
-                  <tr>
-                    <th>Tipo</th>
-                    <th>Contacto</th>
-                    <th>PAX</th>
-                    <th>Precio</th>
-                    <th>Monto</th>
-                    <th>Estado</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="m in data.movimientos" :key="m.id_mov">
-                    <td><span class="tipo-badge" :class="'tipo-'+m.tipo">{{ m.tipo }}</span></td>
-                    <td>{{ m.nombre_contacto }}</td>
-                    <td style="text-align:center;font-weight:700;">{{ m.cant_pax }}</td>
-                    <td>S/ {{ m.precio_aplicado }}</td>
-                    <td style="font-weight:700;">S/ {{ m.monto_total }}</td>
-                    <td><span class="estado-chip" :class="estadoMovClass(m.estado)" style="font-size:10px;padding:2px 7px;">{{ m.estado }}</span></td>
-                  </tr>
-                </tbody>
-              </table>
+
+            <!-- TAB CAJA -->
+            <div v-if="dateTab==='caja'">
+              <div v-if="!allCajaDia(currentFecha).length" class="empty-state" style="padding:20px;">
+                <div class="empty-icon" style="font-size:28px;">💵</div>
+                <p style="font-size:13px;">Sin registros de caja este día</p>
+              </div>
+              <template v-else>
+                <!-- KPI chips -->
+                <div class="kpi-grid" style="margin-bottom:12px;">
+                  <div class="kpi-card glass" style="padding:10px;text-align:center;">
+                    <div class="kpi-label">Total</div>
+                    <div class="kpi-value shimmer" style="font-size:18px;">S/ {{ fmt(allCajaDia(currentFecha).reduce((s,c)=>s+(parseFloat(c.monto)||0),0)) }}</div>
+                  </div>
+                  <div class="kpi-card glass" style="padding:10px;text-align:center;">
+                    <div class="kpi-label">💵 Efectivo</div>
+                    <div class="kpi-value" style="font-size:18px;color:#4ade80;">S/ {{ fmt(allCajaDia(currentFecha).filter(c=>String(c.metodo_pago||'').toLowerCase().includes('efect')||String(c.metodo_pago||'').toLowerCase()==='cash').reduce((s,c)=>s+(parseFloat(c.monto)||0),0)) }}</div>
+                  </div>
+                  <div class="kpi-card glass" style="padding:10px;text-align:center;">
+                    <div class="kpi-label">💳 Transfer.</div>
+                    <div class="kpi-value" style="font-size:18px;color:#60a5fa;">S/ {{ fmt(allCajaDia(currentFecha).filter(c=>!String(c.metodo_pago||'').toLowerCase().includes('efect')&&String(c.metodo_pago||'').toLowerCase()!=='cash'&&!!c.metodo_pago).reduce((s,c)=>s+(parseFloat(c.monto)||0),0)) }}</div>
+                  </div>
+                </div>
+                <!-- Cards -->
+                <div v-for="c in allCajaDia(currentFecha)" :key="c.id_transaccion"
+                  class="mov-row" :style="cajaRowStyle(c)"
+                  @click="selectedCajaDia=c"
+                  style="border-radius:8px;margin-bottom:4px;padding-left:10px;">
+                  <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;">
+                    <span style="font-size:20px;flex-shrink:0;">{{ metodoIcon(c) }}</span>
+                    <div style="min-width:0;">
+                      <div style="display:flex;align-items:center;gap:5px;">
+                        <span style="font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.operador || '—' }}</span>
+                        <span v-if="c.comentarios" style="width:15px;height:15px;border-radius:50%;background:rgba(201,168,76,0.25);color:var(--gold);font-size:9px;font-weight:900;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;font-style:italic;">i</span>
+                        <span v-if="c._bote" style="font-size:13px;flex-shrink:0;" :title="c._bote">⛵</span>
+                      </div>
+                      <div style="font-size:11px;color:var(--text-muted);">{{ c.categoria }}</div>
+                    </div>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+                    <span style="font-size:15px;font-weight:800;" :style="isIngreso(c)?'color:#4ade80':'color:#f87171'">
+                      {{ isIngreso(c) ? '+' : '-' }}S/ {{ fmt(c.monto) }}
+                    </span>
+                    <span style="color:var(--text-muted);font-size:14px;">›</span>
+                  </div>
+                </div>
+                <!-- Total -->
+                <div style="display:flex;justify-content:space-between;padding:10px 10px 2px;border-top:1px solid var(--border);margin-top:4px;">
+                  <span style="font-size:11px;color:var(--text-muted);">{{ allCajaDia(currentFecha).length }} registros</span>
+                  <span style="font-size:13px;font-weight:800;color:var(--gold);">S/ {{ fmt(allCajaDia(currentFecha).reduce((s,c)=>s+(parseFloat(c.monto)||0),0)) }}</span>
+                </div>
+              </template>
+            </div>
+
+            <!-- TAB OPERACIONES -->
+            <div v-if="dateTab==='operaciones'">
+              <div v-if="!(cache[currentFecha].operaciones||[]).length" class="empty-state" style="padding:20px;">
+                <div class="empty-icon" style="font-size:28px;">⛵</div><p style="font-size:13px;">Sin operaciones este día</p>
+              </div>
+              <div v-for="op in (cache[currentFecha].operaciones||[])" :key="op.id" class="boat-card" :class="boatBorderClass(op.estado)">
+                <div class="boat-header" @click="toggleOp(op.id)">
+                  <!-- Fila 1: nombre bote · estado · descuadre | monto · chevron -->
+                  <div style="display:flex;align-items:center;gap:7px;margin-bottom:4px;">
+                    <span class="boat-title" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ op.nombre_bote || op.id_bote }}</span>
+                    <span style="font-size:13px;font-weight:900;flex-shrink:0;" :style="estadoIconColor(op.estado)">{{ estadoIcon(op.estado) }}</span>
+                    <span v-if="op.descuadre" style="font-size:14px;color:#ef4444;flex-shrink:0;" title="Descuadre de caja">💰</span>
+                    <span style="font-size:13px;font-weight:800;color:var(--gold);flex-shrink:0;">S/ {{ fmt(op.ingresos_operador) }}</span>
+                    <span style="color:var(--text-muted);font-size:12px;flex-shrink:0;">{{ expandedOps.has(op.id) ? '▴' : '▾' }}</span>
+                  </div>
+                  <!-- Fila 2: capitan · guia | pax -->
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
+                    <span style="font-size:11px;color:var(--text-muted);">
+                      {{ op.nombre_capitan || op.id_capitan }}<template v-if="op.nombre_guia || op.id_guia">&nbsp;·&nbsp;{{ op.nombre_guia || op.id_guia }}</template>
+                    </span>
+                    <span style="font-size:12px;font-weight:700;color:var(--gold);">{{ op.pax_total }} pax</span>
+                  </div>
+                  <!-- Fila 3: destino · hora -->
+                  <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">
+                    <template v-if="op.destino">{{ op.destino }}&nbsp;·&nbsp;</template>🕐 {{ op.hora_salida }}
+                  </div>
+                  <!-- Fila 4: tipo chips -->
+                  <div class="type-chips" v-if="Object.keys(op.tipo_chips||{}).length">
+                    <span v-for="(cnt, tipo) in op.tipo_chips" :key="tipo" class="type-chip" :class="tipoBadgeClass(tipo)">{{ tipo }} ×{{ cnt }}</span>
+                  </div>
+                </div>
+                <div v-if="expandedOps.has(op.id)" class="boat-body">
+                  <div v-if="!(op.movimientos||[]).length" style="color:var(--text-muted);font-size:13px;padding:8px 0;">Sin movimientos</div>
+                  <div v-else>
+                    <div v-for="m in (op.movimientos||[])" :key="m.id_mov"
+                      class="mov-row" :class="{'mov-cancelled': m.estado==='Cancelado'}"
+                      @click="openMovModal(op, m)">
+                      <div style="display:flex;align-items:center;gap:7px;flex:1;min-width:0;">
+                        <span class="tipo-badge" :class="tipoBadgeClass(m.tipo)" style="font-size:9px;padding:1px 5px;flex-shrink:0;">{{ m.tipo }}</span>
+                        <span style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+                          :style="'color:'+contactColorByTipo(m.tipo)">{{ m.nombre_contacto }}</span>
+                      </div>
+                      <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
+                        <span style="font-size:12px;color:var(--text-muted);">{{ m.cant_pax }} pax</span>
+                        <span style="font-size:14px;font-weight:800;" :style="montoPayStyle(op,m)">S/ {{ fmt(m.monto_total) }}</span>
+                        <span style="color:var(--text-muted);font-size:14px;">›</span>
+                      </div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;padding:8px 10px;border-top:1px solid var(--border);margin-top:2px;">
+                      <span style="font-size:11px;color:var(--text-muted);">{{ totalMovs(op.movimientos||[]).pax }} pax total</span>
+                      <span style="font-size:12px;font-weight:800;color:var(--gold);">S/ {{ fmt(totalMovs(op.movimientos||[]).monto) }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </template>
+        </div>
+      </div>
+
+      <!-- Movement Detail Modal -->
+      <teleport to="body">
+        <div v-if="selectedMov" class="date-picker-overlay" @click.self="selectedMov=null">
+          <div class="date-picker-modal" style="max-width:400px;">
+            <div class="date-picker-header">
+              <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+                <span class="tipo-badge" :class="tipoBadgeClass(selectedMov.mov.tipo)" style="flex-shrink:0;">{{ selectedMov.mov.tipo }}</span>
+                <span style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+                  :style="'color:'+contactColorByTipo(selectedMov.mov.tipo)">{{ selectedMov.mov.nombre_contacto }}</span>
+              </div>
+              <button @click="selectedMov=null" style="font-size:18px;color:var(--text-muted);flex-shrink:0;">✕</button>
+            </div>
+            <div style="overflow-y:auto;max-height:65vh;padding:14px;display:flex;flex-direction:column;gap:12px;">
+
+              <!-- KPIs del movimiento -->
+              <div class="kpi-grid">
+                <div class="kpi-card glass" style="padding:10px;text-align:center;">
+                  <div class="kpi-label">PAX</div>
+                  <div class="kpi-value" style="font-size:20px;color:var(--gold);">{{ selectedMov.mov.cant_pax }}</div>
+                </div>
+                <div class="kpi-card glass" style="padding:10px;text-align:center;">
+                  <div class="kpi-label">Precio / pax</div>
+                  <div class="kpi-value" style="font-size:20px;">S/ {{ fmt(selectedMov.mov.precio_aplicado) }}</div>
+                </div>
+                <div class="kpi-card glass" style="padding:10px;text-align:center;">
+                  <div class="kpi-label">Total</div>
+                  <div class="kpi-value" style="font-size:20px;color:var(--gold);">S/ {{ fmt(selectedMov.mov.monto_total) }}</div>
+                </div>
+                <div class="kpi-card glass" style="padding:10px;text-align:center;">
+                  <div class="kpi-label">Cobrado</div>
+                  <div class="kpi-value" style="font-size:20px;" :style="montoPayStyle(selectedMov.op, selectedMov.mov)">
+                    S/ {{ fmt(selectedMov.payments.reduce((s,c)=>s+(parseFloat(c.monto)||0),0)) }}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Estado + detalles -->
+              <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
+                <span class="estado-chip" :class="movEstadoClass(selectedMov.mov.estado)">{{ selectedMov.mov.estado }}</span>
+                <span v-if="selectedMov.mov.operador" style="font-size:11px;color:var(--text-muted);">por {{ selectedMov.mov.operador }}</span>
+              </div>
+              <div v-if="selectedMov.mov.adicionales || selectedMov.mov.id_contacto_pase || selectedMov.mov.id_agencia_comprada"
+                style="font-size:12px;color:var(--text-muted);display:flex;flex-direction:column;gap:4px;">
+                <span v-if="selectedMov.mov.adicionales">📝 {{ selectedMov.mov.adicionales }}</span>
+                <span v-if="selectedMov.mov.id_contacto_pase">→ Pasado a: <strong style="color:var(--text);">{{ selectedMov.mov.id_contacto_pase }}</strong></span>
+                <span v-if="selectedMov.mov.id_agencia_comprada">🏢 Agencia comprada: <strong style="color:var(--text);">{{ selectedMov.mov.id_agencia_comprada }}</strong>
+                  <span v-if="selectedMov.mov.monto_comprado > 0" style="color:#4ade80;"> · S/ {{ fmt(selectedMov.mov.monto_comprado) }}</span>
+                </span>
+              </div>
+
+              <!-- Registros de pago -->
+              <div>
+                <div style="font-size:12px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:8px;">
+                  💵 Pagos registrados ({{ selectedMov.payments.length }})
+                </div>
+                <div v-if="!selectedMov.payments.length"
+                  style="font-size:13px;color:var(--text-muted);padding:10px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);border-radius:8px;">
+                  ⚠ Sin pagos — monto pendiente
+                </div>
+                <table v-else class="mov-table">
+                  <thead><tr><th>Categoría</th><th>Monto</th><th>Método</th><th>Nota</th></tr></thead>
+                  <tbody>
+                    <tr v-for="c in selectedMov.payments" :key="c.id_transaccion">
+                      <td>{{ c.categoria }}</td>
+                      <td style="font-weight:700;color:#4ade80;">S/ {{ fmt(c.monto) }}</td>
+                      <td>{{ c.metodo_pago }}</td>
+                      <td style="font-size:11px;color:var(--text-muted);">{{ c.comentarios }}</td>
+                    </tr>
+                    <tr class="totals-row">
+                      <td>TOTAL COBRADO</td>
+                      <td style="color:#4ade80;">S/ {{ fmt(selectedMov.payments.reduce((s,c)=>s+(parseFloat(c.monto)||0),0)) }}</td>
+                      <td colspan="2"></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
             </div>
           </div>
         </div>
-      </template>
+      </teleport>
+
+      <!-- Caja Detail Modal (Lanchas) -->
+      <teleport to="body">
+        <div v-if="selectedCajaDia" style="position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.65);display:flex;align-items:center;justify-content:center;padding:24px;" @click.self="selectedCajaDia=null">
+          <div style="background:var(--bg2);border:1px solid rgba(201,168,76,0.35);border-radius:var(--radius);width:100%;max-width:360px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.7);">
+            <div :style="(isIngreso(selectedCajaDia)?'background:rgba(74,222,128,0.12);border-bottom:1px solid rgba(74,222,128,0.25)':'background:rgba(239,68,68,0.1);border-bottom:1px solid rgba(239,68,68,0.25)')+';padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px;'">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <span style="font-size:24px;">{{ metodoIcon(selectedCajaDia) }}</span>
+                <div>
+                  <div style="font-weight:800;font-size:15px;">{{ selectedCajaDia.operador || '—' }}</div>
+                  <div style="font-size:11px;opacity:0.7;">{{ selectedCajaDia.categoria }}</div>
+                </div>
+              </div>
+              <button @click="selectedCajaDia=null" style="font-size:18px;color:var(--text-muted);">✕</button>
+            </div>
+            <div style="padding:16px;display:flex;flex-direction:column;gap:12px;">
+              <div style="text-align:center;padding:8px 0;">
+                <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">{{ isIngreso(selectedCajaDia) ? 'INGRESO' : 'SALIDA' }}</div>
+                <div style="font-size:32px;font-weight:900;" :style="isIngreso(selectedCajaDia)?'color:#4ade80':'color:#f87171'">
+                  {{ isIngreso(selectedCajaDia) ? '+' : '-' }}S/ {{ fmt(selectedCajaDia.monto) }}
+                </div>
+                <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">{{ selectedCajaDia.metodo_pago }}</div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;">
+                <div v-if="selectedCajaDia._bote" style="display:flex;justify-content:space-between;">
+                  <span style="color:var(--text-muted);">⛵ Bote</span>
+                  <span style="font-weight:600;">{{ selectedCajaDia._bote }}</span>
+                </div>
+                <div v-if="selectedCajaDia.timestamp" style="display:flex;justify-content:space-between;">
+                  <span style="color:var(--text-muted);">🕐 Hora</span>
+                  <span>{{ selectedCajaDia.timestamp }}</span>
+                </div>
+                <div v-if="selectedCajaDia.id_movimiento" style="display:flex;justify-content:space-between;">
+                  <span style="color:var(--text-muted);">Mov. ref.</span>
+                  <span style="font-size:11px;color:var(--text-muted);">{{ selectedCajaDia.id_movimiento }}</span>
+                </div>
+              </div>
+              <div v-if="selectedCajaDia.comentarios"
+                style="background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.2);border-radius:10px;padding:10px;">
+                <div style="font-size:10px;font-weight:800;color:var(--gold);letter-spacing:0.07em;margin-bottom:4px;">NOTA</div>
+                <div style="font-size:13px;">{{ selectedCajaDia.comentarios }}</div>
+              </div>
+              <div v-if="selectedCajaDia.foto_url">
+                <a :href="selectedCajaDia.foto_url" target="_blank"
+                  style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--gold);text-decoration:none;">
+                  📎 Ver comprobante
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </teleport>
+
+      <!-- Pase Detail Modal -->
+      <teleport to="body">
+        <div v-if="selectedPase" class="date-picker-overlay" @click.self="selectedPase=null">
+          <div class="date-picker-modal" style="max-width:380px;">
+            <div class="date-picker-header">
+              <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+                <span class="tipo-badge" :class="tipoBadgeClass(selectedPase.tipo)" style="flex-shrink:0;">{{ selectedPase.tipo }}</span>
+                <span style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+                  :style="'color:'+contactColorByTipo(selectedPase.tipo)">{{ selectedPase.nombre_contacto }}</span>
+              </div>
+              <button @click="selectedPase=null" style="font-size:18px;color:var(--text-muted);flex-shrink:0;">✕</button>
+            </div>
+            <div style="overflow-y:auto;max-height:65vh;padding:14px;display:flex;flex-direction:column;gap:12px;">
+
+              <!-- KPIs -->
+              <div class="kpi-grid">
+                <div class="kpi-card glass" style="padding:10px;text-align:center;">
+                  <div class="kpi-label">PAX</div>
+                  <div class="kpi-value" style="font-size:20px;color:var(--gold);">{{ selectedPase.cant_pax }}</div>
+                </div>
+                <div class="kpi-card glass" style="padding:10px;text-align:center;">
+                  <div class="kpi-label">Precio / pax</div>
+                  <div class="kpi-value" style="font-size:20px;">S/ {{ fmt(selectedPase.precio_aplicado) }}</div>
+                </div>
+                <div class="kpi-card glass" style="padding:10px;text-align:center;">
+                  <div class="kpi-label">Monto</div>
+                  <div class="kpi-value" style="font-size:20px;color:var(--gold);">S/ {{ fmt(selectedPase.monto_total) }}</div>
+                </div>
+                <div class="kpi-card glass" style="padding:10px;text-align:center;">
+                  <div class="kpi-label">Cobrado</div>
+                  <div class="kpi-value" style="font-size:20px;" :style="pagoStatusStyle(selectedPase)">
+                    <template v-if="selectedPase.id_agencia_comprada">S/ {{ fmt(selectedPase.monto_comprado) }}</template>
+                    <template v-else>—</template>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Estado + bote -->
+              <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
+                <span class="estado-chip" :class="movEstadoClass(selectedPase.estado)">{{ selectedPase.estado }}</span>
+                <span style="font-size:11px;color:var(--text-muted);">🕐 {{ selectedPase._hora }}</span>
+                <span style="font-size:11px;color:var(--text-muted);">⛵ {{ selectedPase._bote }}</span>
+              </div>
+
+              <!-- Contacto destino -->
+              <div v-if="selectedPase.nombre_contacto_pase || selectedPase.id_contacto_pase"
+                style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:10px;padding:10px;">
+                <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">→ Pasado a</div>
+                <div style="font-weight:700;font-size:14px;">{{ selectedPase.nombre_contacto_pase || selectedPase.id_contacto_pase }}</div>
+              </div>
+
+              <!-- Cobro aliado -->
+              <div style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:10px;padding:10px;">
+                <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">💰 Estado de cobro</div>
+                <template v-if="selectedPase.id_agencia_comprada">
+                  <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <span style="font-size:13px;color:#4ade80;font-weight:700;">✓ Cobrado</span>
+                    <span style="font-size:15px;font-weight:800;color:#4ade80;">S/ {{ fmt(selectedPase.monto_comprado) }}</span>
+                  </div>
+                  <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">por {{ selectedPase.id_agencia_comprada }}</div>
+                </template>
+                <template v-else>
+                  <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <span style="font-size:13px;color:#f87171;font-weight:700;">⏳ Pendiente</span>
+                    <span style="font-size:15px;font-weight:800;color:#f87171;">S/ {{ fmt(selectedPase.monto_total) }}</span>
+                  </div>
+                </template>
+              </div>
+
+              <!-- Adicionales -->
+              <div v-if="selectedPase.adicionales"
+                style="font-size:12px;color:var(--text-muted);">📝 {{ selectedPase.adicionales }}</div>
+
+            </div>
+          </div>
+        </div>
+      </teleport>
+
+      <!-- Date Picker Modal -->
+      <teleport to="body">
+        <div v-if="showDatePicker" class="date-picker-overlay" @click.self="showDatePicker=false">
+          <div class="date-picker-modal">
+            <div class="date-picker-header">
+              <span>📅 Seleccionar fecha</span>
+              <button @click="showDatePicker=false" style="font-size:18px;color:var(--text-muted);">✕</button>
+            </div>
+            <div class="date-picker-list">
+              <template v-for="(datesInMonth, monthKey) in datesByMonth" :key="monthKey">
+                <div class="date-picker-month">{{ fmtMes(monthKey) }}</div>
+                <div v-for="f in datesInMonth" :key="f"
+                  class="date-picker-item" :class="{active: f===currentFecha}"
+                  @click="pickDate(f)">
+                  <span>{{ fmtFecha(f) }}</span>
+                  <template v-if="cache[f]?.loaded">
+                    <span style="font-size:11px;color:var(--text-muted);">
+                      {{ cache[f].kpis?.pax_total||0 }} PAX · S/{{ fmt(cache[f].kpis?.ingresos_operador) }}
+                    </span>
+                  </template>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+      </teleport>
+
+      <div style="height:24px;"></div>
     </div>
-  `,
-  methods: {
-    estadoClass(e) {
-      if (!e) return '';
-      const s = String(e).toLowerCase();
-      if (s.includes('activ') || s.includes('abierta')) return 'estado-activa';
-      if (s.includes('cerr')) return 'estado-cerrada';
-      return 'estado-pendiente';
-    },
-    estadoMovClass(e) {
-      if (!e) return '';
-      const s = String(e).toLowerCase();
-      if (s === 'embarcado') return 'badge badge-green';
-      if (s === 'pasado') return 'badge badge-blue';
-      if (s === 'cancelado') return 'badge badge-red';
-      return 'badge badge-gold';
-    }
-  }
+  `
 };
 
 const ViewHotel = {
@@ -1365,78 +2478,303 @@ const ViewFinanzas = {
   name: 'ViewFinanzas',
   props: ['data', 'loading'],
   emits: ['action'],
+  setup(props, { emit }) {
+    const fechas        = ref([]);
+    const cache         = ref({});
+    const currentFecha  = ref('');
+    const loadingFechas = ref(true);
+    const fetchError    = ref('');
+    const today         = new Date().toISOString().slice(0, 10);
+
+    const fechaIdx = computed(() => fechas.value.indexOf(currentFecha.value));
+
+    function fmt(v) { return (parseFloat(v)||0).toLocaleString('es-PE',{minimumFractionDigits:0,maximumFractionDigits:0}); }
+
+    function fmtFecha(f) {
+      if (!f) return '';
+      const [y, m, d] = f.split('-');
+      const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+      const label = `${d} ${meses[parseInt(m)-1]}`;
+      return f === today ? `Hoy · ${label}` : label;
+    }
+
+    async function loadFechas() {
+      loadingFechas.value = true; fetchError.value = '';
+      try {
+        const r = await apiGet('lanchas_fechas');
+        if (r.ok && Array.isArray(r.data)) {
+          fechas.value = r.data;
+          const si = r.data.includes(today) ? r.data.indexOf(today) : 0;
+          currentFecha.value = r.data[si] || '';
+          [si-1, si, si+1].forEach(i => { if (r.data[i]) loadFecha(r.data[i]); });
+        } else { fetchError.value = r.error || 'Error al cargar fechas'; }
+      } catch(e) { fetchError.value = 'Error de conexión: ' + e.message; }
+      finally { loadingFechas.value = false; }
+    }
+
+    async function loadFecha(fecha) {
+      if (cache.value[fecha]?.loaded || cache.value[fecha]?.loading) return;
+      cache.value = { ...cache.value, [fecha]: { loaded: false, loading: true } };
+      try {
+        const r = await apiGet('lanchas_dia', { fecha });
+        cache.value = { ...cache.value, [fecha]: {
+          loaded: true, loading: false,
+          ...(r.ok ? r.data : { operaciones: [], pases_sueltos: [], kpis: {} })
+        }};
+      } catch(e) {
+        cache.value = { ...cache.value, [fecha]: { loaded: true, loading: false, operaciones: [], pases_sueltos: [], kpis: {} } };
+      }
+    }
+
+    function navigate(dir) {
+      const ni = fechaIdx.value + dir;
+      const target = fechas.value[ni];
+      if (!target) return;
+      currentFecha.value = target;
+      loadFecha(target);
+      if (fechas.value[ni-1]) loadFecha(fechas.value[ni-1]);
+      if (fechas.value[ni+1]) loadFecha(fechas.value[ni+1]);
+    }
+
+    const selectedCaja = ref(null);
+
+    const allCaja = computed(() => {
+      const d = cache.value[currentFecha.value];
+      if (!d?.loaded) return [];
+      const entries = [];
+      (d.operaciones || []).forEach(op =>
+        (op.caja || []).forEach(c => entries.push({ ...c, _bote: op.nombre_bote || op.id_bote }))
+      );
+      (d.caja_suelta || []).forEach(c => entries.push({ ...c, _bote: '' }));
+      return entries;
+    });
+
+    const cajaKpis = computed(() => {
+      const d = cache.value[currentFecha.value];
+      if (!d?.loaded) return { total: 0, efectivo: 0, transferencia: 0 };
+      return {
+        total:         (d.kpis?.caja_efectivo || 0) + (d.kpis?.caja_transferencia || 0),
+        efectivo:      d.kpis?.caja_efectivo || 0,
+        transferencia: d.kpis?.caja_transferencia || 0
+      };
+    });
+
+    function isIngreso(c) {
+      const cat = String(c.categoria||'').toLowerCase();
+      return cat.includes('cobro') || cat.includes('ingreso') || cat.includes('venta');
+    }
+
+    function metodoIcon(c) {
+      const m = String(c.metodo_pago||'').toLowerCase();
+      if (m.includes('efect') || m === 'cash') return '💵';
+      return '💳';
+    }
+
+    function cajaRowStyle(c) {
+      return isIngreso(c)
+        ? 'background:rgba(74,222,128,0.07);border-left:3px solid rgba(74,222,128,0.45);'
+        : 'background:rgba(239,68,68,0.07);border-left:3px solid rgba(239,68,68,0.35);';
+    }
+
+    function openCajaModal(c) { selectedCaja.value = c; }
+
+    let refreshInterval = null;
+
+    function silentRefresh() {
+      if (!currentFecha.value || cache.value[currentFecha.value]?.loading) return;
+      const fecha = currentFecha.value;
+      apiGet('lanchas_dia', { fecha }).then(r => {
+        if (r.ok) cache.value = { ...cache.value, [fecha]: { loaded: true, loading: false, ...r.data } };
+      }).catch(() => {});
+    }
+
+    onMounted(() => {
+      if (!fechas.value.length) loadFechas();
+      refreshInterval = setInterval(silentRefresh, 60000);
+    });
+    onActivated(() => {
+      if (!fechas.value.length && !loadingFechas.value) loadFechas();
+      if (!refreshInterval) refreshInterval = setInterval(silentRefresh, 60000);
+    });
+    onDeactivated(() => {
+      clearInterval(refreshInterval);
+      refreshInterval = null;
+    });
+
+    return { fechas, cache, currentFecha, fechaIdx, loadingFechas, fetchError,
+             today, fmt, fmtFecha, navigate, loadFechas, allCaja, cajaKpis,
+             selectedCaja, isIngreso, metodoIcon, cajaRowStyle, openCajaModal };
+  },
   template: `
     <div>
       <div class="module-header">
-        <div>
-          <div class="module-title">💰 Finanzas</div>
-          <div class="module-date">Resumen consolidado</div>
-        </div>
-        <button @click="$emit('action',{type:'refresh'})" style="color:var(--text-muted);font-size:20px;">↻</button>
+        <div class="module-title">💰 Finanzas</div>
+        <button @click="loadFechas()" style="color:var(--text-muted);font-size:20px;" title="Recargar">↻</button>
       </div>
 
-      <div v-if="loading" style="display:flex;justify-content:center;padding:60px 0;"><div class="spin"></div></div>
+      <div v-if="loadingFechas" style="display:flex;justify-content:center;padding:60px 0;">
+        <div class="spin"></div>
+      </div>
+      <div v-else-if="fetchError" class="empty-state" style="border-color:rgba(239,68,68,0.3);">
+        <div class="empty-icon" style="font-size:32px;">⚠️</div>
+        <p style="color:#f87171;font-size:13px;margin-bottom:8px;">{{ fetchError }}</p>
+        <button @click="loadFechas()" style="padding:8px 16px;background:rgba(123,32,48,0.3);border:1px solid var(--border);border-radius:8px;font-size:13px;">Reintentar</button>
+      </div>
+      <div v-else-if="!fechas.length" class="empty-state">
+        <div class="empty-icon">💰</div><p>Sin datos de caja</p>
+      </div>
 
-      <template v-else-if="data?.hoy">
-        <!-- Ingresos hoy -->
-        <div class="section-card glass">
-          <div class="section-title">Ingresos de hoy</div>
-          <div class="kpi-grid">
-            <div class="kpi-card" style="padding:12px;">
-              <div class="kpi-label">Lanchas</div>
-              <div class="kpi-value" style="font-size:20px;color:var(--gold);">S/ {{ fmt(data.hoy.lanchas.ingresos_operador) }}</div>
-              <div class="kpi-sub">Directo + Agencia + Margen comis.</div>
-            </div>
-            <div class="kpi-card" style="padding:12px;">
-              <div class="kpi-label">Hotel</div>
-              <div class="kpi-value" style="font-size:20px;color:var(--gold);">S/ {{ fmt(data.hoy.hotel.ingresos_total) }}</div>
-              <div class="kpi-sub">Alojamiento + Consumos</div>
-            </div>
+      <div v-else class="date-view-frame">
+
+        <!-- Navegación fecha -->
+        <div class="date-view-nav">
+          <button class="date-nav-arrow" :disabled="fechaIdx >= fechas.length - 1" @click="navigate(1)">‹</button>
+          <div class="date-view-center">
+            <div class="date-view-label">{{ fmtFecha(currentFecha) }}</div>
+            <template v-if="cache[currentFecha]?.loaded">
+              <div class="date-view-kpis-row">
+                <span class="date-kpi-chip" style="color:#4ade80;">S/ {{ fmt(cajaKpis.efectivo) }} Efect.</span>
+                <span class="date-kpi-chip" style="color:#60a5fa;">S/ {{ fmt(cajaKpis.transferencia) }} Trans.</span>
+              </div>
+            </template>
+            <div v-else-if="cache[currentFecha]?.loading" style="margin-top:6px;"><div class="spin" style="width:14px;height:14px;display:inline-block;"></div></div>
           </div>
-          <div class="sep"></div>
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;">
-            <span style="font-size:14px;font-weight:700;">Total empresa hoy</span>
-            <span style="font-size:22px;font-weight:800;" class="shimmer">S/ {{ fmt(data.hoy.total_ingresos) }}</span>
-          </div>
+          <button class="date-nav-arrow" :disabled="fechaIdx <= 0" @click="navigate(-1)">›</button>
         </div>
 
-        <!-- Deudas y pendientes -->
-        <div class="section-card glass">
-          <div class="section-title">Deudas y pendientes</div>
-          <div class="kpi-grid">
-            <div class="kpi-card" style="padding:12px;">
-              <div class="kpi-label">Debes a Comisionados</div>
-              <div class="kpi-value" style="font-size:20px;color:#f87171;">S/ {{ fmt(data.hoy.lanchas.deuda_comisionados) }}</div>
-            </div>
-            <div class="kpi-card" style="padding:12px;">
-              <div class="kpi-label">Te deben Aliados</div>
-              <div class="kpi-value" style="font-size:20px;color:#fbbf24;">S/ {{ fmt(data.hoy.lanchas.pendiente_aliados) }}</div>
-            </div>
-          </div>
-        </div>
+        <!-- Cuerpo -->
+        <div class="date-view-body">
 
-        <!-- Caja operadores -->
-        <div class="section-card glass" style="margin-bottom:24px;">
-          <div class="section-title">Caja operadores</div>
-          <div class="kpi-grid">
-            <div class="kpi-card" style="padding:12px;">
+          <!-- KPIs Caja -->
+          <div v-if="cache[currentFecha]?.loaded" class="kpi-grid" style="margin-bottom:14px;">
+            <div class="kpi-card glass" style="padding:12px;">
+              <div class="kpi-label">Total Caja</div>
+              <div class="kpi-value shimmer" style="font-size:20px;">S/ {{ fmt(cajaKpis.total) }}</div>
+            </div>
+            <div class="kpi-card glass" style="padding:12px;">
               <div class="kpi-label">Efectivo</div>
-              <div class="kpi-value" style="font-size:20px;">S/ {{ fmt(data.hoy.lanchas.caja_efectivo) }}</div>
+              <div class="kpi-value" style="font-size:20px;color:#4ade80;">S/ {{ fmt(cajaKpis.efectivo) }}</div>
             </div>
-            <div class="kpi-card" style="padding:12px;">
-              <div class="kpi-label">Transferencias</div>
-              <div class="kpi-value" style="font-size:20px;">S/ {{ fmt(data.hoy.lanchas.caja_transferencia) }}</div>
+            <div class="kpi-card glass" style="padding:12px;">
+              <div class="kpi-label">Transferencia</div>
+              <div class="kpi-value" style="font-size:20px;color:#60a5fa;">S/ {{ fmt(cajaKpis.transferencia) }}</div>
+            </div>
+            <div class="kpi-card glass" style="padding:12px;">
+              <div class="kpi-label">Entradas</div>
+              <div class="kpi-value" style="font-size:20px;color:var(--gold);">{{ allCaja.length }}</div>
+            </div>
+          </div>
+
+          <div v-if="!cache[currentFecha]?.loaded" class="date-loading"><div class="spin"></div></div>
+
+          <!-- Entradas -->
+          <template v-else>
+            <div v-if="!allCaja.length" class="empty-state" style="padding:20px;">
+              <div class="empty-icon" style="font-size:28px;">💵</div>
+              <p style="font-size:13px;">Sin entradas de caja este día</p>
+            </div>
+            <template v-else>
+              <div v-for="c in allCaja" :key="c.id_transaccion"
+                class="mov-row" :style="cajaRowStyle(c)"
+                @click="openCajaModal(c)"
+                style="border-radius:8px;margin-bottom:4px;padding-left:10px;">
+                <!-- Izquierda: icono método + operador + categoría -->
+                <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;">
+                  <span style="font-size:20px;flex-shrink:0;">{{ metodoIcon(c) }}</span>
+                  <div style="min-width:0;">
+                    <div style="display:flex;align-items:center;gap:5px;">
+                      <span style="font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.operador || '—' }}</span>
+                      <span v-if="c.comentarios"
+                        style="width:15px;height:15px;border-radius:50%;background:rgba(201,168,76,0.25);color:var(--gold);font-size:9px;font-weight:900;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;font-style:italic;">i</span>
+                      <span v-if="c._bote" style="font-size:13px;flex-shrink:0;" :title="c._bote">⛵</span>
+                    </div>
+                    <div style="font-size:11px;color:var(--text-muted);">{{ c.categoria }}</div>
+                  </div>
+                </div>
+                <!-- Derecha: monto + chevron -->
+                <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+                  <span style="font-size:15px;font-weight:800;" :style="isIngreso(c)?'color:#4ade80':'color:#f87171'">
+                    {{ isIngreso(c) ? '+' : '-' }}S/ {{ fmt(c.monto) }}
+                  </span>
+                  <span style="color:var(--text-muted);font-size:14px;">›</span>
+                </div>
+              </div>
+              <!-- Total -->
+              <div style="display:flex;justify-content:space-between;padding:10px 10px 2px;border-top:1px solid var(--border);margin-top:4px;">
+                <span style="font-size:11px;color:var(--text-muted);">{{ allCaja.length }} registros</span>
+                <span style="font-size:13px;font-weight:800;color:var(--gold);">S/ {{ fmt(allCaja.reduce((s,c)=>s+(parseFloat(c.monto)||0),0)) }}</span>
+              </div>
+            </template>
+          </template>
+
+        </div>
+      </div>
+
+      <!-- Caja Detail Modal -->
+      <teleport to="body">
+        <div v-if="selectedCaja" style="position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.65);display:flex;align-items:center;justify-content:center;padding:24px;" @click.self="selectedCaja=null">
+          <div style="background:var(--bg2);border:1px solid rgba(201,168,76,0.35);border-radius:var(--radius);width:100%;max-width:360px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.7);">
+            <!-- Header coloreado -->
+            <div :style="(isIngreso(selectedCaja)?'background:rgba(74,222,128,0.12);border-bottom:1px solid rgba(74,222,128,0.25)':'background:rgba(239,68,68,0.1);border-bottom:1px solid rgba(239,68,68,0.25)')+';padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px;'">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <span style="font-size:24px;">{{ metodoIcon(selectedCaja) }}</span>
+                <div>
+                  <div style="font-weight:800;font-size:15px;">{{ selectedCaja.operador || '—' }}</div>
+                  <div style="font-size:11px;opacity:0.7;">{{ selectedCaja.categoria }}</div>
+                </div>
+              </div>
+              <button @click="selectedCaja=null" style="font-size:18px;color:var(--text-muted);">✕</button>
+            </div>
+            <div style="padding:16px;display:flex;flex-direction:column;gap:12px;">
+
+              <!-- Monto grande -->
+              <div style="text-align:center;padding:8px 0;">
+                <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">{{ isIngreso(selectedCaja) ? 'INGRESO' : 'SALIDA' }}</div>
+                <div style="font-size:32px;font-weight:900;" :style="isIngreso(selectedCaja)?'color:#4ade80':'color:#f87171'">
+                  {{ isIngreso(selectedCaja) ? '+' : '-' }}S/ {{ fmt(selectedCaja.monto) }}
+                </div>
+                <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">{{ selectedCaja.metodo_pago }}</div>
+              </div>
+
+              <!-- Detalles -->
+              <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;">
+                <div v-if="selectedCaja._bote" style="display:flex;justify-content:space-between;">
+                  <span style="color:var(--text-muted);">⛵ Bote</span>
+                  <span style="font-weight:600;">{{ selectedCaja._bote }}</span>
+                </div>
+                <div v-if="selectedCaja.timestamp" style="display:flex;justify-content:space-between;">
+                  <span style="color:var(--text-muted);">🕐 Hora</span>
+                  <span>{{ selectedCaja.timestamp }}</span>
+                </div>
+                <div v-if="selectedCaja.id_movimiento" style="display:flex;justify-content:space-between;">
+                  <span style="color:var(--text-muted);">Mov. ref.</span>
+                  <span style="font-size:11px;color:var(--text-muted);">{{ selectedCaja.id_movimiento }}</span>
+                </div>
+              </div>
+
+              <!-- Nota -->
+              <div v-if="selectedCaja.comentarios"
+                style="background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.2);border-radius:10px;padding:10px;">
+                <div style="font-size:10px;font-weight:800;color:var(--gold);letter-spacing:0.07em;margin-bottom:4px;">NOTA</div>
+                <div style="font-size:13px;">{{ selectedCaja.comentarios }}</div>
+              </div>
+
+              <!-- Foto -->
+              <div v-if="selectedCaja.foto_url">
+                <a :href="selectedCaja.foto_url" target="_blank"
+                  style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--gold);text-decoration:none;">
+                  📎 Ver comprobante
+                </a>
+              </div>
+
             </div>
           </div>
         </div>
-      </template>
+      </teleport>
 
-      <div v-else class="empty-state"><div class="empty-icon">💰</div><p>Sin datos</p></div>
+      <div style="height:24px;"></div>
     </div>
-  `,
-  methods: {
-    fmt(v) { return (parseFloat(v)||0).toLocaleString('es-PE',{minimumFractionDigits:0,maximumFractionDigits:0}); }
-  }
+  `
 };
 
 const ViewConfig = {
@@ -1507,6 +2845,24 @@ createApp({
     const moduleData     = ref({});
     const moduleLoading  = ref(false);
     const showInfoPanel  = ref(false);
+    const isOnline       = ref(navigator.onLine);
+    const orbitDotState  = computed(() => {
+      if (!isOnline.value)      return 'offline';
+      if (moduleLoading.value)  return 'loading';
+      return 'online';
+    });
+    const showUserMenu   = ref(false);
+    const canInstall     = ref(false);
+    let   deferredInstallPrompt = null;
+
+    async function installPWA() {
+      if (!deferredInstallPrompt) return;
+      deferredInstallPrompt.prompt();
+      const { outcome } = await deferredInstallPrompt.userChoice;
+      deferredInstallPrompt = null;
+      canInstall.value = false;
+      showUserMenu.value = false;
+    }
 
     // Login state
     const personalList   = ref([]);
@@ -1528,14 +2884,21 @@ createApp({
     const toast = ref({ show: false, msg: '' });
     let toastTimer = null;
 
-    // Nav modules
+    // Nav modules (config removed — accessible via user avatar)
     const navModules = [
-      { id: 'dashboard', icon: '📊', label: 'Inicio' },
-      { id: 'lanchas',   icon: '⛵', label: 'Lanchas' },
-      { id: 'hotel',     icon: '🏨', label: 'Hotel' },
-      { id: 'finanzas',  icon: '💰', label: 'Finanzas' },
-      { id: 'config',    icon: '⚙',  label: 'Config' }
+      { id: 'dashboard', label: 'Inicio'   },
+      { id: 'lanchas',   label: 'Lanchas'  },
+      { id: 'hotel',     label: 'Hotel'    },
+      { id: 'finanzas',  label: 'Finanzas' }
     ];
+
+    const NAV_ICONS = {
+      dashboard: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>`,
+      lanchas:   `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="8" x2="12" y2="22"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>`,
+      hotel:     `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="18" rx="2"/><path d="M2 9h20"/><path d="M9 21V9"/><rect x="13" y="13" width="4" height="8"/></svg>`,
+      finanzas:  `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>`
+    };
+    function navIcon(id) { return NAV_ICONS[id] || ''; }
 
     const currentView = computed(() => {
       const map = { dashboard: 'ViewDashboard', lanchas: 'ViewLanchas', hotel: 'ViewHotel', finanzas: 'ViewFinanzas', config: 'ViewConfig' };
@@ -1634,8 +2997,7 @@ createApp({
             break;
           }
           case 'lanchas': {
-            const opsR = await apiGet('lanchas_operaciones', { fecha: today() });
-            moduleData.value = { operaciones: opsR.ok ? opsR.data : [], movimientos: [] };
+            moduleData.value = { _ts: Date.now() }; // ViewLanchas gestiona su propio estado
             break;
           }
           case 'hotel': {
@@ -1728,15 +3090,27 @@ createApp({
     onMounted(() => {
       if (!session.value) cargarPersonal();
       else loadModuleData('dashboard');
+      window.addEventListener('online',  () => isOnline.value = true);
+      window.addEventListener('offline', () => isOnline.value = false);
+      window.addEventListener('beforeinstallprompt', e => {
+        e.preventDefault();
+        deferredInstallPrompt = e;
+        canInstall.value = true;
+      });
+      window.addEventListener('appinstalled', () => {
+        deferredInstallPrompt = null;
+        canInstall.value = false;
+      });
     });
 
     return {
       session, currentModule, currentView, navModules,
       moduleData, moduleLoading, showInfoPanel,
+      isOnline, orbitDotState, showUserMenu, canInstall, installPWA,
       personalList, loadingPersonal, loginStep, loginSelected, loginPin, loginError, loginLoading, setupApiUrl,
       bootstrapNombre, bootstrapRol, bootstrapPin, crearPrimerAdmin,
       pmModal, toast,
-      iniciales, pinPress, verificarPin, guardarSetupUrl,
+      navIcon, iniciales, pinPress, verificarPin, guardarSetupUrl,
       goModule, handleAction, guardarPersonal
     };
   }
