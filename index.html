@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#7B2030">
-<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <title>PS · Panel MOS</title>
 <link rel="manifest" href="./manifest.json">
 <script src="https://unpkg.com/vue@3.4.21/dist/vue.global.prod.js"></script>
@@ -976,15 +976,21 @@ const API_URL_KEY = 'ps_api_url';
 let API_URL = localStorage.getItem(API_URL_KEY) || 'https://script.google.com/macros/s/AKfycby7_H2lEOweA4cpixzNUw_50EfuQtiSoIW2389U5Ipyic3GRmETSRgBYSpIAaMcARcMhA/exec';
 
 // ── Helper API ───────────────────────────────────────────────
+function fetchWithTimeout(resource, options = {}, ms = 20000) {
+  const ctrl = new AbortController();
+  const id = setTimeout(() => ctrl.abort(), ms);
+  return fetch(resource, { ...options, signal: ctrl.signal }).finally(() => clearTimeout(id));
+}
+
 async function apiGet(accion, params = {}) {
   const url = new URL(API_URL);
   url.searchParams.set('accion', accion);
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
-  const r = await fetch(url.toString());
+  const r = await fetchWithTimeout(url.toString());
   return r.json();
 }
 async function apiPost(body) {
-  const r = await fetch(API_URL, {
+  const r = await fetchWithTimeout(API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
@@ -1552,10 +1558,13 @@ createApp({
       loadingPersonal.value = true;
       try {
         const r = await apiGet('listar_personal');
-        if (r.ok) personalList.value = r.data || [];
-        // Si el GAS falla (properties no configuradas aún) mostramos lista vacía, no setup
-      } catch(e) { personalList.value = []; }
-      finally { loadingPersonal.value = false; }
+        personalList.value = (r.ok && Array.isArray(r.data)) ? r.data : [];
+      } catch(e) {
+        // Timeout o error de red — mostramos lista vacía con opción de crear admin
+        personalList.value = [];
+      } finally {
+        loadingPersonal.value = false;
+      }
     }
 
     function pinPress(key) {
