@@ -945,7 +945,7 @@ const { createApp, ref, computed, onMounted, watch, nextTick } = Vue;
 
 // ── API URL ──────────────────────────────────────────────────
 const API_URL_KEY = 'ps_api_url';
-let API_URL = localStorage.getItem(API_URL_KEY) || 'ENLACE_DE_TU_SCRIPT_GAS_AQUI';
+let API_URL = localStorage.getItem(API_URL_KEY) || 'https://script.google.com/macros/s/AKfycby7_H2lEOweA4cpixzNUw_50EfuQtiSoIW2389U5Ipyic3GRmETSRgBYSpIAaMcARcMhA/exec';
 
 // ── Helper API ───────────────────────────────────────────────
 async function apiGet(accion, params = {}) {
