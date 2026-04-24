@@ -1089,14 +1089,23 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 <body>
 
 <!-- Banner de nueva versión — aparece antes de recargar -->
-<div id="update-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9999;display:none;justify-content:center;padding:12px 16px 0;">
-  <div style="width:100%;max-width:380px;background:linear-gradient(135deg,#3e0f17,#5a1722);border:1px solid rgba(201,168,76,0.5);border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,0.6);padding:12px 16px;display:flex;align-items:center;gap:12px;backdrop-filter:blur(12px);">
-    <div style="font-size:24px;flex-shrink:0;">🚀</div>
-    <div style="flex:1;min-width:0;">
-      <p style="margin:0;color:#f5e9c8;font-size:13px;font-weight:900;font-family:Inter,sans-serif;line-height:1.2;">Nueva versión disponible</p>
-      <p style="margin:2px 0 0;color:rgba(201,168,76,0.85);font-size:11px;font-family:Inter,sans-serif;">Actualizando en <span id="update-countdown">5</span>s…</p>
+<style>
+@keyframes upd-progress { from { width: 100%; } to { width: 0%; } }
+@keyframes upd-fadein   { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+<div id="update-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9999;justify-content:center;padding:10px 16px 0;">
+  <div style="width:100%;max-width:380px;background:linear-gradient(135deg,#3e0f17,#5a1722);border:1px solid rgba(201,168,76,0.5);border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,0.6);overflow:hidden;animation:upd-fadein .3s ease;">
+    <div style="padding:12px 16px;display:flex;align-items:center;gap:12px;">
+      <div style="font-size:24px;flex-shrink:0;">🚀</div>
+      <div style="flex:1;min-width:0;">
+        <p style="margin:0;color:#f5e9c8;font-size:13px;font-weight:900;font-family:Inter,sans-serif;line-height:1.2;">Nueva versión disponible</p>
+        <p style="margin:2px 0 0;color:rgba(201,168,76,0.85);font-size:11px;font-family:Inter,sans-serif;">Actualizando en <span id="update-countdown">5</span>s…</p>
+      </div>
+      <button onclick="window.location.reload()" style="flex-shrink:0;background:#C9A84C;color:#3e0f17;font-weight:900;font-size:11px;font-family:Inter,sans-serif;padding:6px 12px;border-radius:10px;border:none;cursor:pointer;text-transform:uppercase;letter-spacing:0.05em;">Ahora</button>
     </div>
-    <button onclick="window.location.reload()" style="flex-shrink:0;background:#C9A84C;color:#3e0f17;font-weight:900;font-size:11px;font-family:Inter,sans-serif;padding:6px 12px;border-radius:10px;border:none;cursor:pointer;text-transform:uppercase;letter-spacing:0.05em;">Ahora</button>
+    <div style="height:3px;background:rgba(255,255,255,0.1);">
+      <div id="update-progress" style="height:100%;background:linear-gradient(90deg,#C9A84C,#e8c46a);width:100%;"></div>
+    </div>
   </div>
 </div>
 
@@ -3957,9 +3966,11 @@ if ('serviceWorker' in navigator) {
 let _updateCountdownTimer = null;
 function _mostrarBannerActualizacion() {
   if (_updateCountdownTimer) return;
-  const banner = document.getElementById('update-banner');
-  const countEl = document.getElementById('update-countdown');
+  const banner   = document.getElementById('update-banner');
+  const countEl  = document.getElementById('update-countdown');
+  const progress = document.getElementById('update-progress');
   if (banner) banner.style.display = 'flex';
+  if (progress) progress.style.animation = 'upd-progress 5s linear forwards';
   let secs = 5;
   _updateCountdownTimer = setInterval(() => {
     secs--;
