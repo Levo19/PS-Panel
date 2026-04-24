@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Ticket · PS</title>
+<style>
+:root {
+  --bg:#0f0e0c; --surface:#1e1c18; --surface2:#2a2720;
+  --border:#3d3830; --text:#f0ead8; --muted:#9a9080;
+  --gold:#e8b840; --green:#5cd98a; --red:#f07070;
+  --amber:#f0c040; --purple:#c084fc;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{
+  font-family:'Segoe UI',system-ui,sans-serif;
+  background:var(--bg);color:var(--text);
+  font-size:18px;line-height:1.65;
+  padding:16px;max-width:560px;margin:0 auto;
+}
+
+/* ── Header ── */
+.tk-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid var(--gold);}
+.tk-logo{font-size:32px;font-weight:900;color:var(--gold);letter-spacing:-1px;}
+.tk-sub{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-top:2px;}
+.tk-fecha{font-size:21px;font-weight:800;text-align:right;}
+.tk-dia{font-size:13px;color:var(--muted);text-align:right;margin-top:2px;}
+
+/* ── Botones ── */
+.btn-bar{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;}
+.btn{flex:1;min-width:110px;padding:15px 12px;border-radius:12px;font-size:16px;font-weight:800;cursor:pointer;border:none;display:flex;align-items:center;justify-content:center;gap:8px;transition:filter .15s;}
+.btn:active{filter:brightness(.85);}
+.btn-wa{background:#25d366;color:#fff;}
+.btn-copy{background:var(--surface2);color:var(--text);border:1px solid var(--border);}
+.btn-print{background:var(--surface2);color:var(--muted);border:1px solid var(--border);}
+
+/* ── Sección ── */
+.sec{background:var(--surface);border:1px solid var(--border);border-radius:14px;margin-bottom:16px;overflow:hidden;}
+.sec-title{font-size:13px;font-weight:900;text-transform:uppercase;letter-spacing:.1em;color:var(--gold);padding:12px 16px 10px;border-bottom:1px solid var(--border);background:rgba(232,184,64,.05);}
+
+/* ── Operación ── */
+.op-block{padding:14px 16px 12px;border-bottom:1px solid var(--border);}
+.op-block:last-child{border-bottom:none;}
+.op-num{font-size:12px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;margin-bottom:4px;}
+.op-title{font-size:22px;font-weight:900;margin-bottom:3px;}
+.op-meta{font-size:15px;color:var(--muted);margin-bottom:14px;line-height:1.5;}
+
+/* ── Manifiesto ── */
+.mov-list{list-style:none;}
+.mov-item{display:flex;align-items:baseline;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:18px;}
+.mov-item:last-child{border-bottom:none;}
+.mov-pax{font-size:24px;font-weight:900;color:var(--gold);min-width:38px;text-align:right;flex-shrink:0;}
+.mov-nombre{font-weight:700;flex:1;}
+.mov-tag{font-size:11px;color:var(--muted);flex-shrink:0;padding:2px 6px;border:1px solid var(--border);border-radius:4px;}
+.op-total{display:flex;justify-content:flex-end;align-items:baseline;gap:10px;padding:10px 0 2px;border-top:1px dashed var(--border);margin-top:8px;font-size:15px;color:var(--muted);font-weight:700;}
+.op-total-num{font-size:28px;font-weight:900;color:var(--text);}
+
+/* ── Endoses ── */
+.hora-group{padding:12px 16px;border-bottom:1px solid var(--border);}
+.hora-group:last-child{border-bottom:none;}
+.hora-label{font-size:17px;font-weight:900;color:var(--amber);margin-bottom:10px;}
+.end-item{display:flex;align-items:baseline;gap:10px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.03);font-size:18px;}
+.end-item:last-child{border-bottom:none;}
+.end-pax{font-size:24px;font-weight:900;color:var(--purple);min-width:38px;text-align:right;flex-shrink:0;}
+.end-origen{font-weight:700;flex:1;}
+.end-dest{font-size:14px;color:var(--muted);flex-shrink:0;}
+
+/* ── Caja ── */
+.caja-item{display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid rgba(255,255,255,.04);font-size:17px;}
+.caja-item:last-child{border-bottom:none;}
+.caja-icon{font-size:22px;flex-shrink:0;}
+.caja-desc{flex:1;font-weight:600;line-height:1.4;}
+.caja-sub{font-size:12px;color:var(--muted);}
+.caja-monto{font-size:21px;font-weight:900;flex-shrink:0;}
+.caja-total{display:flex;justify-content:space-between;align-items:center;padding:13px 16px;font-size:15px;font-weight:800;color:var(--muted);border-top:2px solid var(--border);background:rgba(0,0,0,.15);}
+.caja-total-num{font-size:28px;font-weight:900;}
+
+/* ── Balance ── */
+.balance-row{display:flex;justify-content:space-between;align-items:center;padding:16px 18px;font-size:18px;font-weight:700;border-bottom:1px solid var(--border);}
+.balance-row:last-child{border-bottom:none;}
+.balance-neto{background:rgba(92,217,138,.06);}
+.balance-num{font-size:28px;font-weight:900;}
+
+/* ── Pendientes ── */
+.pend-item{display:flex;align-items:flex-start;gap:12px;padding:13px 16px;border-bottom:1px solid rgba(255,255,255,.05);font-size:17px;}
+.pend-item:last-child{border-bottom:none;}
+.pend-dot{width:10px;height:10px;border-radius:50%;background:var(--amber);margin-top:5px;flex-shrink:0;}
+.pend-desc{flex:1;line-height:1.5;}
+.pend-monto{font-size:20px;font-weight:900;color:var(--red);flex-shrink:0;}
+
+/* ── Loading ── */
+.loading{display:flex;align-items:center;justify-content:center;height:220px;flex-direction:column;gap:16px;}
+.spin{width:34px;height:34px;border:3px solid rgba(255,255,255,.08);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ── Toast ── */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--green);color:#000;font-weight:800;font-size:15px;padding:12px 26px;border-radius:30px;display:none;z-index:999;white-space:nowrap;}
+
+/* ── Print: térmica 80mm ── */
+@media print{
+  body{background:#fff;color:#000;font-family:'Courier New',monospace;font-size:12px;line-height:1.4;padding:0;max-width:302px;}
+  .btn-bar,.no-print{display:none!important;}
+  .sec{border:1px solid #aaa;border-radius:0;background:#fff;margin-bottom:6px;}
+  .sec-title{background:#eee;color:#000;font-size:10px;padding:6px 10px;}
+  .op-block,.hora-group,.caja-item,.pend-item{padding:6px 10px;}
+  .op-title{font-size:13px;}
+  .op-meta,.mov-item,.end-item,.caja-item,.pend-item{font-size:11px;}
+  .mov-pax,.end-pax{font-size:13px;min-width:26px;}
+  .op-total-num,.caja-total-num,.balance-num{font-size:15px;}
+  .caja-total,.balance-row{padding:6px 10px;}
+  .tk-logo{font-size:20px;color:#000;}
+  .tk-fecha{font-size:14px;}
+}
+</style>
+</head>
+<body>
+
+<div id="root">
+  <div class="loading"><div class="spin"></div><p style="color:var(--muted);font-size:17px;">Cargando ticket…</p></div>
+</div>
+<div class="toast" id="toast">¡Copiado al portapapeles! 📋</div>
+
+<script>
+const params  = new URLSearchParams(location.search);
+function localDateStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+const fecha   = params.get('fecha') || localDateStr();
+const PS_GAS  = 'https://script.google.com/macros/s/AKfycby7_H2lEOweA4cpixzNUw_50EfuQtiSoIW2389U5Ipyic3GRmETSRgBYSpIAaMcARcMhA/exec';
+const API_URL = params.get('api') || localStorage.getItem('ps_api_url') || PS_GAS;
+
+const TIPOS_SIN_COBRO = ['Aliado(PaseIn)','Pase_Recibido','Aliado'];
+const ORDINAL = ['1RA','2DA','3RA','4TA','5TA','6TA','7MA','8VA','9NA','10MA'];
+
+const $ = id => document.getElementById(id);
+const fmtD = v => (parseFloat(v)||0).toLocaleString('es-PE',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmt  = v => (parseFloat(v)||0).toLocaleString('es-PE',{minimumFractionDigits:0,maximumFractionDigits:0});
+const S    = v => 'S/ ' + fmtD(v);
+
+function fmtFecha(f) {
+  const [y,m,d] = f.split('-');
+  const dias   = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const meses  = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const dt = new Date(parseInt(y), parseInt(m)-1, parseInt(d));
+  return { dia: dias[dt.getDay()], fecha: `${d}/${m}/${y}`, mes: meses[parseInt(m)-1] };
+}
+function metIcon(m){
+  const k=String(m||'').toLowerCase();
+  return k.includes('yape')?'📱':k.includes('plin')?'📲':k.includes('trans')?'🏦':k.includes('tarj')?'💳':'💵';
+}
+function isIngreso(c){
+  return String(c.categoria||'').toLowerCase().match(/cobro|ingreso|venta/);
+}
+function pagadoMov(allCaja, movId){
+  return allCaja.filter(c=>String(c.id_movimiento||'')===String(movId||'')).reduce((s,c)=>s+(parseFloat(c.monto)||0),0);
+}
+
+// ── Estado global para botones ────────────────────────────────
+let _buildText = null;
+
+function shareWa() {
+  if (!_buildText) return;
+  window.open('https://wa.me/?text=' + encodeURIComponent(_buildText()), '_blank');
+}
+function copyText() {
+  if (!_buildText) return;
+  navigator.clipboard.writeText(_buildText()).then(() => {
+    const t = $('toast'); t.style.display = 'block';
+    setTimeout(() => t.style.display = 'none', 2200);
+  });
+}
+
+// ── Fetch ─────────────────────────────────────────────────────
+async function loadData() {
+  try {
+    const url = new URL(API_URL);
+    url.searchParams.set('accion','lanchas_dia');
+    url.searchParams.set('fecha', fecha);
+    const r    = await fetch(url.toString(), { cache:'no-store' });
+    const json = await r.json();
+    if (json.ok) render(json.data);
+    else renderError('Error del servidor: ' + json.error);
+  } catch(e) { renderError('Sin conexión: ' + e.message); }
+}
+
+// ── Render ────────────────────────────────────────────────────
+function render(data) {
+  const ops        = data.operaciones   || [];
+  const pasesSuelt = data.pases_sueltos || [];
+  const cajaSuelta = data.caja_suelta   || [];
+
+  const allMovs = [];
+  ops.forEach(op => (op.movimientos||[]).forEach(m => allMovs.push({...m, _op:op})));
+  pasesSuelt.forEach(m => allMovs.push({...m, _op:null}));
+
+  const allCaja = [];
+  ops.forEach(op => (op.caja||[]).forEach(c => allCaja.push({...c, _bote:op.nombre_bote||op.id_bote})));
+  cajaSuelta.forEach(c => allCaja.push({...c, _bote:''}));
+
+  const f = fmtFecha(fecha);
+
+  // ── Salidas ──────────────────────────────────────────────────
+  const salidasHtml = ops.map((op, i) => {
+    const movs = (op.movimientos||[]).filter(m => m.estado !== 'Cancelado' && !m.id_contacto_pase);
+    const paxTotal = movs.reduce((s,m) => s+(parseInt(m.cant_pax)||0), 0);
+    const movsHtml = movs.map(m => {
+      const esPaseIn = TIPOS_SIN_COBRO.includes(m.tipo);
+      return `<li class="mov-item">
+        <span class="mov-pax">${m.cant_pax}</span>
+        <span class="mov-nombre">${m.nombre_contacto||'—'}</span>
+        ${esPaseIn ? `<span class="mov-tag">recibido</span>` : ''}
+      </li>`;
+    }).join('');
+    const capitanes = [op.nombre_capitan||op.id_capitan, op.nombre_guia||op.id_guia].filter(Boolean).join(' / ');
+    return `<div class="op-block">
+      <div class="op-num">${ORDINAL[i]||i+1+'.'} salida</div>
+      <div class="op-title">⛵ ${op.nombre_bote||op.id_bote}</div>
+      <div class="op-meta">
+        👤 ${capitanes}
+        ${op.destino ? `&nbsp;·&nbsp;📍 ${op.destino}` : ''}
+        &nbsp;·&nbsp;🕐 ${op.hora_salida||'—'}
+      </div>
+      <ul class="mov-list">${movsHtml||'<li class="mov-item" style="color:var(--muted);">Sin pasajeros</li>'}</ul>
+      <div class="op-total">TOTAL &nbsp;<span class="op-total-num">${paxTotal} PAX</span></div>
+    </div>`;
+  }).join('') || '<div style="padding:18px 16px;color:var(--muted);">Sin salidas registradas.</div>';
+
+  // ── Endoses (PaseOut agrupados por hora de op origen) ────────
+  const endosesByHora = {};
+  allMovs.forEach(m => {
+    if (!m.id_contacto_pase || m.estado === 'Cancelado') return;
+    const hora = m._op ? (m._op.hora_salida||'Sin hora') : 'Sin hora';
+    if (!endosesByHora[hora]) endosesByHora[hora] = [];
+    endosesByHora[hora].push(m);
+  });
+  const horasOrd = Object.keys(endosesByHora).sort();
+  const totalEndPax = Object.values(endosesByHora).flat().reduce((s,m) => s+(parseInt(m.cant_pax)||0), 0);
+
+  const endosesHtml = horasOrd.length > 0 ? horasOrd.map(hora => {
+    const rows = endosesByHora[hora].map(m => `
+      <div class="end-item">
+        <span class="end-pax">${m.cant_pax}</span>
+        <span class="end-origen">${m.nombre_contacto||'—'}</span>
+        <span class="end-dest">→ ${m.nombre_contacto_pase||m.id_contacto_pase||'?'}</span>
+      </div>`).join('');
+    return `<div class="hora-group">
+      <div class="hora-label">🕐 ${hora}</div>
+      ${rows}
+    </div>`;
+  }).join('') : '<div style="padding:16px;color:var(--muted);">Sin endoses.</div>';
+
+  // ── Caja ─────────────────────────────────────────────────────
+  const ingresos  = allCaja.filter(c => isIngreso(c));
+  const egresos   = allCaja.filter(c => !isIngreso(c));
+  const totalIng  = ingresos.reduce((s,c) => s+(parseFloat(c.monto)||0), 0);
+  const totalEgr  = egresos.reduce((s,c) => s+(parseFloat(c.monto)||0), 0);
+  const neto      = totalIng - totalEgr;
+
+  function cajaRow(c, esIng) {
+    const cat = String(c.categoria||'').replace(/_/g,' ');
+    return `<div class="caja-item">
+      <span class="caja-icon">${metIcon(c.metodo_pago)}</span>
+      <div class="caja-desc">
+        <div>${c.operador||cat}</div>
+        ${c._bote ? `<div class="caja-sub">⛵ ${c._bote}</div>` : ''}
+      </div>
+      <span class="caja-monto" style="color:${esIng?'var(--green)':'var(--red)'};">${esIng?'+':'−'}${S(c.monto)}</span>
+    </div>`;
+  }
+
+  const ingHtml = ingresos.length > 0
+    ? ingresos.map(c => cajaRow(c, true)).join('')
+    : '<div style="padding:14px 16px;color:var(--muted);">Sin ingresos registrados.</div>';
+
+  const egrHtml = egresos.length > 0
+    ? egresos.map(c => cajaRow(c, false)).join('')
+    : '<div style="padding:14px 16px;color:var(--muted);">Sin egresos registrados.</div>';
+
+  // ── Pendientes ────────────────────────────────────────────────
+  const pendMap = {};
+  allMovs.forEach(m => {
+    if (m.estado === 'Cancelado' || TIPOS_SIN_COBRO.includes(m.tipo)) return;
+    const total = parseFloat(m.monto_total)||0;
+    if (!total) return;
+    const pagado = pagadoMov(allCaja, m.id_mov);
+    const pend   = Math.max(0, total - pagado);
+    if (pend > 0.01) {
+      const key = m.nombre_contacto||'—';
+      if (!pendMap[key]) pendMap[key] = { pax:0, pendiente:0 };
+      pendMap[key].pax       += parseInt(m.cant_pax)||0;
+      pendMap[key].pendiente += pend;
+    }
+  });
+  const pendArr  = Object.entries(pendMap).sort((a,b) => b[1].pendiente - a[1].pendiente);
+  const totalPend = pendArr.reduce((s,[,d]) => s+d.pendiente, 0);
+
+  const pendHtml = pendArr.length > 0
+    ? pendArr.map(([nombre, d]) => `
+      <div class="pend-item">
+        <div class="pend-dot"></div>
+        <div class="pend-desc"><b>${nombre}</b>${d.pax>0?` · ${d.pax} pax`:''}</div>
+        <div class="pend-monto">${S(d.pendiente)}</div>
+      </div>`).join('')
+    : '<div style="padding:16px;color:var(--green);font-size:18px;font-weight:700;">✓ Sin pendientes</div>';
+
+  // ── Texto plano (WhatsApp / térmica) ─────────────────────────
+  _buildText = function() {
+    const SEP = '─'.repeat(30);
+    let t = `📋 SALIDAS ${f.dia.toUpperCase()} ${f.fecha}\n${SEP}\n\n`;
+
+    ops.forEach((op, i) => {
+      const movs = (op.movimientos||[]).filter(m => m.estado !== 'Cancelado' && !m.id_contacto_pase);
+      const paxTotal = movs.reduce((s,m) => s+(parseInt(m.cant_pax)||0), 0);
+      const cap = [op.nombre_capitan||op.id_capitan, op.nombre_guia||op.id_guia].filter(Boolean).join('/');
+      t += `⛵ ${ORDINAL[i]||''} SALIDA — ${op.hora_salida||'—'}\n`;
+      t += `${op.nombre_bote||op.id_bote}`;
+      if (op.destino) t += ` → ${op.destino}`;
+      t += `\n👤 ${cap}\n\n`;
+      movs.forEach(m => {
+        t += `  · ${String(m.cant_pax).padStart(2)}  ${m.nombre_contacto||'—'}\n`;
+      });
+      t += `  ${'─'.repeat(22)}\n  ${paxTotal} PAX TOTALES\n\n`;
+    });
+
+    if (horasOrd.length > 0) {
+      t += `🔀 ENDOSES\n${SEP}\n`;
+      horasOrd.forEach(hora => {
+        t += `\n${hora}\n`;
+        endosesByHora[hora].forEach(m => {
+          t += `  · ${String(m.cant_pax).padStart(2)}  ${m.nombre_contacto||'—'}  →  ${m.nombre_contacto_pase||m.id_contacto_pase||'?'}\n`;
+        });
+      });
+      t += `\n  ${totalEndPax} PAX endosados en total\n\n`;
+    }
+
+    if (ingresos.length > 0) {
+      t += `💵 INGRESOS\n${SEP}\n`;
+      ingresos.forEach(c => {
+        const cat = c.operador||String(c.categoria||'').replace(/_/g,' ');
+        t += `  · ${cat}${c._bote?' ('+c._bote+')':''}  +${S(c.monto)}\n`;
+      });
+      t += `  ${'─'.repeat(22)}\n  TOTAL  +${S(totalIng)}\n\n`;
+    }
+
+    if (egresos.length > 0) {
+      t += `📤 EGRESOS\n${SEP}\n`;
+      egresos.forEach(c => {
+        const cat = c.operador||String(c.categoria||'').replace(/_/g,' ');
+        t += `  · ${cat}${c._bote?' ('+c._bote+')':''}  −${S(c.monto)}\n`;
+      });
+      t += `  ${'─'.repeat(22)}\n  TOTAL  −${S(totalEgr)}\n\n`;
+    }
+
+    t += `💰 NETO DEL DÍA\n${SEP}\n`;
+    t += `  Ingresos   +${S(totalIng)}\n`;
+    t += `  Egresos    −${S(totalEgr)}\n`;
+    t += `  ${'─'.repeat(22)}\n`;
+    t += `  NETO  ${neto>=0?'+':''}${S(neto)}\n`;
+
+    if (pendArr.length > 0) {
+      t += `\n⏳ PENDIENTES (${S(totalPend)})\n${SEP}\n`;
+      pendArr.forEach(([nombre, d]) => {
+        t += `  · ${nombre}${d.pax>0?` (${d.pax} pax)`:''}\n    ${S(d.pendiente)}\n`;
+      });
+    }
+
+    return t;
+  };
+
+  // ── HTML ──────────────────────────────────────────────────────
+  $('root').innerHTML = `
+  <div class="tk-header">
+    <div>
+      <div class="tk-logo">PS</div>
+      <div class="tk-sub">Ticket diario</div>
+    </div>
+    <div>
+      <div class="tk-fecha">${f.fecha}</div>
+      <div class="tk-dia">${f.dia}</div>
+    </div>
+  </div>
+
+  <div class="btn-bar no-print">
+    <button class="btn btn-wa"    onclick="shareWa()">💬 WhatsApp</button>
+    <button class="btn btn-copy"  onclick="copyText()">📋 Copiar</button>
+    <button class="btn btn-print" onclick="window.print()">🖨 Imprimir</button>
+  </div>
+
+  <div class="sec">
+    <div class="sec-title">⛵ Salidas del día &nbsp;·&nbsp; ${ops.length} operaciones</div>
+    ${salidasHtml}
+  </div>
+
+  ${horasOrd.length > 0 ? `
+  <div class="sec">
+    <div class="sec-title">🔀 Endoses &nbsp;·&nbsp; ${totalEndPax} pax</div>
+    ${endosesHtml}
+  </div>` : ''}
+
+  <div class="sec">
+    <div class="sec-title">💵 Ingresos</div>
+    ${ingHtml}
+    ${ingresos.length > 0 ? `<div class="caja-total"><span>TOTAL</span><span class="caja-total-num" style="color:var(--green);">+${S(totalIng)}</span></div>` : ''}
+  </div>
+
+  <div class="sec">
+    <div class="sec-title">📤 Egresos</div>
+    ${egrHtml}
+    ${egresos.length > 0 ? `<div class="caja-total"><span>TOTAL</span><span class="caja-total-num" style="color:var(--red);">−${S(totalEgr)}</span></div>` : ''}
+  </div>
+
+  <div class="sec">
+    <div class="balance-row"><span>💵 Ingresos</span><span class="balance-num" style="color:var(--green);">+${S(totalIng)}</span></div>
+    <div class="balance-row"><span>📤 Egresos</span><span class="balance-num" style="color:var(--red);">−${S(totalEgr)}</span></div>
+    <div class="balance-row balance-neto"><span>💰 Neto del día</span><span class="balance-num" style="color:${neto>=0?'var(--green)':'var(--red)'};">${neto>=0?'+':''}${S(neto)}</span></div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-title">⏳ Pendientes${pendArr.length>0?' &nbsp;·&nbsp; '+S(totalPend):''}</div>
+    ${pendHtml}
+  </div>
+
+  <div style="text-align:center;padding:20px 0 10px;font-size:14px;color:var(--muted);">
+    PS Panel · ${new Date().toLocaleString('es-PE')}
+    &nbsp;·&nbsp;
+    <span style="cursor:pointer;text-decoration:underline;" onclick="loadData()">Actualizar</span>
+  </div>`;
+}
+
+function renderError(msg) {
+  $('root').innerHTML = `<div style="text-align:center;padding:60px 16px;color:var(--muted);">
+    <div style="font-size:44px;margin-bottom:18px;">⚠️</div>
+    <p style="font-size:17px;margin-bottom:20px;">${msg}</p>
+    <button onclick="loadData()" style="padding:15px 32px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:17px;font-weight:700;cursor:pointer;">
+      Reintentar
+    </button>
+  </div>`;
+}
+
+if (!API_URL) renderError('No se encontró la URL del servidor.');
+else loadData();
+</script>
+</body>
+</html>

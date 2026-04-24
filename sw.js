@@ -2,11 +2,12 @@
 // PS Panel — Service Worker
 // Bumpa VERSION en cada deploy para invalidar caché
 // ============================================================
-const VERSION = '1.3.9';
+const VERSION = '1.4.0';
 const CACHE   = 'ps-panel-v' + VERSION;
 const ASSETS  = [
   './',
   './index.html',
+  './ticket.html',
   './manifest.json',
   './version.json',
   'https://unpkg.com/vue@3.4.21/dist/vue.global.prod.js',
