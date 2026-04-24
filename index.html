@@ -2332,11 +2332,15 @@ const ViewLanchas = {
         <!-- Cuerpo -->
         <div class="date-view-body">
 
-          <!-- Botones reporte + nueva op -->
+          <!-- Botones reporte + ticket + nueva op -->
           <div v-if="cache[currentFecha]?.loaded" style="display:flex;gap:8px;margin-bottom:12px;">
             <button class="btn-report" @click="openReport(currentFecha)"
               style="flex:1;justify-content:center;padding:9px;">
               📊 Reporte
+            </button>
+            <button class="btn-report" @click="window.open('./ticket.html','_blank')"
+              style="flex:1;justify-content:center;padding:9px;background:rgba(92,217,138,0.12);border-color:rgba(92,217,138,0.4);color:#5cd98a;">
+              🎫 Ticket
             </button>
             <button class="btn-report" @click="openOpModal(null)"
               style="flex:1;justify-content:center;padding:9px;background:rgba(201,168,76,0.15);border-color:rgba(201,168,76,0.5);color:var(--gold);">
