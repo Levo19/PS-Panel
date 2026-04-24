@@ -1809,6 +1809,10 @@ const ViewLanchas = {
       window.open(`./report.html?fecha=${fecha}&api=${encodeURIComponent(API_URL)}`, '_blank');
     }
 
+    function openTicket() {
+      window.open('./ticket.html', '_blank');
+    }
+
     function fmtFecha(f) {
       if (!f) return '';
       const [y, m, d] = f.split('-');
@@ -2267,7 +2271,7 @@ const ViewLanchas = {
     return { fechas, cache, currentFecha, fechaIdx, expandedOps, tabs, dateTab,
              loadingFechas, fetchError, today, navigate, loadFechas,
              toggleOp, getTab, setTab, boatBorderClass, movEstadoClass, estadoIcon, estadoIconColor,
-             openReport, fmtFecha, fmt, totalMovs, allPasesDia, tipoBadgeClass,
+             openReport, openTicket, fmtFecha, fmt, totalMovs, allPasesDia, tipoBadgeClass,
              showDatePicker, datesByMonth, fmtMes, pickDate,
              selectedMov, contactColorByTipo, movPayments, montoPayStyle, openMovModal, allCajaDia,
              selectedPase, pagoStatusStyle, openPaseModal,
@@ -2338,7 +2342,7 @@ const ViewLanchas = {
               style="flex:1;justify-content:center;padding:9px;">
               📊 Reporte
             </button>
-            <button class="btn-report" @click="window.open('./ticket.html','_blank')"
+            <button class="btn-report" @click="openTicket()"
               style="flex:1;justify-content:center;padding:9px;background:rgba(92,217,138,0.12);border-color:rgba(92,217,138,0.4);color:#5cd98a;">
               🎫 Ticket
             </button>
