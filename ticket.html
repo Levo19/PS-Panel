@@ -20,14 +20,22 @@ body{
 }
 
 /* ── Header ── */
-.tk-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid var(--gold);}
+.tk-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:14px;border-bottom:2px solid var(--gold);}
 .tk-logo{font-size:32px;font-weight:900;color:var(--gold);letter-spacing:-1px;}
 .tk-sub{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-top:2px;}
 .tk-fecha{font-size:21px;font-weight:800;text-align:right;}
 .tk-dia{font-size:13px;color:var(--muted);text-align:right;margin-top:2px;}
 
+/* ── Countdown ── */
+.cd-wrap{display:flex;align-items:center;gap:12px;margin-bottom:16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px;cursor:pointer;}
+.cd-wrap:active{filter:brightness(1.1);}
+.cd-icon{font-size:18px;flex-shrink:0;}
+.cd-track{flex:1;height:7px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden;}
+.cd-bar{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--gold),var(--amber));transition:width 1s linear;}
+.cd-txt{font-size:13px;color:var(--muted);font-weight:700;flex-shrink:0;min-width:80px;text-align:right;}
+
 /* ── Botones ── */
-.btn-bar{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;}
+.btn-bar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
 .btn{flex:1;min-width:110px;padding:15px 12px;border-radius:12px;font-size:16px;font-weight:800;cursor:pointer;border:none;display:flex;align-items:center;justify-content:center;gap:8px;transition:filter .15s;}
 .btn:active{filter:brightness(.85);}
 .btn-wa{background:#25d366;color:#fff;}
@@ -44,8 +52,6 @@ body{
 .op-num{font-size:12px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;margin-bottom:4px;}
 .op-title{font-size:22px;font-weight:900;margin-bottom:3px;}
 .op-meta{font-size:15px;color:var(--muted);margin-bottom:14px;line-height:1.5;}
-
-/* ── Manifiesto ── */
 .mov-list{list-style:none;}
 .mov-item{display:flex;align-items:baseline;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:18px;}
 .mov-item:last-child{border-bottom:none;}
@@ -94,22 +100,20 @@ body{
 @keyframes spin{to{transform:rotate(360deg);}}
 
 /* ── Toast ── */
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--green);color:#000;font-weight:800;font-size:15px;padding:12px 26px;border-radius:30px;display:none;z-index:999;white-space:nowrap;}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--green);color:#000;font-weight:800;font-size:15px;padding:12px 26px;border-radius:30px;display:none;z-index:999;white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,.4);}
 
 /* ── Print: térmica 80mm ── */
 @media print{
   body{background:#fff;color:#000;font-family:'Courier New',monospace;font-size:12px;line-height:1.4;padding:0;max-width:302px;}
-  .btn-bar,.no-print{display:none!important;}
+  .btn-bar,.cd-wrap,.no-print{display:none!important;}
   .sec{border:1px solid #aaa;border-radius:0;background:#fff;margin-bottom:6px;}
   .sec-title{background:#eee;color:#000;font-size:10px;padding:6px 10px;}
   .op-block,.hora-group,.caja-item,.pend-item{padding:6px 10px;}
-  .op-title{font-size:13px;}
-  .op-meta,.mov-item,.end-item,.caja-item,.pend-item{font-size:11px;}
+  .op-title{font-size:13px;} .op-meta,.mov-item,.end-item,.caja-item,.pend-item{font-size:11px;}
   .mov-pax,.end-pax{font-size:13px;min-width:26px;}
   .op-total-num,.caja-total-num,.balance-num{font-size:15px;}
   .caja-total,.balance-row{padding:6px 10px;}
-  .tk-logo{font-size:20px;color:#000;}
-  .tk-fecha{font-size:14px;}
+  .tk-logo{font-size:20px;color:#000;} .tk-fecha{font-size:14px;}
 }
 </style>
 </head>
@@ -118,7 +122,7 @@ body{
 <div id="root">
   <div class="loading"><div class="spin"></div><p style="color:var(--muted);font-size:17px;">Cargando ticket…</p></div>
 </div>
-<div class="toast" id="toast">¡Copiado al portapapeles! 📋</div>
+<div class="toast" id="toast"></div>
 
 <script>
 const params  = new URLSearchParams(location.search);
@@ -132,13 +136,32 @@ const ORDINAL = ['1RA','2DA','3RA','4TA','5TA','6TA','7MA','8VA','9NA','10MA'];
 
 const $ = id => document.getElementById(id);
 const fmtD = v => (parseFloat(v)||0).toLocaleString('es-PE',{minimumFractionDigits:2,maximumFractionDigits:2});
-const fmt  = v => (parseFloat(v)||0).toLocaleString('es-PE',{minimumFractionDigits:0,maximumFractionDigits:0});
 const S    = v => 'S/ ' + fmtD(v);
+
+// ── Countdown ─────────────────────────────────────────────────
+const REFRESH = 60;
+let countdown = REFRESH, cdTimer = null;
+
+function startCountdown() {
+  clearInterval(cdTimer);
+  countdown = REFRESH;
+  updateCd();
+  cdTimer = setInterval(() => {
+    countdown--;
+    updateCd();
+    if (countdown <= 0) loadData();
+  }, 1000);
+}
+function updateCd() {
+  const bar = $('cd-bar'), txt = $('cd-txt');
+  if (bar) bar.style.width = ((countdown / REFRESH) * 100) + '%';
+  if (txt) txt.textContent = 'Actualiza en ' + countdown + 's';
+}
 
 function fmtFecha(f) {
   const [y,m,d] = f.split('-');
-  const dias   = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-  const meses  = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const dias  = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   const dt = new Date(parseInt(y), parseInt(m)-1, parseInt(d));
   return { dia: dias[dt.getDay()], fecha: `${d}/${m}/${y}`, mes: meses[parseInt(m)-1] };
 }
@@ -152,20 +175,39 @@ function isIngreso(c){
 function pagadoMov(allCaja, movId){
   return allCaja.filter(c=>String(c.id_movimiento||'')===String(movId||'')).reduce((s,c)=>s+(parseFloat(c.monto)||0),0);
 }
+// Hora del endose desde su timestamp de registro
+function horaEndose(m) {
+  const ts = m.timestamp || m.fecha_registro || m.created_at;
+  if (ts) {
+    const d = new Date(ts);
+    if (!isNaN(d)) return d.getHours().toString().padStart(2,'0') + ':00';
+  }
+  return m._op ? (m._op.hora_salida || 'Sin hora') : 'Sin hora';
+}
 
-// ── Estado global para botones ────────────────────────────────
+// ── Estado global ────────────────────────────────────────────
 let _buildText = null;
 
 function shareWa() {
   if (!_buildText) return;
-  window.open('https://wa.me/?text=' + encodeURIComponent(_buildText()), '_blank');
+  const txt = _buildText();
+  // Intenta abrir la app nativa; si falla, abre wa.me
+  const url = 'https://wa.me/?text=' + encodeURIComponent(txt);
+  window.open(url, '_blank');
 }
 function copyText() {
   if (!_buildText) return;
   navigator.clipboard.writeText(_buildText()).then(() => {
-    const t = $('toast'); t.style.display = 'block';
-    setTimeout(() => t.style.display = 'none', 2200);
+    showToast('Copiado — pega en WhatsApp 📋');
+  }).catch(() => {
+    showToast('No se pudo copiar');
   });
+}
+function showToast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 2400);
 }
 
 // ── Fetch ─────────────────────────────────────────────────────
@@ -209,29 +251,27 @@ function render(data) {
         ${esPaseIn ? `<span class="mov-tag">recibido</span>` : ''}
       </li>`;
     }).join('');
-    const capitanes = [op.nombre_capitan||op.id_capitan, op.nombre_guia||op.id_guia].filter(Boolean).join(' / ');
+    const cap = [op.nombre_capitan||op.id_capitan, op.nombre_guia||op.id_guia].filter(Boolean).join(' / ');
     return `<div class="op-block">
       <div class="op-num">${ORDINAL[i]||i+1+'.'} salida</div>
       <div class="op-title">⛵ ${op.nombre_bote||op.id_bote}</div>
       <div class="op-meta">
-        👤 ${capitanes}
-        ${op.destino ? `&nbsp;·&nbsp;📍 ${op.destino}` : ''}
-        &nbsp;·&nbsp;🕐 ${op.hora_salida||'—'}
+        👤 ${cap}${op.destino ? ` &nbsp;·&nbsp; 📍 ${op.destino}` : ''} &nbsp;·&nbsp; 🕐 ${op.hora_salida||'—'}
       </div>
       <ul class="mov-list">${movsHtml||'<li class="mov-item" style="color:var(--muted);">Sin pasajeros</li>'}</ul>
       <div class="op-total">TOTAL &nbsp;<span class="op-total-num">${paxTotal} PAX</span></div>
     </div>`;
   }).join('') || '<div style="padding:18px 16px;color:var(--muted);">Sin salidas registradas.</div>';
 
-  // ── Endoses (PaseOut agrupados por hora de op origen) ────────
+  // ── Endoses agrupados por hora de registro (timestamp) ───────
   const endosesByHora = {};
   allMovs.forEach(m => {
     if (!m.id_contacto_pase || m.estado === 'Cancelado') return;
-    const hora = m._op ? (m._op.hora_salida||'Sin hora') : 'Sin hora';
+    const hora = horaEndose(m);
     if (!endosesByHora[hora]) endosesByHora[hora] = [];
     endosesByHora[hora].push(m);
   });
-  const horasOrd = Object.keys(endosesByHora).sort();
+  const horasOrd   = Object.keys(endosesByHora).sort();
   const totalEndPax = Object.values(endosesByHora).flat().reduce((s,m) => s+(parseInt(m.cant_pax)||0), 0);
 
   const endosesHtml = horasOrd.length > 0 ? horasOrd.map(hora => {
@@ -241,18 +281,15 @@ function render(data) {
         <span class="end-origen">${m.nombre_contacto||'—'}</span>
         <span class="end-dest">→ ${m.nombre_contacto_pase||m.id_contacto_pase||'?'}</span>
       </div>`).join('');
-    return `<div class="hora-group">
-      <div class="hora-label">🕐 ${hora}</div>
-      ${rows}
-    </div>`;
+    return `<div class="hora-group"><div class="hora-label">🕐 ${hora}</div>${rows}</div>`;
   }).join('') : '<div style="padding:16px;color:var(--muted);">Sin endoses.</div>';
 
   // ── Caja ─────────────────────────────────────────────────────
-  const ingresos  = allCaja.filter(c => isIngreso(c));
-  const egresos   = allCaja.filter(c => !isIngreso(c));
-  const totalIng  = ingresos.reduce((s,c) => s+(parseFloat(c.monto)||0), 0);
-  const totalEgr  = egresos.reduce((s,c) => s+(parseFloat(c.monto)||0), 0);
-  const neto      = totalIng - totalEgr;
+  const ingresos = allCaja.filter(c => isIngreso(c));
+  const egresos  = allCaja.filter(c => !isIngreso(c));
+  const totalIng = ingresos.reduce((s,c) => s+(parseFloat(c.monto)||0), 0);
+  const totalEgr = egresos.reduce((s,c) => s+(parseFloat(c.monto)||0), 0);
+  const neto     = totalIng - totalEgr;
 
   function cajaRow(c, esIng) {
     const cat = String(c.categoria||'').replace(/_/g,' ');
@@ -262,22 +299,21 @@ function render(data) {
         <div>${c.operador||cat}</div>
         ${c._bote ? `<div class="caja-sub">⛵ ${c._bote}</div>` : ''}
       </div>
-      <span class="caja-monto" style="color:${esIng?'var(--green)':'var(--red)'};">${esIng?'+':'−'}${S(c.monto)}</span>
+      <span class="caja-monto" style="color:${esIng?'var(--green)':'var(--red)'};">${esIng?'+':'-'}${S(c.monto)}</span>
     </div>`;
   }
 
   const ingHtml = ingresos.length > 0
-    ? ingresos.map(c => cajaRow(c, true)).join('')
+    ? ingresos.map(c => cajaRow(c,true)).join('')
     : '<div style="padding:14px 16px;color:var(--muted);">Sin ingresos registrados.</div>';
-
   const egrHtml = egresos.length > 0
-    ? egresos.map(c => cajaRow(c, false)).join('')
+    ? egresos.map(c => cajaRow(c,false)).join('')
     : '<div style="padding:14px 16px;color:var(--muted);">Sin egresos registrados.</div>';
 
   // ── Pendientes ────────────────────────────────────────────────
   const pendMap = {};
   allMovs.forEach(m => {
-    if (m.estado === 'Cancelado' || TIPOS_SIN_COBRO.includes(m.tipo)) return;
+    if (m.estado==='Cancelado' || TIPOS_SIN_COBRO.includes(m.tipo)) return;
     const total = parseFloat(m.monto_total)||0;
     if (!total) return;
     const pagado = pagadoMov(allCaja, m.id_mov);
@@ -289,11 +325,11 @@ function render(data) {
       pendMap[key].pendiente += pend;
     }
   });
-  const pendArr  = Object.entries(pendMap).sort((a,b) => b[1].pendiente - a[1].pendiente);
+  const pendArr   = Object.entries(pendMap).sort((a,b) => b[1].pendiente - a[1].pendiente);
   const totalPend = pendArr.reduce((s,[,d]) => s+d.pendiente, 0);
 
   const pendHtml = pendArr.length > 0
-    ? pendArr.map(([nombre, d]) => `
+    ? pendArr.map(([nombre,d]) => `
       <div class="pend-item">
         <div class="pend-dot"></div>
         <div class="pend-desc"><b>${nombre}</b>${d.pax>0?` · ${d.pax} pax`:''}</div>
@@ -301,71 +337,67 @@ function render(data) {
       </div>`).join('')
     : '<div style="padding:16px;color:var(--green);font-size:18px;font-weight:700;">✓ Sin pendientes</div>';
 
-  // ── Texto plano (WhatsApp / térmica) ─────────────────────────
+  // ── Texto plano para WhatsApp ─────────────────────────────────
+  // Usa solo ASCII+emojis: sin ─ · → − que rompen el link de wa.me
   _buildText = function() {
-    const SEP = '─'.repeat(30);
-    let t = `📋 SALIDAS ${f.dia.toUpperCase()} ${f.fecha}\n${SEP}\n\n`;
+    const SEP = '------------------------------';
+    const sep = '----------------------';
+    let t = `*SALIDAS ${f.dia.toUpperCase()} ${f.fecha}*\n${SEP}\n\n`;
 
     ops.forEach((op, i) => {
-      const movs = (op.movimientos||[]).filter(m => m.estado !== 'Cancelado' && !m.id_contacto_pase);
+      const movs = (op.movimientos||[]).filter(m => m.estado!=='Cancelado' && !m.id_contacto_pase);
       const paxTotal = movs.reduce((s,m) => s+(parseInt(m.cant_pax)||0), 0);
       const cap = [op.nombre_capitan||op.id_capitan, op.nombre_guia||op.id_guia].filter(Boolean).join('/');
-      t += `⛵ ${ORDINAL[i]||''} SALIDA — ${op.hora_salida||'—'}\n`;
-      t += `${op.nombre_bote||op.id_bote}`;
-      if (op.destino) t += ` → ${op.destino}`;
-      t += `\n👤 ${cap}\n\n`;
-      movs.forEach(m => {
-        t += `  · ${String(m.cant_pax).padStart(2)}  ${m.nombre_contacto||'—'}\n`;
-      });
-      t += `  ${'─'.repeat(22)}\n  ${paxTotal} PAX TOTALES\n\n`;
+      t += `*${ORDINAL[i]||''} SALIDA - ${op.hora_salida||'--'}*\n`;
+      t += `${op.nombre_bote||op.id_bote}${op.destino?' - '+op.destino:''}\n`;
+      t += `${cap}\n\n`;
+      movs.forEach(m => { t += `  - ${String(m.cant_pax).padStart(2)}  ${m.nombre_contacto||'--'}\n`; });
+      t += `  ${sep}\n  ${paxTotal} PAX TOTALES\n\n`;
     });
 
     if (horasOrd.length > 0) {
-      t += `🔀 ENDOSES\n${SEP}\n`;
+      t += `*ENDOSES*\n${SEP}\n`;
       horasOrd.forEach(hora => {
         t += `\n${hora}\n`;
         endosesByHora[hora].forEach(m => {
-          t += `  · ${String(m.cant_pax).padStart(2)}  ${m.nombre_contacto||'—'}  →  ${m.nombre_contacto_pase||m.id_contacto_pase||'?'}\n`;
+          t += `  - ${String(m.cant_pax).padStart(2)}  ${m.nombre_contacto||'--'}  ->  ${m.nombre_contacto_pase||m.id_contacto_pase||'?'}\n`;
         });
       });
-      t += `\n  ${totalEndPax} PAX endosados en total\n\n`;
+      t += `\n  Total: ${totalEndPax} PAX endosados\n\n`;
     }
 
     if (ingresos.length > 0) {
-      t += `💵 INGRESOS\n${SEP}\n`;
+      t += `*INGRESOS*\n${SEP}\n`;
       ingresos.forEach(c => {
-        const cat = c.operador||String(c.categoria||'').replace(/_/g,' ');
-        t += `  · ${cat}${c._bote?' ('+c._bote+')':''}  +${S(c.monto)}\n`;
+        t += `  + ${c.operador||String(c.categoria||'').replace(/_/g,' ')}${c._bote?' ('+c._bote+')':''}  ${S(c.monto)}\n`;
       });
-      t += `  ${'─'.repeat(22)}\n  TOTAL  +${S(totalIng)}\n\n`;
+      t += `  ${sep}\n  TOTAL  ${S(totalIng)}\n\n`;
     }
 
     if (egresos.length > 0) {
-      t += `📤 EGRESOS\n${SEP}\n`;
+      t += `*EGRESOS*\n${SEP}\n`;
       egresos.forEach(c => {
-        const cat = c.operador||String(c.categoria||'').replace(/_/g,' ');
-        t += `  · ${cat}${c._bote?' ('+c._bote+')':''}  −${S(c.monto)}\n`;
+        t += `  - ${c.operador||String(c.categoria||'').replace(/_/g,' ')}${c._bote?' ('+c._bote+')':''}  ${S(c.monto)}\n`;
       });
-      t += `  ${'─'.repeat(22)}\n  TOTAL  −${S(totalEgr)}\n\n`;
+      t += `  ${sep}\n  TOTAL  ${S(totalEgr)}\n\n`;
     }
 
-    t += `💰 NETO DEL DÍA\n${SEP}\n`;
-    t += `  Ingresos   +${S(totalIng)}\n`;
-    t += `  Egresos    −${S(totalEgr)}\n`;
-    t += `  ${'─'.repeat(22)}\n`;
-    t += `  NETO  ${neto>=0?'+':''}${S(neto)}\n`;
+    t += `*NETO DEL DIA*\n${SEP}\n`;
+    t += `  Ingresos  ${S(totalIng)}\n`;
+    t += `  Egresos   ${S(totalEgr)}\n`;
+    t += `  ${sep}\n`;
+    t += `  NETO  ${S(neto)}\n`;
 
     if (pendArr.length > 0) {
-      t += `\n⏳ PENDIENTES (${S(totalPend)})\n${SEP}\n`;
-      pendArr.forEach(([nombre, d]) => {
-        t += `  · ${nombre}${d.pax>0?` (${d.pax} pax)`:''}\n    ${S(d.pendiente)}\n`;
+      t += `\n*PENDIENTES* (${S(totalPend)})\n${SEP}\n`;
+      pendArr.forEach(([nombre,d]) => {
+        t += `  * ${nombre}${d.pax>0?' ('+d.pax+' pax)':''}  ${S(d.pendiente)}\n`;
       });
     }
-
     return t;
   };
 
-  // ── HTML ──────────────────────────────────────────────────────
+  // ── Ensamblar HTML ────────────────────────────────────────────
   $('root').innerHTML = `
   <div class="tk-header">
     <div>
@@ -378,6 +410,12 @@ function render(data) {
     </div>
   </div>
 
+  <div class="cd-wrap no-print" onclick="loadData()">
+    <span class="cd-icon">🔄</span>
+    <div class="cd-track"><div class="cd-bar" id="cd-bar" style="width:100%;"></div></div>
+    <span class="cd-txt" id="cd-txt">Actualiza en 60s</span>
+  </div>
+
   <div class="btn-bar no-print">
     <button class="btn btn-wa"    onclick="shareWa()">💬 WhatsApp</button>
     <button class="btn btn-copy"  onclick="copyText()">📋 Copiar</button>
@@ -385,7 +423,7 @@ function render(data) {
   </div>
 
   <div class="sec">
-    <div class="sec-title">⛵ Salidas del día &nbsp;·&nbsp; ${ops.length} operaciones</div>
+    <div class="sec-title">⛵ Salidas del dia &nbsp;·&nbsp; ${ops.length} operaciones</div>
     ${salidasHtml}
   </div>
 
@@ -404,13 +442,13 @@ function render(data) {
   <div class="sec">
     <div class="sec-title">📤 Egresos</div>
     ${egrHtml}
-    ${egresos.length > 0 ? `<div class="caja-total"><span>TOTAL</span><span class="caja-total-num" style="color:var(--red);">−${S(totalEgr)}</span></div>` : ''}
+    ${egresos.length > 0 ? `<div class="caja-total"><span>TOTAL</span><span class="caja-total-num" style="color:var(--red);">-${S(totalEgr)}</span></div>` : ''}
   </div>
 
   <div class="sec">
     <div class="balance-row"><span>💵 Ingresos</span><span class="balance-num" style="color:var(--green);">+${S(totalIng)}</span></div>
-    <div class="balance-row"><span>📤 Egresos</span><span class="balance-num" style="color:var(--red);">−${S(totalEgr)}</span></div>
-    <div class="balance-row balance-neto"><span>💰 Neto del día</span><span class="balance-num" style="color:${neto>=0?'var(--green)':'var(--red)'};">${neto>=0?'+':''}${S(neto)}</span></div>
+    <div class="balance-row"><span>📤 Egresos</span><span class="balance-num" style="color:var(--red);">-${S(totalEgr)}</span></div>
+    <div class="balance-row balance-neto"><span>💰 Neto del dia</span><span class="balance-num" style="color:${neto>=0?'var(--green)':'var(--red)'};">${neto>=0?'+':''}${S(neto)}</span></div>
   </div>
 
   <div class="sec">
@@ -418,11 +456,11 @@ function render(data) {
     ${pendHtml}
   </div>
 
-  <div style="text-align:center;padding:20px 0 10px;font-size:14px;color:var(--muted);">
+  <div style="text-align:center;padding:18px 0 8px;font-size:13px;color:var(--muted);">
     PS Panel · ${new Date().toLocaleString('es-PE')}
-    &nbsp;·&nbsp;
-    <span style="cursor:pointer;text-decoration:underline;" onclick="loadData()">Actualizar</span>
   </div>`;
+
+  startCountdown();
 }
 
 function renderError(msg) {
