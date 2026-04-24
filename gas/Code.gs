@@ -215,7 +215,8 @@ function getLanchasDia(fecha) {
         adicionales: row[8], operador: row[9], timestamp: row[10],
         estado, id_contacto_pase: idPase,
         nombre_contacto_pase: idPase ? (nombreContacto[idPase] || idPase) : '',
-        id_agencia_comprada: String(row[13] || ''), monto_comprado: montoComprado
+        id_agencia_comprada: String(row[13] || ''), monto_comprado: montoComprado,
+        precio_defecto: precioDefecto[idContacto] || 0
       };
 
       if (idOp && opIds.has(idOp)) {

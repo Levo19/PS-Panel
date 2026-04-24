@@ -7,228 +7,245 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
 <style>
 :root {
-  --guinda: #7B2030; --guinda-dark: #5a1722; --guinda-light: #9d2a3e;
-  --gold: #C9A84C; --gold-light: #e8c46a; --gold-dark: #a88835;
-  --bg: #0e0608; --surface: rgba(255,255,255,0.04);
-  --border: rgba(201,168,76,0.18); --text: #f0e6d3;
-  --text-muted: rgba(240,230,211,0.55);
+  --guinda:#7B2030; --guinda-dark:#5a1722; --guinda-light:#9d2a3e;
+  --gold:#C9A84C; --gold-light:#e8c46a; --gold-pale:#f5e9c8;
+  --bg:#0e0608; --bg2:#160b0d; --surface:rgba(255,255,255,0.04);
+  --surface2:rgba(255,255,255,0.07); --border:rgba(201,168,76,0.18);
+  --text:#f0e6d3; --text-muted:rgba(240,230,211,0.5);
+  --radius:14px; --radius-sm:10px;
+  --green:#4ade80; --red:#f87171; --amber:#fbbf24; --blue:#60a5fa; --purple:#c084fc;
 }
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 16px; }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:14px;}
 
-.shimmer {
-  background: linear-gradient(90deg,var(--gold-dark),var(--gold-light),var(--gold),var(--gold-light),var(--gold-dark));
-  background-size: 200% auto; -webkit-background-clip: text; background-clip: text;
-  -webkit-text-fill-color: transparent; animation: shimmer 3s linear infinite;
+/* ── Shimmer ── */
+.shimmer{background:linear-gradient(90deg,var(--gold-dark,#a88835),var(--gold-light),var(--gold),var(--gold-light),var(--gold-dark,#a88835));background-size:200% auto;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:shimmer 3s linear infinite;}
+@keyframes shimmer{to{background-position:200% center;}}
+.glass{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);}
+
+/* ── Header ── */
+.rpt-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:10px;}
+.rpt-logo{font-size:26px;font-weight:900;letter-spacing:-1px;}
+.rpt-meta{text-align:right;}
+.rpt-fecha{font-size:15px;font-weight:700;}
+.rpt-refresh{font-size:11px;color:var(--text-muted);margin-top:2px;}
+.countdown{color:var(--gold);font-weight:700;}
+
+/* ── Botones ── */
+.btn-bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
+.btn{padding:9px 14px;border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;border:1px solid var(--border);display:flex;align-items:center;gap:6px;white-space:nowrap;}
+.btn-wa{background:rgba(37,211,102,0.15);color:#25d366;border-color:rgba(37,211,102,0.3);}
+.btn-print{background:var(--surface);color:var(--text-muted);}
+
+/* ── Alertas ── */
+.alerta-box{border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:14px;display:flex;flex-direction:column;gap:8px;border:1px solid rgba(248,113,113,0.35);background:rgba(248,113,113,0.07);}
+.alerta-item{display:flex;align-items:center;gap:10px;font-size:13px;}
+.alerta-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.alerta-verde{border-color:rgba(74,222,128,0.3);background:rgba(74,222,128,0.06);}
+
+/* ── Las 4 preguntas ── */
+.q4-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
+.q4-card{padding:14px;border-radius:var(--radius);}
+.q4-label{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;margin-bottom:5px;opacity:.7;}
+.q4-val{font-size:26px;font-weight:900;line-height:1;}
+.q4-unit{font-size:11px;font-weight:700;margin-left:3px;opacity:.7;}
+.q4-sub{font-size:10px;margin-top:5px;opacity:.65;line-height:1.4;}
+.q4-debo-pases{background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.3);}
+.q4-me-deben-pases{background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.3);}
+.q4-debo-plata{background:rgba(251,191,36,0.09);border:1px solid rgba(251,191,36,0.3);}
+.q4-me-deben-plata{background:rgba(96,165,250,0.09);border:1px solid rgba(96,165,250,0.3);}
+
+/* ── KPI strip ── */
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:14px;}
+.kpi-card{padding:12px 14px;position:relative;overflow:hidden;}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:.4;}
+.kpi-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);margin-bottom:4px;}
+.kpi-value{font-size:20px;font-weight:800;}
+.kpi-sub{font-size:10px;color:var(--text-muted);margin-top:2px;}
+
+/* ── Flujo de Valor ── */
+.flujo-section{padding:14px 16px;margin-bottom:14px;}
+.flujo-title{font-size:10px;font-weight:800;color:var(--gold);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px;padding-bottom:7px;border-bottom:1px solid var(--border);}
+.flujo-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.flujo-label{font-size:10px;color:var(--text-muted);width:110px;flex-shrink:0;text-align:right;line-height:1.3;}
+.flujo-track{flex:1;height:10px;background:rgba(255,255,255,0.05);border-radius:5px;overflow:hidden;}
+.flujo-bar{height:100%;border-radius:5px;min-width:2px;}
+.flujo-val{font-size:11px;font-weight:800;width:80px;flex-shrink:0;text-align:right;}
+.flujo-sep{border:none;border-top:1px dashed rgba(201,168,76,0.2);margin:6px 0 6px 118px;}
+
+/* ── Gráficos ── */
+.charts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:14px;}
+.chart-card{padding:14px;}
+.chart-title{font-size:10px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;}
+.chart-wrap{position:relative;height:170px;}
+
+/* ── Section ── */
+.section{margin-bottom:14px;}
+.sec-hdr{font-size:10px;font-weight:800;color:var(--gold);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid rgba(201,168,76,0.2);}
+
+/* ── Aliado balance ── */
+.aliado-card{border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;overflow:hidden;background:var(--surface);}
+.aliado-hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;cursor:pointer;gap:8px;}
+.aliado-nombre{font-size:13px;font-weight:800;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.aliado-badge{font-size:10px;font-weight:800;padding:3px 9px;border-radius:20px;flex-shrink:0;}
+.badge-debes{background:rgba(248,113,113,0.18);color:var(--red);border:1px solid rgba(248,113,113,0.3);}
+.badge-te-deben{background:rgba(74,222,128,0.15);color:var(--green);border:1px solid rgba(74,222,128,0.3);}
+.badge-tablas{background:rgba(255,255,255,0.07);color:var(--text-muted);border:1px solid var(--border);}
+.aliado-body{padding:10px 14px 12px;background:rgba(0,0,0,0.2);border-top:1px solid var(--border);display:none;}
+.aliado-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:12px;}
+.aliado-row:last-child{border-bottom:none;}
+
+/* ── Cobros pendientes ── */
+.pend-table{width:100%;font-size:11px;border-collapse:collapse;}
+.pend-table th{padding:6px 8px;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);text-align:left;border-bottom:1px solid var(--border);}
+.pend-table td{padding:7px 8px;border-bottom:1px solid rgba(255,255,255,0.04);vertical-align:middle;}
+.pend-table tr:last-child td{border-bottom:none;}
+.pend-table tr:hover td{background:var(--surface2);}
+
+/* ── Progress bar inline ── */
+.prog-wrap{background:rgba(255,255,255,0.06);border-radius:3px;height:4px;overflow:hidden;margin-top:3px;}
+.prog-bar{height:100%;border-radius:3px;}
+
+/* ── Op cards ── */
+.op-card{border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:8px;background:var(--surface);}
+.op-card.op-viaje{border-color:rgba(251,191,36,0.4);}
+.op-card.op-cerrada{border-color:rgba(74,222,128,0.25);}
+.op-card.op-cancelada{border-color:rgba(100,100,100,0.2);opacity:.6;}
+.op-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:3px;}
+.op-nombre{font-size:14px;font-weight:800;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.occ-bar-wrap{height:6px;background:rgba(255,255,255,0.07);border-radius:3px;overflow:hidden;margin-top:5px;}
+.occ-bar{height:100%;border-radius:3px;}
+.type-chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px;}
+.type-chip{font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px;}
+
+/* ── Manifiesto ── */
+.mov-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.04);}
+.mov-row:last-child{border-bottom:none;}
+.mov-row.mov-cancelado{opacity:.4;text-decoration:line-through;}
+.mov-total{display:flex;justify-content:space-between;padding:8px 10px;border-top:1px solid var(--border);margin-top:2px;font-size:12px;font-weight:800;}
+
+/* ── Badges tipo ── */
+.tipo-badge{padding:2px 7px;border-radius:4px;font-size:9px;font-weight:700;}
+.tipo-Directo{background:rgba(74,222,128,0.12);color:var(--green);}
+.tipo-Agencia{background:rgba(96,165,250,0.12);color:var(--blue);}
+.tipo-Comisionado{background:rgba(251,191,36,0.12);color:var(--amber);}
+.tipo-AliadoPaseIn{background:rgba(96,165,250,0.12);color:var(--blue);}
+.tipo-AliadoPaseOut{background:rgba(240,171,252,0.12);color:var(--purple);}
+.tipo-Aliado{background:rgba(240,171,252,0.12);color:var(--purple);}
+.tipo-PaseRecibido{background:rgba(251,146,60,0.12);color:#fb923c;}
+
+/* ── Caja ── */
+.caja-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 12px;border-radius:8px;margin-bottom:4px;}
+.caja-ingreso{background:rgba(74,222,128,0.06);border-left:3px solid rgba(74,222,128,0.4);}
+.caja-salida{background:rgba(239,68,68,0.06);border-left:3px solid rgba(239,68,68,0.35);}
+
+/* ── Matrix ── */
+.mx-table{width:100%;font-size:11px;border-collapse:collapse;}
+.mx-table th{color:var(--gold);font-weight:700;padding:5px 8px;text-align:right;border-bottom:1px solid var(--border);}
+.mx-table th:first-child{text-align:left;}
+.mx-table td{padding:5px 8px;text-align:right;border-bottom:1px solid rgba(255,255,255,0.03);color:var(--text-muted);}
+.mx-table td:first-child{text-align:left;}
+.mx-table td.v{color:var(--text);font-weight:700;}
+.mx-table tfoot td{border-top:1px solid var(--border);color:var(--gold);font-weight:800;}
+
+/* ── Spinner ── */
+.loading{display:flex;align-items:center;justify-content:center;height:200px;flex-direction:column;gap:14px;}
+.spin{width:28px;height:28px;border:2px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ── Mobile ── */
+@media(max-width:600px){
+  body{padding:10px;}
+  .q4-grid{grid-template-columns:1fr 1fr;}
+  .q4-val{font-size:22px;}
+  .charts-grid{grid-template-columns:1fr;}
+  .chart-wrap{height:150px;}
+  .flujo-label{width:88px;font-size:9px;}
+  .flujo-val{width:70px;font-size:10px;}
+  .flujo-sep{margin-left:96px;}
+  .kpi-row{grid-template-columns:repeat(2,1fr);}
 }
-@keyframes shimmer { to { background-position: 200% center; } }
-.glass { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; }
-
-/* Header */
-.report-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; gap: 12px; }
-.report-logo { font-size: 28px; font-weight: 900; letter-spacing: -1px; }
-.report-fecha { font-size: 16px; font-weight: 700; }
-.report-refresh { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
-.countdown { color: var(--gold); font-weight: 700; }
-
-/* Buttons */
-.btn-bar { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
-.btn { padding: 9px 16px; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; border: 1px solid var(--border); display: flex; align-items: center; gap: 6px; }
-.btn-wa  { background: rgba(37,211,102,0.15); color: #25d366; border-color: rgba(37,211,102,0.3); }
-.btn-print { background: var(--surface); color: var(--text-muted); }
-
-/* KPI */
-.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px,1fr)); gap: 10px; margin-bottom: 20px; }
-.kpi-card { padding: 14px; position: relative; overflow: hidden; }
-.kpi-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:linear-gradient(90deg,transparent,var(--gold),transparent); opacity:0.5; }
-.kpi-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 6px; }
-.kpi-value { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
-.kpi-sub { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
-
-/* Charts */
-.charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px,1fr)); gap: 14px; margin-bottom: 20px; }
-.chart-card { padding: 16px; }
-.chart-title { font-size: 11px; font-weight: 700; color: var(--gold); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
-.chart-wrap { position: relative; height: 190px; }
-
-/* Section */
-.section { margin-bottom: 14px; }
-.section-title { font-size: 11px; font-weight: 700; color: var(--gold); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; padding-bottom: 7px; border-bottom: 1px solid rgba(201,168,76,0.2); }
-
-/* Op cards */
-.op-card { border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; background: rgba(255,255,255,0.02); }
-.op-card.op-cerrada { border-color: rgba(100,100,100,0.25); }
-.op-card.op-activa  { border-color: rgba(74,222,128,0.35); }
-.op-card.op-viaje   { border-color: rgba(251,191,36,0.35); }
-.op-row1 { display:flex; align-items:center; gap:6px; margin-bottom:4px; }
-.op-nombre { font-size:14px; font-weight:800; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.op-row2, .op-row3 { display:flex; justify-content:space-between; align-items:center; font-size:11px; color:var(--text-muted); margin-bottom:3px; }
-.type-chips { display:flex; gap:5px; flex-wrap:wrap; margin-top:5px; }
-.type-chip  { font-size:10px; font-weight:700; padding:2px 7px; border-radius:4px; }
-
-/* Tipo badges */
-.tipo-badge { padding:2px 7px; border-radius:4px; font-size:10px; font-weight:700; }
-.tipo-Directo     { background:rgba(34,197,94,0.15);  color:#4ade80; }
-.tipo-Agencia     { background:rgba(99,179,237,0.15); color:#90cdf4; }
-.tipo-Comisionado { background:rgba(167,139,250,0.15);color:#a78bfa; }
-.tipo-PaseIN        { background:rgba(251,191,36,0.15); color:#fbbf24; }
-.tipo-PaseOUT       { background:rgba(251,146,60,0.15); color:#fb923c; }
-.tipo-Aliado        { background:rgba(240,171,252,0.15);color:#f0abfc; }
-.tipo-AliadoPaseOut { background:rgba(240,171,252,0.15);color:#f0abfc; }
-
-/* Manifiesto card rows */
-.mov-row { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 10px; border-radius:8px; border-bottom:1px solid rgba(255,255,255,0.04); }
-.mov-row:last-child { border-bottom:none; }
-.mov-total { display:flex; justify-content:space-between; padding:8px 10px; border-top:1px solid var(--border); margin-top:2px; font-size:12px; font-weight:800; }
-
-/* Caja rows */
-.caja-row { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 12px; border-radius:8px; margin-bottom:4px; }
-.caja-ingreso { background:rgba(74,222,128,0.07);  border-left:3px solid rgba(74,222,128,0.45); }
-.caja-salida  { background:rgba(239,68,68,0.07);   border-left:3px solid rgba(239,68,68,0.35); }
-.caja-total   { display:flex; justify-content:space-between; padding:8px 10px; border-top:1px solid var(--border); margin-top:4px; font-size:12px; }
-
-/* Aliados */
-.aliado-row { display:flex; align-items:center; gap:8px; padding:9px 10px; border-radius:8px; border-bottom:1px solid rgba(255,255,255,0.04); flex-wrap:wrap; }
-.aliado-row:last-child { border-bottom:none; }
-
-/* Spinner */
-.loading { display:flex; align-items:center; justify-content:center; height:200px; flex-direction:column; gap:16px; }
-.spin { width:32px; height:32px; border:2px solid var(--border); border-top-color:var(--gold); border-radius:50%; animation:spin 0.7s linear infinite; }
-@keyframes spin { to { transform:rotate(360deg); } }
-
-/* Flujo de Valor */
-.flujo-section { padding: 16px; }
-.flujo-row { display:flex; align-items:center; gap:8px; margin-bottom:7px; }
-.flujo-label { font-size:11px; color:var(--text-muted); width:120px; flex-shrink:0; text-align:right; line-height:1.3; }
-.flujo-track { flex:1; height:12px; background:rgba(255,255,255,0.05); border-radius:6px; overflow:hidden; }
-.flujo-bar   { height:100%; border-radius:6px; min-width:3px; }
-.flujo-value { font-size:12px; font-weight:800; width:88px; flex-shrink:0; text-align:right; }
-.flujo-sep   { border:none; border-top:1px dashed rgba(201,168,76,0.2); margin:8px 0 8px 128px; }
-
-/* PAX Matrix */
-.matrix-table { width:100%; font-size:11px; border-collapse:collapse; }
-.matrix-table th { color:var(--gold); font-weight:700; padding:5px 8px; text-align:right; border-bottom:1px solid var(--border); }
-.matrix-table th:first-child { text-align:left; }
-.matrix-table td { padding:5px 8px; text-align:right; border-bottom:1px solid rgba(255,255,255,0.03); color:var(--text-muted); }
-.matrix-table td:first-child { text-align:left; }
-.matrix-table td.v { color:var(--text); font-weight:700; }
-.matrix-table tfoot td { border-top:1px solid var(--border); color:var(--gold); font-weight:800; }
-
-/* Mobile */
-@media (max-width:600px) {
-  body { padding: 10px; }
-  .kpi-grid { grid-template-columns: repeat(2,1fr); gap:8px; }
-  .kpi-value { font-size:18px; }
-  .charts-grid { grid-template-columns: 1fr; }
-  .chart-wrap { height:160px; }
-  .report-header { flex-direction:column; gap:6px; align-items:flex-start; }
-  .flujo-label { width:90px; font-size:10px; }
-  .flujo-value { width:75px; font-size:11px; }
-  .flujo-sep { margin-left:98px; }
-}
-
-/* Print */
-@media print {
-  body { background:#fff; color:#000; padding:12px; }
-  .btn-bar { display:none !important; }
-  .glass { background:#f9f9f9; border:1px solid #ddd; }
-  .shimmer { -webkit-text-fill-color:#7B2030 !important; background:none !important; animation:none !important; }
-  .kpi-value, .op-nombre { color:#000 !important; }
-  .kpi-label, .kpi-sub, .chart-title, .section-title { color:#555 !important; }
-  .op-card { border:1px solid #ccc !important; background:#fff !important; }
-  .tipo-badge { border:1px solid #ccc !important; background:#f0f0f0 !important; color:#333 !important; }
-  .caja-ingreso, .caja-salida { background:#f9f9f9 !important; border-left:3px solid #ccc !important; }
-  .charts-grid { grid-template-columns: repeat(2,1fr); }
+/* ── Print ── */
+@media print{
+  body{background:#fff;color:#000;padding:10px;}
+  .btn-bar,.no-print{display:none!important;}
+  .glass,.op-card,.aliado-card,.chart-card,.flujo-section{background:#f9f9f9!important;border-color:#ddd!important;}
+  .shimmer{-webkit-text-fill-color:var(--guinda)!important;background:none!important;animation:none!important;}
+  .q4-val,.kpi-value,.op-nombre,.aliado-nombre{color:#000!important;}
+  .sec-hdr,.kpi-label,.chart-title,.q4-label,.flujo-title{color:#555!important;}
+  .charts-grid{grid-template-columns:repeat(2,1fr);}
 }
 </style>
 </head>
 <body>
-
 <div id="root">
-  <div class="loading"><div class="spin"></div><div style="color:var(--text-muted);font-size:13px;">Cargando reporte...</div></div>
+  <div class="loading"><div class="spin"></div><p style="color:var(--text-muted);font-size:13px;">Cargando reporte…</p></div>
 </div>
 
 <script>
 const params  = new URLSearchParams(location.search);
 const fecha   = params.get('fecha') || new Date().toISOString().slice(0,10);
-const API_URL = params.get('api') || localStorage.getItem('ps_api_url') || '';
+const PS_GAS  = 'https://script.google.com/macros/s/AKfycby7_H2lEOweA4cpixzNUw_50EfuQtiSoIW2389U5Ipyic3GRmETSRgBYSpIAaMcARcMhA/exec';
+const API_URL = params.get('api') || localStorage.getItem('ps_api_url') || PS_GAS;
+
 const REFRESH = 60;
-let countdown = REFRESH;
-let timer     = null;
-let charts    = {};
+const TIPOS_SIN_COBRO = ['Aliado(PaseIn)','Pase_Recibido','Aliado'];
+let countdown = REFRESH, timer = null, charts = {};
 
-function fmt(v) { return (parseFloat(v)||0).toLocaleString('es-PE',{minimumFractionDigits:0,maximumFractionDigits:0}); }
-
-function tipoBadgeClass(tipo) { return 'tipo-' + String(tipo||'').replace(/[^a-zA-Z0-9]/g,''); }
-
-function getColor(tipo) {
-  const t = String(tipo||'').toLowerCase();
-  if (t.includes('directo'))               return '#4ade80';
-  if (t.includes('agencia'))               return '#60a5fa';
-  if (t.includes('comisionado'))           return '#a78bfa';
-  if (t.includes('pasein'))                return '#fbbf24';
-  if (t.includes('aliado')||t.includes('paseout')) return '#f0abfc';
-  return '#888888';
-}
-
-function contactColor(tipo) {
-  const t = String(tipo||'').toLowerCase();
-  if (t.includes('agencia'))               return '#60a5fa';
-  if (t.includes('comisionado'))           return '#fbbf24';
-  if (t.includes('aliado')||t.includes('paseout')) return '#f0abfc';
-  if (t.includes('pase'))                  return '#fb923c';
-  return '#4ade80';
-}
-
-function estadoIcon(estado) {
-  const s = String(estado||'').toLowerCase();
-  if (s.includes('cancel'))                    return '<span style="color:#6b7280;font-weight:900;">✕</span>';
-  if (s.includes('cerr')||s.includes('pasad')) return '<span style="color:#4ade80;font-weight:900;">✓</span>';
-  if (s.includes('viaje'))                     return '<span style="color:#fbbf24;font-weight:900;">▶</span>';
-  return '<span style="color:rgba(240,230,211,0.4);">●</span>';
-}
-
-function opCardClass(estado) {
-  const s = String(estado||'').toLowerCase();
-  if (s.includes('cerr')||s.includes('pasad')) return 'op-cerrada';
-  if (s.includes('viaje'))                     return 'op-viaje';
-  return 'op-activa';
-}
-
-function montoPayStyle(op, mov) {
-  const paid = (op.caja||[]).filter(c => String(c.id_movimiento||'') === String(mov.id_mov||'')).reduce((s,c) => s+(parseFloat(c.monto)||0), 0);
-  const total = parseFloat(mov.monto_total)||0;
-  if (total === 0) return 'color:var(--text-muted)';
-  if (paid >= total * 0.99) return 'color:#4ade80';
-  if (paid > 0)             return 'color:#fbbf24';
-  return 'color:#f87171';
-}
-
-function isIngreso(c) {
-  const cat = String(c.categoria||'').toLowerCase();
-  return cat.includes('cobro') || cat.includes('ingreso') || cat.includes('venta');
-}
-function metodoIcon(c) {
-  const m = String(c.metodo_pago||'').toLowerCase();
-  return (m.includes('efect')||m==='cash') ? '💵' : '💳';
-}
+// ── Utils ──────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const fmt   = v => (parseFloat(v)||0).toLocaleString('es-PE',{minimumFractionDigits:0,maximumFractionDigits:0});
+const fmtD  = v => (parseFloat(v)||0).toLocaleString('es-PE',{minimumFractionDigits:2,maximumFractionDigits:2});
+const S     = v => 'S/ ' + fmtD(v);
+const pct   = (a,b) => b > 0 ? Math.min(100,(a/b*100)) : 0;
+const fw    = (v,max) => Math.min(100,Math.max(1.5,(v/(max||1))*100)).toFixed(1);
 
 function fmtFecha(f) {
   const [y,m,d] = f.split('-');
-  const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-  return `${d} ${meses[parseInt(m)-1]} ${y}`;
+  const M = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  return `${d} ${M[parseInt(m)-1]} ${y}`;
+}
+function tipoBadgeClass(tipo) {
+  const map = {'Aliado(PaseIn)':'AliadoPaseIn','Aliado(PaseOut)':'AliadoPaseOut','Pase_Recibido':'PaseRecibido'};
+  return 'tipo-badge tipo-' + (map[tipo] || String(tipo||'').replace(/[^a-zA-Z0-9]/g,''));
+}
+function contactColor(tipo) {
+  const t = String(tipo||'').toLowerCase();
+  if (t.includes('agencia')) return 'var(--blue)';
+  if (t.includes('comisionado')) return 'var(--amber)';
+  if (t.includes('aliado')||t.includes('paseout')) return 'var(--purple)';
+  if (t.includes('pase')) return '#fb923c';
+  return 'var(--green)';
+}
+function metIcon(m) {
+  const k = String(m||'').toLowerCase();
+  return k.includes('yape')?'📱':k.includes('plin')?'📲':k.includes('trans')?'🏦':k.includes('tarj')?'💳':'💵';
+}
+function isIngreso(c) {
+  const cat = String(c.categoria||'').toLowerCase();
+  return cat.includes('cobro')||cat.includes('ingreso')||cat.includes('venta');
+}
+function montoPayColor(op, mov) {
+  const paid = (op.caja||[]).filter(c=>String(c.id_movimiento||'')===String(mov.id_mov||'')).reduce((s,c)=>s+(parseFloat(c.monto)||0),0);
+  const total = parseFloat(mov.monto_total)||0;
+  if (!total) return 'color:var(--text-muted)';
+  return paid >= total*0.99 ? 'color:var(--green)' : paid > 0 ? 'color:var(--amber)' : 'color:var(--red)';
+}
+function pagadoMov(allCaja, movId) {
+  return allCaja.filter(c=>String(c.id_movimiento||'')===String(movId||'')).reduce((s,c)=>s+(parseFloat(c.monto)||0),0);
 }
 
+// ── Fetch ──────────────────────────────────────────────────────
 async function loadData() {
   try {
     const url = new URL(API_URL);
     url.searchParams.set('accion','lanchas_dia');
     url.searchParams.set('fecha', fecha);
-    const r = await fetch(url.toString());
+    const r = await fetch(url.toString(), { cache:'no-store' });
     const json = await r.json();
     if (json.ok) render(json.data);
-    else renderError('GAS devolvió error: ' + json.error);
-  } catch(e) { renderError('Error de conexión: ' + e.message); }
+    else renderError('Error del servidor: ' + json.error);
+  } catch(e) { renderError('Sin conexión: ' + e.message); }
 }
 
 function startCountdown() {
@@ -236,7 +253,7 @@ function startCountdown() {
   countdown = REFRESH;
   timer = setInterval(() => {
     countdown--;
-    const el = document.getElementById('countdown');
+    const el = $('countdown');
     if (el) el.textContent = '0:' + String(countdown).padStart(2,'0');
     if (countdown <= 0) { loadData(); countdown = REFRESH; }
   }, 1000);
@@ -247,399 +264,705 @@ function whatsappShare() {
   window.open('https://wa.me/?text=' + msg, '_blank');
 }
 
+// ── Render principal ───────────────────────────────────────────
 function render(data) {
-  const kpis      = data.kpis || {};
-  const ops       = data.operaciones || [];
-  const pases     = data.pases_sueltos || [];
-  const cajaSuelta = data.caja_suelta || [];
+  const ops        = data.operaciones   || [];
+  const pasesSuelt = data.pases_sueltos || [];
+  const cajaSuelta = data.caja_suelta   || [];
+  const kpis       = data.kpis          || {};
 
-  // Todos los pases del día
-  const isPase = t => t.includes('Pase') || t.includes('Aliado');
-  const allPases = [];
-  ops.forEach(op => {
-    (op.movimientos||[]).forEach(m => {
-      if (isPase(String(m.tipo||'')) && m.estado !== 'Cancelado')
-        allPases.push({ ...m, _bote: op.nombre_bote || op.id_bote });
-    });
-  });
-  pases.forEach(m => {
-    if (isPase(String(m.tipo||'')) && m.estado !== 'Cancelado')
-      allPases.push({ ...m, _bote: '—' });
-  });
-  const aliados          = allPases.filter(p => String(p.tipo||'').includes('Aliado'));
-  const pendienteAliados = aliados.filter(p => !p.id_agencia_comprada).reduce((s,p) => s+(parseFloat(p.monto_total)||0), 0);
+  // ── Colecciones globales ──
+  const allMovs = [];
+  ops.forEach(op => (op.movimientos||[]).forEach(m => allMovs.push({ ...m, _op: op })));
+  pasesSuelt.forEach(m => allMovs.push({ ...m, _op: null }));
 
-  // Toda la caja del día
   const allCaja = [];
-  ops.forEach(op => (op.caja||[]).forEach(c => allCaja.push({ ...c, _bote: op.nombre_bote || op.id_bote })));
+  ops.forEach(op => (op.caja||[]).forEach(c => allCaja.push({ ...c, _bote: op.nombre_bote||op.id_bote })));
   cajaSuelta.forEach(c => allCaja.push({ ...c, _bote: '' }));
 
-  // PAX Matrix: tipo comercial × ciclo de vida
+  // ── CÁLCULO: cobros pendientes (plata que me deben) ──────────
+  const cobrosMap = {};  // id_mov → { nombre, tipo, bote, total, pagado, pendiente }
+  allMovs.forEach(m => {
+    if (m.estado === 'Cancelado') return;
+    if (TIPOS_SIN_COBRO.includes(m.tipo)) return;
+    const total   = parseFloat(m.monto_total) || 0;
+    if (!total) return;
+    const pagado  = pagadoMov(allCaja, m.id_mov);
+    const pendiente = Math.max(0, total - pagado);
+    if (pendiente > 0.01) {
+      cobrosMap[m.id_mov] = {
+        id_mov: m.id_mov, nombre: m.nombre_contacto, tipo: m.tipo,
+        bote: m._op ? (m._op.nombre_bote||m._op.id_bote) : '—',
+        total, pagado, pendiente
+      };
+    }
+  });
+  const cobrosArr = Object.values(cobrosMap).sort((a,b) => b.pendiente - a.pendiente);
+  const totalPendCobrar = cobrosArr.reduce((s,c) => s + c.pendiente, 0);
+
+  // ── CÁLCULO: pases enviados vs recibidos (balance aliados) ───
+  const aliadoMap = {}; // nombre_aliado → { out, in, outItems, inItems, pendCompra }
+  function getAliado(nombre) {
+    if (!aliadoMap[nombre]) aliadoMap[nombre] = { out:0, in:0, outItems:[], inItems:[], pendCompra:0 };
+    return aliadoMap[nombre];
+  }
+  allMovs.forEach(m => {
+    if (m.estado === 'Cancelado') return;
+    // PaseOut: movimiento con Id_contactoPase set
+    if (m.id_contacto_pase) {
+      const aliado = m.nombre_contacto_pase || m.id_contacto_pase;
+      const d = getAliado(aliado);
+      d.out += parseInt(m.cant_pax) || 0;
+      d.outItems.push({ pax: m.cant_pax, origen: m.nombre_contacto,
+        cobrado: !!m.id_agencia_comprada, monto: parseFloat(m.monto_comprado)||0,
+        montoOrig: parseFloat(m.monto_total)||0 });
+      if (!m.id_agencia_comprada) d.pendCompra += parseFloat(m.monto_total) || 0;
+    }
+    // PaseIn: Aliado(PaseIn) o Pase_Recibido
+    if (m.tipo === 'Aliado(PaseIn)' || m.tipo === 'Pase_Recibido') {
+      const aliado = m.nombre_contacto || m.id_contacto;
+      const d = getAliado(aliado);
+      d.in += parseInt(m.cant_pax) || 0;
+      d.inItems.push({ pax: m.cant_pax });
+    }
+  });
+  const aliadoArr = Object.entries(aliadoMap).sort((a,b) => {
+    const sA = a[1].in - a[1].out, sB = b[1].in - b[1].out;
+    if (sA !== sB) return sA - sB; // negativos (debo) primero
+    return a[0].localeCompare(b[0]);
+  });
+  const totalPaxOut  = aliadoArr.reduce((s,[,d])=>s+d.out, 0);
+  const totalPaxIn   = aliadoArr.reduce((s,[,d])=>s+d.in,  0);
+  const totalPendCompra = aliadoArr.reduce((s,[,d])=>s+d.pendCompra, 0);
+
+  // ── CÁLCULO: comisionados (plata que debo) ───────────────────
+  const comMap = {}; // nombre → { pax, cobrado, comision, pagado }
+  allMovs.forEach(m => {
+    if (m.tipo !== 'Comisionado' || m.estado === 'Cancelado') return;
+    const key   = m.nombre_contacto || m.id_contacto;
+    const pax   = parseInt(m.cant_pax) || 0;
+    const precioApl  = parseFloat(m.precio_aplicado) || 0;
+    const precioDef  = parseFloat(m.precio_defecto)  || 0;
+    const cobrado    = parseFloat(m.monto_total) || 0;
+    const margen     = precioDef * pax;
+    const comision   = Math.max(0, (precioApl * pax) - margen);
+    if (!comMap[key]) comMap[key] = { pax:0, cobrado:0, comision:0, pagado:0 };
+    comMap[key].pax      += pax;
+    comMap[key].cobrado  += cobrado;
+    comMap[key].comision += comision;
+  });
+  // Cruzar pagos de comisionados desde caja (categoria='Pagos' o 'Pago_Comisionado')
+  allCaja.forEach(c => {
+    if (!String(c.categoria||'').toLowerCase().includes('pago')) return;
+    const key = c.id_contacto ? c.id_contacto : null;
+    if (!key || !comMap[key]) return;
+    comMap[key].pagado += parseFloat(c.monto) || 0;
+  });
+  const comArr = Object.entries(comMap).filter(([,d])=>d.comision > 0);
+  const totalDebeComis  = comArr.reduce((s,[,d])=>s+Math.max(0,d.comision-d.pagado), 0);
+
+  // ── Las 4 preguntas totales ──
+  const totalDeboPases   = totalPaxOut - totalPaxIn;  // neto que enviamos de más
+  const totalMeDebenPases = totalPaxIn - totalPaxOut; // neto que recibimos de más
+  const totalDeudaComisGAS = kpis.deuda_comisionados || 0;
+  const totalDeboDinero  = totalDeudaComisGAS + totalPendCompra;
+  const totalMeDebenDinero = totalPendCobrar;
+
+  // ── CÁLCULO: método de pago ──────────────────────────────────
+  const metMap = {};
+  allCaja.forEach(c => {
+    const k = c.metodo_pago || 'Efectivo';
+    if (!metMap[k]) metMap[k] = {ing:0,sal:0};
+    isIngreso(c) ? (metMap[k].ing += parseFloat(c.monto)||0) : (metMap[k].sal += parseFloat(c.monto)||0);
+  });
+
+  // ── CÁLCULO: tipo de cliente ingresos ────────────────────────
+  const tipoIngMap = {};
+  allMovs.forEach(m => {
+    if (m.estado==='Cancelado'||TIPOS_SIN_COBRO.includes(m.tipo)) return;
+    const k = m.tipo||'?';
+    tipoIngMap[k] = (tipoIngMap[k]||0) + (parseFloat(m.monto_total)||0);
+  });
+
+  // ── PAX matrix ───────────────────────────────────────────────
   const paxMatrix = {};
-  ops.forEach(op => {
-    (op.movimientos||[]).forEach(m => {
-      const t = String(m.tipo||'?');
-      if (!paxMatrix[t]) paxMatrix[t] = {emb:0, can:0, pas:0};
-      if (m.estado === 'Cancelado') paxMatrix[t].can += parseFloat(m.cant_pax)||0;
-      else                          paxMatrix[t].emb += parseFloat(m.cant_pax)||0;
-    });
-  });
-  pases.forEach(p => {
-    const t = String(p.tipo||'?');
-    if (!paxMatrix[t]) paxMatrix[t] = {emb:0, can:0, pas:0};
-    if (p.estado === 'Cancelado') paxMatrix[t].can += parseFloat(p.cant_pax)||0;
-    else                          paxMatrix[t].pas += parseFloat(p.cant_pax)||0;
+  allMovs.forEach(m => {
+    const t = m.tipo||'?';
+    if (!paxMatrix[t]) paxMatrix[t] = {emb:0,can:0,pas:0};
+    if (m.estado==='Cancelado') paxMatrix[t].can += parseInt(m.cant_pax)||0;
+    else if (!m._op) paxMatrix[t].pas += parseInt(m.cant_pax)||0;
+    else paxMatrix[t].emb += parseInt(m.cant_pax)||0;
   });
 
-  // Flujo de Valor
-  const brutoTotal  = (kpis.ingresos_operador||0) + (kpis.deuda_comisionados||0);
-  const netoEmpresa = kpis.ingresos_operador||0;
-  const deudaComis  = kpis.deuda_comisionados||0;
-  let paseINdeuda   = 0;
-  ops.forEach(op => (op.movimientos||[]).forEach(m => {
-    if (String(m.tipo||'').toLowerCase().includes('pasein') && m.estado !== 'Cancelado')
-      paseINdeuda += parseFloat(m.monto_total)||0;
-  }));
-  pases.forEach(p => {
-    if (String(p.tipo||'').toLowerCase().includes('pasein') && p.estado !== 'Cancelado')
-      paseINdeuda += parseFloat(p.monto_total)||0;
-  });
-  const maxFlujo = Math.max(brutoTotal, pendienteAliados, paseINdeuda, 1);
-  const fw = v => Math.min(100, Math.max(1.5, v/maxFlujo*100)).toFixed(1);
+  // ── Flujo de Valor ───────────────────────────────────────────
+  const ingEfectivo = kpis.caja_efectivo || 0;
+  const ingVirtual  = kpis.caja_transferencia || 0;
+  const netoTotal   = ingEfectivo + ingVirtual;
+  const bruto       = kpis.ingresos_operador || 0;
+  const maxFlujo    = Math.max(bruto, totalDeudaComisGAS, totalMeDebenDinero, 1);
 
-  Object.values(charts).forEach(c => c.destroy());
+  // ── Destroy previous charts ──────────────────────────────────
+  Object.values(charts).forEach(c => { try { c.destroy(); } catch(e){} });
   charts = {};
 
-  const html = `
-    <!-- Header -->
-    <div class="report-header">
-      <div>
-        <div class="report-logo shimmer">PS</div>
-        <div style="font-size:12px;color:var(--text-muted);letter-spacing:2px;text-transform:uppercase;">Reporte de Lanchas</div>
-      </div>
-      <div>
-        <div class="report-fecha">📅 ${fmtFecha(fecha)}</div>
-        <div class="report-refresh">Actualiza en <span class="countdown" id="countdown">1:00</span></div>
-      </div>
-    </div>
+  // ============================================================
+  // HTML
+  // ============================================================
 
-    <div class="btn-bar no-print">
-      <button class="btn btn-wa" onclick="whatsappShare()">💬 WhatsApp</button>
-      <button class="btn btn-print" onclick="window.print()">🖨 Imprimir</button>
-    </div>
+  // ── Alertas ──────────────────────────────────────────────────
+  const alertItems = [];
+  if (cobrosArr.length > 0)
+    alertItems.push(`<div class="alerta-item"><span class="alerta-dot" style="background:var(--red)"></span><span><b>${cobrosArr.length}</b> cobro${cobrosArr.length>1?'s':''} sin completar — <b style="color:var(--red)">${S(totalMeDebenDinero)}</b> pendiente</span></div>`);
+  if (totalDeboPases > 0) {
+    const deudores = aliadoArr.filter(([,d])=>d.out>d.in);
+    alertItems.push(`<div class="alerta-item"><span class="alerta-dot" style="background:var(--amber)"></span><span>Saldo neto de pases: enviamos <b>${totalPaxOut}</b>, recibimos <b>${totalPaxIn}</b> — <b style="color:var(--amber)">debemos ${totalDeboPases} PAX</b></span></div>`);
+  }
+  if (totalPendCompra > 0)
+    alertItems.push(`<div class="alerta-item"><span class="alerta-dot" style="background:var(--amber)"></span><span>${aliadoArr.filter(([,d])=>d.pendCompra>0).length} pase${aliadoArr.filter(([,d])=>d.pendCompra>0).length>1?'s':''} sin cobrar a agencia — <b style="color:var(--amber)">${S(totalPendCompra)}</b></span></div>`);
+  if (totalDebeComis > 0)
+    alertItems.push(`<div class="alerta-item"><span class="alerta-dot" style="background:var(--purple)"></span><span>Comisiones pendientes de pago: <b style="color:var(--purple)">${S(totalDebeComis)}</b></span></div>`);
 
-    <!-- KPIs -->
-    <div class="kpi-grid">
-      <div class="kpi-card glass">
-        <div class="kpi-label">PAX Total</div>
-        <div class="kpi-value shimmer">${kpis.pax_total || 0}</div>
-        <div class="kpi-sub">${kpis.operaciones_count || 0} operaciones</div>
-      </div>
-      <div class="kpi-card glass">
-        <div class="kpi-label">Ingreso Operador</div>
-        <div class="kpi-value" style="color:var(--gold)">S/ ${fmt(kpis.ingresos_operador)}</div>
-        <div class="kpi-sub">Neto empresa</div>
-      </div>
-      <div class="kpi-card glass">
-        <div class="kpi-label">Deuda Comisionados</div>
-        <div class="kpi-value" style="color:#f87171">S/ ${fmt(kpis.deuda_comisionados)}</div>
-      </div>
-      <div class="kpi-card glass">
-        <div class="kpi-label">💵 Efectivo</div>
-        <div class="kpi-value" style="color:#4ade80">S/ ${fmt(kpis.caja_efectivo)}</div>
-        <div class="kpi-sub">💳 S/ ${fmt(kpis.caja_transferencia)} transfer.</div>
-      </div>
-      <div class="kpi-card glass">
-        <div class="kpi-label">Pendiente Aliados</div>
-        <div class="kpi-value" style="color:#fbbf24">S/ ${fmt(pendienteAliados)}</div>
-        <div class="kpi-sub">${aliados.length} pase${aliados.length!==1?'s':''} · ${aliados.filter(p=>p.id_agencia_comprada).length} cobrado${aliados.filter(p=>p.id_agencia_comprada).length!==1?'s':''}</div>
-      </div>
-    </div>
+  const alertaHtml = alertItems.length > 0
+    ? `<div class="alerta-box">${alertItems.join('')}</div>`
+    : `<div class="alerta-box alerta-verde"><div class="alerta-item"><span class="alerta-dot" style="background:var(--green)"></span><span style="color:var(--green);font-weight:700;">✓ Turno limpio — sin cobros ni pases pendientes</span></div></div>`;
 
-    <!-- Flujo de Valor -->
-    <div class="flujo-section glass" style="margin-bottom:14px;">
-      <div class="section-title" style="margin-bottom:14px;padding-bottom:7px;border-bottom:1px solid rgba(201,168,76,0.2);">💹 Flujo de Valor</div>
-      <div class="flujo-row">
-        <span class="flujo-label">Bruto cobrado</span>
-        <div class="flujo-track"><div class="flujo-bar" style="width:100%;background:rgba(201,168,76,0.45);"></div></div>
-        <span class="flujo-value" style="color:var(--gold)">S/ ${fmt(brutoTotal)}</span>
-      </div>
-      ${deudaComis > 0 ? `
-      <div class="flujo-row">
-        <span class="flujo-label" style="color:#f87171;">− Deuda comis.</span>
-        <div class="flujo-track"><div class="flujo-bar" style="width:${fw(deudaComis)}%;background:rgba(248,113,113,0.5);"></div></div>
-        <span class="flujo-value" style="color:#f87171">−S/ ${fmt(deudaComis)}</span>
-      </div>` : ''}
-      <hr class="flujo-sep">
-      <div class="flujo-row">
-        <span class="flujo-label" style="color:#4ade80;font-weight:700;">= Neto empresa</span>
-        <div class="flujo-track"><div class="flujo-bar" style="width:${fw(netoEmpresa)}%;background:rgba(74,222,128,0.5);"></div></div>
-        <span class="flujo-value" style="color:#4ade80;font-size:14px;">S/ ${fmt(netoEmpresa)}</span>
-      </div>
-      ${pendienteAliados > 0 ? `
-      <hr class="flujo-sep">
-      <div class="flujo-row">
-        <span class="flujo-label" style="color:#fbbf24;">⏳ Cob. aliados</span>
-        <div class="flujo-track"><div class="flujo-bar" style="width:${fw(pendienteAliados)}%;background:rgba(251,191,36,0.45);"></div></div>
-        <span class="flujo-value" style="color:#fbbf24">S/ ${fmt(pendienteAliados)}</span>
-      </div>` : ''}
-      ${paseINdeuda > 0 ? `
-      <div class="flujo-row">
-        <span class="flujo-label" style="color:#fb923c;">↩ Deb. aliados</span>
-        <div class="flujo-track"><div class="flujo-bar" style="width:${fw(paseINdeuda)}%;background:rgba(251,146,60,0.4);"></div></div>
-        <span class="flujo-value" style="color:#fb923c">S/ ${fmt(paseINdeuda)}</span>
-      </div>` : ''}
-    </div>
+  // ── Las 4 preguntas ──────────────────────────────────────────
+  const deboPasesDetail = aliadoArr.filter(([,d])=>d.out>d.in).map(([n,d])=>`${n}: ${d.out-d.in} PAX`).join(' · ') || '—';
+  const meDebenPasesDetail = aliadoArr.filter(([,d])=>d.in>d.out).map(([n,d])=>`${n}: +${d.in-d.out} PAX`).join(' · ') || '—';
+  const deboDineroDetail = [
+    totalDeudaComisGAS > 0 ? `Comisiones ${S(totalDeudaComisGAS)}` : '',
+    totalPendCompra > 0 ? `Agencias ${S(totalPendCompra)}` : ''
+  ].filter(Boolean).join(' · ') || '—';
+  const meDebenDineroDetail = cobrosArr.slice(0,3).map(c=>`${c.nombre} ${S(c.pendiente)}`).join(' · ') + (cobrosArr.length>3 ? ` +${cobrosArr.length-3} más` : '') || '—';
 
-    <!-- Gráficos -->
-    <div class="charts-grid">
-      <div class="chart-card glass">
-        <div class="chart-title">PAX por tipo</div>
-        <div class="chart-wrap"><canvas id="chartDonut"></canvas></div>
-      </div>
-      <div class="chart-card glass">
-        <div class="chart-title">Ingreso por bote</div>
-        <div class="chart-wrap"><canvas id="chartBotes"></canvas></div>
-      </div>
-      <div class="chart-card glass">
-        <div class="chart-title">Cobrado vs Deuda</div>
-        <div class="chart-wrap"><canvas id="chartStack"></canvas></div>
-      </div>
+  const q4Html = `
+  <div class="q4-grid">
+    <div class="q4-card q4-debo-pases glass">
+      <div class="q4-label" style="color:var(--red);">↑ Pases que DEBO</div>
+      <div class="q4-val" style="color:var(--red);">${Math.max(0,totalPaxOut)}<span class="q4-unit">PAX</span></div>
+      <div class="q4-sub">${deboPasesDetail}</div>
     </div>
+    <div class="q4-card q4-me-deben-pases glass">
+      <div class="q4-label" style="color:var(--green);">↓ Pases que ME DEBEN</div>
+      <div class="q4-val" style="color:var(--green);">${Math.max(0,totalPaxIn)}<span class="q4-unit">PAX</span></div>
+      <div class="q4-sub">${meDebenPasesDetail}</div>
+    </div>
+    <div class="q4-card q4-debo-plata glass">
+      <div class="q4-label" style="color:var(--amber);">💸 Plata que DEBO</div>
+      <div class="q4-val" style="color:var(--amber);font-size:20px;">${S(totalDeboDinero)}</div>
+      <div class="q4-sub">${deboDineroDetail}</div>
+    </div>
+    <div class="q4-card q4-me-deben-plata glass">
+      <div class="q4-label" style="color:var(--blue);">💰 Plata que ME DEBEN</div>
+      <div class="q4-val" style="color:var(--blue);font-size:20px;">${S(totalMeDebenDinero)}</div>
+      <div class="q4-sub">${meDebenDineroDetail}</div>
+    </div>
+  </div>`;
 
-    <!-- Mix PAX × Ciclo -->
-    ${Object.keys(paxMatrix).length > 0 ? `
-    <div class="section glass" style="padding:16px;margin-bottom:14px;">
-      <div class="section-title">📊 Mix PAX — tipo × ciclo</div>
-      <table class="matrix-table">
-        <thead>
-          <tr>
-            <th>Tipo comercial</th>
-            <th>🛥 Embarcado</th>
-            <th>✕ Cancelado</th>
-            <th>🔀 Pasado</th>
-            <th>Total</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${Object.entries(paxMatrix).sort((a,b)=>a[0].localeCompare(b[0])).map(([tipo,v]) => {
-            const tot = v.emb + v.can + v.pas;
-            return `<tr>
-              <td><span class="tipo-badge ${tipoBadgeClass(tipo)}" style="font-size:9px;">${tipo}</span></td>
-              <td class="${v.emb>0?'v':''}">${v.emb>0?v.emb:'—'}</td>
-              <td class="${v.can>0?'v':''}" style="${v.can>0?'color:#f87171;':''}">${v.can>0?v.can:'—'}</td>
-              <td class="${v.pas>0?'v':''}" style="${v.pas>0?'color:#fbbf24;':''}">${v.pas>0?v.pas:'—'}</td>
-              <td style="color:var(--gold)">${tot}</td>
-            </tr>`;
-          }).join('')}
-        </tbody>
-        <tfoot>
-          <tr>
-            <td>Total</td>
-            <td>${Object.values(paxMatrix).reduce((s,v)=>s+v.emb,0)||'—'}</td>
-            <td style="color:#f87171;">${Object.values(paxMatrix).reduce((s,v)=>s+v.can,0)||'—'}</td>
-            <td style="color:#fbbf24;">${Object.values(paxMatrix).reduce((s,v)=>s+v.pas,0)||'—'}</td>
-            <td>${Object.values(paxMatrix).reduce((s,v)=>s+v.emb+v.can+v.pas,0)}</td>
-          </tr>
-        </tfoot>
-      </table>
+  // ── KPI strip ────────────────────────────────────────────────
+  const kpiHtml = `
+  <div class="kpi-row">
+    <div class="kpi-card glass">
+      <div class="kpi-label">PAX Total</div>
+      <div class="kpi-value shimmer">${kpis.pax_total||0}</div>
+      <div class="kpi-sub">${kpis.operaciones_count||0} operaciones</div>
+    </div>
+    <div class="kpi-card glass">
+      <div class="kpi-label">Neto empresa</div>
+      <div class="kpi-value" style="color:var(--gold)">${S(kpis.ingresos_operador)}</div>
+    </div>
+    <div class="kpi-card glass">
+      <div class="kpi-label">💵 Efectivo</div>
+      <div class="kpi-value" style="color:var(--green)">${S(ingEfectivo)}</div>
+    </div>
+    <div class="kpi-card glass">
+      <div class="kpi-label">🏦 Virtual</div>
+      <div class="kpi-value" style="color:var(--blue)">${S(ingVirtual)}</div>
+    </div>
+  </div>`;
+
+  // ── Flujo de Valor ───────────────────────────────────────────
+  const flujoHtml = `
+  <div class="flujo-section glass">
+    <div class="flujo-title">💹 Flujo de Valor</div>
+    <div class="flujo-row">
+      <span class="flujo-label">Facturado</span>
+      <div class="flujo-track"><div class="flujo-bar" style="width:100%;background:rgba(201,168,76,0.4);"></div></div>
+      <span class="flujo-val" style="color:var(--gold)">${S(bruto)}</span>
+    </div>
+    ${totalDeudaComisGAS > 0 ? `
+    <div class="flujo-row">
+      <span class="flujo-label" style="color:var(--red)">− Comisiones</span>
+      <div class="flujo-track"><div class="flujo-bar" style="width:${fw(totalDeudaComisGAS,maxFlujo)}%;background:rgba(248,113,113,0.45);"></div></div>
+      <span class="flujo-val" style="color:var(--red)">−${S(totalDeudaComisGAS)}</span>
     </div>` : ''}
-
-    <!-- Operaciones (cards) -->
-    <div class="section glass" style="padding:16px;margin-bottom:14px;">
-      <div class="section-title">Operaciones del día</div>
-      ${ops.length === 0
-        ? '<p style="color:var(--text-muted);font-size:13px;">Sin operaciones</p>'
-        : ops.map(op => `
-          <div class="op-card ${opCardClass(op.estado)}">
-            <!-- Fila 1: nombre · estado · descuadre | monto -->
-            <div class="op-row1">
-              <span class="op-nombre">${op.nombre_bote || op.id_bote}</span>
-              ${estadoIcon(op.estado)}
-              ${op.descuadre ? '<span style="color:#ef4444;font-size:13px;" title="Descuadre">💰</span>' : ''}
-              <span style="font-size:13px;font-weight:800;color:var(--gold);flex-shrink:0;">S/ ${fmt(op.ingresos_operador)}</span>
-            </div>
-            <!-- Fila 2: capitan · guia | pax -->
-            <div class="op-row2">
-              <span>${op.nombre_capitan || op.id_capitan}${(op.nombre_guia || op.id_guia) ? ' · ' + (op.nombre_guia || op.id_guia) : ''}</span>
-              <span style="color:var(--gold);font-weight:700;">${op.pax_total} pax</span>
-            </div>
-            <!-- Fila 3: destino · hora -->
-            <div class="op-row3">
-              <span>${op.destino ? op.destino + ' · ' : ''}🕐 ${op.hora_salida || '—'}</span>
-              ${op.deuda_comisionados > 0 ? `<span style="color:#f87171;font-size:10px;">Deuda S/ ${fmt(op.deuda_comisionados)}</span>` : ''}
-            </div>
-            <!-- Fila 4: tipo chips -->
-            ${Object.keys(op.tipo_chips||{}).length ? `
-            <div class="type-chips">
-              ${Object.entries(op.tipo_chips).map(([t,n]) => `<span class="type-chip ${tipoBadgeClass(t)}">${t} ×${n}</span>`).join('')}
-            </div>` : ''}
-          </div>
-        `).join('')
-      }
+    <hr class="flujo-sep">
+    <div class="flujo-row">
+      <span class="flujo-label" style="color:var(--green);font-weight:700;">= Neto empresa</span>
+      <div class="flujo-track"><div class="flujo-bar" style="width:${fw(bruto-totalDeudaComisGAS,maxFlujo)}%;background:rgba(74,222,128,0.45);"></div></div>
+      <span class="flujo-val" style="color:var(--green);font-size:13px;">${S(bruto-totalDeudaComisGAS)}</span>
     </div>
+    ${totalMeDebenDinero > 0 ? `
+    <hr class="flujo-sep">
+    <div class="flujo-row">
+      <span class="flujo-label" style="color:var(--blue)">⏳ Por cobrar</span>
+      <div class="flujo-track"><div class="flujo-bar" style="width:${fw(totalMeDebenDinero,maxFlujo)}%;background:rgba(96,165,250,0.4);"></div></div>
+      <span class="flujo-val" style="color:var(--blue)">${S(totalMeDebenDinero)}</span>
+    </div>` : ''}
+    ${totalPendCompra > 0 ? `
+    <div class="flujo-row">
+      <span class="flujo-label" style="color:var(--amber)">⏳ Cob. agencias</span>
+      <div class="flujo-track"><div class="flujo-bar" style="width:${fw(totalPendCompra,maxFlujo)}%;background:rgba(251,191,36,0.4);"></div></div>
+      <span class="flujo-val" style="color:var(--amber)">${S(totalPendCompra)}</span>
+    </div>` : ''}
+    <div class="flujo-row" style="margin-top:8px;">
+      <span class="flujo-label" style="color:var(--gold)">💵 Efectivo</span>
+      <div class="flujo-track"><div class="flujo-bar" style="width:${fw(ingEfectivo,netoTotal)}%;background:rgba(74,222,128,0.5);"></div></div>
+      <span class="flujo-val" style="color:var(--green)">${S(ingEfectivo)}</span>
+    </div>
+    <div class="flujo-row">
+      <span class="flujo-label" style="color:var(--blue)">🏦 Virtual</span>
+      <div class="flujo-track"><div class="flujo-bar" style="width:${fw(ingVirtual,netoTotal)}%;background:rgba(96,165,250,0.5);"></div></div>
+      <span class="flujo-val" style="color:var(--blue)">${S(ingVirtual)}</span>
+    </div>
+  </div>`;
 
-    <!-- Manifiestos -->
-    ${ops.map(op => {
-      const movs = (op.movimientos||[]).filter(m => m.estado !== 'Cancelado');
-      if (!movs.length) return '';
-      return `
-      <div class="section glass" style="padding:16px;margin-bottom:12px;">
-        <div class="section-title">${op.nombre_bote || op.id_bote} — Manifiesto</div>
-        ${movs.map(m => `
-          <div class="mov-row">
-            <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;">
-              <span class="tipo-badge ${tipoBadgeClass(m.tipo)}" style="flex-shrink:0;font-size:9px;">${m.tipo}</span>
-              <span style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${contactColor(m.tipo)};">${m.nombre_contacto}</span>
-            </div>
-            <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
-              <span style="font-size:12px;color:var(--text-muted);">${m.cant_pax} pax</span>
-              <span style="font-size:14px;font-weight:800;${montoPayStyle(op,m)}">S/ ${fmt(m.monto_total)}</span>
-            </div>
-          </div>
-        `).join('')}
-        <div class="mov-total">
-          <span style="color:var(--text-muted);">${movs.reduce((s,m)=>s+(parseFloat(m.cant_pax)||0),0)} pax total</span>
-          <span style="color:var(--gold);">S/ ${fmt(movs.reduce((s,m)=>s+(parseFloat(m.monto_total)||0),0))}</span>
-        </div>
-      </div>`;
-    }).join('')}
+  // ── Aliados balance ──────────────────────────────────────────
+  const aliadoHtml = aliadoArr.length > 0 ? aliadoArr.map(([nombre, d]) => {
+    const saldo = d.in - d.out;
+    const saldoLabel = saldo === 0 ? 'Tablas' : saldo > 0 ? `+${saldo} PAX a favor` : `${saldo} PAX — debemos`;
+    const badgeClass = saldo === 0 ? 'badge-tablas' : saldo > 0 ? 'badge-te-deben' : 'badge-debes';
+    const saldoColor = saldo > 0 ? 'var(--green)' : saldo < 0 ? 'var(--red)' : 'var(--text-muted)';
 
-    <!-- Aliados -->
-    ${aliados.length > 0 ? `
-    <div class="section glass" style="padding:16px;margin-bottom:14px;">
-      <div class="section-title">Pases de Aliados — Cobros</div>
-      ${aliados.map(p => `
-        <div class="aliado-row">
-          <span class="tipo-badge ${tipoBadgeClass(p.tipo)}" style="flex-shrink:0;">${p.tipo}</span>
-          <div style="flex:1;min-width:0;">
-            <div style="font-weight:700;font-size:13px;color:#f0abfc;">${p.nombre_contacto}</div>
-            ${(p.nombre_contacto_pase || p.id_contacto_pase) ? `<div style="font-size:11px;color:var(--text-muted);">→ ${p.nombre_contacto_pase || p.id_contacto_pase}</div>` : ''}
-          </div>
-          <span style="font-size:12px;color:var(--text-muted);flex-shrink:0;">${p.cant_pax} pax</span>
-          <div style="text-align:right;flex-shrink:0;">
-            <div style="font-size:13px;font-weight:800;color:#fbbf24;">S/ ${fmt(p.monto_total)}</div>
-            <div style="font-size:11px;">
-              ${p.id_agencia_comprada
-                ? `<span style="color:#4ade80;font-weight:700;">✓ S/${fmt(p.monto_comprado)}</span>`
-                : `<span style="color:#f87171;">⏳ Pendiente</span>`}
-            </div>
+    const outRows = d.outItems.map(x =>
+      `<div class="aliado-row">
+        <span style="color:var(--red);font-weight:700;width:20px;text-align:center;flex-shrink:0;">↑</span>
+        <span style="flex:1;font-size:12px;">Enviamos <b>${x.pax}</b> pax de <em>${x.origen}</em></span>
+        <span style="font-size:11px;${x.cobrado?'color:var(--green)':'color:var(--amber)'};">${x.cobrado ? '✓ cobrado ' + S(x.monto) : '⏳ ' + S(x.montoOrig)}</span>
+      </div>`).join('');
+    const inRows = d.inItems.map(x =>
+      `<div class="aliado-row">
+        <span style="color:var(--green);font-weight:700;width:20px;text-align:center;flex-shrink:0;">↓</span>
+        <span style="flex:1;font-size:12px;">Recibimos <b>${x.pax}</b> pax</span>
+        <span style="font-size:11px;color:var(--text-muted);">sin cobro</span>
+      </div>`).join('');
+
+    const uid = 'al-' + nombre.replace(/[^a-z0-9]/gi,'');
+    return `
+    <div class="aliado-card">
+      <div class="aliado-hdr" onclick="const b=$('${uid}');b.style.display=b.style.display==='none'?'block':'none'">
+        <div>
+          <div style="font-size:9px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">Aliado</div>
+          <div class="aliado-nombre">${nombre}</div>
+          <div style="font-size:10px;margin-top:3px;">
+            ${d.out > 0 ? `<span style="color:var(--red);">↑${d.out} enviados</span>` : ''}
+            ${d.out > 0 && d.in > 0 ? ' · ' : ''}
+            ${d.in > 0 ? `<span style="color:var(--green);">↓${d.in} recibidos</span>` : ''}
           </div>
         </div>
-      `).join('')}
-      <div class="caja-total">
-        <span style="color:var(--text-muted);">Total aliados</span>
-        <span style="font-weight:800;">
-          <span style="color:#fbbf24;">S/ ${fmt(aliados.reduce((s,p)=>s+(parseFloat(p.monto_total)||0),0))}</span>
-          &nbsp;·&nbsp;
-          <span style="color:#4ade80;">Cobrado S/ ${fmt(aliados.filter(p=>p.id_agencia_comprada).reduce((s,p)=>s+(parseFloat(p.monto_comprado)||0),0))}</span>
-        </span>
+        <div style="text-align:right;">
+          <div style="font-size:20px;font-weight:900;color:${saldoColor};">${saldo > 0 ? '+' : ''}${saldo} <span style="font-size:11px;">PAX</span></div>
+          <span class="aliado-badge ${badgeClass}">${saldoLabel}</span>
+          ${d.pendCompra > 0 ? `<div style="font-size:10px;color:var(--amber);margin-top:4px;">⏳ ${S(d.pendCompra)} por cobrar</div>` : ''}
+        </div>
       </div>
-    </div>` : ''}
+      <div id="${uid}" class="aliado-body" style="display:none;">${outRows}${inRows}</div>
+    </div>`;
+  }).join('') : '<div style="color:var(--text-muted);font-size:13px;padding:10px 0;">Sin pases registrados este día.</div>';
 
-    <!-- Pases sueltos (no aliados) -->
-    ${pases.filter(p => !String(p.tipo||'').includes('Aliado')).length > 0 ? `
-    <div class="section glass" style="padding:16px;margin-bottom:14px;">
-      <div class="section-title">Pases sin operación asignada</div>
-      ${pases.filter(p => !String(p.tipo||'').includes('Aliado')).map(p => `
+  // ── Cobros pendientes ────────────────────────────────────────
+  const cobrosHtml = cobrosArr.length > 0 ? `
+  <div style="overflow-x:auto;">
+  <table class="pend-table">
+    <thead>
+      <tr>
+        <th>Cliente / Contacto</th>
+        <th>Tipo</th>
+        <th>Bote</th>
+        <th style="text-align:right">Total</th>
+        <th style="text-align:right">Cobrado</th>
+        <th style="text-align:right">Pendiente</th>
+        <th>Avance</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${cobrosArr.map(c => {
+        const avPct = pct(c.pagado, c.total);
+        const pendColor = c.pagado > 0 ? 'var(--amber)' : 'var(--red)';
+        return `<tr>
+          <td style="font-weight:700;">${c.nombre}</td>
+          <td><span class="${tipoBadgeClass(c.tipo)}">${c.tipo}</span></td>
+          <td style="color:var(--text-muted);font-size:10px;">${c.bote}</td>
+          <td style="text-align:right;color:var(--text-muted);">${S(c.total)}</td>
+          <td style="text-align:right;color:var(--green);">${c.pagado > 0 ? S(c.pagado) : '—'}</td>
+          <td style="text-align:right;font-weight:800;color:${pendColor};">${S(c.pendiente)}</td>
+          <td style="width:80px;">
+            <div class="prog-wrap"><div class="prog-bar" style="width:${avPct}%;background:${avPct>0?'var(--green)':'var(--red)'};"></div></div>
+            <div style="font-size:9px;color:var(--text-muted);text-align:right;margin-top:2px;">${avPct.toFixed(0)}%</div>
+          </td>
+        </tr>`;
+      }).join('')}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="5" style="font-weight:800;color:var(--text-muted);">TOTAL PENDIENTE</td>
+        <td style="text-align:right;font-weight:900;color:var(--red);">${S(totalMeDebenDinero)}</td>
+        <td></td>
+      </tr>
+    </tfoot>
+  </table>
+  </div>` : '<div style="color:var(--green);font-size:13px;font-weight:700;padding:6px 0;">✓ Sin cobros pendientes</div>';
+
+  // ── Comisionados ─────────────────────────────────────────────
+  const comHtml = comArr.length > 0 ? `
+  <div style="overflow-x:auto;">
+  <table class="pend-table">
+    <thead>
+      <tr>
+        <th>Comisionado</th>
+        <th style="text-align:right">PAX</th>
+        <th style="text-align:right">Cobrado</th>
+        <th style="text-align:right">Comisión</th>
+        <th style="text-align:right">Pagado</th>
+        <th style="text-align:right">Pendiente</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${comArr.map(([nombre,d]) => {
+        const pend = Math.max(0, d.comision - d.pagado);
+        return `<tr>
+          <td style="font-weight:700;">${nombre}</td>
+          <td style="text-align:right;color:var(--text-muted);">${d.pax}</td>
+          <td style="text-align:right;color:var(--gold);">${S(d.cobrado)}</td>
+          <td style="text-align:right;color:var(--amber);">${S(d.comision)}</td>
+          <td style="text-align:right;color:var(--green);">${d.pagado>0?S(d.pagado):'—'}</td>
+          <td style="text-align:right;font-weight:800;color:${pend>0?'var(--red)':'var(--green)'};">${pend>0?S(pend):'✓'}</td>
+        </tr>`;
+      }).join('')}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="4" style="color:var(--text-muted);font-weight:800;">TOTAL A PAGAR</td>
+        <td colspan="2" style="text-align:right;font-weight:900;color:var(--red);">${S(totalDebeComis)}</td>
+      </tr>
+    </tfoot>
+  </table>
+  </div>` : (comArr.length === 0 && Object.keys(comMap).length === 0
+    ? '<div style="color:var(--text-muted);font-size:13px;padding:6px 0;">Sin comisionados hoy.</div>'
+    : '<div style="color:var(--green);font-size:13px;font-weight:700;padding:6px 0;">✓ Comisiones al día</div>');
+
+  // ── Operaciones (cards con ocupación) ────────────────────────
+  const opCardsHtml = ops.length > 0 ? ops.map(op => {
+    const est = String(op.estado||'').toLowerCase();
+    const cls  = est.includes('viaje')||est.includes('activ')||est.includes('abierta') ? 'op-viaje'
+               : est.includes('cerr') ? 'op-cerrada' : est.includes('cancel') ? 'op-cancelada' : '';
+    const estIcon = est.includes('cerr')||est.includes('pasad') ? '<span style="color:var(--green)">✓</span>'
+                  : est.includes('viaje')||est.includes('abierta') ? '<span style="color:var(--amber)">▶</span>'
+                  : '<span style="color:var(--text-muted)">●</span>';
+    const ocupPct = op.capacidad > 0 ? pct(op.pax_total, op.capacidad) : 0;
+    const barColor = ocupPct >= 90 ? 'var(--red)' : ocupPct >= 70 ? 'var(--amber)' : 'var(--green)';
+    const chips = Object.entries(op.tipo_chips||{}).map(([t,n]) =>
+      `<span class="type-chip ${tipoBadgeClass(t)}">${t} ×${n}</span>`).join('');
+    return `
+    <div class="op-card ${cls}">
+      <div class="op-row">
+        <span class="op-nombre">${op.nombre_bote||op.id_bote}</span>
+        ${estIcon}
+        <span style="font-size:13px;font-weight:800;color:var(--gold);flex-shrink:0;">${S(op.ingresos_operador)}</span>
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);display:flex;justify-content:space-between;margin-bottom:2px;">
+        <span>${op.nombre_capitan||op.id_capitan}${op.nombre_guia||op.id_guia?' · '+(op.nombre_guia||op.id_guia):''}</span>
+        <span style="color:var(--gold);font-weight:700;">${op.pax_total}${op.capacidad>0?' / '+op.capacidad:''} pax</span>
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);display:flex;justify-content:space-between;margin-bottom:4px;">
+        <span>${op.destino?op.destino+' · ':''}🕐 ${op.hora_salida||'—'}</span>
+        ${op.deuda_comisionados>0?`<span style="color:var(--amber);font-size:10px;">Comis. ${S(op.deuda_comisionados)}</span>`:''}
+      </div>
+      ${op.capacidad > 0 ? `
+      <div class="occ-bar-wrap">
+        <div class="occ-bar" style="width:${ocupPct.toFixed(1)}%;background:${barColor};"></div>
+      </div>` : ''}
+      ${chips ? `<div class="type-chips">${chips}</div>` : ''}
+    </div>`;
+  }).join('') : '<div style="color:var(--text-muted);font-size:13px;padding:6px 0;">Sin operaciones este día.</div>';
+
+  // ── Manifiestos ───────────────────────────────────────────────
+  const manifHtml = ops.map(op => {
+    const movs = (op.movimientos||[]).filter(m => m.estado !== 'Cancelado');
+    if (!movs.length) return '';
+    return `
+    <div class="glass" style="padding:14px;margin-bottom:10px;">
+      <div class="sec-hdr">${op.nombre_bote||op.id_bote} — ${op.hora_salida||'—'} · ${movs.reduce((s,m)=>s+(parseFloat(m.cant_pax)||0),0)} pax</div>
+      ${movs.map(m => `
         <div class="mov-row">
           <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;">
-            <span class="tipo-badge ${tipoBadgeClass(p.tipo)}" style="flex-shrink:0;font-size:9px;">${p.tipo}</span>
-            <span style="font-weight:700;color:${contactColor(p.tipo)};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.nombre_contacto}</span>
+            <span class="${tipoBadgeClass(m.tipo)}" style="flex-shrink:0;">${m.tipo}</span>
+            <span style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${contactColor(m.tipo)};">${m.nombre_contacto}</span>
           </div>
-          <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
-            <span style="font-size:12px;color:var(--text-muted);">${p.cant_pax} pax</span>
-            <span style="font-size:14px;font-weight:800;color:var(--gold);">S/ ${fmt(p.monto_total)}</span>
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+            <span style="font-size:11px;color:var(--text-muted);">${m.cant_pax} pax</span>
+            <span style="font-size:13px;font-weight:800;${montoPayColor(op,m)}">S/ ${fmt(m.monto_total)}</span>
           </div>
-        </div>
-      `).join('')}
-    </div>` : ''}
-
-    <!-- Caja del día -->
-    ${allCaja.length > 0 ? `
-    <div class="section glass" style="padding:16px;margin-bottom:14px;">
-      <div class="section-title">Caja del día (${allCaja.length} registros)</div>
-      ${allCaja.map(c => `
-        <div class="caja-row ${isIngreso(c)?'caja-ingreso':'caja-salida'}">
-          <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;">
-            <span style="font-size:18px;flex-shrink:0;">${metodoIcon(c)}</span>
-            <div style="min-width:0;">
-              <div style="display:flex;align-items:center;gap:5px;">
-                <span style="font-weight:700;font-size:13px;">${c.operador || '—'}</span>
-                ${c.comentarios ? '<span style="width:14px;height:14px;border-radius:50%;background:rgba(201,168,76,0.25);color:var(--gold);font-size:8px;font-weight:900;display:inline-flex;align-items:center;justify-content:center;font-style:italic;">i</span>' : ''}
-                ${c._bote ? `<span style="font-size:12px;" title="${c._bote}">⛵</span>` : ''}
-              </div>
-              <div style="font-size:11px;color:var(--text-muted);">${c.categoria}${c._bote ? ' · ' + c._bote : ''}</div>
-            </div>
-          </div>
-          <span style="font-size:15px;font-weight:800;flex-shrink:0;${isIngreso(c)?'color:#4ade80':'color:#f87171'}">
-            ${isIngreso(c)?'+':'-'}S/ ${fmt(c.monto)}
-          </span>
-        </div>
-      `).join('')}
-      <div class="caja-total">
-        <span style="color:var(--text-muted);">${allCaja.length} registros</span>
-        <span style="font-weight:800;color:var(--gold);">S/ ${fmt(allCaja.reduce((s,c)=>s+(parseFloat(c.monto)||0),0))}</span>
+        </div>`).join('')}
+      <div class="mov-total">
+        <span style="color:var(--text-muted);">${movs.reduce((s,m)=>s+(parseFloat(m.cant_pax)||0),0)} pax</span>
+        <span style="color:var(--gold);">S/ ${fmt(movs.reduce((s,m)=>s+(parseFloat(m.monto_total)||0),0))}</span>
       </div>
-    </div>` : ''}
-
-    <div style="text-align:center;padding:20px 0 8px;font-size:11px;color:var(--text-muted);">
-      Generado por PS Panel · ${new Date().toLocaleString('es-PE')}
-    </div>
-  `;
-
-  document.getElementById('root').innerHTML = html;
-  startCountdown();
-  buildCharts(data);
-}
-
-function buildCharts(data) {
-  const ops = data.operaciones || [];
-  const chartOpts = { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ labels:{ color:'#f0e6d3', font:{ size:10 }, boxWidth:10 } } } };
-  const scaleOpts = { ticks:{ color:'#8a7060', font:{ size:10 } }, grid:{ color:'rgba(255,255,255,0.04)' } };
-
-  const tipoMap = {};
-  ops.forEach(op => Object.entries(op.tipo_chips||{}).forEach(([t,v]) => { tipoMap[t] = (tipoMap[t]||0)+v; }));
-  const tipoKeys = Object.keys(tipoMap).filter(k => tipoMap[k] > 0);
-  if (tipoKeys.length && document.getElementById('chartDonut')) {
-    charts.donut = new Chart(document.getElementById('chartDonut'), {
-      type: 'doughnut',
-      data: { labels: tipoKeys, datasets: [{ data: tipoKeys.map(k=>tipoMap[k]), backgroundColor: tipoKeys.map(k=>getColor(k)), borderWidth:0 }] },
-      options: { ...chartOpts, cutout:'60%' }
-    });
-  }
-
-  if (ops.length && document.getElementById('chartBotes')) {
-    const labels = ops.map(o => o.nombre_bote || o.id_bote);
-    charts.botes = new Chart(document.getElementById('chartBotes'), {
-      type: 'bar',
-      data: { labels, datasets: [{ label:'Ingreso', data: ops.map(o=>o.ingresos_operador), backgroundColor:'rgba(201,168,76,0.6)', borderRadius:4 }] },
-      options: { ...chartOpts, plugins:{ legend:{ display:false } }, scales:{ x:{ ...scaleOpts, grid:{ display:false } }, y:{ ...scaleOpts, ticks:{ ...scaleOpts.ticks, callback: v=>'S/'+v } } } }
-    });
-  }
-
-  if (ops.length && document.getElementById('chartStack')) {
-    const labels = ops.map(o => o.nombre_bote || o.id_bote);
-    charts.stack = new Chart(document.getElementById('chartStack'), {
-      type: 'bar',
-      data: { labels, datasets: [
-        { label:'Ingreso', data: ops.map(o=>o.ingresos_operador), backgroundColor:'rgba(74,222,128,0.6)', borderRadius:4 },
-        { label:'Deuda',   data: ops.map(o=>o.deuda_comisionados), backgroundColor:'rgba(248,113,113,0.6)', borderRadius:4 }
-      ]},
-      options: { ...chartOpts, scales:{ x:{ ...scaleOpts, stacked:true, grid:{ display:false } }, y:{ ...scaleOpts, stacked:true, ticks:{ ...scaleOpts.ticks, callback: v=>'S/'+v } } } }
-    });
-  }
-}
-
-function renderError(msg) {
-  document.getElementById('root').innerHTML = `
-    <div style="text-align:center;padding:80px 20px;color:var(--text-muted);">
-      <div style="font-size:40px;margin-bottom:16px;">⚠️</div>
-      <p style="font-size:15px;">${msg}</p>
-      <button onclick="loadData()" style="margin-top:20px;padding:10px 24px;background:rgba(123,32,48,0.3);border:1px solid var(--border);border-radius:10px;color:var(--text);cursor:pointer;font-size:14px;">
-        Reintentar
-      </button>
     </div>`;
+  }).join('');
+
+  // ── Matrix PAX × ciclo ────────────────────────────────────────
+  const matrixHtml = Object.keys(paxMatrix).length > 0 ? `
+  <div class="glass" style="padding:14px;margin-bottom:14px;">
+    <div class="sec-hdr">📊 Mix PAX — tipo × ciclo</div>
+    <div style="overflow-x:auto;">
+    <table class="mx-table">
+      <thead>
+        <tr>
+          <th style="text-align:left;">Tipo</th>
+          <th>🛥 Embarcado</th>
+          <th>✕ Cancelado</th>
+          <th>🔀 Pasado</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${Object.entries(paxMatrix).sort((a,b)=>a[0].localeCompare(b[0])).map(([tipo,v]) => {
+          const tot = v.emb+v.can+v.pas;
+          return `<tr>
+            <td><span class="${tipoBadgeClass(tipo)}">${tipo}</span></td>
+            <td class="${v.emb>0?'v':''}">${v.emb>0?v.emb:'—'}</td>
+            <td class="${v.can>0?'v':''}" style="${v.can>0?'color:var(--red);':''}">${v.can>0?v.can:'—'}</td>
+            <td class="${v.pas>0?'v':''}" style="${v.pas>0?'color:var(--amber);':''}">${v.pas>0?v.pas:'—'}</td>
+            <td style="color:var(--gold)">${tot}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td>Total</td>
+          <td>${Object.values(paxMatrix).reduce((s,v)=>s+v.emb,0)||'—'}</td>
+          <td style="color:var(--red);">${Object.values(paxMatrix).reduce((s,v)=>s+v.can,0)||'—'}</td>
+          <td style="color:var(--amber);">${Object.values(paxMatrix).reduce((s,v)=>s+v.pas,0)||'—'}</td>
+          <td>${Object.values(paxMatrix).reduce((s,v)=>s+v.emb+v.can+v.pas,0)}</td>
+        </tr>
+      </tfoot>
+    </table>
+    </div>
+  </div>` : '';
+
+  // ── Caja historial ────────────────────────────────────────────
+  const ingTotal = allCaja.filter(c=>isIngreso(c)).reduce((s,c)=>s+(parseFloat(c.monto)||0),0);
+  const salTotal = allCaja.filter(c=>!isIngreso(c)).reduce((s,c)=>s+(parseFloat(c.monto)||0),0);
+  const cajaHtml = allCaja.length > 0 ? `
+  <div class="glass" style="padding:0;overflow:hidden;margin-bottom:14px;">
+    <div style="background:linear-gradient(135deg,var(--guinda-dark,#5a1722),var(--guinda,#7B2030));padding:14px 16px;color:var(--text);">
+      <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;opacity:.6;margin-bottom:4px;">Balance del día · ${allCaja.length} registros</div>
+      <div style="font-size:26px;font-weight:900;">${S(ingTotal - salTotal)}</div>
+      <div style="font-size:11px;opacity:.75;margin-top:4px;display:flex;justify-content:space-between;">
+        <span>↑ ${S(ingTotal)} ingresos</span>
+        <span>↓ ${S(salTotal)} salidas</span>
+      </div>
+    </div>
+    <div>
+    ${allCaja.sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp)).map(c => {
+      const ing = isIngreso(c);
+      const hora = c.timestamp ? new Date(c.timestamp).toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'}) : '—';
+      const cat  = String(c.categoria||'').replace(/_/g,' ');
+      return `<div class="caja-row ${ing?'caja-ingreso':'caja-salida'}">
+        <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;">
+          <span style="font-size:20px;flex-shrink:0;">${metIcon(c.metodo_pago)}</span>
+          <div style="min-width:0;">
+            <div style="font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.operador||cat}
+              ${c._bote?`<span style="font-size:10px;color:var(--text-muted);"> · ⛵ ${c._bote}</span>`:''}
+            </div>
+            <div style="font-size:10px;color:var(--text-muted);">${hora} · ${cat}</div>
+          </div>
+        </div>
+        <span style="font-size:14px;font-weight:800;flex-shrink:0;${ing?'color:var(--green)':'color:var(--red)'};">${ing?'+':'-'}${S(c.monto)}</span>
+      </div>`;
+    }).join('')}
+    </div>
+  </div>` : '';
+
+  // ── Ensamblar todo ────────────────────────────────────────────
+  $('root').innerHTML = `
+  <div class="rpt-header">
+    <div>
+      <div class="rpt-logo shimmer">PS</div>
+      <div style="font-size:11px;color:var(--text-muted);letter-spacing:2px;text-transform:uppercase;margin-top:2px;">Reporte de Lanchas</div>
+    </div>
+    <div class="rpt-meta">
+      <div class="rpt-fecha">📅 ${fmtFecha(fecha)}</div>
+      <div class="rpt-refresh">Actualiza en <span class="countdown" id="countdown">1:00</span></div>
+    </div>
+  </div>
+
+  <div class="btn-bar no-print">
+    <button class="btn btn-wa" onclick="whatsappShare()">💬 WhatsApp</button>
+    <button class="btn btn-print" onclick="window.print()">🖨 Imprimir</button>
+  </div>
+
+  ${alertaHtml}
+
+  <div class="section">
+    <div class="sec-hdr">❓ Las 4 preguntas del turno</div>
+    ${q4Html}
+  </div>
+
+  ${kpiHtml}
+  ${flujoHtml}
+
+  <div class="charts-grid">
+    <div class="chart-card glass">
+      <div class="chart-title">PAX por tipo</div>
+      <div class="chart-wrap"><canvas id="chartTipo"></canvas></div>
+    </div>
+    <div class="chart-card glass">
+      <div class="chart-title">Ingresos por método</div>
+      <div class="chart-wrap"><canvas id="chartMetodo"></canvas></div>
+    </div>
+    <div class="chart-card glass">
+      <div class="chart-title">Ocupación por bote</div>
+      <div class="chart-wrap"><canvas id="chartOcupacion"></canvas></div>
+    </div>
+    ${aliadoArr.length > 1 ? `
+    <div class="chart-card glass">
+      <div class="chart-title">Balance de pases por aliado</div>
+      <div class="chart-wrap"><canvas id="chartAliados"></canvas></div>
+    </div>` : ''}
+  </div>
+
+  ${aliadoArr.length > 0 ? `
+  <div class="section glass" style="padding:14px;margin-bottom:14px;">
+    <div class="sec-hdr">🤝 Balance de Aliados — pases out vs in</div>
+    ${aliadoHtml}
+  </div>` : ''}
+
+  ${cobrosArr.length > 0 ? `
+  <div class="section glass" style="padding:14px;margin-bottom:14px;">
+    <div class="sec-hdr">💰 Cobros pendientes (${cobrosArr.length})</div>
+    ${cobrosHtml}
+  </div>` : ''}
+
+  ${comArr.length > 0 || kpis.deuda_comisionados > 0 ? `
+  <div class="section glass" style="padding:14px;margin-bottom:14px;">
+    <div class="sec-hdr">👥 Comisionados</div>
+    ${comHtml}
+  </div>` : ''}
+
+  <div class="section glass" style="padding:14px;margin-bottom:14px;">
+    <div class="sec-hdr">⛵ Operaciones del día (${ops.length})</div>
+    ${opCardsHtml}
+  </div>
+
+  ${manifHtml ? `<div class="section">
+    <div class="sec-hdr" style="margin-bottom:10px;">📋 Manifiestos</div>
+    ${manifHtml}
+  </div>` : ''}
+
+  ${matrixHtml}
+
+  <div class="section">
+    <div class="sec-hdr" style="margin-bottom:10px;">📒 Caja del día</div>
+    ${cajaHtml || '<div style="color:var(--text-muted);font-size:13px;padding:6px 0;">Sin movimientos de caja.</div>'}
+  </div>
+
+  <div style="text-align:center;padding:20px 0 8px;font-size:11px;color:var(--text-muted);">
+    Generado por PS Panel · ${new Date().toLocaleString('es-PE')}
+  </div>`;
+
+  startCountdown();
+  buildCharts(data, tipoIngMap, metMap);
+}
+
+// ── Charts ──────────────────────────────────────────────────────
+function buildCharts(data, tipoIngMap, metMap) {
+  const ops    = data.operaciones || [];
+  const copts  = { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ labels:{ color:'#f0e6d3', font:{ size:10 }, boxWidth:10 } } } };
+  const scOpts = { ticks:{ color:'#8a7060', font:{ size:10 } }, grid:{ color:'rgba(255,255,255,0.04)' } };
+
+  const colors = ['#4ade80','#60a5fa','#fbbf24','#f0abfc','#fb923c','#a78bfa','#34d399','#f87171'];
+
+  // Donut: PAX por tipo
+  const tipoKeys = Object.keys(tipoIngMap).filter(k => tipoIngMap[k] > 0);
+  if (tipoKeys.length && $('chartTipo')) {
+    charts.tipo = new Chart($('chartTipo'), {
+      type:'doughnut',
+      data:{ labels:tipoKeys, datasets:[{ data:tipoKeys.map(k=>tipoIngMap[k]), backgroundColor:tipoKeys.map((_,i)=>colors[i%colors.length]), borderWidth:0 }] },
+      options:{ ...copts, cutout:'60%' }
+    });
+  }
+
+  // Donut: ingresos por método
+  const metKeys = Object.keys(metMap).filter(k=>metMap[k].ing>0);
+  if (metKeys.length && $('chartMetodo')) {
+    charts.metodo = new Chart($('chartMetodo'), {
+      type:'doughnut',
+      data:{ labels:metKeys, datasets:[{ data:metKeys.map(k=>metMap[k].ing), backgroundColor:metKeys.map((_,i)=>colors[i%colors.length]), borderWidth:0 }] },
+      options:{ ...copts, cutout:'60%' }
+    });
+  }
+
+  // Barras horizontales: ocupación por bote
+  if (ops.length && $('chartOcupacion')) {
+    const labels = ops.map(o=>o.nombre_bote||o.id_bote);
+    charts.ocup = new Chart($('chartOcupacion'), {
+      type:'bar',
+      data:{ labels, datasets:[
+        { label:'Ocupados', data:ops.map(o=>o.pax_total), backgroundColor:'rgba(201,168,76,0.7)', borderRadius:4 },
+        { label:'Libre', data:ops.map(o=>Math.max(0,(o.capacidad||0)-o.pax_total)), backgroundColor:'rgba(255,255,255,0.06)', borderRadius:4 }
+      ]},
+      options:{ ...copts, indexAxis:'y', scales:{
+        x:{ ...scOpts, stacked:true, grid:{ display:false } },
+        y:{ ...scOpts, stacked:true }
+      }, plugins:{ legend:{ labels:{ color:'#f0e6d3', font:{ size:10 }, boxWidth:10 } } } }
+    });
+  }
+
+  // Barras apiladas: aliados (out vs in)
+  if ($('chartAliados')) {
+    const aliadoMap2 = {};
+    (data.operaciones||[]).forEach(op=>(op.movimientos||[]).forEach(m=>{
+      if (m.estado==='Cancelado') return;
+      if (m.id_contacto_pase) {
+        const k = m.nombre_contacto_pase||m.id_contacto_pase;
+        if (!aliadoMap2[k]) aliadoMap2[k]={out:0,in:0};
+        aliadoMap2[k].out += parseInt(m.cant_pax)||0;
+      }
+      if (m.tipo==='Aliado(PaseIn)'||m.tipo==='Pase_Recibido') {
+        const k = m.nombre_contacto||m.id_contacto;
+        if (!aliadoMap2[k]) aliadoMap2[k]={out:0,in:0};
+        aliadoMap2[k].in += parseInt(m.cant_pax)||0;
+      }
+    }));
+    const aKeys = Object.keys(aliadoMap2);
+    if (aKeys.length) {
+      charts.aliados = new Chart($('chartAliados'), {
+        type:'bar',
+        data:{ labels:aKeys, datasets:[
+          { label:'Enviados ↑', data:aKeys.map(k=>aliadoMap2[k].out), backgroundColor:'rgba(248,113,113,0.65)', borderRadius:4 },
+          { label:'Recibidos ↓', data:aKeys.map(k=>aliadoMap2[k].in), backgroundColor:'rgba(74,222,128,0.55)', borderRadius:4 }
+        ]},
+        options:{ ...copts, indexAxis:'y', scales:{
+          x:{ ...scOpts, grid:{ color:'rgba(255,255,255,0.04)' } },
+          y:{ ...scOpts }
+        } }
+      });
+    }
+  }
+}
+
+// ── Error ────────────────────────────────────────────────────────
+function renderError(msg) {
+  $('root').innerHTML = `
+  <div style="text-align:center;padding:80px 20px;color:var(--text-muted);">
+    <div style="font-size:40px;margin-bottom:16px;">⚠️</div>
+    <p style="font-size:14px;">${msg}</p>
+    <button onclick="loadData()" style="margin-top:20px;padding:10px 24px;background:rgba(123,32,48,0.3);border:1px solid var(--border);border-radius:10px;color:var(--text);cursor:pointer;font-size:14px;">
+      Reintentar
+    </button>
+  </div>`;
 }
 
 if (!API_URL) {
