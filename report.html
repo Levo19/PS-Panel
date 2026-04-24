@@ -1147,13 +1147,8 @@ function render(data) {
     Generado por PS Panel · ${new Date().toLocaleString('es-PE')}
   </div>
 
-  <div style="opacity:0.4;filter:grayscale(1);pointer-events:none;">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:8px 12px;background:rgba(255,255,255,0.05);border:1px dashed rgba(255,255,255,0.2);border-radius:10px;">
-      <span style="font-size:16px;">🚧</span>
-      <span style="font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:.08em;">Pendiente de editar</span>
-    </div>
-    ${flujoHtml}
-    <div class="charts-grid">
+  ${flujoHtml}
+  <div class="charts-grid">
       <div class="chart-card glass">
         <div class="chart-title">PAX en mis botes <span style="font-size:8px;font-weight:400;opacity:.6;">(excluye PaseOut)</span></div>
         <div class="chart-wrap"><canvas id="chartTipo"></canvas></div>
@@ -1176,7 +1171,6 @@ function render(data) {
         <div class="chart-title">Balance de pases por aliado</div>
         <div class="chart-wrap"><canvas id="chartAliados"></canvas></div>
       </div>` : ''}
-    </div>
   </div>`;
 
   startCountdown();
