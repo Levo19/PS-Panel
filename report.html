@@ -393,7 +393,7 @@ function render(data) {
   const totalDeboPases   = netDeboPases;    // PAX netos que debo (∑ saldos desfavorables)
   const totalMeDebenPases = netMeDebenPases; // PAX netos que me deben (∑ saldos a favor)
   const totalDeudaComisGAS = kpis.deuda_comisionados || 0;
-  const totalDeboDinero  = totalDeudaComisGAS + totalPendCompra;
+  const totalDeboDinero  = totalDeudaComisGAS; // solo comisiones pendientes de pagar
   const totalMeDebenDinero = totalPendCobrar;
 
   // ── Q4 detail items ──────────────────────────────────────────
@@ -408,24 +408,35 @@ function render(data) {
   const deboPlataCom = comArr.filter(([,d])=>d.comision-d.pagado>0.01).map(([nombre,d])=>`
     <div class="q4-di"><span class="q4-di-name">👤 ${nombre}</span><span style="color:var(--purple);">${S(d.comision)}<small style="color:var(--text-muted);"> total</small>${d.pagado>0?' · '+S(d.pagado)+' pag.':''}</span></div>`
   ).join('');
-  const deboPlataPasesRows = aliadoArr.filter(([,d])=>d.pendCompra>0).map(([nombre,d])=>
-    `<div class="q4-di"><span class="q4-di-name">🤝 ${nombre}</span><span style="color:var(--amber);">${S(d.pendCompra)} a pagar</span></div>`
-  ).join('');
-  const deboPlataTodo = (deboPlataCom||deboPlataPasesRows)
-    ? (deboPlataCom ? '<div class="q4-di-section">Comisiones</div>'+deboPlataCom : '')
-      + (deboPlataPasesRows ? '<div class="q4-di-section">Compras a agencias</div>'+deboPlataPasesRows : '')
-    : '<div class="q4-di-empty">Sin deudas ✓</div>';
+  // "Plata que DEBO" = solo comisiones. pendCompra está en cobrosArr (me lo deben a mí).
+  const deboPlataTodo = deboPlataCom
+    ? '<div class="q4-di-section">Comisiones pendientes por pagar</div>'+deboPlataCom
+    : '<div class="q4-di-empty">Sin comisiones pendientes ✓</div>';
 
-  const meDebenPlatRows = cobrosArr.map(c=>{
-    const avPct = pct(c.pagado, c.total);
-    return `<div class="q4-di top">
-      <div style="flex:1;min-width:0;">
-        <div class="q4-di-name">${c.nombre}</div>
-        <div style="color:var(--text-muted);font-size:10px;">${c.tipo} · ${c.bote}${c.pagado>0?' · cobrado '+S(c.pagado):''}</div>
-        <div class="prog-wrap" style="margin-top:3px;"><div class="prog-bar" style="width:${avPct}%;background:${avPct>0?'var(--green)':'var(--red)'};"></div></div>
-      </div>
-      <span style="color:var(--red);font-weight:800;flex-shrink:0;padding-left:8px;">${S(c.pendiente)}</span>
-    </div>`;
+  // Agrupa cobros por tipo para el desglose del q4 "plata que me deben"
+  const GRUPO_ORDEN = ['Agencia','Comisionado','Directo','Libre'];
+  const cobrosGrupo = {};
+  cobrosArr.forEach(c => {
+    const g = GRUPO_ORDEN.includes(c.tipo) ? c.tipo : 'Otro';
+    if (!cobrosGrupo[g]) cobrosGrupo[g] = [];
+    cobrosGrupo[g].push(c);
+  });
+  const meDebenPlatRows = GRUPO_ORDEN.concat(Object.keys(cobrosGrupo).filter(g=>!GRUPO_ORDEN.includes(g))).filter(g=>cobrosGrupo[g]).flatMap(grupo => {
+    const items = cobrosGrupo[grupo];
+    const nota = grupo==='Comisionado' ? ' <span style="color:var(--text-muted);font-size:9px;">(pago del cliente)</span>' : '';
+    return [`<div class="q4-di-section">${grupo}${nota}</div>`,
+      ...items.map(c=>{
+        const avPct = pct(c.pagado, c.total);
+        return `<div class="q4-di top">
+          <div style="flex:1;min-width:0;">
+            <div class="q4-di-name">${c.nombre}</div>
+            <div style="color:var(--text-muted);font-size:10px;">${c.bote}${c.pagado>0?' · cobrado '+S(c.pagado):''}</div>
+            <div class="prog-wrap" style="margin-top:3px;"><div class="prog-bar" style="width:${avPct}%;background:${avPct>0?'var(--green)':'var(--red)'};"></div></div>
+          </div>
+          <span style="color:var(--red);font-weight:800;flex-shrink:0;padding-left:8px;">${S(c.pendiente)}</span>
+        </div>`;
+      })
+    ];
   }).join('') || '<div class="q4-di-empty">Sin cobros pendientes ✓</div>';
 
   // ── CÁLCULO: método de pago ──────────────────────────────────
@@ -518,7 +529,7 @@ function render(data) {
         <div>
           <div class="q4-label" style="color:var(--amber);">💸 Plata que DEBO</div>
           <div class="q4-val" style="color:var(--amber);font-size:20px;">${S(totalDeboDinero)}</div>
-          <div class="q4-sub" style="margin-top:3px;">${[totalDeudaComisGAS>0?'Comis.':'',totalPendCompra>0?'Agenc.':''].filter(Boolean).join(' + ')||'Sin deudas'}</div>
+          <div class="q4-sub" style="margin-top:3px;">${totalDeudaComisGAS>0?comArr.filter(([,d])=>d.comision-d.pagado>0.01).length+' comisionado'+(comArr.filter(([,d])=>d.comision-d.pagado>0.01).length>1?'s':''):'Sin comisiones pendientes ✓'}</div>
         </div>
         <span class="q4-chevron">▾</span>
       </div>
@@ -609,7 +620,7 @@ function render(data) {
     <hr class="flujo-sep">
     ${fRow('= Neto empresa','color:var(--green);font-weight:700','rgba(74,222,128,0.45)',fw(bruto-totalDeudaComisGAS,maxFlujo),S(bruto-totalDeudaComisGAS),'color:var(--green);font-size:13px',flujoDetNeto,'')}
     ${totalMeDebenDinero > 0 ? '<hr class="flujo-sep">'+fRow('⏳ Por cobrar','color:var(--blue)','rgba(96,165,250,0.4)',fw(totalMeDebenDinero,maxFlujo),S(totalMeDebenDinero),'color:var(--blue)',flujoDetPorCobrar,'') : ''}
-    ${totalPendCompra > 0 ? fRow('⏳ Cob. agencias','color:var(--amber)','rgba(251,191,36,0.4)',fw(totalPendCompra,maxFlujo),S(totalPendCompra),'color:var(--amber)',flujoDetAgencias,'') : ''}
+    ${/* pendCompra ya está en cobrosArr (plata que me deben) → no va en flujo separado */ ''}
     ${fRow('💵 Efectivo','color:var(--gold)','rgba(74,222,128,0.5)',fw(ingEfectivo,netoTotal),S(ingEfectivo),'color:var(--green)',flujoDetEfectivo,'margin-top:8px')}
     ${fRow('🏦 Virtual','color:var(--blue)','rgba(96,165,250,0.5)',fw(ingVirtual,netoTotal),S(ingVirtual),'color:var(--blue)',flujoDetVirtual,'')}
   </div>`;
@@ -621,11 +632,12 @@ function render(data) {
     const badgeClass = saldo === 0 ? 'badge-tablas' : saldo > 0 ? 'badge-te-deben' : 'badge-debes';
     const saldoColor = saldo > 0 ? 'var(--green)' : saldo < 0 ? 'var(--red)' : 'var(--text-muted)';
 
+    // Aliados son solo PAX — no dinero. El cobro del cliente es independiente en caja.
     const outRows = d.outItems.map(x =>
       `<div class="aliado-row">
         <span style="color:var(--red);font-weight:700;width:20px;text-align:center;flex-shrink:0;">↑</span>
-        <span style="flex:1;font-size:12px;">Enviamos <b>${x.pax}</b> pax de <em>${x.origen}</em></span>
-        <span style="font-size:11px;${x.cobrado?'color:var(--green)':'color:var(--amber)'};">${x.cobrado ? '✓ cobrado ' + S(x.monto) : '⏳ ' + S(x.montoOrig)}</span>
+        <span style="flex:1;font-size:12px;">Enviamos <b>${x.pax}</b> pax · <em>${x.origen}</em></span>
+        <span style="font-size:11px;color:var(--text-muted);">solo PAX</span>
       </div>`).join('');
     const inRows = d.inItems.map(x =>
       `<div class="aliado-row">
@@ -650,7 +662,6 @@ function render(data) {
         <div style="text-align:right;">
           <div style="font-size:20px;font-weight:900;color:${saldoColor};">${saldo > 0 ? '+' : ''}${saldo} <span style="font-size:11px;">PAX</span></div>
           <span class="aliado-badge ${badgeClass}">${saldoLabel}</span>
-          ${d.pendCompra > 0 ? `<div style="font-size:10px;color:var(--amber);margin-top:4px;">⏳ ${S(d.pendCompra)} por cobrar</div>` : ''}
         </div>
       </div>
       <div id="${uid}" class="aliado-body" style="display:none;">${outRows}${inRows}</div>
