@@ -664,7 +664,7 @@ function render(data) {
     ...ops.map(op => {
       const opRev = (op.movimientos||[])
         .filter(m => m.estado !== 'Cancelado' && !TIPOS_SIN_COBRO.includes(m.tipo))
-        .reduce((s2, m) => s2 + (parseFloat(m.monto_total)||0), 0);
+        .reduce((s2, m) => s2 + movTotal(m), 0);
       return `<div class="flujo-di"><span>⛵ ${op.nombre_bote||op.id_bote}</span><span style="color:var(--gold);font-weight:800;">${S(opRev)}</span></div>`;
     }),
     ...(brutoSuelt > 0 ? [`<div class="flujo-di"><span>📋 Sin operación asignada</span><span style="color:var(--amber);font-weight:800;">${S(brutoSuelt)}</span></div>`] : [])
@@ -867,17 +867,31 @@ function render(data) {
       `<span class="type-chip ${tipoBadgeClass(t)}">${t} ×${n}</span>`).join('');
     const movs = (op.movimientos||[]).filter(m => m.estado !== 'Cancelado');
     const movsCan = (op.movimientos||[]).filter(m => m.estado === 'Cancelado');
-    const manifRows = movs.map(m => `
-      <div class="mov-row">
-        <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;">
-          <span class="${tipoBadgeClass(m.tipo)}" style="flex-shrink:0;">${m.tipo}</span>
-          <span style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${contactColor(m.tipo)};">${m.nombre_contacto}</span>
+    const manifRows = movs.map(m => {
+      const mAdics = adicsSum(m);
+      const mTot   = (parseFloat(m.monto_total)||0) + mAdics;
+      const adicsChips = mAdics > 0
+        ? '<div style="display:flex;flex-wrap:wrap;gap:2px;margin-top:2px;">' +
+          String(m.adicionales||'').split(',').filter(p=>p.indexOf(':')!==-1).map(p=>{
+            const sep=p.indexOf(':'), nombre=p.substring(0,sep).trim(), val=parseFloat(p.substring(sep+1).trim())||0;
+            return val>0?`<span style="font-size:8px;background:rgba(251,191,36,0.15);color:var(--amber);border:1px solid rgba(251,191,36,0.35);border-radius:3px;padding:0 4px;">+${nombre} ${S(val)}</span>`:'';
+          }).join('') + '</div>'
+        : '';
+      return `
+      <div class="mov-row" style="flex-direction:column;align-items:stretch;gap:2px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+          <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;">
+            <span class="${tipoBadgeClass(m.tipo)}" style="flex-shrink:0;">${m.tipo}</span>
+            <span style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${contactColor(m.tipo)};">${m.nombre_contacto}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+            <span style="font-size:11px;color:var(--text-muted);">${m.cant_pax} pax</span>
+            <span style="font-size:13px;font-weight:800;${montoPayColor(op,m)}">S/ ${fmt(mTot)}</span>
+          </div>
         </div>
-        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
-          <span style="font-size:11px;color:var(--text-muted);">${m.cant_pax} pax</span>
-          <span style="font-size:13px;font-weight:800;${montoPayColor(op,m)}">S/ ${fmt(m.monto_total)}</span>
-        </div>
-      </div>`).join('');
+        ${adicsChips}
+      </div>`;
+    }).join('');
     const canRows = movsCan.map(m => `
       <div class="mov-row mov-cancelado">
         <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;">
@@ -888,8 +902,8 @@ function render(data) {
           <span style="font-size:11px;color:var(--text-muted);">${m.cant_pax} pax · Cancelado</span>
         </div>
       </div>`).join('');
-    const totalPax = movs.reduce((s,m)=>s+(parseFloat(m.cant_pax)||0),0);
-    const totalMonto = movs.reduce((s,m)=>s+(parseFloat(m.monto_total)||0),0);
+    const totalPax   = movs.reduce((s,m)=>s+(parseFloat(m.cant_pax)||0),0);
+    const totalMonto = movs.reduce((s,m)=>s+movTotal(m),0);
     return `
     <div class="op-card ${cls}">
       <div class="op-row">
