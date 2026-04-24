@@ -55,6 +55,30 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .q4-debo-plata{background:rgba(251,191,36,0.09);border:1px solid rgba(251,191,36,0.3);}
 .q4-me-deben-plata{background:rgba(96,165,250,0.09);border:1px solid rgba(96,165,250,0.3);}
 
+/* ── Q4 expandable ── */
+.q4-card{cursor:pointer;user-select:none;transition:filter .15s;}
+.q4-card:hover{filter:brightness(1.08);}
+.q4-hdr{display:flex;align-items:flex-start;justify-content:space-between;gap:6px;}
+.q4-chevron{font-size:13px;color:var(--text-muted);flex-shrink:0;transition:transform .2s;margin-top:3px;}
+.q4-detail{display:none;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.1);font-size:11px;}
+.q4-card.open .q4-detail{display:block;}
+.q4-card.open .q4-chevron{transform:rotate(180deg);}
+.q4-di{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.06);gap:8px;}
+.q4-di:last-child{border-bottom:none;}
+.q4-di.top{align-items:flex-start;}
+.q4-di-name{font-weight:700;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.q4-di-empty{color:var(--green);padding:5px 0;font-weight:700;}
+.q4-di-section{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);padding:6px 0 2px;}
+/* ── Flujo expandable ── */
+.flujo-item .flujo-detail{display:none;padding:6px 0 8px 118px;font-size:11px;}
+.flujo-item.open .flujo-detail{display:block;}
+.flujo-row{cursor:pointer;}
+.flujo-chev{font-size:9px;display:inline-block;transition:transform .2s;color:var(--text-muted);vertical-align:middle;margin-left:2px;}
+.flujo-item.open .flujo-chev{transform:rotate(180deg);}
+.flujo-di{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.04);gap:8px;font-size:11px;}
+.flujo-di:last-child{border-bottom:none;}
+@media(max-width:600px){.flujo-item .flujo-detail{padding-left:88px;}}
+
 /* ── KPI strip ── */
 .kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:14px;}
 .kpi-card{padding:12px 14px;position:relative;overflow:hidden;}
@@ -184,7 +208,8 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 
 <script>
 const params  = new URLSearchParams(location.search);
-const fecha   = params.get('fecha') || new Date().toISOString().slice(0,10);
+function localDateStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+const fecha   = params.get('fecha') || localDateStr();
 const PS_GAS  = 'https://script.google.com/macros/s/AKfycby7_H2lEOweA4cpixzNUw_50EfuQtiSoIW2389U5Ipyic3GRmETSRgBYSpIAaMcARcMhA/exec';
 const API_URL = params.get('api') || localStorage.getItem('ps_api_url') || PS_GAS;
 
@@ -362,11 +387,43 @@ function render(data) {
   const totalDebeComis  = comArr.reduce((s,[,d])=>s+Math.max(0,d.comision-d.pagado), 0);
 
   // ── Las 4 preguntas totales ──
-  const totalDeboPases   = totalPaxOut - totalPaxIn;  // neto que enviamos de más
-  const totalMeDebenPases = totalPaxIn - totalPaxOut; // neto que recibimos de más
+  const totalDeboPases   = totalPaxOut - totalPaxIn;
+  const totalMeDebenPases = totalPaxIn - totalPaxOut;
   const totalDeudaComisGAS = kpis.deuda_comisionados || 0;
   const totalDeboDinero  = totalDeudaComisGAS + totalPendCompra;
   const totalMeDebenDinero = totalPendCobrar;
+
+  // ── Q4 detail items ──────────────────────────────────────────
+  const deboPasesRows = aliadoArr.filter(([,d])=>d.out>d.in).map(([nombre,d])=>
+    `<div class="q4-di"><span class="q4-di-name">${nombre}</span><span style="color:var(--red);">↑${d.out} env.${d.in?' · ↓'+d.in+' rec.':''} = <b>${d.out-d.in} PAX</b></span></div>`
+  ).join('') || '<div class="q4-di-empty">Sin pases pendientes ✓</div>';
+
+  const meDebenPasesRows = aliadoArr.filter(([,d])=>d.in>d.out).map(([nombre,d])=>
+    `<div class="q4-di"><span class="q4-di-name">${nombre}</span><span style="color:var(--green);">↓${d.in} rec.${d.out?' · ↑'+d.out+' env.':''} = <b>+${d.in-d.out} PAX</b></span></div>`
+  ).join('') || '<div class="q4-di-empty" style="color:var(--text-muted);">Sin pases a favor.</div>';
+
+  const deboPlataCom = comArr.filter(([,d])=>d.comision-d.pagado>0.01).map(([nombre,d])=>`
+    <div class="q4-di"><span class="q4-di-name">👤 ${nombre}</span><span style="color:var(--purple);">${S(d.comision)}<small style="color:var(--text-muted);"> total</small>${d.pagado>0?' · '+S(d.pagado)+' pag.':''}</span></div>`
+  ).join('');
+  const deboPlataPasesRows = aliadoArr.filter(([,d])=>d.pendCompra>0).map(([nombre,d])=>
+    `<div class="q4-di"><span class="q4-di-name">🤝 ${nombre}</span><span style="color:var(--amber);">${S(d.pendCompra)} a pagar</span></div>`
+  ).join('');
+  const deboPlataTodo = (deboPlataCom||deboPlataPasesRows)
+    ? (deboPlataCom ? '<div class="q4-di-section">Comisiones</div>'+deboPlataCom : '')
+      + (deboPlataPasesRows ? '<div class="q4-di-section">Compras a agencias</div>'+deboPlataPasesRows : '')
+    : '<div class="q4-di-empty">Sin deudas ✓</div>';
+
+  const meDebenPlatRows = cobrosArr.map(c=>{
+    const avPct = pct(c.pagado, c.total);
+    return `<div class="q4-di top">
+      <div style="flex:1;min-width:0;">
+        <div class="q4-di-name">${c.nombre}</div>
+        <div style="color:var(--text-muted);font-size:10px;">${c.tipo} · ${c.bote}${c.pagado>0?' · cobrado '+S(c.pagado):''}</div>
+        <div class="prog-wrap" style="margin-top:3px;"><div class="prog-bar" style="width:${avPct}%;background:${avPct>0?'var(--green)':'var(--red)'};"></div></div>
+      </div>
+      <span style="color:var(--red);font-weight:800;flex-shrink:0;padding-left:8px;">${S(c.pendiente)}</span>
+    </div>`;
+  }).join('') || '<div class="q4-di-empty">Sin cobros pendientes ✓</div>';
 
   // ── CÁLCULO: método de pago ──────────────────────────────────
   const metMap = {};
@@ -426,36 +483,53 @@ function render(data) {
     ? `<div class="alerta-box">${alertItems.join('')}</div>`
     : `<div class="alerta-box alerta-verde"><div class="alerta-item"><span class="alerta-dot" style="background:var(--green)"></span><span style="color:var(--green);font-weight:700;">✓ Turno limpio — sin cobros ni pases pendientes</span></div></div>`;
 
-  // ── Las 4 preguntas ──────────────────────────────────────────
-  const deboPasesDetail = aliadoArr.filter(([,d])=>d.out>d.in).map(([n,d])=>`${n}: ${d.out-d.in} PAX`).join(' · ') || '—';
-  const meDebenPasesDetail = aliadoArr.filter(([,d])=>d.in>d.out).map(([n,d])=>`${n}: +${d.in-d.out} PAX`).join(' · ') || '—';
-  const deboDineroDetail = [
-    totalDeudaComisGAS > 0 ? `Comisiones ${S(totalDeudaComisGAS)}` : '',
-    totalPendCompra > 0 ? `Agencias ${S(totalPendCompra)}` : ''
-  ].filter(Boolean).join(' · ') || '—';
-  const meDebenDineroDetail = cobrosArr.slice(0,3).map(c=>`${c.nombre} ${S(c.pendiente)}`).join(' · ') + (cobrosArr.length>3 ? ` +${cobrosArr.length-3} más` : '') || '—';
-
+  // ── Las 4 preguntas (expandibles) ───────────────────────────
   const q4Html = `
+  <div style="font-size:10px;color:var(--text-muted);margin-bottom:6px;text-align:right;">Toca cada tarjeta para ver el desglose ▾</div>
   <div class="q4-grid">
-    <div class="q4-card q4-debo-pases glass">
-      <div class="q4-label" style="color:var(--red);">↑ Pases que DEBO</div>
-      <div class="q4-val" style="color:var(--red);">${Math.max(0,totalPaxOut)}<span class="q4-unit">PAX</span></div>
-      <div class="q4-sub">${deboPasesDetail}</div>
+    <div class="q4-card q4-debo-pases glass" onclick="this.classList.toggle('open')">
+      <div class="q4-hdr">
+        <div>
+          <div class="q4-label" style="color:var(--red);">↑ Pases que DEBO</div>
+          <div class="q4-val" style="color:var(--red);">${Math.max(0,totalPaxOut)}<span class="q4-unit">PAX</span></div>
+          <div class="q4-sub" style="margin-top:3px;">${totalDeboPases>0?totalDeboPases+' neto sin devolver':'Tablas o favor'}</div>
+        </div>
+        <span class="q4-chevron">▾</span>
+      </div>
+      <div class="q4-detail">${deboPasesRows}</div>
     </div>
-    <div class="q4-card q4-me-deben-pases glass">
-      <div class="q4-label" style="color:var(--green);">↓ Pases que ME DEBEN</div>
-      <div class="q4-val" style="color:var(--green);">${Math.max(0,totalPaxIn)}<span class="q4-unit">PAX</span></div>
-      <div class="q4-sub">${meDebenPasesDetail}</div>
+    <div class="q4-card q4-me-deben-pases glass" onclick="this.classList.toggle('open')">
+      <div class="q4-hdr">
+        <div>
+          <div class="q4-label" style="color:var(--green);">↓ Pases que ME DEBEN</div>
+          <div class="q4-val" style="color:var(--green);">${Math.max(0,totalPaxIn)}<span class="q4-unit">PAX</span></div>
+          <div class="q4-sub" style="margin-top:3px;">${totalMeDebenPases>0?totalMeDebenPases+' neto a favor':'Sin saldo a favor'}</div>
+        </div>
+        <span class="q4-chevron">▾</span>
+      </div>
+      <div class="q4-detail">${meDebenPasesRows}</div>
     </div>
-    <div class="q4-card q4-debo-plata glass">
-      <div class="q4-label" style="color:var(--amber);">💸 Plata que DEBO</div>
-      <div class="q4-val" style="color:var(--amber);font-size:20px;">${S(totalDeboDinero)}</div>
-      <div class="q4-sub">${deboDineroDetail}</div>
+    <div class="q4-card q4-debo-plata glass" onclick="this.classList.toggle('open')">
+      <div class="q4-hdr">
+        <div>
+          <div class="q4-label" style="color:var(--amber);">💸 Plata que DEBO</div>
+          <div class="q4-val" style="color:var(--amber);font-size:20px;">${S(totalDeboDinero)}</div>
+          <div class="q4-sub" style="margin-top:3px;">${[totalDeudaComisGAS>0?'Comis.':'',totalPendCompra>0?'Agenc.':''].filter(Boolean).join(' + ')||'Sin deudas'}</div>
+        </div>
+        <span class="q4-chevron">▾</span>
+      </div>
+      <div class="q4-detail">${deboPlataTodo}</div>
     </div>
-    <div class="q4-card q4-me-deben-plata glass">
-      <div class="q4-label" style="color:var(--blue);">💰 Plata que ME DEBEN</div>
-      <div class="q4-val" style="color:var(--blue);font-size:20px;">${S(totalMeDebenDinero)}</div>
-      <div class="q4-sub">${meDebenDineroDetail}</div>
+    <div class="q4-card q4-me-deben-plata glass" onclick="this.classList.toggle('open')">
+      <div class="q4-hdr">
+        <div>
+          <div class="q4-label" style="color:var(--blue);">💰 Plata que ME DEBEN</div>
+          <div class="q4-val" style="color:var(--blue);font-size:20px;">${S(totalMeDebenDinero)}</div>
+          <div class="q4-sub" style="margin-top:3px;">${cobrosArr.length>0?cobrosArr.length+' cobro'+(cobrosArr.length>1?'s':'')+' pendiente'+(cobrosArr.length>1?'s':''):'Todo cobrado ✓'}</div>
+        </div>
+        <span class="q4-chevron">▾</span>
+      </div>
+      <div class="q4-detail">${meDebenPlatRows}</div>
     </div>
   </div>`;
 
@@ -481,50 +555,59 @@ function render(data) {
     </div>
   </div>`;
 
-  // ── Flujo de Valor ───────────────────────────────────────────
+  // ── Flujo de Valor — detalles expandibles ───────────────────
+  const flujoDetFacturado = ops.map(op=>
+    `<div class="flujo-di"><span>⛵ ${op.nombre_bote||op.id_bote}</span><span style="color:var(--gold);font-weight:800;">${S(op.ingresos_operador)}</span></div>`
+  ).join('') || '<div class="flujo-di"><span style="color:var(--text-muted);">Sin operaciones</span></div>';
+
+  const flujoDetComisiones = comArr.map(([nombre,d])=>
+    `<div class="flujo-di"><span>👤 ${nombre} · ${d.pax} pax</span><span style="color:var(--red);">${S(d.comision)}</span></div>`
+  ).join('') || '<div class="flujo-di"><span style="color:var(--text-muted);">Sin comisionados</span></div>';
+
+  const flujoDetNeto = `
+    <div class="flujo-di"><span>Facturado bruto</span><span style="color:var(--gold);">${S(bruto)}</span></div>
+    <div class="flujo-di"><span>− Comisiones</span><span style="color:var(--red);">−${S(totalDeudaComisGAS)}</span></div>
+    <div class="flujo-di" style="border-top:1px solid var(--border);padding-top:4px;margin-top:2px;font-weight:800;"><span>= Neto empresa</span><span style="color:var(--green);">${S(bruto-totalDeudaComisGAS)}</span></div>`;
+
+  const flujoDetPorCobrar = cobrosArr.length > 0
+    ? cobrosArr.slice(0,10).map(c=>`<div class="flujo-di"><span>${c.nombre} · <span style="color:var(--text-muted);">${c.bote}</span></span><span style="color:var(--blue);">${S(c.pendiente)}</span></div>`).join('')
+      + (cobrosArr.length>10?`<div class="flujo-di"><span style="color:var(--text-muted);">… y ${cobrosArr.length-10} más</span></div>`:'')
+    : '<div class="flujo-di"><span style="color:var(--green);">Sin cobros pendientes ✓</span></div>';
+
+  const flujoDetAgencias = aliadoArr.filter(([,d])=>d.pendCompra>0).map(([nombre,d])=>
+    `<div class="flujo-di"><span>🤝 ${nombre}</span><span style="color:var(--amber);">${S(d.pendCompra)}</span></div>`
+  ).join('') || '<div class="flujo-di"><span style="color:var(--text-muted);">Sin pendientes</span></div>';
+
+  const flujoDetEfectivo = allCaja.filter(c=>isIngreso(c)&&(!c.metodo_pago||String(c.metodo_pago||'').toLowerCase().includes('efectivo'))).map(c=>
+    `<div class="flujo-di"><span>${c.operador||c.categoria}${c._bote?' · ⛵'+c._bote:''}</span><span style="color:var(--green);">${S(c.monto)}</span></div>`
+  ).join('') || '<div class="flujo-di"><span style="color:var(--text-muted);">Sin efectivo</span></div>';
+
+  const flujoDetVirtual = allCaja.filter(c=>isIngreso(c)&&c.metodo_pago&&!String(c.metodo_pago||'').toLowerCase().includes('efectivo')).map(c=>
+    `<div class="flujo-di"><span>${metIcon(c.metodo_pago)} ${c.operador||c.categoria} · ${c.metodo_pago}</span><span style="color:var(--blue);">${S(c.monto)}</span></div>`
+  ).join('') || '<div class="flujo-di"><span style="color:var(--text-muted);">Sin pagos virtuales</span></div>';
+
+  function fRow(labelHtml, labelStyle, barColor, barWidth, val, valStyle, detailHtml, extraRowStyle) {
+    return `<div class="flujo-item">
+      <div class="flujo-row" onclick="this.closest('.flujo-item').classList.toggle('open')"${extraRowStyle?' style="'+extraRowStyle+'"':''}>
+        <span class="flujo-label" style="${labelStyle}">${labelHtml} <span class="flujo-chev">▾</span></span>
+        <div class="flujo-track"><div class="flujo-bar" style="width:${barWidth}%;background:${barColor};"></div></div>
+        <span class="flujo-val" style="${valStyle}">${val}</span>
+      </div>
+      <div class="flujo-detail">${detailHtml}</div>
+    </div>`;
+  }
+
   const flujoHtml = `
   <div class="flujo-section glass">
-    <div class="flujo-title">💹 Flujo de Valor</div>
-    <div class="flujo-row">
-      <span class="flujo-label">Facturado</span>
-      <div class="flujo-track"><div class="flujo-bar" style="width:100%;background:rgba(201,168,76,0.4);"></div></div>
-      <span class="flujo-val" style="color:var(--gold)">${S(bruto)}</span>
-    </div>
-    ${totalDeudaComisGAS > 0 ? `
-    <div class="flujo-row">
-      <span class="flujo-label" style="color:var(--red)">− Comisiones</span>
-      <div class="flujo-track"><div class="flujo-bar" style="width:${fw(totalDeudaComisGAS,maxFlujo)}%;background:rgba(248,113,113,0.45);"></div></div>
-      <span class="flujo-val" style="color:var(--red)">−${S(totalDeudaComisGAS)}</span>
-    </div>` : ''}
+    <div class="flujo-title">💹 Flujo de Valor <span style="font-size:9px;color:var(--text-muted);font-weight:400;text-transform:none;letter-spacing:0;">(toca cada línea para ver detalle)</span></div>
+    ${fRow('Facturado','','rgba(201,168,76,0.4)','100',S(bruto),'color:var(--gold)',flujoDetFacturado,'')}
+    ${totalDeudaComisGAS > 0 ? fRow('− Comisiones','color:var(--red)','rgba(248,113,113,0.45)',fw(totalDeudaComisGAS,maxFlujo),'−'+S(totalDeudaComisGAS),'color:var(--red)',flujoDetComisiones,'') : ''}
     <hr class="flujo-sep">
-    <div class="flujo-row">
-      <span class="flujo-label" style="color:var(--green);font-weight:700;">= Neto empresa</span>
-      <div class="flujo-track"><div class="flujo-bar" style="width:${fw(bruto-totalDeudaComisGAS,maxFlujo)}%;background:rgba(74,222,128,0.45);"></div></div>
-      <span class="flujo-val" style="color:var(--green);font-size:13px;">${S(bruto-totalDeudaComisGAS)}</span>
-    </div>
-    ${totalMeDebenDinero > 0 ? `
-    <hr class="flujo-sep">
-    <div class="flujo-row">
-      <span class="flujo-label" style="color:var(--blue)">⏳ Por cobrar</span>
-      <div class="flujo-track"><div class="flujo-bar" style="width:${fw(totalMeDebenDinero,maxFlujo)}%;background:rgba(96,165,250,0.4);"></div></div>
-      <span class="flujo-val" style="color:var(--blue)">${S(totalMeDebenDinero)}</span>
-    </div>` : ''}
-    ${totalPendCompra > 0 ? `
-    <div class="flujo-row">
-      <span class="flujo-label" style="color:var(--amber)">⏳ Cob. agencias</span>
-      <div class="flujo-track"><div class="flujo-bar" style="width:${fw(totalPendCompra,maxFlujo)}%;background:rgba(251,191,36,0.4);"></div></div>
-      <span class="flujo-val" style="color:var(--amber)">${S(totalPendCompra)}</span>
-    </div>` : ''}
-    <div class="flujo-row" style="margin-top:8px;">
-      <span class="flujo-label" style="color:var(--gold)">💵 Efectivo</span>
-      <div class="flujo-track"><div class="flujo-bar" style="width:${fw(ingEfectivo,netoTotal)}%;background:rgba(74,222,128,0.5);"></div></div>
-      <span class="flujo-val" style="color:var(--green)">${S(ingEfectivo)}</span>
-    </div>
-    <div class="flujo-row">
-      <span class="flujo-label" style="color:var(--blue)">🏦 Virtual</span>
-      <div class="flujo-track"><div class="flujo-bar" style="width:${fw(ingVirtual,netoTotal)}%;background:rgba(96,165,250,0.5);"></div></div>
-      <span class="flujo-val" style="color:var(--blue)">${S(ingVirtual)}</span>
-    </div>
+    ${fRow('= Neto empresa','color:var(--green);font-weight:700','rgba(74,222,128,0.45)',fw(bruto-totalDeudaComisGAS,maxFlujo),S(bruto-totalDeudaComisGAS),'color:var(--green);font-size:13px',flujoDetNeto,'')}
+    ${totalMeDebenDinero > 0 ? '<hr class="flujo-sep">'+fRow('⏳ Por cobrar','color:var(--blue)','rgba(96,165,250,0.4)',fw(totalMeDebenDinero,maxFlujo),S(totalMeDebenDinero),'color:var(--blue)',flujoDetPorCobrar,'') : ''}
+    ${totalPendCompra > 0 ? fRow('⏳ Cob. agencias','color:var(--amber)','rgba(251,191,36,0.4)',fw(totalPendCompra,maxFlujo),S(totalPendCompra),'color:var(--amber)',flujoDetAgencias,'') : ''}
+    ${fRow('💵 Efectivo','color:var(--gold)','rgba(74,222,128,0.5)',fw(ingEfectivo,netoTotal),S(ingEfectivo),'color:var(--green)',flujoDetEfectivo,'margin-top:8px')}
+    ${fRow('🏦 Virtual','color:var(--blue)','rgba(96,165,250,0.5)',fw(ingVirtual,netoTotal),S(ingVirtual),'color:var(--blue)',flujoDetVirtual,'')}
   </div>`;
 
   // ── Aliados balance ──────────────────────────────────────────
