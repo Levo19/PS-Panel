@@ -42,6 +42,16 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .alerta-item{display:flex;align-items:center;gap:10px;font-size:13px;}
 .alerta-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
 .alerta-verde{border-color:rgba(74,222,128,0.3);background:rgba(74,222,128,0.06);}
+/* ── Alerta expandible ── */
+.alerta-exp{cursor:pointer;align-items:flex-start!important;}
+.alerta-exp:hover{filter:brightness(1.07);}
+.alerta-chev{font-size:11px;color:var(--text-muted);transition:transform .2s;flex-shrink:0;margin-top:1px;}
+.alerta-item.open .alerta-chev{transform:rotate(180deg);}
+.alerta-detail{display:none;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.07);}
+.alerta-item.open .alerta-detail{display:block;}
+.alrt-row{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.05);gap:8px;font-size:11px;}
+.alrt-row:last-child{border-bottom:none;}
+.alrt-sec{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);padding:5px 0 2px;}
 
 /* ── Las 4 preguntas ── */
 .q4-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
@@ -480,22 +490,73 @@ function render(data) {
   // HTML
   // ============================================================
 
-  // ── Alertas ──────────────────────────────────────────────────
+  // ── Alertas expandibles ──────────────────────────────────────
+  function alerta(color, summaryHtml, detailHtml) {
+    return `<div class="alerta-item alerta-exp" onclick="this.classList.toggle('open')">
+      <span class="alerta-dot" style="background:${color};margin-top:4px;"></span>
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;">
+          <span style="flex:1;">${summaryHtml}</span>
+          <span class="alerta-chev">▾</span>
+        </div>
+        <div class="alerta-detail">${detailHtml}</div>
+      </div>
+    </div>`;
+  }
+
   const alertItems = [];
-  if (cobrosArr.length > 0)
-    alertItems.push(`<div class="alerta-item"><span class="alerta-dot" style="background:var(--red)"></span><span><b>${cobrosArr.length}</b> cobro${cobrosArr.length>1?'s':''} sin completar — <b style="color:var(--red)">${S(totalMeDebenDinero)}</b> pendiente</span></div>`);
+
+  // 1. Cobros sin completar — desglose por tipo de contacto
+  if (cobrosArr.length > 0) {
+    const detCobros = GRUPO_ORDEN.concat(Object.keys(cobrosGrupo).filter(g=>!GRUPO_ORDEN.includes(g)))
+      .filter(g=>cobrosGrupo[g]).map(g =>
+        `<div class="alrt-sec">${g}${g==='Comisionado'?' <small style="font-weight:400;font-size:9px;text-transform:none;letter-spacing:0;">(paga el cliente directo)</small>':''}</div>`
+        + cobrosGrupo[g].map(c=>`<div class="alrt-row"><span>${c.nombre}${c.bote&&c.bote!=='—'?' · <span style="opacity:.6;">'+c.bote+'</span>':''}</span><span style="color:var(--red);font-weight:700;">${S(c.pendiente)}</span></div>`).join('')
+      ).join('');
+    alertItems.push(alerta('var(--red)',
+      `<b>${cobrosArr.length}</b> cobro${cobrosArr.length>1?'s':''} sin completar — <b style="color:var(--red)">${S(totalMeDebenDinero)}</b> pendiente`,
+      detCobros));
+  }
+
+  // 2. Pases netos que debemos — por aliado
   if (netDeboPases > 0) {
     const deudores = aliadoArr.filter(([,d])=>d.out>d.in);
-    const nomDeudores = deudores.map(([n,d])=>`${n}: ${d.out-d.in} PAX`).join(', ');
-    alertItems.push(`<div class="alerta-item"><span class="alerta-dot" style="background:var(--amber)"></span><span>Pases netos que debemos: <b style="color:var(--amber)">${netDeboPases} PAX</b> — ${nomDeudores}</span></div>`);
+    const detPases = deudores.map(([nombre,d])=>
+      `<div class="alrt-row"><span>🤝 ${nombre}</span><span style="color:var(--amber);">↑${d.out} env.${d.in?' · ↓'+d.in+' rec.':''} = <b>${d.out-d.in} PAX</b></span></div>`
+    ).join('');
+    alertItems.push(alerta('var(--amber)',
+      `Pases netos que debemos: <b style="color:var(--amber)">${netDeboPases} PAX</b> a ${deudores.length} aliado${deudores.length>1?'s':''}`,
+      detPases));
   }
-  if (totalPendCompra > 0)
-    alertItems.push(`<div class="alerta-item"><span class="alerta-dot" style="background:var(--amber)"></span><span>${aliadoArr.filter(([,d])=>d.pendCompra>0).length} pase${aliadoArr.filter(([,d])=>d.pendCompra>0).length>1?'s':''} sin cobrar a agencia — <b style="color:var(--amber)">${S(totalPendCompra)}</b></span></div>`);
-  if (totalDebeComis > 0)
-    alertItems.push(`<div class="alerta-item"><span class="alerta-dot" style="background:var(--purple)"></span><span>Comisiones pendientes de pago: <b style="color:var(--purple)">${S(totalDebeComis)}</b></span></div>`);
+
+  // 3. Pases sin cobrar a agencia — por movimiento
+  if (totalPendCompra > 0) {
+    const movsPend = allMovs.filter(m=>m.id_contacto_pase && !m.id_agencia_comprada && m.estado!=='Cancelado' && parseFloat(m.monto_total)>0);
+    const detPend = movsPend.map(m=>
+      `<div class="alrt-row">
+        <span>${m.nombre_contacto_pase||m.id_contacto_pase} · <span style="opacity:.6;">${m._op?(m._op.nombre_bote||m._op.id_bote):'—'}</span></span>
+        <span style="color:var(--amber);font-weight:700;">${m.cant_pax} PAX · ${S(m.monto_total)}</span>
+      </div>`
+    ).join('') || '<div class="alrt-row" style="color:var(--text-muted);">Sin detalle disponible</div>';
+    const cntPend = aliadoArr.filter(([,d])=>d.pendCompra>0).length;
+    alertItems.push(alerta('var(--amber)',
+      `${movsPend.length} pase${movsPend.length>1?'s':''} sin cobrar a agencia — <b style="color:var(--amber)">${S(totalPendCompra)}</b>`,
+      detPend));
+  }
+
+  // 4. Comisiones pendientes — por comisionado
+  if (totalDebeComis > 0) {
+    const detComis = comArr.filter(([,d])=>d.comision-d.pagado>0.01).map(([nombre,d])=>{
+      const pend = d.comision - d.pagado;
+      return `<div class="alrt-row"><span>👤 ${nombre} · ${d.pax} pax</span><span style="color:var(--purple);font-weight:700;">${S(pend)} pendiente${d.pagado>0?' ('+S(d.pagado)+' pagado)':''}</span></div>`;
+    }).join('');
+    alertItems.push(alerta('var(--purple)',
+      `Comisiones pendientes de pago: <b style="color:var(--purple)">${S(totalDebeComis)}</b>`,
+      detComis));
+  }
 
   const alertaHtml = alertItems.length > 0
-    ? `<div class="alerta-box">${alertItems.join('')}</div>`
+    ? `<div class="alerta-box" style="gap:10px;">${alertItems.join('')}</div>`
     : `<div class="alerta-box alerta-verde"><div class="alerta-item"><span class="alerta-dot" style="background:var(--green)"></span><span style="color:var(--green);font-weight:700;">✓ Turno limpio — sin cobros ni pases pendientes</span></div></div>`;
 
   // ── Las 4 preguntas (expandibles) ───────────────────────────
