@@ -1998,6 +1998,208 @@ const ViewLanchas = {
       }
     }
 
+    // ── Movimientos CRUD ─────────────────────────────────────
+    const TIPOS_SIN_COBRO = ['Aliado(PaseIn)', 'Pase_Recibido', 'Aliado'];
+    const contactosOps = ref([]);
+    const movFormModal = ref({ show: false, mode: 'crear', saving: false, error: '',
+      id_mov: '', id_operacion: '', tipo: 'Directo',
+      id_contacto: '', nombre_contacto: '', cant_pax: '', monto_total: '', adicionales: '' });
+    const pagoModal = ref({ show: false, saving: false, error: '', modo: 'cobro',
+      id_mov: '', id_operacion: '', id_contacto: '', nombre_contacto: '',
+      monto: '', metodo_pago: 'Efectivo', comentarios: '' });
+    const derivarModal = ref({ show: false, mode: 'derivar', saving: false, error: '',
+      id_mov: '', id_operacion: '', cant_pax: 0, nombre_contacto: '',
+      id_aliado: '', monto_compra: '' });
+
+    function tipoEsCobrable(tipo) {
+      return !TIPOS_SIN_COBRO.includes(String(tipo || ''));
+    }
+
+    function calcPagoEstado(mov, op) {
+      if (!tipoEsCobrable(mov.tipo)) return { cobrable: false, estado: 'sin_cobro', pendiente: 0, total: 0, pagado: 0 };
+      const total   = parseFloat(mov.monto_total) || 0;
+      const pagado  = movPayments(op, mov.id_mov).reduce((s, c) => s + (parseFloat(c.monto) || 0), 0);
+      const pendiente = Math.max(0, total - pagado);
+      const estado  = pagado <= 0 ? 'por_cobrar' : pendiente > 0.01 ? 'pagado_parcial' : 'pagado_completo';
+      return { cobrable: true, estado, pendiente, total, pagado };
+    }
+
+    function pagadoAgencia(selMov) {
+      return (selMov.op.caja || []).some(c =>
+        String(c.id_movimiento || '') === String(selMov.mov.id_mov) && c.categoria === 'Pago Agencia'
+      );
+    }
+
+    async function loadContactos() {
+      if (contactosOps.value.length) return;
+      const r = await apiGet('listar_contactos_ops');
+      if (r.ok) contactosOps.value = r.data;
+    }
+
+    function openMovFormModal(op, mov = null) {
+      loadContactos();
+      if (mov) {
+        movFormModal.value = { show: true, mode: 'editar', saving: false, error: '',
+          id_mov: mov.id_mov, id_operacion: op.id,
+          tipo: mov.tipo, id_contacto: mov.id_contacto,
+          nombre_contacto: mov.nombre_contacto,
+          cant_pax: String(mov.cant_pax),
+          monto_total: String(mov.monto_total),
+          adicionales: mov.adicionales || '' };
+      } else {
+        movFormModal.value = { show: true, mode: 'crear', saving: false, error: '',
+          id_mov: '', id_operacion: op.id,
+          tipo: 'Directo', id_contacto: '', nombre_contacto: '',
+          cant_pax: '', monto_total: '', adicionales: '' };
+      }
+    }
+
+    async function guardarMov() {
+      const m = movFormModal.value;
+      if (!m.id_contacto || !m.cant_pax || !m.monto_total) {
+        m.error = 'Contacto, PAX y monto son obligatorios'; return;
+      }
+      m.saving = true; m.error = '';
+      try {
+        const session = JSON.parse(localStorage.getItem('ps_session') || '{}');
+        const pax   = parseInt(m.cant_pax) || 0;
+        const monto = parseFloat(m.monto_total) || 0;
+        const con   = contactosOps.value.find(c => c.id === m.id_contacto);
+        const body  = {
+          action: m.mode === 'crear' ? 'crear_movimiento' : 'editar_movimiento',
+          id_operacion: m.id_operacion,
+          tipo: m.tipo,
+          id_contacto: m.id_contacto,
+          nombre_contacto: con?.nombre || m.id_contacto,
+          cant_pax: pax,
+          precio_unitario: pax > 0 ? (monto / pax).toFixed(2) : '0',
+          monto_total: monto,
+          adicionales: m.adicionales,
+          operador: session.nombre || 'PS'
+        };
+        if (m.mode === 'editar') body.id_mov = m.id_mov;
+        const r = await apiPost(body);
+        if (!r.ok) throw new Error(r.error || 'Error al guardar');
+        movFormModal.value.show = false;
+        selectedMov.value = null;
+        const fecha = currentFecha.value;
+        cache.value = { ...cache.value, [fecha]: { loaded: false, loading: false } };
+        loadFecha(fecha);
+      } catch(e) { m.error = e.message; }
+      finally    { m.saving = false; }
+    }
+
+    async function confirmarCancelarMov(id_mov) {
+      if (!confirm('¿Cancelar este movimiento? Se marcará como Cancelado.')) return;
+      try {
+        const r = await apiPost({ action: 'cancelar_movimiento', id: id_mov });
+        if (!r.ok) throw new Error(r.error || 'Error');
+        selectedMov.value = null;
+        const fecha = currentFecha.value;
+        cache.value = { ...cache.value, [fecha]: { loaded: false, loading: false } };
+        loadFecha(fecha);
+      } catch(e) { alert(e.message); }
+    }
+
+    function openPagoModal(selMov, modo = 'cobro') {
+      const { mov, op } = selMov;
+      const paid = movPayments(op, mov.id_mov).reduce((s, c) => s + (parseFloat(c.monto) || 0), 0);
+      const pendiente = Math.max(0, (parseFloat(mov.monto_total) || 0) - paid);
+      pagoModal.value = { show: true, saving: false, error: '', modo,
+        id_mov: mov.id_mov, id_operacion: op.id,
+        id_contacto: modo === 'pago_agencia' ? mov.id_agencia_comprada : mov.id_contacto,
+        nombre_contacto: modo === 'pago_agencia' ? (mov.id_agencia_comprada || '') : mov.nombre_contacto,
+        monto: modo === 'pago_agencia'
+          ? String(parseFloat(mov.monto_comprado) || 0)
+          : (pendiente > 0 ? pendiente.toFixed(2) : (parseFloat(mov.monto_total) || 0).toFixed(2)),
+        metodo_pago: 'Efectivo', comentarios: '' };
+    }
+
+    async function guardarPago() {
+      const p = pagoModal.value;
+      if (!p.monto || parseFloat(p.monto) <= 0) { p.error = 'Ingresa un monto válido'; return; }
+      p.saving = true; p.error = '';
+      try {
+        const session = JSON.parse(localStorage.getItem('ps_session') || '{}');
+        const r = await apiPost({
+          action: 'registrar_pago',
+          id_operacion:  p.id_operacion,
+          id_contacto:   p.id_contacto,
+          id_movimiento: p.id_mov,
+          categoria:     p.modo === 'pago_agencia' ? 'Pago Agencia' : 'Cobro',
+          monto:         parseFloat(p.monto),
+          metodo_pago:   p.metodo_pago,
+          comentarios:   p.comentarios,
+          operador:      session.nombre || 'PS'
+        });
+        if (!r.ok) throw new Error(r.error || 'Error');
+        pagoModal.value.show = false;
+        selectedMov.value = null;
+        const fecha = currentFecha.value;
+        cache.value = { ...cache.value, [fecha]: { loaded: false, loading: false } };
+        loadFecha(fecha);
+      } catch(e) { p.error = e.message; }
+      finally    { p.saving = false; }
+    }
+
+    function openDerivarModal(selMov) {
+      loadContactos();
+      derivarModal.value = { show: true, mode: 'derivar', saving: false, error: '',
+        id_mov: selMov.mov.id_mov, id_operacion: selMov.op.id,
+        cant_pax: selMov.mov.cant_pax,
+        nombre_contacto: selMov.mov.nombre_contacto,
+        id_aliado: '', monto_compra: '' };
+    }
+
+    function openConvertirModal(selMov) {
+      loadContactos();
+      derivarModal.value = { show: true, mode: 'convertir', saving: false, error: '',
+        id_mov: selMov.mov.id_mov, id_operacion: selMov.op.id,
+        cant_pax: selMov.mov.cant_pax,
+        nombre_contacto: selMov.mov.nombre_contacto,
+        id_aliado: selMov.mov.id_contacto_pase || '',
+        monto_compra: String(parseFloat(selMov.mov.monto_total) || '') };
+    }
+
+    async function guardarDerivarConvertir() {
+      const d = derivarModal.value;
+      if (!d.id_aliado) { d.error = 'Selecciona el aliado/agencia'; return; }
+      if (d.mode === 'convertir' && (!d.monto_compra || parseFloat(d.monto_compra) <= 0)) {
+        d.error = 'Ingresa el monto de la compra'; return;
+      }
+      d.saving = true; d.error = '';
+      try {
+        const session = JSON.parse(localStorage.getItem('ps_session') || '{}');
+        let r;
+        if (d.mode === 'derivar') {
+          r = await apiPost({ action: 'derivar_pase_ps',
+            id_mov: d.id_mov, id_aliado: d.id_aliado, operador: session.nombre || 'PS' });
+        } else {
+          r = await apiPost({ action: 'convertir_pase_compra',
+            id_mov: d.id_mov, id_agencia: d.id_aliado, monto: parseFloat(d.monto_compra) });
+        }
+        if (!r.ok) throw new Error(r.error || 'Error');
+        derivarModal.value.show = false;
+        selectedMov.value = null;
+        const fecha = currentFecha.value;
+        cache.value = { ...cache.value, [fecha]: { loaded: false, loading: false } };
+        loadFecha(fecha);
+      } catch(e) { d.error = e.message; }
+      finally    { d.saving = false; }
+    }
+
+    async function confirmarAnularPaseMov(id_mov) {
+      if (!confirm('¿Anular este pase? El movimiento volverá a Embarcado.')) return;
+      try {
+        const r = await apiPost({ action: 'anular_pase_ps', id_mov });
+        if (!r.ok) throw new Error(r.error || 'Error');
+        selectedMov.value = null;
+        const fecha = currentFecha.value;
+        cache.value = { ...cache.value, [fecha]: { loaded: false, loading: false } };
+        loadFecha(fecha);
+      } catch(e) { alert(e.message); }
+    }
+
     const datesByMonth = computed(() => {
       const groups = {};
       fechas.value.forEach(f => {
@@ -2057,7 +2259,13 @@ const ViewLanchas = {
              selectedMov, contactColorByTipo, movPayments, montoPayStyle, openMovModal, allCajaDia,
              selectedPase, pagoStatusStyle, openPaseModal,
              isIngreso, metodoIcon, cajaRowStyle, selectedCajaDia,
-             opModal, embarcaciones, personalOps, isAdmin, openOpModal, guardarOp, confirmarAnularOp };
+             opModal, embarcaciones, personalOps, isAdmin, openOpModal, guardarOp, confirmarAnularOp,
+             contactosOps, movFormModal, pagoModal, derivarModal,
+             tipoEsCobrable, calcPagoEstado, pagadoAgencia,
+             openMovFormModal, guardarMov, confirmarCancelarMov,
+             openPagoModal, guardarPago,
+             openDerivarModal, openConvertirModal, guardarDerivarConvertir,
+             confirmarAnularPaseMov };
   },
   template: `
     <div>
@@ -2289,8 +2497,13 @@ const ViewLanchas = {
                         <span style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
                           :style="'color:'+contactColorByTipo(m.tipo)">{{ m.nombre_contacto }}</span>
                       </div>
-                      <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
+                      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
                         <span style="font-size:12px;color:var(--text-muted);">{{ m.cant_pax }} pax</span>
+                        <span v-if="tipoEsCobrable(m.tipo) && m.estado !== 'Cancelado'"
+                          style="font-size:11px;font-weight:900;"
+                          :style="calcPagoEstado(m, op).estado === 'pagado_completo' ? 'color:#4ade80' : calcPagoEstado(m, op).estado === 'pagado_parcial' ? 'color:#fbbf24' : 'color:#f87171'">
+                          {{ calcPagoEstado(m, op).estado === 'pagado_completo' ? '✓$' : calcPagoEstado(m, op).estado === 'pagado_parcial' ? '½$' : '$' }}
+                        </span>
                         <span style="font-size:14px;font-weight:800;" :style="montoPayStyle(op,m)">S/ {{ fmt(m.monto_total) }}</span>
                         <span style="color:var(--text-muted);font-size:14px;">›</span>
                       </div>
@@ -2299,6 +2512,14 @@ const ViewLanchas = {
                       <span style="font-size:11px;color:var(--text-muted);">{{ totalMovs(op.movimientos||[]).pax }} pax total</span>
                       <span style="font-size:12px;font-weight:800;color:var(--gold);">S/ {{ fmt(totalMovs(op.movimientos||[]).monto) }}</span>
                     </div>
+                  </div>
+                  <!-- Agregar movimiento -->
+                  <div v-if="op.estado === 'Abierta' || op.estado === 'En_Viaje'"
+                    style="padding-top:10px;border-top:1px solid var(--border);margin-top:4px;">
+                    <button @click.stop="openMovFormModal(op)"
+                      style="width:100%;padding:8px;border-radius:8px;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.25);color:var(--gold);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-weight:700;">
+                      ＋ Agregar movimiento
+                    </button>
                   </div>
                   <!-- Anular operación (solo admin) -->
                   <div v-if="isAdmin" style="padding-top:10px;border-top:1px solid var(--border);margin-top:4px;">
@@ -2390,6 +2611,258 @@ const ViewLanchas = {
                     </tr>
                   </tbody>
                 </table>
+              </div>
+
+              <!-- Acciones del movimiento -->
+              <div v-if="selectedMov.mov.estado !== 'Cancelado'" style="display:flex;flex-wrap:wrap;gap:8px;border-top:1px solid var(--border);padding-top:12px;">
+                <button v-if="isAdmin"
+                  @click="openMovFormModal(selectedMov.op, selectedMov.mov);selectedMov=null"
+                  style="flex:1;min-width:130px;padding:9px 12px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);color:var(--gold);">
+                  ✏ Editar
+                </button>
+                <button v-if="tipoEsCobrable(selectedMov.mov.tipo)"
+                  @click="openPagoModal(selectedMov,'cobro');selectedMov=null"
+                  style="flex:1;min-width:130px;padding:9px 12px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(74,222,128,0.12);border:1px solid rgba(74,222,128,0.3);color:#4ade80;">
+                  💰 Cobrar
+                </button>
+                <button v-if="selectedMov.mov.tipo==='Directo' && !selectedMov.mov.id_contacto_pase"
+                  @click="openDerivarModal(selectedMov);selectedMov=null"
+                  style="flex:1;min-width:130px;padding:9px 12px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(59,130,246,0.12);border:1px solid rgba(59,130,246,0.3);color:#60a5fa;">
+                  → Derivar pase
+                </button>
+                <button v-if="selectedMov.mov.id_contacto_pase && !selectedMov.mov.id_agencia_comprada"
+                  @click="openConvertirModal(selectedMov);selectedMov=null"
+                  style="flex:1;min-width:130px;padding:9px 12px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(168,85,247,0.12);border:1px solid rgba(168,85,247,0.3);color:#c084fc;">
+                  🏢 Convertir
+                </button>
+                <button v-if="selectedMov.mov.id_contacto_pase && isAdmin"
+                  @click="confirmarAnularPaseMov(selectedMov.mov.id_mov);selectedMov=null"
+                  style="flex:1;min-width:130px;padding:9px 12px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.25);color:#fbbf24;">
+                  ↩ Anular pase
+                </button>
+                <button v-if="selectedMov.mov.id_agencia_comprada && !pagadoAgencia(selectedMov) && isAdmin"
+                  @click="openPagoModal(selectedMov,'pago_agencia');selectedMov=null"
+                  style="flex:1;min-width:130px;padding:9px 12px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);color:#f87171;">
+                  💵 Pago agencia
+                </button>
+                <button v-if="isAdmin"
+                  @click="confirmarCancelarMov(selectedMov.mov.id_mov);selectedMov=null"
+                  style="width:100%;padding:9px 12px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);color:#f87171;">
+                  🗑 Cancelar movimiento
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </teleport>
+
+      <!-- Mov Form Modal (crear / editar movimiento) -->
+      <teleport to="body">
+        <div v-if="movFormModal.show" class="date-picker-overlay" @click.self="movFormModal.show=false">
+          <div class="date-picker-modal" style="max-width:400px;">
+            <div class="date-picker-header">
+              <span style="font-weight:800;">{{ movFormModal.mode==='crear' ? '＋ Nuevo Movimiento' : '✏ Editar Movimiento' }}</span>
+              <button @click="movFormModal.show=false" style="font-size:18px;color:var(--text-muted);">✕</button>
+            </div>
+            <div style="overflow-y:auto;max-height:70vh;padding:16px;display:flex;flex-direction:column;gap:14px;">
+
+              <!-- Tipo -->
+              <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text-muted);">
+                Tipo de movimiento *
+                <select v-model="movFormModal.tipo"
+                  style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);appearance:none;">
+                  <option>Directo</option>
+                  <option>Aliado(PaseIn)</option>
+                  <option>Pase_Recibido</option>
+                  <option>Aliado</option>
+                </select>
+              </label>
+
+              <!-- Contacto -->
+              <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text-muted);">
+                Contacto *
+                <select v-model="movFormModal.id_contacto"
+                  @change="() => { const c = contactosOps.find(x => x.id === movFormModal.id_contacto); if(c) { movFormModal.nombre_contacto = c.nombre; if(movFormModal.cant_pax) movFormModal.monto_total = (parseFloat(c.precio||0) * parseInt(movFormModal.cant_pax||0)).toFixed(2); } }"
+                  style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);appearance:none;">
+                  <option value="">— seleccionar —</option>
+                  <option v-for="c in contactosOps" :key="c.id" :value="c.id">{{ c.nombre }}{{ c.tipo ? ' ('+c.tipo+')' : '' }}</option>
+                </select>
+                <span v-if="movFormModal.id_contacto" style="font-size:11px;color:var(--text-muted);">
+                  Precio ref: S/ {{ fmt(contactosOps.find(x=>x.id===movFormModal.id_contacto)?.precio || 0) }}
+                </span>
+              </label>
+
+              <!-- PAX + Monto total -->
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text-muted);">
+                  PAX *
+                  <input type="number" v-model="movFormModal.cant_pax" min="1" placeholder="0"
+                    @change="() => { const c = contactosOps.find(x => x.id === movFormModal.id_contacto); if(c && movFormModal.cant_pax) movFormModal.monto_total = (parseFloat(c.precio||0) * parseInt(movFormModal.cant_pax||0)).toFixed(2); }"
+                    style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);" />
+                </label>
+                <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text-muted);">
+                  Monto total (S/) *
+                  <input type="number" v-model="movFormModal.monto_total" min="0" step="0.01" placeholder="0.00"
+                    style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);" />
+                </label>
+              </div>
+
+              <!-- Adicionales -->
+              <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text-muted);">
+                Notas / adicionales
+                <input type="text" v-model="movFormModal.adicionales" placeholder="Ej: incluye snorkel, traslado…"
+                  style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);" />
+              </label>
+
+              <!-- Error -->
+              <div v-if="movFormModal.error"
+                style="padding:10px 12px;border-radius:8px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);font-size:13px;color:#f87171;">
+                ⚠ {{ movFormModal.error }}
+              </div>
+
+              <!-- Botones -->
+              <div style="display:flex;gap:10px;padding-top:4px;">
+                <button @click="movFormModal.show=false"
+                  style="flex:1;padding:10px;border-radius:10px;background:transparent;border:1px solid var(--border);font-size:14px;cursor:pointer;color:var(--text-muted);">
+                  Cancelar
+                </button>
+                <button @click="guardarMov()" :disabled="movFormModal.saving"
+                  style="flex:2;padding:10px;border-radius:10px;background:var(--gold);border:none;font-size:14px;font-weight:800;color:#1a0a05;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;"
+                  :style="movFormModal.saving?'opacity:0.6;cursor:default':''">
+                  <span v-if="movFormModal.saving" class="spin" style="width:14px;height:14px;border-color:rgba(26,10,5,0.3);border-top-color:#1a0a05;"></span>
+                  {{ movFormModal.saving ? 'Guardando…' : (movFormModal.mode==='crear' ? 'Registrar' : 'Guardar cambios') }}
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </teleport>
+
+      <!-- Pago Modal (cobro / pago agencia) -->
+      <teleport to="body">
+        <div v-if="pagoModal.show" class="date-picker-overlay" @click.self="pagoModal.show=false">
+          <div class="date-picker-modal" style="max-width:380px;">
+            <div class="date-picker-header" :style="pagoModal.modo==='cobro' ? 'background:rgba(74,222,128,0.12);border-bottom:1px solid rgba(74,222,128,0.25);' : 'background:rgba(239,68,68,0.1);border-bottom:1px solid rgba(239,68,68,0.25);'">
+              <span style="font-weight:800;">{{ pagoModal.modo==='cobro' ? '💰 Registrar cobro' : '💵 Registrar pago agencia' }}</span>
+              <button @click="pagoModal.show=false" style="font-size:18px;color:var(--text-muted);">✕</button>
+            </div>
+            <div style="overflow-y:auto;max-height:70vh;padding:16px;display:flex;flex-direction:column;gap:14px;">
+
+              <!-- Info contacto -->
+              <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:4px;">
+                <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.07em;">{{ pagoModal.modo==='cobro' ? 'Cliente' : 'Agencia' }}</div>
+                <div style="font-weight:800;font-size:15px;">{{ pagoModal.nombre_contacto || pagoModal.id_contacto }}</div>
+                <div style="font-size:11px;color:var(--text-muted);">Mov: {{ pagoModal.id_mov }}</div>
+              </div>
+
+              <!-- Monto -->
+              <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text-muted);">
+                Monto (S/) *
+                <input type="number" v-model="pagoModal.monto" min="0.01" step="0.01" placeholder="0.00"
+                  style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:16px;color:var(--text);font-weight:700;" />
+              </label>
+
+              <!-- Método de pago -->
+              <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text-muted);">
+                Método de pago
+                <select v-model="pagoModal.metodo_pago"
+                  style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);appearance:none;">
+                  <option>Efectivo</option>
+                  <option>Tarjeta</option>
+                  <option>Transferencia</option>
+                  <option>Yape</option>
+                  <option>Plin</option>
+                  <option>Otro</option>
+                </select>
+              </label>
+
+              <!-- Comentarios -->
+              <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text-muted);">
+                Nota / comentario
+                <input type="text" v-model="pagoModal.comentarios" placeholder="Opcional…"
+                  style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);" />
+              </label>
+
+              <!-- Error -->
+              <div v-if="pagoModal.error"
+                style="padding:10px 12px;border-radius:8px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);font-size:13px;color:#f87171;">
+                ⚠ {{ pagoModal.error }}
+              </div>
+
+              <!-- Botones -->
+              <div style="display:flex;gap:10px;padding-top:4px;">
+                <button @click="pagoModal.show=false"
+                  style="flex:1;padding:10px;border-radius:10px;background:transparent;border:1px solid var(--border);font-size:14px;cursor:pointer;color:var(--text-muted);">
+                  Cancelar
+                </button>
+                <button @click="guardarPago()" :disabled="pagoModal.saving"
+                  style="flex:2;padding:10px;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;border:none;"
+                  :style="pagoModal.saving ? 'opacity:0.6;cursor:default;background:var(--gold);color:#1a0a05;' : (pagoModal.modo==='cobro' ? 'background:#4ade80;color:#052e16;' : 'background:#f87171;color:#fff;')">
+                  <span v-if="pagoModal.saving" class="spin" style="width:14px;height:14px;border-color:rgba(0,0,0,0.2);border-top-color:#000;"></span>
+                  {{ pagoModal.saving ? 'Guardando…' : (pagoModal.modo==='cobro' ? 'Confirmar cobro' : 'Confirmar pago') }}
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </teleport>
+
+      <!-- Derivar / Convertir Pase Modal -->
+      <teleport to="body">
+        <div v-if="derivarModal.show" class="date-picker-overlay" @click.self="derivarModal.show=false">
+          <div class="date-picker-modal" style="max-width:380px;">
+            <div class="date-picker-header" style="background:rgba(59,130,246,0.1);border-bottom:1px solid rgba(59,130,246,0.25);">
+              <span style="font-weight:800;">{{ derivarModal.mode==='derivar' ? '→ Derivar pase' : '🏢 Convertir a compra' }}</span>
+              <button @click="derivarModal.show=false" style="font-size:18px;color:var(--text-muted);">✕</button>
+            </div>
+            <div style="overflow-y:auto;max-height:70vh;padding:16px;display:flex;flex-direction:column;gap:14px;">
+
+              <!-- Info movimiento origen -->
+              <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:4px;">
+                <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.07em;">Movimiento origen</div>
+                <div style="font-weight:800;font-size:15px;">{{ derivarModal.nombre_contacto }}</div>
+                <div style="font-size:12px;color:var(--text-muted);">{{ derivarModal.cant_pax }} PAX · {{ derivarModal.id_mov }}</div>
+              </div>
+
+              <!-- Aliado / Agencia -->
+              <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text-muted);">
+                {{ derivarModal.mode==='derivar' ? 'Aliado destino *' : 'Agencia que compra *' }}
+                <select v-model="derivarModal.id_aliado"
+                  style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);appearance:none;">
+                  <option value="">— seleccionar —</option>
+                  <option v-for="c in contactosOps" :key="c.id" :value="c.id">{{ c.nombre }}{{ c.tipo ? ' ('+c.tipo+')' : '' }}</option>
+                </select>
+              </label>
+
+              <!-- Monto compra (solo modo convertir) -->
+              <label v-if="derivarModal.mode==='convertir'"
+                style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text-muted);">
+                Monto de la compra (S/) *
+                <input type="number" v-model="derivarModal.monto_compra" min="0.01" step="0.01" placeholder="0.00"
+                  style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:16px;color:var(--text);font-weight:700;" />
+              </label>
+
+              <!-- Error -->
+              <div v-if="derivarModal.error"
+                style="padding:10px 12px;border-radius:8px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);font-size:13px;color:#f87171;">
+                ⚠ {{ derivarModal.error }}
+              </div>
+
+              <!-- Botones -->
+              <div style="display:flex;gap:10px;padding-top:4px;">
+                <button @click="derivarModal.show=false"
+                  style="flex:1;padding:10px;border-radius:10px;background:transparent;border:1px solid var(--border);font-size:14px;cursor:pointer;color:var(--text-muted);">
+                  Cancelar
+                </button>
+                <button @click="guardarDerivarConvertir()" :disabled="derivarModal.saving"
+                  style="flex:2;padding:10px;border-radius:10px;background:rgba(59,130,246,0.9);border:none;font-size:14px;font-weight:800;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;"
+                  :style="derivarModal.saving?'opacity:0.6;cursor:default':''">
+                  <span v-if="derivarModal.saving" class="spin" style="width:14px;height:14px;border-color:rgba(255,255,255,0.3);border-top-color:#fff;"></span>
+                  {{ derivarModal.saving ? 'Guardando…' : (derivarModal.mode==='derivar' ? 'Derivar pase' : 'Confirmar compra') }}
+                </button>
               </div>
 
             </div>

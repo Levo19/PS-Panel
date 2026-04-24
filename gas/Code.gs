@@ -20,6 +20,9 @@ function doGet(e) {
       case 'listar_personal_ops':
         data = listarPersonalOps();
         break;
+      case 'listar_contactos_ops':
+        data = listarContactosOps();
+        break;
       case 'dashboard':
         const fecha = e.parameter.fecha || hoy();
         data = getDashboardKPIs(fecha);
@@ -61,7 +64,14 @@ function doPost(e) {
       case 'guardar_config':        data = guardarConfig(body.clave, body.valor); break;
       case 'crear_operacion':       data = crearOperacion(body); break;
       case 'actualizar_operacion':  data = actualizarOperacion(body); break;
-      case 'anular_operacion':      data = anularOperacion(body.id); break;
+      case 'anular_operacion':       data = anularOperacion(body.id); break;
+      case 'crear_movimiento':       data = crearMovimiento(body); break;
+      case 'editar_movimiento':      data = editarMovimiento(body); break;
+      case 'cancelar_movimiento':    data = cancelarMovimiento(body.id); break;
+      case 'derivar_pase_ps':        data = derivarPasePS(body); break;
+      case 'anular_pase_ps':         data = anularPasePS(body); break;
+      case 'convertir_pase_compra':  data = convertirPaseCompra(body); break;
+      case 'registrar_pago':         data = registrarPago(body); break;
       default: data = { ok: false, error: 'Acción desconocida: ' + accion };
     }
     return jsonResponse({ ok: true, data });
@@ -466,4 +476,217 @@ function anularOperacion(id) {
     return { ok: true };
   }
   throw new Error('Operación no encontrada: ' + id);
+}
+
+// ── Catálogo Contactos ────────────────────────────────────────
+function listarContactosOps() {
+  const sh = getSS_OPS().getSheetByName('Contactos');
+  if (!sh) return [];
+  const d = sh.getDataRange().getValues();
+  const result = [];
+  for (let i = 1; i < d.length; i++) {
+    if (!d[i][0]) continue;
+    result.push({
+      id:     String(d[i][0]),
+      nombre: String(d[i][1] || ''),
+      tipo:   String(d[i][2] || ''),
+      precio: parseFloat(d[i][3]) || 0
+    });
+  }
+  return result;
+}
+
+// ── CRUD Movimientos ──────────────────────────────────────────
+// Columnas Movimientos:
+// col 1  id_mov            col 2  id_operacion      col 3  tipo_movimiento
+// col 4  id_contacto       col 5  nombreContacto    col 6  cant_pax
+// col 7  precio_unitario   col 8  monto_total        col 9  adicionales
+// col 10 operador          col 11 timestamp          col 12 estado_movimiento
+// col 13 Id_contactoPase   col 14 id_agencia_comprada col 15 monto_comprado
+
+function _checkCapacidadOps(ss, id_operacion, exclude_mov_id) {
+  const shM = ss.getSheetByName('Movimientos');
+  const shO = ss.getSheetByName('Operaciones');
+  const shE = ss.getSheetByName('Embarcaciones');
+  let ocupados = 0, capacidad = 999, idBote = '';
+  if (shO) {
+    const d = shO.getDataRange().getValues();
+    for (let i = 1; i < d.length; i++) {
+      if (String(d[i][0]) === String(id_operacion)) { idBote = String(d[i][3]); break; }
+    }
+  }
+  if (idBote && shE) {
+    const d = shE.getDataRange().getValues();
+    for (let i = 1; i < d.length; i++) {
+      if (String(d[i][0]) === idBote) { capacidad = parseInt(d[i][2]) || 999; break; }
+    }
+  }
+  if (shM) {
+    const d = shM.getDataRange().getValues();
+    for (let i = 1; i < d.length; i++) {
+      if (String(d[i][1]) !== String(id_operacion)) continue;
+      if (exclude_mov_id && String(d[i][0]) === String(exclude_mov_id)) continue;
+      const est = String(d[i][11] || '').toLowerCase();
+      if (!est.includes('cancelado') && !est.includes('pasado')) ocupados += parseInt(d[i][5]) || 0;
+    }
+  }
+  return { ocupados, capacidad };
+}
+
+function crearMovimiento(body) {
+  const ss  = getSS_OPS();
+  const shO = ss.getSheetByName('Operaciones');
+  const shM = ss.getSheetByName('Movimientos');
+  if (!shM) throw new Error('Sheet Movimientos no encontrada');
+  if (shO) {
+    const d = shO.getDataRange().getValues();
+    for (let i = 1; i < d.length; i++) {
+      if (String(d[i][0]) === String(body.id_operacion)) {
+        const est = String(d[i][6] || '');
+        if (est !== 'Abierta') return { ok: false, error: 'La operacion no esta Abierta (' + est + ').' };
+        break;
+      }
+    }
+  }
+  const cap = _checkCapacidadOps(ss, body.id_operacion, null);
+  if (cap.ocupados + (parseInt(body.cant_pax) || 0) > cap.capacidad) {
+    return { ok: false, error: 'Sin cupos. Quedan ' + (cap.capacidad - cap.ocupados) + '.' };
+  }
+  const id = 'MOV-' + Date.now().toString().slice(-6);
+  shM.appendRow([
+    id, body.id_operacion,
+    body.tipo || 'Directo',
+    body.id_contacto || '',
+    body.nombre_contacto || '',
+    parseInt(body.cant_pax) || 0,
+    parseFloat(body.precio_unitario) || 0,
+    parseFloat(body.monto_total) || 0,
+    body.adicionales || '',
+    body.operador || 'PS',
+    new Date(), 'Embarcado', ''
+  ]);
+  SpreadsheetApp.flush();
+  return { ok: true, id };
+}
+
+function editarMovimiento(body) {
+  const ss  = getSS_OPS();
+  const shM = ss.getSheetByName('Movimientos');
+  if (!shM) throw new Error('Sheet Movimientos no encontrada');
+  const d = shM.getDataRange().getValues();
+  for (let i = 1; i < d.length; i++) {
+    if (String(d[i][0]) !== String(body.id_mov)) continue;
+    const cap = _checkCapacidadOps(ss, String(d[i][1]), body.id_mov);
+    if (cap.ocupados + (parseInt(body.cant_pax) || 0) > cap.capacidad) {
+      return { ok: false, error: 'Sin cupos. Quedan ' + (cap.capacidad - cap.ocupados) + '.' };
+    }
+    const row = i + 1;
+    shM.getRange(row, 3).setValue(body.tipo || d[i][2]);
+    shM.getRange(row, 4).setValue(body.id_contacto !== undefined ? body.id_contacto : d[i][3]);
+    shM.getRange(row, 5).setValue(body.nombre_contacto !== undefined ? body.nombre_contacto : d[i][4]);
+    shM.getRange(row, 6).setValue(parseInt(body.cant_pax) || d[i][5]);
+    shM.getRange(row, 7).setValue(parseFloat(body.precio_unitario) || d[i][6]);
+    shM.getRange(row, 8).setValue(parseFloat(body.monto_total) || d[i][7]);
+    const estAct = String(d[i][11] || '');
+    if (!estAct.includes('(Editado)')) shM.getRange(row, 12).setValue(estAct + ' (Editado)');
+    SpreadsheetApp.flush();
+    return { ok: true };
+  }
+  return { ok: false, error: 'Movimiento no encontrado.' };
+}
+
+function cancelarMovimiento(id) {
+  const shM = getSS_OPS().getSheetByName('Movimientos');
+  if (!shM) throw new Error('Sheet Movimientos no encontrada');
+  const d = shM.getDataRange().getValues();
+  for (let i = 1; i < d.length; i++) {
+    if (String(d[i][0]) !== String(id)) continue;
+    shM.getRange(i + 1, 12).setValue('Cancelado');
+    SpreadsheetApp.flush();
+    return { ok: true };
+  }
+  return { ok: false, error: 'Movimiento no encontrado.' };
+}
+
+function derivarPasePS(body) {
+  const shM = getSS_OPS().getSheetByName('Movimientos');
+  if (!shM) throw new Error('Sheet Movimientos no encontrada');
+  const d = shM.getDataRange().getValues();
+  for (let i = 1; i < d.length; i++) {
+    if (String(d[i][0]) !== String(body.id_mov)) continue;
+    const row = i + 1;
+    shM.getRange(row, 3).setValue('Aliado(PaseOut)');
+    shM.getRange(row, 10).setValue(body.operador || 'PS');
+    shM.getRange(row, 11).setValue(new Date());
+    shM.getRange(row, 12).setValue('Pasado');
+    shM.getRange(row, 13).setValue(body.id_aliado || '');
+    SpreadsheetApp.flush();
+    return { ok: true };
+  }
+  return { ok: false, error: 'Movimiento no encontrado.' };
+}
+
+function anularPasePS(body) {
+  const ss  = getSS_OPS();
+  const shM = ss.getSheetByName('Movimientos');
+  if (!shM) throw new Error('Sheet Movimientos no encontrada');
+  const d = shM.getDataRange().getValues();
+  for (let i = 1; i < d.length; i++) {
+    if (String(d[i][0]) !== String(body.id_mov)) continue;
+    let tipo = 'Directo';
+    const idCon = String(d[i][3] || '');
+    if (idCon) {
+      const shC = ss.getSheetByName('Contactos');
+      if (shC) {
+        const cD = shC.getDataRange().getValues();
+        for (let j = 1; j < cD.length; j++) {
+          if (String(cD[j][0]) === idCon) { tipo = String(cD[j][2] || 'Directo'); break; }
+        }
+      }
+    }
+    const row = i + 1;
+    shM.getRange(row, 3).setValue(tipo);
+    shM.getRange(row, 12).setValue('Embarcado');
+    shM.getRange(row, 13).setValue('');
+    SpreadsheetApp.flush();
+    return { ok: true, tipo };
+  }
+  return { ok: false, error: 'Movimiento no encontrado.' };
+}
+
+function convertirPaseCompra(body) {
+  const shM = getSS_OPS().getSheetByName('Movimientos');
+  if (!shM) throw new Error('Sheet Movimientos no encontrada');
+  const d = shM.getDataRange().getValues();
+  for (let i = 1; i < d.length; i++) {
+    if (String(d[i][0]) !== String(body.id_mov)) continue;
+    const row = i + 1;
+    shM.getRange(row, 13).setValue('');
+    shM.getRange(row, 14).setValue(body.id_agencia || '');
+    shM.getRange(row, 15).setValue(parseFloat(body.monto) || 0);
+    SpreadsheetApp.flush();
+    return { ok: true };
+  }
+  return { ok: false, error: 'Movimiento no encontrado.' };
+}
+
+function registrarPago(body) {
+  const sh = getSS_OPS().getSheetByName('Caja_Operador');
+  if (!sh) throw new Error('Sheet Caja_Operador no encontrada');
+  const id = 'TX-' + Date.now().toString().slice(-6);
+  sh.appendRow([
+    id,
+    body.id_operacion  || '',
+    body.id_contacto   || '',
+    body.categoria     || 'Cobro',
+    parseFloat(body.monto) || 0,
+    body.metodo_pago   || 'Efectivo',
+    body.comentarios   || '',
+    '',
+    body.operador      || 'PS',
+    new Date(),
+    body.id_movimiento || ''
+  ]);
+  SpreadsheetApp.flush();
+  return { ok: true, id };
 }
