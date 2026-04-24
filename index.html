@@ -1980,7 +1980,7 @@ const ViewLanchas = {
 
       const session = JSON.parse(localStorage.getItem('ps_session') || '{}');
       const admin = session.rol === 'Administrador' || session.rol === 'Supervisor';
-      const body = { action: creating ? 'crear_operacion' : 'actualizar_operacion' };
+      const body = { accion: creating ? 'crear_operacion' : 'actualizar_operacion' };
       if (creating) {
         body.fecha      = m.fecha || currentFecha.value;
         body.id_bote    = m.id_bote;
@@ -2050,7 +2050,7 @@ const ViewLanchas = {
     async function confirmarAnularOp(id) {
       if (!confirm('¿Anular esta operación? Se marcará como Cancelada.')) return;
       try {
-        const r = await apiPost({ action: 'anular_operacion', id });
+        const r = await apiPost({ accion: 'anular_operacion', id });
         if (!r.ok) throw new Error(r.error || 'Error al anular');
         const fecha = currentFecha.value;
         cache.value = { ...cache.value, [fecha]: { loaded: false, loading: false } };
@@ -2128,7 +2128,7 @@ const ViewLanchas = {
         const monto = parseFloat(m.monto_total) || 0;
         const con   = contactosOps.value.find(c => c.id === m.id_contacto);
         const body  = {
-          action: m.mode === 'crear' ? 'crear_movimiento' : 'editar_movimiento',
+          accion: m.mode === 'crear' ? 'crear_movimiento' : 'editar_movimiento',
           id_operacion: m.id_operacion,
           tipo: m.tipo,
           id_contacto: m.id_contacto,
@@ -2154,7 +2154,7 @@ const ViewLanchas = {
     async function confirmarCancelarMov(id_mov) {
       if (!confirm('¿Cancelar este movimiento? Se marcará como Cancelado.')) return;
       try {
-        const r = await apiPost({ action: 'cancelar_movimiento', id: id_mov });
+        const r = await apiPost({ accion: 'cancelar_movimiento', id: id_mov });
         if (!r.ok) throw new Error(r.error || 'Error');
         selectedMov.value = null;
         const fecha = currentFecha.value;
@@ -2184,7 +2184,7 @@ const ViewLanchas = {
       try {
         const session = JSON.parse(localStorage.getItem('ps_session') || '{}');
         const r = await apiPost({
-          action: 'registrar_pago',
+          accion: 'registrar_pago',
           id_operacion:  p.id_operacion,
           id_contacto:   p.id_contacto,
           id_movimiento: p.id_mov,
@@ -2234,10 +2234,10 @@ const ViewLanchas = {
         const session = JSON.parse(localStorage.getItem('ps_session') || '{}');
         let r;
         if (d.mode === 'derivar') {
-          r = await apiPost({ action: 'derivar_pase_ps',
+          r = await apiPost({ accion: 'derivar_pase_ps',
             id_mov: d.id_mov, id_aliado: d.id_aliado, operador: session.nombre || 'PS' });
         } else {
-          r = await apiPost({ action: 'convertir_pase_compra',
+          r = await apiPost({ accion: 'convertir_pase_compra',
             id_mov: d.id_mov, id_agencia: d.id_aliado, monto: parseFloat(d.monto_compra) });
         }
         if (!r.ok) throw new Error(r.error || 'Error');
@@ -2253,7 +2253,7 @@ const ViewLanchas = {
     async function confirmarAnularPaseMov(id_mov) {
       if (!confirm('¿Anular este pase? El movimiento volverá a Embarcado.')) return;
       try {
-        const r = await apiPost({ action: 'anular_pase_ps', id_mov });
+        const r = await apiPost({ accion: 'anular_pase_ps', id_mov });
         if (!r.ok) throw new Error(r.error || 'Error');
         selectedMov.value = null;
         const fecha = currentFecha.value;
