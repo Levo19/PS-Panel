@@ -61,7 +61,7 @@ function doPost(e) {
       case 'guardar_config':        data = guardarConfig(body.clave, body.valor); break;
       case 'crear_operacion':       data = crearOperacion(body); break;
       case 'actualizar_operacion':  data = actualizarOperacion(body); break;
-      case 'eliminar_operacion':    data = eliminarOperacion(body.id); break;
+      case 'anular_operacion':      data = anularOperacion(body.id); break;
       default: data = { ok: false, error: 'Acción desconocida: ' + accion };
     }
     return jsonResponse({ ok: true, data });
@@ -418,33 +418,52 @@ function crearOperacion(body) {
 }
 
 function actualizarOperacion(body) {
-  const sh = getSS_OPS().getSheetByName('Operaciones');
+  const ss = getSS_OPS();
+  const sh = ss.getSheetByName('Operaciones');
   if (!sh) throw new Error('Sheet Operaciones no encontrada');
   const d = sh.getDataRange().getValues();
   for (let i = 1; i < d.length; i++) {
     if (String(d[i][0]) !== String(body.id)) continue;
     const row = i + 1;
-    sh.getRange(row, 3).setValue(body.hora_salida || '');
-    sh.getRange(row, 4).setValue(body.id_bote || '');
-    sh.getRange(row, 5).setValue(body.id_capitan || '');
-    sh.getRange(row, 6).setValue(body.id_guia || '');
-    sh.getRange(row, 7).setValue(body.estado || '');
-    sh.getRange(row, 10).setValue(body.foto_zarpe_url || '');
-    sh.getRange(row, 11).setValue(body.destino || '');
+    // Campos editables por todos
+    if (body.hora_salida !== undefined) sh.getRange(row, 3).setValue(body.hora_salida);
+    if (body.id_capitan  !== undefined) sh.getRange(row, 5).setValue(body.id_capitan);
+    if (body.id_guia     !== undefined) sh.getRange(row, 6).setValue(body.id_guia);
+    if (body.destino     !== undefined) sh.getRange(row, 11).setValue(body.destino);
+    // Campos exclusivos de administrador
+    if (body.fecha  !== undefined && body.fecha  !== '') sh.getRange(row, 2).setValue(new Date(body.fecha));
+    if (body.estado !== undefined && body.estado !== '') sh.getRange(row, 7).setValue(body.estado);
+    SpreadsheetApp.flush();
     return { ok: true };
   }
   throw new Error('Operación no encontrada: ' + body.id);
 }
 
-function eliminarOperacion(id) {
-  const sh = getSS_OPS().getSheetByName('Operaciones');
-  if (!sh) throw new Error('Sheet Operaciones no encontrada');
-  const d = sh.getDataRange().getValues();
-  for (let i = 1; i < d.length; i++) {
-    if (String(d[i][0]) === String(id)) {
-      sh.deleteRow(i + 1);
-      return { ok: true };
+// Anula (Cancelada) solo si no hay pasajeros activos en la operación.
+function anularOperacion(id) {
+  const ss  = getSS_OPS();
+  const shO = ss.getSheetByName('Operaciones');
+  const shM = ss.getSheetByName('Movimientos');
+  if (!shO) throw new Error('Sheet Operaciones no encontrada');
+
+  // Verificar pasajeros activos
+  if (shM) {
+    const movs = shM.getDataRange().getValues();
+    for (let j = 1; j < movs.length; j++) {
+      if (String(movs[j][1]) !== String(id)) continue;
+      const est = String(movs[j][11] || '').toLowerCase();
+      if (!est.includes('cancelado') && !est.includes('pasado')) {
+        return { ok: false, error: 'No se puede anular: hay pasajeros activos a bordo.' };
+      }
     }
+  }
+
+  const d = shO.getDataRange().getValues();
+  for (let i = 1; i < d.length; i++) {
+    if (String(d[i][0]) !== String(id)) continue;
+    shO.getRange(i + 1, 7).setValue('Cancelada');
+    SpreadsheetApp.flush();
+    return { ok: true };
   }
   throw new Error('Operación no encontrada: ' + id);
 }

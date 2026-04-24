@@ -1887,10 +1887,15 @@ const ViewLanchas = {
     const selectedCajaDia = ref(null);
 
     const opModal = ref({ show: false, mode: 'crear', saving: false, error: '',
-      id: '', hora_salida: '', id_bote: '', id_capitan: '', id_guia: '',
-      estado: 'Activa', foto_zarpe_url: '', destino: '' });
+      id: '', fecha: '', hora_salida: '', id_bote: '', id_capitan: '', id_guia: '',
+      estado: 'Abierta', destino: '' });
     const embarcaciones = ref([]);
     const personalOps   = ref([]);
+
+    const isAdmin = computed(() => {
+      const s = JSON.parse(localStorage.getItem('ps_session') || '{}');
+      return s.rol === 'Administrador' || s.rol === 'Supervisor';
+    });
 
     function to24h(t) {
       if (!t || !t.includes(' ')) return t || '';
@@ -1923,45 +1928,54 @@ const ViewLanchas = {
       if (op) {
         opModal.value = { show: true, mode: 'editar', saving: false, error: '',
           id: op.id,
+          fecha: op.fecha || currentFecha.value,
           hora_salida: to24h(op.hora_salida),
           id_bote: op.id_bote,
           id_capitan: op.id_capitan,
           id_guia: op.id_guia || '',
-          estado: op.estado || 'Activa',
-          foto_zarpe_url: op.foto_zarpe_url || '',
+          estado: op.estado || 'Abierta',
           destino: op.destino || '' };
       } else {
         opModal.value = { show: true, mode: 'crear', saving: false, error: '',
-          id: '', hora_salida: '', id_bote: '', id_capitan: '', id_guia: '',
-          estado: 'Activa', foto_zarpe_url: '', destino: '' };
+          id: '', fecha: currentFecha.value, hora_salida: '', id_bote: '',
+          id_capitan: '', id_guia: '', estado: 'Abierta', destino: '' };
       }
     }
 
     async function guardarOp() {
       const m = opModal.value;
-      if (!m.hora_salida || !m.id_bote || !m.id_capitan) {
+      const creating = m.mode === 'crear';
+      if (creating && (!m.hora_salida || !m.id_bote || !m.id_capitan)) {
         m.error = 'Hora, bote y capitán son obligatorios'; return;
+      }
+      if (!creating && !m.hora_salida) {
+        m.error = 'La hora de salida es obligatoria'; return;
       }
       m.saving = true; m.error = '';
       try {
         const session = JSON.parse(localStorage.getItem('ps_session') || '{}');
-        const body = {
-          action: m.mode === 'crear' ? 'crear_operacion' : 'actualizar_operacion',
-          fecha: currentFecha.value,
-          hora_salida: to12h(m.hora_salida),
-          id_bote: m.id_bote,
-          id_capitan: m.id_capitan,
-          id_guia: m.id_guia,
-          estado: m.estado,
-          foto_zarpe_url: m.foto_zarpe_url,
-          destino: m.destino,
-          creado_por: session.nombre || session.email || 'PS'
-        };
-        if (m.mode === 'editar') body.id = m.id;
+        const admin = session.rol === 'Administrador' || session.rol === 'Supervisor';
+        const body = { action: creating ? 'crear_operacion' : 'actualizar_operacion' };
+        if (creating) {
+          body.fecha      = m.fecha || currentFecha.value;
+          body.id_bote    = m.id_bote;
+          body.estado     = 'Abierta';
+          body.creado_por = session.nombre || 'PS';
+        } else {
+          body.id = m.id;
+          if (admin) {
+            body.fecha  = m.fecha;
+            body.estado = m.estado;
+          }
+        }
+        body.hora_salida = to12h(m.hora_salida);
+        body.id_capitan  = m.id_capitan;
+        body.id_guia     = m.id_guia;
+        body.destino     = m.destino;
         const r = await apiPost(body);
         if (!r.ok) throw new Error(r.error || 'Error al guardar');
         opModal.value.show = false;
-        const fecha = currentFecha.value;
+        const fecha = creating ? (m.fecha || currentFecha.value) : currentFecha.value;
         cache.value = { ...cache.value, [fecha]: { loaded: false, loading: false } };
         loadFecha(fecha);
       } catch(e) {
@@ -1971,16 +1985,16 @@ const ViewLanchas = {
       }
     }
 
-    async function confirmarEliminarOp(id) {
-      if (!confirm('¿Eliminar esta operación? Esta acción no se puede deshacer.')) return;
+    async function confirmarAnularOp(id) {
+      if (!confirm('¿Anular esta operación? Se marcará como Cancelada.')) return;
       try {
-        const r = await apiPost({ action: 'eliminar_operacion', id });
-        if (!r.ok) throw new Error(r.error || 'Error al eliminar');
+        const r = await apiPost({ action: 'anular_operacion', id });
+        if (!r.ok) throw new Error(r.error || 'Error al anular');
         const fecha = currentFecha.value;
         cache.value = { ...cache.value, [fecha]: { loaded: false, loading: false } };
         loadFecha(fecha);
       } catch(e) {
-        alert('Error: ' + e.message);
+        alert(e.message);
       }
     }
 
@@ -2043,7 +2057,7 @@ const ViewLanchas = {
              selectedMov, contactColorByTipo, movPayments, montoPayStyle, openMovModal, allCajaDia,
              selectedPase, pagoStatusStyle, openPaseModal,
              isIngreso, metodoIcon, cajaRowStyle, selectedCajaDia,
-             opModal, embarcaciones, personalOps, openOpModal, guardarOp, confirmarEliminarOp };
+             opModal, embarcaciones, personalOps, isAdmin, openOpModal, guardarOp, confirmarAnularOp };
   },
   template: `
     <div>
@@ -2286,11 +2300,11 @@ const ViewLanchas = {
                       <span style="font-size:12px;font-weight:800;color:var(--gold);">S/ {{ fmt(totalMovs(op.movimientos||[]).monto) }}</span>
                     </div>
                   </div>
-                  <!-- Eliminar operación -->
-                  <div style="padding-top:10px;border-top:1px solid var(--border);margin-top:4px;">
-                    <button @click.stop="confirmarEliminarOp(op.id)"
+                  <!-- Anular operación (solo admin) -->
+                  <div v-if="isAdmin" style="padding-top:10px;border-top:1px solid var(--border);margin-top:4px;">
+                    <button @click.stop="confirmarAnularOp(op.id)"
                       style="width:100%;padding:8px;border-radius:8px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);color:#f87171;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
-                      🗑 Eliminar operación
+                      🚫 Anular operación
                     </button>
                   </div>
                 </div>
@@ -2523,6 +2537,18 @@ const ViewLanchas = {
             </div>
             <div style="overflow-y:auto;max-height:70vh;padding:16px;display:flex;flex-direction:column;gap:14px;">
 
+              <!-- Fecha (admin + crear siempre) -->
+              <label v-if="opModal.mode==='crear' || isAdmin"
+                style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text-muted);">
+                Fecha
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <input type="date" v-model="opModal.fecha"
+                    style="flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);color-scheme:dark;" />
+                  <span v-if="isAdmin && opModal.mode==='editar'"
+                    style="font-size:10px;color:var(--gold);background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);border-radius:5px;padding:2px 6px;white-space:nowrap;">Admin</span>
+                </div>
+              </label>
+
               <!-- Hora salida -->
               <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text-muted);">
                 Hora de salida *
@@ -2530,8 +2556,9 @@ const ViewLanchas = {
                   style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);color-scheme:dark;" />
               </label>
 
-              <!-- Bote -->
-              <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text-muted);">
+              <!-- Embarcación (solo al crear — inmutable después) -->
+              <label v-if="opModal.mode==='crear'"
+                style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text-muted);">
                 Embarcación *
                 <select v-model="opModal.id_bote"
                   style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);appearance:none;">
@@ -2542,7 +2569,7 @@ const ViewLanchas = {
 
               <!-- Capitán -->
               <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text-muted);">
-                Capitán *
+                {{ opModal.mode==='crear' ? 'Capitán *' : 'Capitán' }}
                 <select v-model="opModal.id_capitan"
                   style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);appearance:none;">
                   <option value="">— seleccionar —</option>
@@ -2560,18 +2587,6 @@ const ViewLanchas = {
                 </select>
               </label>
 
-              <!-- Estado -->
-              <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text-muted);">
-                Estado
-                <select v-model="opModal.estado"
-                  style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);appearance:none;">
-                  <option>Activa</option>
-                  <option>En viaje</option>
-                  <option>Cerrada</option>
-                  <option>Cancelada</option>
-                </select>
-              </label>
-
               <!-- Destino -->
               <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text-muted);">
                 Destino
@@ -2579,11 +2594,20 @@ const ViewLanchas = {
                   style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);" />
               </label>
 
-              <!-- URL foto zarpe -->
-              <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text-muted);">
-                URL foto zarpe
-                <input type="url" v-model="opModal.foto_zarpe_url" placeholder="https://…"
-                  style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);" />
+              <!-- Estado (solo admin, solo al editar) -->
+              <label v-if="isAdmin && opModal.mode==='editar'"
+                style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text-muted);">
+                <div style="display:flex;align-items:center;gap:6px;">
+                  Estado
+                  <span style="font-size:10px;color:var(--gold);background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);border-radius:5px;padding:2px 6px;">Admin</span>
+                </div>
+                <select v-model="opModal.estado"
+                  style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);appearance:none;">
+                  <option>Abierta</option>
+                  <option>En_Viaje</option>
+                  <option>Cerrada</option>
+                  <option>Cancelada</option>
+                </select>
               </label>
 
               <!-- Error -->
