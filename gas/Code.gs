@@ -208,11 +208,17 @@ function getLanchasDia(fecha) {
       const idContacto = String(row[3] || '');
 
       const idPase = String(row[12] || '');
+      const adicionalesStr = String(row[8] || '');
+      const montoAdicionales = adicionalesStr
+        ? adicionalesStr.split(',').reduce(function(acc, p) {
+            var sep = p.indexOf(':'); return acc + (sep !== -1 ? parseFloat(p.substring(sep+1).trim())||0 : 0);
+          }, 0)
+        : 0;
       const mov = {
         id_mov: row[0], id_operacion: idOp, tipo, id_contacto: idContacto,
         nombre_contacto: String(row[4] || ''), cant_pax: cantPax,
         precio_aplicado: precioApliq, monto_total: montoTotal,
-        adicionales: row[8], operador: row[9], timestamp: row[10],
+        adicionales: adicionalesStr, operador: row[9], timestamp: row[10],
         estado, id_contacto_pase: idPase,
         nombre_contacto_pase: idPase ? (nombreContacto[idPase] || idPase) : '',
         id_agencia_comprada: String(row[13] || ''), monto_comprado: montoComprado,
@@ -227,15 +233,15 @@ function getLanchasDia(fecha) {
           op.pax_total += cantPax;
           op.tipo_chips[tipo] = (op.tipo_chips[tipo] || 0) + cantPax;
           if (tipo === 'Directo' || tipo === 'Agencia') {
-            op.ingresos_operador += montoTotal;
-            op.mov_sum += montoTotal;
+            op.ingresos_operador += montoTotal + montoAdicionales;
+            op.mov_sum += montoTotal + montoAdicionales;
           } else if (tipo === 'Comisionado') {
             const pdComp = precioDefecto[idContacto] || 0;
             const margen = pdComp * cantPax;
             const deuda = (precioApliq * cantPax) - margen;
-            op.ingresos_operador += margen;
+            op.ingresos_operador += margen + montoAdicionales;
             op.deuda_comisionados += Math.max(0, deuda);
-            op.mov_sum += margen;
+            op.mov_sum += margen + montoAdicionales;
           }
         }
       } else if (!idOp || idOp === 'PASE_DIRECTO') {

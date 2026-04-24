@@ -345,6 +345,7 @@ function render(data) {
     cobrosAllArr.push({
       id_mov: m.id_mov, nombre: m.nombre_contacto || '—', tipo: m.tipo,
       bote: m._op ? (m._op.nombre_bote||m._op.id_bote) : '—',
+      adicionales: String(m.adicionales||''),
       base, adicionalesSum, total, pagado, pendiente: Math.max(0, total - pagado)
     });
   });
@@ -504,7 +505,7 @@ function render(data) {
     if (m.estado==='Cancelado'||TIPOS_SIN_COBRO.includes(m.tipo)) return;
     if (m.id_contacto_pase) return; // PaseOut cobra al cliente pero el PAX no está en nuestro bote
     const k = m.tipo||'?';
-    tipoIngMap[k] = (tipoIngMap[k]||0) + (parseFloat(m.monto_total)||0);
+    tipoIngMap[k] = (tipoIngMap[k]||0) + movTotal(m);
   });
 
   // ── PAX matrix ───────────────────────────────────────────────
@@ -525,15 +526,15 @@ function render(data) {
   // y pases_sueltos (movimientos sin operación asignada). Excluye TIPOS_SIN_COBRO (aliados/pases recibidos).
   const bruto = allMovs
     .filter(m => m.estado !== 'Cancelado' && !TIPOS_SIN_COBRO.includes(m.tipo))
-    .reduce((s, m) => s + (parseFloat(m.monto_total) || 0), 0);
+    .reduce((s, m) => s + movTotal(m), 0);
   // Desglose del bruto: pasados (PaseOut cobrables), sueltos (sin op), en ops (el resto)
   const brutoPasados = allMovs
     .filter(m => m.estado !== 'Cancelado' && !TIPOS_SIN_COBRO.includes(m.tipo) && !!m.id_contacto_pase)
-    .reduce((s, m) => s + (parseFloat(m.monto_total) || 0), 0);
+    .reduce((s, m) => s + movTotal(m), 0);
   // Libres = sueltos sin PaseOut (los sueltos PaseOut ya van en brutoPasados)
   const brutoSuelt = pasesSuelt
     .filter(m => m.estado !== 'Cancelado' && !TIPOS_SIN_COBRO.includes(m.tipo) && !m.id_contacto_pase)
-    .reduce((s, m) => s + (parseFloat(m.monto_total) || 0), 0);
+    .reduce((s, m) => s + movTotal(m), 0);
   const brutoEnOps = bruto - brutoPasados - brutoSuelt;
   // PAX total desde movimientos (incluye pases_sueltos, excluye cancelados)
   const paxTotalAll = allMovs
@@ -773,7 +774,13 @@ function render(data) {
         ? (m.pagado > 0 ? `${S(m.pendiente)} pendiente · cobrado ${S(m.pagado)}` : `${S(m.pendiente)} sin cobrar`)
         : `✓ ${S(m.total)}`;
       const adicsTag = m.adicionalesSum > 0
-        ? `<span style="font-size:9px;background:rgba(251,191,36,0.18);color:var(--amber);border:1px solid rgba(251,191,36,0.4);border-radius:4px;padding:1px 5px;margin-left:4px;">+${S(m.adicionalesSum)} extras</span>`
+        ? '<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:3px;">' +
+          m.adicionales.split(',').filter(p=>p.indexOf(':')!==-1).map(p => {
+            const sep = p.indexOf(':');
+            const nombre = p.substring(0,sep).trim();
+            const monto  = parseFloat(p.substring(sep+1).trim())||0;
+            return monto > 0 ? `<span style="font-size:9px;background:rgba(251,191,36,0.15);color:var(--amber);border:1px solid rgba(251,191,36,0.35);border-radius:4px;padding:1px 5px;">+${nombre} ${S(monto)}</span>` : '';
+          }).join('') + '</div>'
         : '';
       return `<div class="aliado-row" style="flex-direction:column;align-items:stretch;gap:4px;padding:8px 0;">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
