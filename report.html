@@ -297,10 +297,15 @@ function startCountdown() {
 function whatsappShare() {
   const text = `📊 Reporte Lanchas ${fmtFecha(fecha)}\n${location.href}`;
   if (navigator.share) {
-    navigator.share({ text }).catch(() => {});
+    navigator.share({ text }).catch(err => {
+      if (err.name !== 'AbortError') _waFallback(text);
+    });
   } else {
-    window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+    _waFallback(text);
   }
+}
+function _waFallback(text) {
+  window.location.href = 'whatsapp://send?text=' + encodeURIComponent(text);
 }
 
 // ── Render principal ───────────────────────────────────────────
