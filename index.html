@@ -1087,6 +1087,19 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 </style>
 </head>
 <body>
+
+<!-- Banner de nueva versión — aparece antes de recargar -->
+<div id="update-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9999;display:none;justify-content:center;padding:12px 16px 0;">
+  <div style="width:100%;max-width:380px;background:linear-gradient(135deg,#3e0f17,#5a1722);border:1px solid rgba(201,168,76,0.5);border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,0.6);padding:12px 16px;display:flex;align-items:center;gap:12px;backdrop-filter:blur(12px);">
+    <div style="font-size:24px;flex-shrink:0;">🚀</div>
+    <div style="flex:1;min-width:0;">
+      <p style="margin:0;color:#f5e9c8;font-size:13px;font-weight:900;font-family:Inter,sans-serif;line-height:1.2;">Nueva versión disponible</p>
+      <p style="margin:2px 0 0;color:rgba(201,168,76,0.85);font-size:11px;font-family:Inter,sans-serif;">Actualizando en <span id="update-countdown">5</span>s…</p>
+    </div>
+    <button onclick="window.location.reload()" style="flex-shrink:0;background:#C9A84C;color:#3e0f17;font-weight:900;font-size:11px;font-family:Inter,sans-serif;padding:6px 12px;border-radius:10px;border:none;cursor:pointer;text-transform:uppercase;letter-spacing:0.05em;">Ahora</button>
+  </div>
+</div>
+
 <div id="app">
   <!-- Background orbs -->
   <div class="bg-orb orb1"></div>
@@ -3879,11 +3892,28 @@ if ('serviceWorker' in navigator) {
       nw.addEventListener('statechange', () => {
         if (nw.state === 'installed' && navigator.serviceWorker.controller) {
           nw.postMessage('SKIP_WAITING');
-          window.location.reload();
+          _mostrarBannerActualizacion();
         }
       });
     });
   });
+}
+
+let _updateCountdownTimer = null;
+function _mostrarBannerActualizacion() {
+  if (_updateCountdownTimer) return;
+  const banner = document.getElementById('update-banner');
+  const countEl = document.getElementById('update-countdown');
+  if (banner) banner.style.display = 'flex';
+  let secs = 5;
+  _updateCountdownTimer = setInterval(() => {
+    secs--;
+    if (countEl) countEl.textContent = secs;
+    if (secs <= 0) {
+      clearInterval(_updateCountdownTimer);
+      window.location.reload();
+    }
+  }, 1000);
 }
 </script>
 </body>
