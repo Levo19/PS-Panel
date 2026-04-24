@@ -329,13 +329,19 @@ function render(data) {
   allMovs.forEach(m => {
     if (m.estado === 'Cancelado') return;
     if (TIPOS_SIN_COBRO.includes(m.tipo)) return;
-    const total = parseFloat(m.monto_total) || 0;
+    const base = parseFloat(m.monto_total) || 0;
+    const adicionalesSum = m.adicionales
+      ? String(m.adicionales).split(',').reduce((acc, p) => {
+          const sep = p.indexOf(':'); return acc + (sep !== -1 ? parseFloat(p.substring(sep+1).trim())||0 : 0);
+        }, 0)
+      : 0;
+    const total = base + adicionalesSum;
     if (!total) return;
     const pagado = pagadoMov(allCaja, m.id_mov);
     cobrosAllArr.push({
       id_mov: m.id_mov, nombre: m.nombre_contacto || '—', tipo: m.tipo,
       bote: m._op ? (m._op.nombre_bote||m._op.id_bote) : '—',
-      total, pagado, pendiente: Math.max(0, total - pagado)
+      base, adicionalesSum, total, pagado, pendiente: Math.max(0, total - pagado)
     });
   });
   // cobrosArr: solo pendientes → para alertas y flujo
@@ -762,11 +768,15 @@ function render(data) {
       const statusLabel = m.pendiente > 0.01
         ? (m.pagado > 0 ? `${S(m.pendiente)} pendiente · cobrado ${S(m.pagado)}` : `${S(m.pendiente)} sin cobrar`)
         : `✓ ${S(m.total)}`;
+      const adicsTag = m.adicionalesSum > 0
+        ? `<span style="font-size:9px;background:rgba(251,191,36,0.18);color:var(--amber);border:1px solid rgba(251,191,36,0.4);border-radius:4px;padding:1px 5px;margin-left:4px;">+${S(m.adicionalesSum)} extras</span>`
+        : '';
       return `<div class="aliado-row" style="flex-direction:column;align-items:stretch;gap:4px;padding:8px 0;">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
-          <div style="display:flex;align-items:center;gap:5px;flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:5px;flex:1;min-width:0;flex-wrap:wrap;">
             <span class="${tipoBadgeClass(m.tipo)}">${m.tipo}</span>
             <span style="font-size:10px;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">⛵ ${m.bote}</span>
+            ${adicsTag}
           </div>
           <span style="font-weight:800;font-size:12px;color:${statusColor};flex-shrink:0;">${statusLabel}</span>
         </div>
