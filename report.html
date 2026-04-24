@@ -359,6 +359,9 @@ function render(data) {
   const totalPaxOut  = aliadoArr.reduce((s,[,d])=>s+d.out, 0);
   const totalPaxIn   = aliadoArr.reduce((s,[,d])=>s+d.in,  0);
   const totalPendCompra = aliadoArr.reduce((s,[,d])=>s+d.pendCompra, 0);
+  // Neto por aliado cruzado: suma de los saldos desfavorables en cada dirección
+  const netDeboPases    = aliadoArr.reduce((s,[,d])=>s+Math.max(0,d.out-d.in), 0);
+  const netMeDebenPases = aliadoArr.reduce((s,[,d])=>s+Math.max(0,d.in-d.out), 0);
 
   // ── CÁLCULO: comisionados (plata que debo) ───────────────────
   const comMap = {}; // nombre → { pax, cobrado, comision, pagado }
@@ -387,8 +390,8 @@ function render(data) {
   const totalDebeComis  = comArr.reduce((s,[,d])=>s+Math.max(0,d.comision-d.pagado), 0);
 
   // ── Las 4 preguntas totales ──
-  const totalDeboPases   = totalPaxOut - totalPaxIn;
-  const totalMeDebenPases = totalPaxIn - totalPaxOut;
+  const totalDeboPases   = netDeboPases;    // PAX netos que debo (∑ saldos desfavorables)
+  const totalMeDebenPases = netMeDebenPases; // PAX netos que me deben (∑ saldos a favor)
   const totalDeudaComisGAS = kpis.deuda_comisionados || 0;
   const totalDeboDinero  = totalDeudaComisGAS + totalPendCompra;
   const totalMeDebenDinero = totalPendCobrar;
@@ -470,9 +473,10 @@ function render(data) {
   const alertItems = [];
   if (cobrosArr.length > 0)
     alertItems.push(`<div class="alerta-item"><span class="alerta-dot" style="background:var(--red)"></span><span><b>${cobrosArr.length}</b> cobro${cobrosArr.length>1?'s':''} sin completar — <b style="color:var(--red)">${S(totalMeDebenDinero)}</b> pendiente</span></div>`);
-  if (totalDeboPases > 0) {
+  if (netDeboPases > 0) {
     const deudores = aliadoArr.filter(([,d])=>d.out>d.in);
-    alertItems.push(`<div class="alerta-item"><span class="alerta-dot" style="background:var(--amber)"></span><span>Saldo neto de pases: enviamos <b>${totalPaxOut}</b>, recibimos <b>${totalPaxIn}</b> — <b style="color:var(--amber)">debemos ${totalDeboPases} PAX</b></span></div>`);
+    const nomDeudores = deudores.map(([n,d])=>`${n}: ${d.out-d.in} PAX`).join(', ');
+    alertItems.push(`<div class="alerta-item"><span class="alerta-dot" style="background:var(--amber)"></span><span>Pases netos que debemos: <b style="color:var(--amber)">${netDeboPases} PAX</b> — ${nomDeudores}</span></div>`);
   }
   if (totalPendCompra > 0)
     alertItems.push(`<div class="alerta-item"><span class="alerta-dot" style="background:var(--amber)"></span><span>${aliadoArr.filter(([,d])=>d.pendCompra>0).length} pase${aliadoArr.filter(([,d])=>d.pendCompra>0).length>1?'s':''} sin cobrar a agencia — <b style="color:var(--amber)">${S(totalPendCompra)}</b></span></div>`);
@@ -491,8 +495,8 @@ function render(data) {
       <div class="q4-hdr">
         <div>
           <div class="q4-label" style="color:var(--red);">↑ Pases que DEBO</div>
-          <div class="q4-val" style="color:var(--red);">${Math.max(0,totalPaxOut)}<span class="q4-unit">PAX</span></div>
-          <div class="q4-sub" style="margin-top:3px;">${totalDeboPases>0?totalDeboPases+' neto sin devolver':'Tablas o favor'}</div>
+          <div class="q4-val" style="color:var(--red);">${netDeboPases}<span class="q4-unit">PAX</span></div>
+          <div class="q4-sub" style="margin-top:3px;">${netDeboPases>0?aliadoArr.filter(([,d])=>d.out>d.in).length+' aliado'+(aliadoArr.filter(([,d])=>d.out>d.in).length>1?'s':'')+' con saldo en tu contra':'Tablas o a tu favor ✓'}</div>
         </div>
         <span class="q4-chevron">▾</span>
       </div>
@@ -502,8 +506,8 @@ function render(data) {
       <div class="q4-hdr">
         <div>
           <div class="q4-label" style="color:var(--green);">↓ Pases que ME DEBEN</div>
-          <div class="q4-val" style="color:var(--green);">${Math.max(0,totalPaxIn)}<span class="q4-unit">PAX</span></div>
-          <div class="q4-sub" style="margin-top:3px;">${totalMeDebenPases>0?totalMeDebenPases+' neto a favor':'Sin saldo a favor'}</div>
+          <div class="q4-val" style="color:var(--green);">${netMeDebenPases}<span class="q4-unit">PAX</span></div>
+          <div class="q4-sub" style="margin-top:3px;">${netMeDebenPases>0?aliadoArr.filter(([,d])=>d.in>d.out).length+' aliado'+(aliadoArr.filter(([,d])=>d.in>d.out).length>1?'s':'')+' te deben pases':'Sin pases a tu favor'}</div>
         </div>
         <span class="q4-chevron">▾</span>
       </div>
