@@ -478,6 +478,18 @@ function render(data) {
     ];
   }).join('') || '<div class="q4-di-empty">Sin cobros pendientes ✓</div>';
 
+  // ── CÁLCULO: adicionales por tipo ───────────────────────────
+  const adicsTypeMap = {};
+  allMovs.forEach(m => {
+    if (m.estado === 'Cancelado' || !m.adicionales) return;
+    String(m.adicionales).split(',').forEach(p => {
+      const sep = p.indexOf(':'); if (sep === -1) return;
+      const nombre = p.substring(0, sep).trim();
+      const val    = parseFloat(p.substring(sep+1).trim()) || 0;
+      if (nombre && val > 0) adicsTypeMap[nombre] = (adicsTypeMap[nombre]||0) + val;
+    });
+  });
+
   // ── CÁLCULO: método de pago ──────────────────────────────────
   const metMap = {};
   allCaja.forEach(c => {
@@ -936,6 +948,52 @@ function render(data) {
     </div>`;
   }).join('') : '<div style="color:var(--text-muted);font-size:13px;padding:6px 0;">Sin operaciones este día.</div>';
 
+  // ── Tabla de pasados (PaseOut) dentro de Operaciones del día ──
+  const pasadosAll = allMovs.filter(m =>
+    m.estado !== 'Cancelado' &&
+    (String(m.estado).toLowerCase().includes('pasad') || m.id_contacto_pase)
+  );
+  const pasadosHtml = pasadosAll.length > 0 ? `
+  <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:10px;">
+    <div style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">
+      🔀 Pasados a aliados (${pasadosAll.length})
+    </div>
+    <div style="overflow-x:auto;">
+    <table class="pend-table">
+      <thead><tr>
+        <th>Cliente</th>
+        <th>Destino</th>
+        <th style="text-align:right">PAX</th>
+        <th style="text-align:right">Base</th>
+        <th style="text-align:right">Adicionales</th>
+        <th style="text-align:right">Total</th>
+      </tr></thead>
+      <tbody>
+      ${pasadosAll.map(m => {
+        const mBase  = parseFloat(m.monto_total)||0;
+        const mAdics = adicsSum(m);
+        const mTot   = mBase + mAdics;
+        const aliado = m.nombre_contacto_pase || m.id_contacto_pase || '—';
+        const adicsDetail = m.adicionales
+          ? String(m.adicionales).split(',').filter(p=>p.indexOf(':')!==-1).map(p=>{
+              const sep=p.indexOf(':');
+              return `<span style="font-size:9px;background:rgba(251,191,36,0.12);color:var(--amber);border:1px solid rgba(251,191,36,0.3);border-radius:3px;padding:0 4px;margin-right:2px;">${p.substring(0,sep).trim()} ${S(parseFloat(p.substring(sep+1).trim())||0)}</span>`;
+            }).join('')
+          : '<span style="color:var(--text-muted);font-size:10px;">—</span>';
+        return `<tr>
+          <td style="font-weight:700;color:${contactColor(m.tipo||'')}">${m.nombre_contacto||'—'}</td>
+          <td style="font-size:11px;color:var(--text-muted);">${aliado}</td>
+          <td style="text-align:right;color:var(--text-muted);">${m.cant_pax}</td>
+          <td style="text-align:right;">${mBase>0?S(mBase):'<span style="color:var(--text-muted)">—</span>'}</td>
+          <td style="text-align:right;">${adicsDetail}</td>
+          <td style="text-align:right;font-weight:800;color:var(--gold);">${mTot>0?S(mTot):'<span style="color:var(--text-muted)">—</span>'}</td>
+        </tr>`;
+      }).join('')}
+      </tbody>
+    </table>
+    </div>
+  </div>` : '';
+
   // ── Matrix PAX × ciclo ────────────────────────────────────────
   const matrixHtml = Object.keys(paxMatrix).length > 0 ? `
   <div class="glass" style="padding:14px;margin-bottom:14px;">
@@ -1075,6 +1133,7 @@ function render(data) {
   <div class="section glass" style="padding:14px;margin-bottom:14px;">
     <div class="sec-hdr">⛵ Operaciones del día (${ops.length})</div>
     ${opsManifHtml}
+    ${pasadosHtml}
   </div>
 
   ${matrixHtml}
@@ -1100,13 +1159,18 @@ function render(data) {
         <div class="chart-wrap"><canvas id="chartTipo"></canvas></div>
       </div>
       <div class="chart-card glass">
-        <div class="chart-title">Ingresos por método</div>
+        <div class="chart-title">💳 Ingresos por método de pago</div>
         <div class="chart-wrap"><canvas id="chartMetodo"></canvas></div>
       </div>
       <div class="chart-card glass">
-        <div class="chart-title">Ocupación por bote</div>
+        <div class="chart-title">⛵ Ocupación por bote</div>
         <div class="chart-wrap"><canvas id="chartOcupacion"></canvas></div>
       </div>
+      ${Object.keys(adicsTypeMap).length > 0 ? `
+      <div class="chart-card glass">
+        <div class="chart-title">➕ Adicionales cobrados por tipo</div>
+        <div class="chart-wrap"><canvas id="chartAdicionales"></canvas></div>
+      </div>` : ''}
       ${aliadoArr.length > 1 ? `
       <div class="chart-card glass">
         <div class="chart-title">Balance de pases por aliado</div>
@@ -1116,18 +1180,18 @@ function render(data) {
   </div>`;
 
   startCountdown();
-  buildCharts(data, tipoIngMap, metMap, paxEnBotesMap);
+  buildCharts(data, tipoIngMap, metMap, paxEnBotesMap, adicsTypeMap);
 }
 
 // ── Charts ──────────────────────────────────────────────────────
-function buildCharts(data, tipoIngMap, metMap, paxEnBotesMap) {
+function buildCharts(data, tipoIngMap, metMap, paxEnBotesMap, adicsTypeMap) {
   const ops    = data.operaciones || [];
   const copts  = { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ labels:{ color:'#f0e6d3', font:{ size:10 }, boxWidth:10 } } } };
   const scOpts = { ticks:{ color:'#8a7060', font:{ size:10 } }, grid:{ color:'rgba(255,255,255,0.04)' } };
-
   const colors = ['#4ade80','#60a5fa','#fbbf24','#f0abfc','#fb923c','#a78bfa','#34d399','#f87171'];
+  const S2 = v => 'S/'+Number(v).toLocaleString('es-PE',{minimumFractionDigits:0,maximumFractionDigits:0});
 
-  // Donut: PAX en mis botes (fuente real de quién viajó, PaseOut excluido)
+  // Donut: PAX en mis botes
   const paxKeys = Object.keys(paxEnBotesMap||{}).filter(k => paxEnBotesMap[k] > 0);
   if (paxKeys.length && $('chartTipo')) {
     charts.tipo = new Chart($('chartTipo'), {
@@ -1137,29 +1201,64 @@ function buildCharts(data, tipoIngMap, metMap, paxEnBotesMap) {
     });
   }
 
-  // Donut: ingresos por método
+  // Barras horizontales: ingresos por método con monto en tooltip y etiqueta
   const metKeys = Object.keys(metMap).filter(k=>metMap[k].ing>0);
   if (metKeys.length && $('chartMetodo')) {
     charts.metodo = new Chart($('chartMetodo'), {
-      type:'doughnut',
-      data:{ labels:metKeys, datasets:[{ data:metKeys.map(k=>metMap[k].ing), backgroundColor:metKeys.map((_,i)=>colors[i%colors.length]), borderWidth:0 }] },
-      options:{ ...copts, cutout:'60%' }
+      type:'bar',
+      data:{ labels:metKeys, datasets:[{
+        label:'Ingresado',
+        data:metKeys.map(k=>metMap[k].ing),
+        backgroundColor:metKeys.map((_,i)=>colors[i%colors.length]),
+        borderRadius:5
+      }]},
+      options:{ ...copts, indexAxis:'y',
+        scales:{ x:{ ...scOpts, ticks:{ ...scOpts.ticks, callback: v=>S2(v) } }, y:{ ...scOpts } },
+        plugins:{ ...copts.plugins, tooltip:{ callbacks:{ label: ctx => ` ${S2(ctx.raw)}` } } }
+      }
     });
   }
 
-  // Barras horizontales: ocupación por bote
+  // Barras horizontales: ocupación por bote — color según % de llenado
   if (ops.length && $('chartOcupacion')) {
     const labels = ops.map(o=>o.nombre_bote||o.id_bote);
+    const ocupColors = ops.map(o => {
+      if (!o.capacidad) return 'rgba(201,168,76,0.7)';
+      const pct = o.pax_total / o.capacidad;
+      return pct >= 0.9 ? 'rgba(248,113,113,0.8)' : pct >= 0.6 ? 'rgba(251,191,36,0.8)' : 'rgba(74,222,128,0.75)';
+    });
     charts.ocup = new Chart($('chartOcupacion'), {
       type:'bar',
       data:{ labels, datasets:[
-        { label:'Ocupados', data:ops.map(o=>o.pax_total), backgroundColor:'rgba(201,168,76,0.7)', borderRadius:4 },
-        { label:'Libre', data:ops.map(o=>Math.max(0,(o.capacidad||0)-o.pax_total)), backgroundColor:'rgba(255,255,255,0.06)', borderRadius:4 }
+        { label:'Ocupados', data:ops.map(o=>o.pax_total), backgroundColor:ocupColors, borderRadius:4 },
+        { label:'Libre',    data:ops.map(o=>Math.max(0,(o.capacidad||0)-o.pax_total)), backgroundColor:'rgba(255,255,255,0.06)', borderRadius:4 }
       ]},
       options:{ ...copts, indexAxis:'y', scales:{
         x:{ ...scOpts, stacked:true, grid:{ display:false } },
         y:{ ...scOpts, stacked:true }
-      }, plugins:{ legend:{ labels:{ color:'#f0e6d3', font:{ size:10 }, boxWidth:10 } } } }
+      }, plugins:{ ...copts.plugins, tooltip:{ callbacks:{
+        label: ctx => ctx.dataset.label==='Ocupados'
+          ? ` ${ctx.raw} PAX ocupados${ops[ctx.dataIndex]?.capacidad?' / '+ops[ctx.dataIndex].capacidad:''}`
+          : ` ${ctx.raw} PAX libres`
+      }}}}
+    });
+  }
+
+  // Barras: adicionales cobrados por tipo
+  const adicsKeys = Object.keys(adicsTypeMap||{}).sort((a,b)=>adicsTypeMap[b]-adicsTypeMap[a]);
+  if (adicsKeys.length && $('chartAdicionales')) {
+    charts.adics = new Chart($('chartAdicionales'), {
+      type:'bar',
+      data:{ labels:adicsKeys, datasets:[{
+        label:'Total cobrado',
+        data:adicsKeys.map(k=>adicsTypeMap[k]),
+        backgroundColor:adicsKeys.map((_,i)=>colors[i%colors.length]),
+        borderRadius:5
+      }]},
+      options:{ ...copts, indexAxis:'y',
+        scales:{ x:{ ...scOpts, ticks:{ ...scOpts.ticks, callback: v=>S2(v) } }, y:{ ...scOpts } },
+        plugins:{ ...copts.plugins, tooltip:{ callbacks:{ label: ctx => ` ${S2(ctx.raw)}` } } }
+      }
     });
   }
 
