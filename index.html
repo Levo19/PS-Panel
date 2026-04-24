@@ -1968,33 +1968,69 @@ const ViewLanchas = {
       if (!creating && !m.hora_salida) {
         m.error = 'La hora de salida es obligatoria'; return;
       }
+
+      const session = JSON.parse(localStorage.getItem('ps_session') || '{}');
+      const admin = session.rol === 'Administrador' || session.rol === 'Supervisor';
+      const body = { action: creating ? 'crear_operacion' : 'actualizar_operacion' };
+      if (creating) {
+        body.fecha      = m.fecha || currentFecha.value;
+        body.id_bote    = m.id_bote;
+        body.estado     = 'Abierta';
+        body.creado_por = session.nombre || 'PS';
+      } else {
+        body.id = m.id;
+        if (admin) { body.fecha = m.fecha; body.estado = m.estado; }
+      }
+      body.hora_salida = to12h(m.hora_salida);
+      body.id_capitan  = m.id_capitan;
+      body.id_guia     = m.id_guia;
+      body.destino     = m.destino;
+
+      if (!creating) {
+        // ── Optimistic update ──────────────────────────────────────
+        const fecha = currentFecha.value;
+        const ops   = cache.value[fecha]?.operaciones || [];
+        const idx   = ops.findIndex(o => o.id === m.id);
+        let rollback = null;
+        if (idx >= 0) {
+          rollback = { ...ops[idx] };
+          const updated = { ...ops[idx],
+            hora_salida: to12h(m.hora_salida),
+            id_capitan:  m.id_capitan,
+            id_guia:     m.id_guia,
+            destino:     m.destino,
+            ...(admin ? { fecha: m.fecha, estado: m.estado } : {})
+          };
+          const newOps = [...ops]; newOps[idx] = updated;
+          cache.value = { ...cache.value, [fecha]: { ...cache.value[fecha], operaciones: newOps } };
+        }
+        opModal.value.show = false;
+        showToast('✅ Operación actualizada');
+        try {
+          const r = await apiPost(body);
+          if (!r.ok) throw new Error(r.error || 'Error al guardar');
+          setTimeout(() => loadFecha(fecha), 3000);
+        } catch(e) {
+          if (rollback && idx >= 0) {
+            const ops2 = [...(cache.value[fecha]?.operaciones || [])];
+            ops2[idx] = rollback;
+            cache.value = { ...cache.value, [fecha]: { ...cache.value[fecha], operaciones: ops2 } };
+          }
+          showToast('⚠ ' + e.message, 4000);
+        }
+        return;
+      }
+
+      // ── Crear (espera el ID del servidor) ─────────────────────────
       m.saving = true; m.error = '';
       try {
-        const session = JSON.parse(localStorage.getItem('ps_session') || '{}');
-        const admin = session.rol === 'Administrador' || session.rol === 'Supervisor';
-        const body = { action: creating ? 'crear_operacion' : 'actualizar_operacion' };
-        if (creating) {
-          body.fecha      = m.fecha || currentFecha.value;
-          body.id_bote    = m.id_bote;
-          body.estado     = 'Abierta';
-          body.creado_por = session.nombre || 'PS';
-        } else {
-          body.id = m.id;
-          if (admin) {
-            body.fecha  = m.fecha;
-            body.estado = m.estado;
-          }
-        }
-        body.hora_salida = to12h(m.hora_salida);
-        body.id_capitan  = m.id_capitan;
-        body.id_guia     = m.id_guia;
-        body.destino     = m.destino;
         const r = await apiPost(body);
         if (!r.ok) throw new Error(r.error || 'Error al guardar');
         opModal.value.show = false;
-        const fecha = creating ? (m.fecha || currentFecha.value) : currentFecha.value;
+        const fecha = m.fecha || currentFecha.value;
         cache.value = { ...cache.value, [fecha]: { loaded: false, loading: false } };
         loadFecha(fecha);
+        showToast('✅ Operación creada');
       } catch(e) {
         m.error = e.message;
       } finally {
@@ -2268,10 +2304,19 @@ const ViewLanchas = {
       refreshInterval = null;
     });
 
+    const lToast = ref({ show: false, msg: '' });
+    let lToastTimer = null;
+    function showToast(msg, dur = 2800) {
+      if (lToastTimer) clearTimeout(lToastTimer);
+      lToast.value = { show: true, msg };
+      lToastTimer = setTimeout(() => { lToast.value.show = false; }, dur);
+    }
+
     return { fechas, cache, currentFecha, fechaIdx, expandedOps, tabs, dateTab,
              loadingFechas, fetchError, today, navigate, loadFechas,
              toggleOp, getTab, setTab, boatBorderClass, movEstadoClass, estadoIcon, estadoIconColor,
              openReport, openTicket, fmtFecha, fmt, totalMovs, allPasesDia, tipoBadgeClass,
+             lToast,
              showDatePicker, datesByMonth, fmtMes, pickDate,
              selectedMov, contactColorByTipo, movPayments, montoPayStyle, openMovModal, allCajaDia,
              selectedPase, pagoStatusStyle, openPaseModal,
@@ -2286,6 +2331,8 @@ const ViewLanchas = {
   },
   template: `
     <div>
+      <div v-if="lToast.show" class="toast">{{ lToast.msg }}</div>
+
       <!-- Header -->
       <div class="module-header">
         <div class="module-title">⛵ Lanchas</div>
