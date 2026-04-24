@@ -175,6 +175,14 @@ function isIngreso(c){
 function pagadoMov(allCaja, movId){
   return allCaja.filter(c=>String(c.id_movimiento||'')===String(movId||'')).reduce((s,c)=>s+(parseFloat(c.monto)||0),0);
 }
+function adicsSum(m) {
+  return m.adicionales
+    ? String(m.adicionales).split(',').reduce((acc, p) => {
+        const sep = p.indexOf(':'); return acc + (sep !== -1 ? parseFloat(p.substring(sep+1).trim())||0 : 0);
+      }, 0)
+    : 0;
+}
+function movTotal(m) { return (parseFloat(m.monto_total)||0) + adicsSum(m); }
 // Hora del endose: parsea el timestamp de GAS en sus variantes de formato
 function horaEndose(m) {
   const val = m.timestamp;
@@ -333,7 +341,7 @@ function render(data) {
   const pendMap = {};
   allMovs.forEach(m => {
     if (m.estado==='Cancelado' || TIPOS_SIN_COBRO.includes(m.tipo)) return;
-    const total = parseFloat(m.monto_total)||0;
+    const total = movTotal(m);
     if (!total) return;
     const pagado = pagadoMov(allCaja, m.id_mov);
     const pend   = Math.max(0, total - pagado);

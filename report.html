@@ -260,9 +260,17 @@ function isIngreso(c) {
   const cat = String(c.categoria||'').toLowerCase();
   return cat.includes('cobro')||cat.includes('ingreso')||cat.includes('venta');
 }
+function adicsSum(m) {
+  return m.adicionales
+    ? String(m.adicionales).split(',').reduce((acc, p) => {
+        const sep = p.indexOf(':'); return acc + (sep !== -1 ? parseFloat(p.substring(sep+1).trim())||0 : 0);
+      }, 0)
+    : 0;
+}
+function movTotal(m) { return (parseFloat(m.monto_total)||0) + adicsSum(m); }
 function montoPayColor(op, mov) {
   const paid = (op.caja||[]).filter(c=>String(c.id_movimiento||'')===String(mov.id_mov||'')).reduce((s,c)=>s+(parseFloat(c.monto)||0),0);
-  const total = parseFloat(mov.monto_total)||0;
+  const total = movTotal(mov);
   if (!total) return 'color:var(--text-muted)';
   return paid >= total*0.99 ? 'color:var(--green)' : paid > 0 ? 'color:var(--amber)' : 'color:var(--red)';
 }
@@ -330,11 +338,7 @@ function render(data) {
     if (m.estado === 'Cancelado') return;
     if (TIPOS_SIN_COBRO.includes(m.tipo)) return;
     const base = parseFloat(m.monto_total) || 0;
-    const adicionalesSum = m.adicionales
-      ? String(m.adicionales).split(',').reduce((acc, p) => {
-          const sep = p.indexOf(':'); return acc + (sep !== -1 ? parseFloat(p.substring(sep+1).trim())||0 : 0);
-        }, 0)
-      : 0;
+    const adicionalesSum = adicsSum(m);
     const total = base + adicionalesSum;
     if (!total) return;
     const pagado = pagadoMov(allCaja, m.id_mov);
