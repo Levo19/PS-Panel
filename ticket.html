@@ -372,23 +372,23 @@ function render(data) {
   _buildText = function() {
     const SEP = '------------------------------';
     const sep = '----------------------';
-    let t = `*SALIDAS ${f.dia.toUpperCase()} ${f.fecha}*\n${SEP}\n\n`;
+    let t = `📋 *SALIDAS ${f.dia.toUpperCase()} ${f.fecha}*\n${SEP}\n\n`;
 
     ops.forEach((op, i) => {
       const movs = (op.movimientos||[]).filter(m => m.estado!=='Cancelado' && !m.id_contacto_pase);
       const paxTotal = movs.reduce((s,m) => s+(parseInt(m.cant_pax)||0), 0);
       const cap = [op.nombre_capitan||op.id_capitan, op.nombre_guia||op.id_guia].filter(Boolean).join('/');
-      t += `*${ORDINAL[i]||''} SALIDA - ${op.hora_salida||'--'}*\n`;
+      t += `⛵ *${ORDINAL[i]||''} SALIDA - ${op.hora_salida||'--'}*\n`;
       t += `${op.nombre_bote||op.id_bote}${op.destino?' - '+op.destino:''}\n`;
-      t += `${cap}\n\n`;
+      t += `👤 ${cap}\n\n`;
       movs.forEach(m => { t += `  - ${String(m.cant_pax).padStart(2)}  ${m.nombre_contacto||'--'}\n`; });
       t += `  ${sep}\n  ${paxTotal} PAX TOTALES\n\n`;
     });
 
     if (horasOrd.length > 0) {
-      t += `*ENDOSES*\n${SEP}\n`;
+      t += `🔀 *ENDOSES*\n${SEP}\n`;
       horasOrd.forEach(hora => {
-        t += `\n${hora}\n`;
+        t += `\n🕐 ${hora}\n`;
         endosesByHora[hora].forEach(m => {
           t += `  - ${String(m.cant_pax).padStart(2)}  ${m.nombre_contacto||'--'}  ->  ${m.nombre_contacto_pase||m.id_contacto_pase||'?'}\n`;
         });
@@ -397,7 +397,7 @@ function render(data) {
     }
 
     if (ingresos.length > 0) {
-      t += `*INGRESOS*\n${SEP}\n`;
+      t += `💵 *INGRESOS*\n${SEP}\n`;
       ingresos.forEach(c => {
         t += `  + ${c.operador||String(c.categoria||'').replace(/_/g,' ')}${c._bote?' ('+c._bote+')':''}  ${S(c.monto)}\n`;
       });
@@ -405,21 +405,21 @@ function render(data) {
     }
 
     if (egresos.length > 0) {
-      t += `*EGRESOS*\n${SEP}\n`;
+      t += `📤 *EGRESOS*\n${SEP}\n`;
       egresos.forEach(c => {
         t += `  - ${c.operador||String(c.categoria||'').replace(/_/g,' ')}${c._bote?' ('+c._bote+')':''}  ${S(c.monto)}\n`;
       });
       t += `  ${sep}\n  TOTAL  ${S(totalEgr)}\n\n`;
     }
 
-    t += `*NETO DEL DIA*\n${SEP}\n`;
+    t += `💰 *NETO DEL DIA*\n${SEP}\n`;
     t += `  Ingresos  ${S(totalIng)}\n`;
     t += `  Egresos   ${S(totalEgr)}\n`;
     t += `  ${sep}\n`;
     t += `  NETO  ${S(neto)}\n`;
 
     if (pendArr.length > 0) {
-      t += `\n*PENDIENTES* (${S(totalPend)})\n${SEP}\n`;
+      t += `\n⏳ *PENDIENTES* (${S(totalPend)})\n${SEP}\n`;
       pendArr.forEach(([nombre,d]) => {
         t += `  * ${nombre}${d.pax>0?' ('+d.pax+' pax)':''}  ${S(d.pendiente)}\n`;
       });
