@@ -1143,16 +1143,7 @@ function render(data) {
     ${cajaHtml || '<div style="color:var(--text-muted);font-size:13px;padding:6px 0;">Sin movimientos de caja.</div>'}
   </div>
 
-  <div style="text-align:center;padding:20px 0 8px;font-size:11px;color:var(--text-muted);">
-    Generado por PS Panel · ${new Date().toLocaleString('es-PE')}
-  </div>
-
-  ${flujoHtml}
   <div class="charts-grid">
-      <div class="chart-card glass">
-        <div class="chart-title">PAX en mis botes <span style="font-size:8px;font-weight:400;opacity:.6;">(excluye PaseOut)</span></div>
-        <div class="chart-wrap"><canvas id="chartTipo"></canvas></div>
-      </div>
       <div class="chart-card glass">
         <div class="chart-title">💳 Ingresos por método de pago</div>
         <div class="chart-wrap"><canvas id="chartMetodo"></canvas></div>
@@ -1166,11 +1157,10 @@ function render(data) {
         <div class="chart-title">➕ Adicionales cobrados por tipo</div>
         <div class="chart-wrap"><canvas id="chartAdicionales"></canvas></div>
       </div>` : ''}
-      ${aliadoArr.length > 1 ? `
-      <div class="chart-card glass">
-        <div class="chart-title">Balance de pases por aliado</div>
-        <div class="chart-wrap"><canvas id="chartAliados"></canvas></div>
-      </div>` : ''}
+  </div>
+
+  <div style="text-align:center;padding:20px 0 8px;font-size:11px;color:var(--text-muted);">
+    Generado por PS Panel · ${new Date().toLocaleString('es-PE')}
   </div>`;
 
   startCountdown();
@@ -1184,16 +1174,6 @@ function buildCharts(data, tipoIngMap, metMap, paxEnBotesMap, adicsTypeMap) {
   const scOpts = { ticks:{ color:'#8a7060', font:{ size:10 } }, grid:{ color:'rgba(255,255,255,0.04)' } };
   const colors = ['#4ade80','#60a5fa','#fbbf24','#f0abfc','#fb923c','#a78bfa','#34d399','#f87171'];
   const S2 = v => 'S/'+Number(v).toLocaleString('es-PE',{minimumFractionDigits:0,maximumFractionDigits:0});
-
-  // Donut: PAX en mis botes
-  const paxKeys = Object.keys(paxEnBotesMap||{}).filter(k => paxEnBotesMap[k] > 0);
-  if (paxKeys.length && $('chartTipo')) {
-    charts.tipo = new Chart($('chartTipo'), {
-      type:'doughnut',
-      data:{ labels:paxKeys, datasets:[{ data:paxKeys.map(k=>paxEnBotesMap[k]), backgroundColor:paxKeys.map((_,i)=>colors[i%colors.length]), borderWidth:0 }] },
-      options:{ ...copts, cutout:'60%', plugins:{ ...copts.plugins, tooltip:{ callbacks:{ label: ctx => ` ${ctx.label}: ${ctx.raw} PAX` } } } }
-    });
-  }
 
   // Barras horizontales: ingresos por método con monto en tooltip y etiqueta
   const metKeys = Object.keys(metMap).filter(k=>metMap[k].ing>0);
@@ -1256,37 +1236,6 @@ function buildCharts(data, tipoIngMap, metMap, paxEnBotesMap, adicsTypeMap) {
     });
   }
 
-  // Barras apiladas: aliados (out vs in)
-  if ($('chartAliados')) {
-    const aliadoMap2 = {};
-    (data.operaciones||[]).forEach(op=>(op.movimientos||[]).forEach(m=>{
-      if (m.estado==='Cancelado') return;
-      if (m.id_contacto_pase) {
-        const k = m.nombre_contacto_pase||m.id_contacto_pase;
-        if (!aliadoMap2[k]) aliadoMap2[k]={out:0,in:0};
-        aliadoMap2[k].out += parseInt(m.cant_pax)||0;
-      }
-      if (m.tipo==='Aliado(PaseIn)'||m.tipo==='Pase_Recibido') {
-        const k = m.nombre_contacto||m.id_contacto;
-        if (!aliadoMap2[k]) aliadoMap2[k]={out:0,in:0};
-        aliadoMap2[k].in += parseInt(m.cant_pax)||0;
-      }
-    }));
-    const aKeys = Object.keys(aliadoMap2);
-    if (aKeys.length) {
-      charts.aliados = new Chart($('chartAliados'), {
-        type:'bar',
-        data:{ labels:aKeys, datasets:[
-          { label:'Enviados ↑', data:aKeys.map(k=>aliadoMap2[k].out), backgroundColor:'rgba(248,113,113,0.65)', borderRadius:4 },
-          { label:'Recibidos ↓', data:aKeys.map(k=>aliadoMap2[k].in), backgroundColor:'rgba(74,222,128,0.55)', borderRadius:4 }
-        ]},
-        options:{ ...copts, indexAxis:'y', scales:{
-          x:{ ...scOpts, grid:{ color:'rgba(255,255,255,0.04)' } },
-          y:{ ...scOpts }
-        } }
-      });
-    }
-  }
 }
 
 // ── Error ────────────────────────────────────────────────────────
