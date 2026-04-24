@@ -457,10 +457,24 @@ function render(data) {
     isIngreso(c) ? (metMap[k].ing += parseFloat(c.monto)||0) : (metMap[k].sal += parseFloat(c.monto)||0);
   });
 
-  // ── CÁLCULO: tipo de cliente ingresos ────────────────────────
+  // ── PAX que realmente viajaron en mis botes ──────────────────
+  // Excluye PaseOut (id_contacto_pase: esos PAX se fueron a otro bote)
+  // PaseIn (Aliado(PaseIn)/Pase_Recibido) se agrupa como "Recibidos"
+  const paxEnBotesMap = {};
+  allMovs.forEach(m => {
+    if (m.estado==='Cancelado') return;
+    if (m.id_contacto_pase) return; // PaseOut: salió de nuestros botes
+    const pax = parseInt(m.cant_pax)||0;
+    if (!pax) return;
+    const label = TIPOS_SIN_COBRO.includes(m.tipo) ? 'Recibidos' : (m.tipo||'Otro');
+    paxEnBotesMap[label] = (paxEnBotesMap[label]||0) + pax;
+  });
+
+  // ── CÁLCULO: ingresos por tipo de cliente (para gráfico de revenue) ──
   const tipoIngMap = {};
   allMovs.forEach(m => {
     if (m.estado==='Cancelado'||TIPOS_SIN_COBRO.includes(m.tipo)) return;
+    if (m.id_contacto_pase) return; // PaseOut cobra al cliente pero el PAX no está en nuestro bote
     const k = m.tipo||'?';
     tipoIngMap[k] = (tipoIngMap[k]||0) + (parseFloat(m.monto_total)||0);
   });
@@ -529,22 +543,7 @@ function render(data) {
       detPases));
   }
 
-  // 3. Pases sin cobrar a agencia — por movimiento
-  if (totalPendCompra > 0) {
-    const movsPend = allMovs.filter(m=>m.id_contacto_pase && !m.id_agencia_comprada && m.estado!=='Cancelado' && parseFloat(m.monto_total)>0);
-    const detPend = movsPend.map(m=>
-      `<div class="alrt-row">
-        <span>${m.nombre_contacto_pase||m.id_contacto_pase} · <span style="opacity:.6;">${m._op?(m._op.nombre_bote||m._op.id_bote):'—'}</span></span>
-        <span style="color:var(--amber);font-weight:700;">${m.cant_pax} PAX · ${S(m.monto_total)}</span>
-      </div>`
-    ).join('') || '<div class="alrt-row" style="color:var(--text-muted);">Sin detalle disponible</div>';
-    const cntPend = aliadoArr.filter(([,d])=>d.pendCompra>0).length;
-    alertItems.push(alerta('var(--amber)',
-      `${movsPend.length} pase${movsPend.length>1?'s':''} sin cobrar a agencia — <b style="color:var(--amber)">${S(totalPendCompra)}</b>`,
-      detPend));
-  }
-
-  // 4. Comisiones pendientes — por comisionado
+  // 3. Comisiones pendientes — por comisionado
   if (totalDebeComis > 0) {
     const detComis = comArr.filter(([,d])=>d.comision-d.pagado>0.01).map(([nombre,d])=>{
       const pend = d.comision - d.pagado;
@@ -974,7 +973,7 @@ function render(data) {
 
   <div class="charts-grid">
     <div class="chart-card glass">
-      <div class="chart-title">PAX por tipo</div>
+      <div class="chart-title">PAX en mis botes <span style="font-size:8px;font-weight:400;opacity:.6;">(excluye PaseOut)</span></div>
       <div class="chart-wrap"><canvas id="chartTipo"></canvas></div>
     </div>
     <div class="chart-card glass">
@@ -1032,24 +1031,24 @@ function render(data) {
   </div>`;
 
   startCountdown();
-  buildCharts(data, tipoIngMap, metMap);
+  buildCharts(data, tipoIngMap, metMap, paxEnBotesMap);
 }
 
 // ── Charts ──────────────────────────────────────────────────────
-function buildCharts(data, tipoIngMap, metMap) {
+function buildCharts(data, tipoIngMap, metMap, paxEnBotesMap) {
   const ops    = data.operaciones || [];
   const copts  = { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ labels:{ color:'#f0e6d3', font:{ size:10 }, boxWidth:10 } } } };
   const scOpts = { ticks:{ color:'#8a7060', font:{ size:10 } }, grid:{ color:'rgba(255,255,255,0.04)' } };
 
   const colors = ['#4ade80','#60a5fa','#fbbf24','#f0abfc','#fb923c','#a78bfa','#34d399','#f87171'];
 
-  // Donut: PAX por tipo
-  const tipoKeys = Object.keys(tipoIngMap).filter(k => tipoIngMap[k] > 0);
-  if (tipoKeys.length && $('chartTipo')) {
+  // Donut: PAX en mis botes (fuente real de quién viajó, PaseOut excluido)
+  const paxKeys = Object.keys(paxEnBotesMap||{}).filter(k => paxEnBotesMap[k] > 0);
+  if (paxKeys.length && $('chartTipo')) {
     charts.tipo = new Chart($('chartTipo'), {
       type:'doughnut',
-      data:{ labels:tipoKeys, datasets:[{ data:tipoKeys.map(k=>tipoIngMap[k]), backgroundColor:tipoKeys.map((_,i)=>colors[i%colors.length]), borderWidth:0 }] },
-      options:{ ...copts, cutout:'60%' }
+      data:{ labels:paxKeys, datasets:[{ data:paxKeys.map(k=>paxEnBotesMap[k]), backgroundColor:paxKeys.map((_,i)=>colors[i%colors.length]), borderWidth:0 }] },
+      options:{ ...copts, cutout:'60%', plugins:{ ...copts.plugins, tooltip:{ callbacks:{ label: ctx => ` ${ctx.label}: ${ctx.raw} PAX` } } } }
     });
   }
 
