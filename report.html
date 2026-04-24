@@ -295,8 +295,12 @@ function startCountdown() {
 }
 
 function whatsappShare() {
-  const msg = encodeURIComponent(`📊 Reporte Lanchas ${fmtFecha(fecha)}\n${location.href}`);
-  window.open('https://wa.me/?text=' + msg, '_blank');
+  const text = `📊 Reporte Lanchas ${fmtFecha(fecha)}\n${location.href}`;
+  if (navigator.share) {
+    navigator.share({ text }).catch(() => {});
+  } else {
+    window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+  }
 }
 
 // ── Render principal ───────────────────────────────────────────
