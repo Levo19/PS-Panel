@@ -347,21 +347,40 @@ function render(data) {
     const pend   = Math.max(0, total - pagado);
     if (pend > 0.01) {
       const key = m.nombre_contacto||'—';
-      if (!pendMap[key]) pendMap[key] = { pax:0, pendiente:0 };
+      if (!pendMap[key]) pendMap[key] = { pax:0, pendiente:0, adics:{} };
       pendMap[key].pax       += parseInt(m.cant_pax)||0;
       pendMap[key].pendiente += pend;
+      if (m.adicionales) {
+        String(m.adicionales).split(',').forEach(p => {
+          const sep = p.indexOf(':'); if (sep===-1) return;
+          const nombre = p.substring(0,sep).trim();
+          const val    = parseFloat(p.substring(sep+1).trim())||0;
+          if (nombre && val>0) pendMap[key].adics[nombre] = (pendMap[key].adics[nombre]||0)+val;
+        });
+      }
     }
   });
   const pendArr   = Object.entries(pendMap).sort((a,b) => b[1].pendiente - a[1].pendiente);
   const totalPend = pendArr.reduce((s,[,d]) => s+d.pendiente, 0);
 
   const pendHtml = pendArr.length > 0
-    ? pendArr.map(([nombre,d]) => `
-      <div class="pend-item">
+    ? pendArr.map(([nombre,d]) => {
+        const adicsKeys = Object.keys(d.adics||{});
+        const adicsChips = adicsKeys.length > 0
+          ? '<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px;">' +
+            adicsKeys.map(k=>`<span style="font-size:9px;background:rgba(251,191,36,0.18);color:#fbbf24;border:1px solid rgba(251,191,36,0.4);border-radius:4px;padding:1px 6px;font-weight:700;">+${k} ${S(d.adics[k])}</span>`).join('') +
+            '</div>'
+          : '';
+        return `
+      <div class="pend-item" style="flex-wrap:wrap;row-gap:0;">
         <div class="pend-dot"></div>
-        <div class="pend-desc"><b>${nombre}</b>${d.pax>0?` · ${d.pax} pax`:''}</div>
+        <div class="pend-desc" style="flex:1;min-width:0;">
+          <b>${nombre}</b>${d.pax>0?` · ${d.pax} pax`:''}
+          ${adicsChips}
+        </div>
         <div class="pend-monto">${S(d.pendiente)}</div>
-      </div>`).join('')
+      </div>`;
+      }).join('')
     : '<div style="padding:16px;color:var(--green);font-size:18px;font-weight:700;">✓ Sin pendientes</div>';
 
   // ── Texto plano para WhatsApp ─────────────────────────────────
@@ -419,6 +438,10 @@ function render(data) {
       t += `\n⏳ *PENDIENTES* (${S(totalPend)})\n${SEP}\n`;
       pendArr.forEach(([nombre,d]) => {
         t += `  * ${nombre}${d.pax>0?' ('+d.pax+' pax)':''}  ${S(d.pendiente)}\n`;
+        const adicsKeys = Object.keys(d.adics||{});
+        if (adicsKeys.length > 0) {
+          t += `    Adicionales: ${adicsKeys.map(k=>k+' +'+S(d.adics[k])).join(', ')}\n`;
+        }
       });
     }
     return t;
