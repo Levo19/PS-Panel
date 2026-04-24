@@ -1089,18 +1089,13 @@ function render(data) {
 
   ${alertaHtml}
 
-  ${aliadoArr.length > 0 ? `
+  ${kpiHtml}
+
   <div class="section glass" style="padding:14px;margin-bottom:14px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding-bottom:8px;border-bottom:1px solid rgba(201,168,76,0.2);margin-bottom:10px;">
-      <div class="sec-hdr" style="margin:0;border:none;padding:0;">🤝 Balance de Aliados</div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;">
-        ${netDeboPases > 0 ? `<span style="background:rgba(248,113,113,0.15);color:var(--red);border:1px solid rgba(248,113,113,0.3);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:800;">↑ Debo ${netDeboPases} PAX</span>` : ''}
-        ${netMeDebenPases > 0 ? `<span style="background:rgba(74,222,128,0.1);color:var(--green);border:1px solid rgba(74,222,128,0.3);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:800;">↓ Me deben ${netMeDebenPases} PAX</span>` : ''}
-        ${netDeboPases === 0 && netMeDebenPases === 0 ? `<span style="background:rgba(255,255,255,0.06);color:var(--text-muted);border:1px solid var(--border);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">= Tablas</span>` : ''}
-      </div>
-    </div>
-    ${aliadoHtml}
-  </div>` : ''}
+    <div class="sec-hdr">⛵ Operaciones del día (${ops.length})</div>
+    ${opsManifHtml}
+    ${pasadosHtml}
+  </div>
 
   <div class="section glass" style="padding:14px;margin-bottom:14px;">
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding-bottom:8px;border-bottom:1px solid rgba(201,168,76,0.2);margin-bottom:10px;">
@@ -1115,33 +1110,34 @@ function render(data) {
     ${cobrosClientHtml}
   </div>
 
+  ${comArr.length > 0 ? `
   <div class="section glass" style="padding:14px;margin-bottom:14px;">
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding-bottom:8px;border-bottom:1px solid rgba(201,168,76,0.2);margin-bottom:10px;">
       <div class="sec-hdr" style="margin:0;border:none;padding:0;">👥 Plata que DEBO · Comisionados</div>
       <div>
         ${totalDebeComis > 0
           ? `<span style="background:rgba(251,191,36,0.1);color:var(--amber);border:1px solid rgba(251,191,36,0.3);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:800;">${S(totalDebeComis)} pendiente</span>`
-          : (comArr.length > 0 ? `<span style="background:rgba(74,222,128,0.1);color:var(--green);border:1px solid rgba(74,222,128,0.3);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">✓ Comisiones al día</span>` : '')
+          : `<span style="background:rgba(74,222,128,0.1);color:var(--green);border:1px solid rgba(74,222,128,0.3);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">✓ Comisiones al día</span>`
         }
       </div>
     </div>
     ${comHtml}
-  </div>
+  </div>` : ''}
 
-  ${kpiHtml}
-
+  ${aliadoArr.length > 0 ? `
   <div class="section glass" style="padding:14px;margin-bottom:14px;">
-    <div class="sec-hdr">⛵ Operaciones del día (${ops.length})</div>
-    ${opsManifHtml}
-    ${pasadosHtml}
-  </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding-bottom:8px;border-bottom:1px solid rgba(201,168,76,0.2);margin-bottom:10px;">
+      <div class="sec-hdr" style="margin:0;border:none;padding:0;">🤝 Balance de Aliados</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        ${netDeboPases > 0 ? `<span style="background:rgba(248,113,113,0.15);color:var(--red);border:1px solid rgba(248,113,113,0.3);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:800;">↑ Debo ${netDeboPases} PAX</span>` : ''}
+        ${netMeDebenPases > 0 ? `<span style="background:rgba(74,222,128,0.1);color:var(--green);border:1px solid rgba(74,222,128,0.3);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:800;">↓ Me deben ${netMeDebenPases} PAX</span>` : ''}
+        ${netDeboPases === 0 && netMeDebenPases === 0 ? `<span style="background:rgba(255,255,255,0.06);color:var(--text-muted);border:1px solid var(--border);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">= Tablas</span>` : ''}
+      </div>
+    </div>
+    ${aliadoHtml}
+  </div>` : ''}
 
-  ${matrixHtml}
-
-  <div class="section">
-    <div class="sec-hdr" style="margin-bottom:10px;">📒 Caja del día</div>
-    ${cajaHtml || '<div style="color:var(--text-muted);font-size:13px;padding:6px 0;">Sin movimientos de caja.</div>'}
-  </div>
+  ${flujoHtml}
 
   <div class="charts-grid">
       <div class="chart-card glass">
@@ -1158,6 +1154,13 @@ function render(data) {
         <div class="chart-wrap"><canvas id="chartAdicionales"></canvas></div>
       </div>` : ''}
   </div>
+
+  <div class="section">
+    <div class="sec-hdr" style="margin-bottom:10px;">📒 Caja del día</div>
+    ${cajaHtml || '<div style="color:var(--text-muted);font-size:13px;padding:6px 0;">Sin movimientos de caja.</div>'}
+  </div>
+
+  ${matrixHtml}
 
   <div style="text-align:center;padding:20px 0 8px;font-size:11px;color:var(--text-muted);">
     Generado por PS Panel · ${new Date().toLocaleString('es-PE')}
