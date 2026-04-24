@@ -200,17 +200,6 @@ function horaEndose(m) {
   return m._op ? (m._op.hora_salida || '??:??') : '??:??';
 }
 
-// Debug: muestra campos y valor del timestamp del primer pase
-function debugMovFields(allMovs) {
-  const pase = allMovs.find(m => m.id_contacto_pase);
-  if (!pase) return '';
-  const ts = pase.timestamp;
-  return `<div style="margin:8px 0;padding:10px 14px;background:rgba(248,113,113,0.1);border:1px dashed rgba(248,113,113,0.4);border-radius:8px;font-size:12px;color:#f07070;word-break:break-all;">
-    <b>DEBUG timestamp:</b> ${JSON.stringify(ts)}<br>
-    <b>horaEndose():</b> ${horaEndose(pase)}
-  </div>`;
-}
-
 // ── Estado global ────────────────────────────────────────────
 let _buildText = null;
 
@@ -456,8 +445,6 @@ function render(data) {
     <div class="sec-title">⛵ Salidas del dia &nbsp;·&nbsp; ${ops.length} operaciones</div>
     ${salidasHtml}
   </div>
-
-  ${debugMovFields(allMovs)}
 
   ${horasOrd.length > 0 ? `
   <div class="sec">
