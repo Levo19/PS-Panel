@@ -460,6 +460,10 @@ function crearOperacion(body) {
     body.foto_zarpe_url || '',
     body.destino || ''
   ]);
+  // Celda fecha: solo fecha sin hora. Celda timestamp: fecha+hora completo.
+  const newRow = sh.getLastRow();
+  sh.getRange(newRow, 2).setNumberFormat('dd/MM/yyyy');
+  sh.getRange(newRow, 9).setNumberFormat('dd/MM/yyyy HH:mm:ss');
   return { id };
 }
 
@@ -477,7 +481,9 @@ function actualizarOperacion(body) {
     if (body.id_guia     !== undefined) sh.getRange(row, 6).setValue(body.id_guia);
     if (body.destino     !== undefined) sh.getRange(row, 11).setValue(body.destino);
     // Campos exclusivos de administrador
-    if (body.fecha  !== undefined && body.fecha  !== '') sh.getRange(row, 2).setValue(_parseFecha(body.fecha));
+    if (body.fecha  !== undefined && body.fecha  !== '') {
+      sh.getRange(row, 2).setValue(_parseFecha(body.fecha)).setNumberFormat('dd/MM/yyyy');
+    }
     if (body.estado !== undefined && body.estado !== '') sh.getRange(row, 7).setValue(body.estado);
     SpreadsheetApp.flush();
     return { ok: true };
