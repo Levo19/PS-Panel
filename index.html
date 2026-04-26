@@ -2384,7 +2384,7 @@ const ViewLanchas = {
     const TIPOS_SIN_COBRO = ['Aliado(PaseIn)', 'Pase_Recibido', 'Aliado'];
     const contactosOps = ref([]);
     const movFormModal = ref({ show: false, mode: 'crear', saving: false, error: '',
-      id_mov: '', id_operacion: '', tipo: 'Directo',
+      id_mov: '', id_operacion: '', op_label: '', tipo: 'Directo',
       id_contacto: '', nombre_contacto: '', cant_pax: '', monto_total: '', adicionales: '' });
     const pagoModal = ref({ show: false, saving: false, error: '', modo: 'cobro',
       id_mov: '', id_operacion: '', id_contacto: '', nombre_contacto: '',
@@ -2427,18 +2427,18 @@ const ViewLanchas = {
     }
 
     function openMovFormModal(op, mov = null) {
-      loadContactos();
+      const opLabel = (op.nombre_bote || op.id_bote || '') + (op.hora_salida ? ' · ' + op.hora_salida : '');
       if (mov) {
         movFormModal.value = { show: true, mode: 'editar', saving: false, error: '',
-          id_mov: mov.id_mov, id_operacion: op.id,
+          id_mov: mov.id_mov, id_operacion: op.id, op_label: opLabel,
           tipo: mov.tipo, id_contacto: mov.id_contacto,
           nombre_contacto: mov.nombre_contacto,
           cant_pax: String(mov.cant_pax),
           monto_total: String(mov.monto_total),
-          adicionales: mov.adicionales || '' };
+          adicionales: '' };
       } else {
         movFormModal.value = { show: true, mode: 'crear', saving: false, error: '',
-          id_mov: '', id_operacion: op.id,
+          id_mov: '', id_operacion: op.id, op_label: opLabel,
           tipo: 'Directo', id_contacto: '', nombre_contacto: '',
           cant_pax: '', monto_total: '', adicionales: '' };
       }
@@ -2449,32 +2449,77 @@ const ViewLanchas = {
       if (!m.id_contacto || !m.cant_pax || !m.monto_total) {
         m.error = 'Contacto, PAX y monto son obligatorios'; return;
       }
+      const session = JSON.parse(localStorage.getItem('ps_session') || '{}');
+      const pax   = parseInt(m.cant_pax) || 0;
+      const monto = parseFloat(m.monto_total) || 0;
+      const con   = contactosOps.value.find(c => c.id === m.id_contacto);
+      const body  = {
+        accion: m.mode === 'crear' ? 'crear_movimiento' : 'editar_movimiento',
+        id_operacion: m.id_operacion,
+        tipo: m.tipo,
+        id_contacto: m.id_contacto,
+        nombre_contacto: con?.nombre || m.nombre_contacto,
+        cant_pax: pax,
+        precio_unitario: pax > 0 ? (monto / pax).toFixed(2) : '0',
+        monto_total: monto,
+        adicionales: m.adicionales,
+        operador: session.nombre || 'PS'
+      };
+      if (m.mode === 'editar') body.id_mov = m.id_mov;
+
+      // ── Editar: optimistic ────────────────────────────────────
+      if (m.mode === 'editar') {
+        const fecha = currentFecha.value;
+        const ops   = cache.value[fecha]?.operaciones || [];
+        let snapOp = null, opIdx = -1, movIdx = -1;
+        for (let i = 0; i < ops.length; i++) {
+          const mi = (ops[i].movimientos || []).findIndex(mv => mv.id_mov === m.id_mov);
+          if (mi >= 0) { opIdx = i; movIdx = mi; break; }
+        }
+        if (opIdx >= 0) {
+          snapOp = JSON.parse(JSON.stringify(ops[opIdx]));
+          const updMov = { ...ops[opIdx].movimientos[movIdx],
+            tipo: m.tipo, id_contacto: m.id_contacto,
+            nombre_contacto: con?.nombre || m.nombre_contacto,
+            cant_pax: pax, precio_aplicado: pax > 0 ? monto / pax : 0, monto_total: monto
+          };
+          const newMovs = [...ops[opIdx].movimientos]; newMovs[movIdx] = updMov;
+          const newOps  = [...ops]; newOps[opIdx] = { ...ops[opIdx], movimientos: newMovs };
+          cache.value = { ...cache.value, [fecha]: { ...cache.value[fecha], operaciones: newOps } };
+        }
+        const snapSelMov = selectedMov.value ? JSON.parse(JSON.stringify(selectedMov.value)) : null;
+        if (selectedMov.value?.mov.id_mov === m.id_mov)
+          selectedMov.value = { ...selectedMov.value, mov: { ...selectedMov.value.mov,
+            tipo: m.tipo, id_contacto: m.id_contacto,
+            nombre_contacto: con?.nombre || m.nombre_contacto,
+            cant_pax: pax, precio_aplicado: pax > 0 ? monto / pax : 0, monto_total: monto }};
+        movFormModal.value.show = false;
+        showToast('✅ Movimiento actualizado');
+        try {
+          const r = await apiPost(body);
+          if (!r.ok) throw new Error(r.error || 'Error al guardar');
+        } catch(e) {
+          if (snapOp && opIdx >= 0) {
+            const ops2 = [...(cache.value[fecha]?.operaciones || [])];
+            ops2[opIdx] = snapOp;
+            cache.value = { ...cache.value, [fecha]: { ...cache.value[fecha], operaciones: ops2 } };
+          }
+          if (snapSelMov) selectedMov.value = snapSelMov;
+          showToast('⚠ ' + e.message, 4000);
+        }
+        return;
+      }
+
+      // ── Crear: espera al servidor (necesita el ID) ────────────
       m.saving = true; m.error = '';
       try {
-        const session = JSON.parse(localStorage.getItem('ps_session') || '{}');
-        const pax   = parseInt(m.cant_pax) || 0;
-        const monto = parseFloat(m.monto_total) || 0;
-        const con   = contactosOps.value.find(c => c.id === m.id_contacto);
-        const body  = {
-          accion: m.mode === 'crear' ? 'crear_movimiento' : 'editar_movimiento',
-          id_operacion: m.id_operacion,
-          tipo: m.tipo,
-          id_contacto: m.id_contacto,
-          nombre_contacto: con?.nombre || m.id_contacto,
-          cant_pax: pax,
-          precio_unitario: pax > 0 ? (monto / pax).toFixed(2) : '0',
-          monto_total: monto,
-          adicionales: m.adicionales,
-          operador: session.nombre || 'PS'
-        };
-        if (m.mode === 'editar') body.id_mov = m.id_mov;
         const r = await apiPost(body);
         if (!r.ok) throw new Error(r.error || 'Error al guardar');
         movFormModal.value.show = false;
-        selectedMov.value = null;
         const fecha = currentFecha.value;
         cache.value = { ...cache.value, [fecha]: { loaded: false, loading: false } };
         loadFecha(fecha);
+        showToast('✅ Movimiento registrado');
       } catch(e) { m.error = e.message; }
       finally    { m.saving = false; }
     }
@@ -2639,11 +2684,13 @@ const ViewLanchas = {
     onMounted(() => {
       if (!fechas.value.length) loadFechas();
       loadCatalogos();
+      loadContactos();
       refreshInterval = setInterval(silentRefresh, 60000);
     });
     onActivated(() => {
       if (!fechas.value.length && !loadingFechas.value) loadFechas();
       loadCatalogos();
+      loadContactos();
       if (!refreshInterval) refreshInterval = setInterval(silentRefresh, 60000);
     });
     onDeactivated(() => {
@@ -3172,60 +3219,79 @@ const ViewLanchas = {
       <!-- Mov Form Modal (crear / editar movimiento) -->
       <teleport to="body">
         <div v-if="movFormModal.show" class="date-picker-overlay" @click.self="movFormModal.show=false">
-          <div class="date-picker-modal" style="max-width:400px;">
-            <div class="date-picker-header">
-              <span style="font-weight:800;">{{ movFormModal.mode==='crear' ? '＋ Nuevo Movimiento' : '✏ Editar Movimiento' }}</span>
-              <button @click="movFormModal.show=false" style="font-size:18px;color:var(--text-muted);">✕</button>
-            </div>
-            <div style="overflow-y:auto;max-height:70vh;padding:16px;display:flex;flex-direction:column;gap:14px;">
+          <div style="background:var(--bg2);border:1px solid rgba(201,168,76,0.2);border-radius:18px;width:92%;max-width:400px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,0.85);">
 
-              <!-- Tipo -->
-              <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text-muted);">
-                Tipo de movimiento *
-                <select v-model="movFormModal.tipo"
-                  style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);appearance:none;">
-                  <option>Directo</option>
-                  <option>Aliado(PaseIn)</option>
-                  <option>Pase_Recibido</option>
-                  <option>Aliado</option>
-                </select>
-              </label>
+            <!-- Header -->
+            <div style="background:linear-gradient(135deg,rgba(90,23,34,0.9),rgba(22,10,13,0.97));padding:16px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(201,168,76,0.15);">
+              <div>
+                <div style="font-size:10px;letter-spacing:.1em;color:var(--gold);text-transform:uppercase;margin-bottom:2px;">
+                  {{ movFormModal.mode==='crear' ? 'Nuevo movimiento' : 'Editar movimiento' }}
+                </div>
+                <div style="font-size:13px;font-weight:700;color:var(--text);">{{ movFormModal.op_label }}</div>
+              </div>
+              <button @click="movFormModal.show=false" style="font-size:20px;color:var(--text-muted);line-height:1;padding:2px 6px;">✕</button>
+            </div>
+
+            <!-- Body -->
+            <div style="padding:16px 18px;display:flex;flex-direction:column;gap:14px;max-height:72vh;overflow-y:auto;">
 
               <!-- Contacto -->
-              <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text-muted);">
-                Contacto *
+              <div style="display:flex;flex-direction:column;gap:5px;">
+                <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">Contacto *</span>
                 <select v-model="movFormModal.id_contacto"
-                  @change="() => { const c = contactosOps.find(x => x.id === movFormModal.id_contacto); if(c) { movFormModal.nombre_contacto = c.nombre; if(movFormModal.cant_pax) movFormModal.monto_total = (parseFloat(c.precio||0) * parseInt(movFormModal.cant_pax||0)).toFixed(2); } }"
-                  style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);appearance:none;">
+                  @change="() => { const c = contactosOps.find(x => x.id === movFormModal.id_contacto); if(c) { movFormModal.nombre_contacto = c.nombre; movFormModal.tipo = c.tipo && ['Agencia','Comisionado','Directo'].includes(c.tipo) ? c.tipo : 'Directo'; if(movFormModal.cant_pax) movFormModal.monto_total = (parseFloat(c.precio||0) * parseInt(movFormModal.cant_pax||0)).toFixed(2); } }"
+                  style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 10px;font-size:13px;color:var(--text);appearance:none;">
                   <option value="">— seleccionar —</option>
-                  <option v-for="c in contactosOps" :key="c.id" :value="c.id">{{ c.nombre }}{{ c.tipo ? ' ('+c.tipo+')' : '' }}</option>
+                  <option v-for="c in contactosOps" :key="c.id" :value="c.id">{{ c.nombre }}{{ c.tipo ? '  ·  '+c.tipo : '' }}</option>
                 </select>
-                <span v-if="movFormModal.id_contacto" style="font-size:11px;color:var(--text-muted);">
-                  Precio ref: S/ {{ fmt(contactosOps.find(x=>x.id===movFormModal.id_contacto)?.precio || 0) }}
-                </span>
-              </label>
-
-              <!-- PAX + Monto total -->
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text-muted);">
-                  PAX *
-                  <input type="number" v-model="movFormModal.cant_pax" min="1" placeholder="0"
-                    @change="() => { const c = contactosOps.find(x => x.id === movFormModal.id_contacto); if(c && movFormModal.cant_pax) movFormModal.monto_total = (parseFloat(c.precio||0) * parseInt(movFormModal.cant_pax||0)).toFixed(2); }"
-                    style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);" />
-                </label>
-                <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text-muted);">
-                  Monto total (S/) *
-                  <input type="number" v-model="movFormModal.monto_total" min="0" step="0.01" placeholder="0.00"
-                    style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);" />
-                </label>
+                <div v-if="movFormModal.id_contacto" style="display:flex;align-items:center;justify-content:space-between;">
+                  <span style="font-size:11px;color:var(--text-muted);">
+                    Precio ref: <span style="color:var(--gold);font-weight:700;">S/ {{ fmt(contactosOps.find(x=>x.id===movFormModal.id_contacto)?.precio || 0) }}</span> / pax
+                  </span>
+                </div>
               </div>
 
-              <!-- Adicionales -->
-              <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text-muted);">
-                Notas / adicionales
-                <input type="text" v-model="movFormModal.adicionales" placeholder="Ej: incluye snorkel, traslado…"
-                  style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);" />
-              </label>
+              <!-- Tipo pills -->
+              <div style="display:flex;flex-direction:column;gap:6px;">
+                <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">Tipo</span>
+                <div style="display:flex;gap:6px;">
+                  <button v-for="t in ['Directo','Agencia','Comisionado']" :key="t"
+                    @click="movFormModal.tipo=t"
+                    :style="movFormModal.tipo===t
+                      ? 'flex:1;padding:9px 4px;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;background:rgba(201,168,76,0.2);border:1.5px solid var(--gold);color:var(--gold);text-align:center;'
+                      : 'flex:1;padding:9px 4px;border-radius:9px;font-size:12px;cursor:pointer;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);text-align:center;'">
+                    {{ t }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- PAX + Monto -->
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <div style="display:flex;flex-direction:column;gap:5px;">
+                  <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">PAX *</span>
+                  <input type="number" v-model="movFormModal.cant_pax" min="1" placeholder="0"
+                    @input="() => { const c = contactosOps.find(x => x.id === movFormModal.id_contacto); if(c?.precio && movFormModal.cant_pax) movFormModal.monto_total = (parseFloat(c.precio)*parseInt(movFormModal.cant_pax||0)).toFixed(2); }"
+                    style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 10px;font-size:15px;font-weight:700;color:var(--text);text-align:center;" />
+                </div>
+                <div style="display:flex;flex-direction:column;gap:5px;">
+                  <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">Monto total S/ *</span>
+                  <input type="number" v-model="movFormModal.monto_total" min="0" step="0.01" placeholder="0.00"
+                    style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 10px;font-size:15px;font-weight:700;color:var(--gold);" />
+                </div>
+              </div>
+
+              <!-- Precio implícito (si hay pax y monto) -->
+              <div v-if="movFormModal.cant_pax && movFormModal.monto_total"
+                style="font-size:11px;color:var(--text-muted);text-align:center;margin-top:-6px;">
+                = S/ {{ fmt(parseFloat(movFormModal.monto_total)/parseInt(movFormModal.cant_pax)) }} por pax
+              </div>
+
+              <!-- Notas (solo crear) -->
+              <div v-if="movFormModal.mode==='crear'" style="display:flex;flex-direction:column;gap:5px;">
+                <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">Notas</span>
+                <input type="text" v-model="movFormModal.adicionales" placeholder="Ej: incluye traslado…"
+                  style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 10px;font-size:13px;color:var(--text);" />
+              </div>
 
               <!-- Error -->
               <div v-if="movFormModal.error"
@@ -3234,16 +3300,17 @@ const ViewLanchas = {
               </div>
 
               <!-- Botones -->
-              <div style="display:flex;gap:10px;padding-top:4px;">
+              <div style="display:flex;gap:10px;padding-top:2px;">
                 <button @click="movFormModal.show=false"
-                  style="flex:1;padding:10px;border-radius:10px;background:transparent;border:1px solid var(--border);font-size:14px;cursor:pointer;color:var(--text-muted);">
+                  style="flex:1;padding:11px;border-radius:11px;background:transparent;border:1px solid var(--border);font-size:13px;cursor:pointer;color:var(--text-muted);">
                   Cancelar
                 </button>
-                <button @click="guardarMov()" :disabled="movFormModal.saving"
-                  style="flex:2;padding:10px;border-radius:10px;background:var(--gold);border:none;font-size:14px;font-weight:800;color:#1a0a05;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;"
+                <button @click="guardarMov()"
+                  :disabled="movFormModal.saving"
+                  style="flex:2;padding:11px;border-radius:11px;background:var(--gold);border:none;font-size:14px;font-weight:800;color:#1a0a05;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;"
                   :style="movFormModal.saving?'opacity:0.6;cursor:default':''">
                   <span v-if="movFormModal.saving" class="spin" style="width:14px;height:14px;border-color:rgba(26,10,5,0.3);border-top-color:#1a0a05;"></span>
-                  {{ movFormModal.saving ? 'Guardando…' : (movFormModal.mode==='crear' ? 'Registrar' : 'Guardar cambios') }}
+                  {{ movFormModal.saving ? 'Guardando…' : (movFormModal.mode==='crear' ? 'Registrar' : 'Guardar') }}
                 </button>
               </div>
 
@@ -4533,7 +4600,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.4.48';
+const APP_VERSION = '1.4.49';
 (function() {
   let _reg = null, _waitingWorker = null;
 
