@@ -2266,7 +2266,7 @@ const ViewLanchas = {
         opModal.value = { show: true, mode: 'editar', saving: false, error: '',
           id: op.id,
           fecha: op.fecha || currentFecha.value,
-          hora_salida: to24h(op.hora_salida),
+          hora_salida: fmtHora(op.hora_salida),
           id_bote: op.id_bote,
           id_capitan: op.id_capitan,
           id_guia: op.id_guia || '',
@@ -4511,7 +4511,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.4.44';
+const APP_VERSION = '1.4.45';
 (function() {
   let _reg = null, _waitingWorker = null;
 

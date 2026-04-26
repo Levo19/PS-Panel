@@ -435,13 +435,21 @@ function listarPersonalOps() {
 }
 
 // ── CRUD Operaciones ──────────────────────────────────────────
+
+// Parsea "YYYY-MM-DD" como mediodía local para evitar el off-by-one de UTC.
+// new Date("YYYY-MM-DD") crea medianoche UTC → en Lima (UTC-5) = día anterior a las 19:00.
+function _parseFecha(s) {
+  const p = String(s).split('-');
+  return new Date(parseInt(p[0]), parseInt(p[1]) - 1, parseInt(p[2]), 12, 0, 0);
+}
+
 function crearOperacion(body) {
   const sh = getSS_OPS().getSheetByName('Operaciones');
   if (!sh) throw new Error('Sheet Operaciones no encontrada');
   const id = 'OP-' + Math.floor(100000 + Math.random() * 900000);
   sh.appendRow([
     id,
-    new Date(body.fecha),
+    _parseFecha(body.fecha),
     body.hora_salida || '',
     body.id_bote || '',
     body.id_capitan || '',
@@ -469,7 +477,7 @@ function actualizarOperacion(body) {
     if (body.id_guia     !== undefined) sh.getRange(row, 6).setValue(body.id_guia);
     if (body.destino     !== undefined) sh.getRange(row, 11).setValue(body.destino);
     // Campos exclusivos de administrador
-    if (body.fecha  !== undefined && body.fecha  !== '') sh.getRange(row, 2).setValue(new Date(body.fecha));
+    if (body.fecha  !== undefined && body.fecha  !== '') sh.getRange(row, 2).setValue(_parseFecha(body.fecha));
     if (body.estado !== undefined && body.estado !== '') sh.getRange(row, 7).setValue(body.estado);
     SpreadsheetApp.flush();
     return { ok: true };
