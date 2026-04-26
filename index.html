@@ -4048,7 +4048,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.4.20';
+const APP_VERSION = '1.4.21';
 (function() {
   let _reg = null, _waitingWorker = null;
 
@@ -4100,6 +4100,7 @@ const APP_VERSION = '1.4.20';
 
   navigator.serviceWorker.register('./sw.js').then(reg => {
     _reg = reg;
+    navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload());
     if (reg.waiting) { _showBanner(reg.waiting); return; }
     reg.addEventListener('updatefound', () => {
       const nw = reg.installing;
@@ -4107,7 +4108,6 @@ const APP_VERSION = '1.4.20';
         if (nw.state === 'installed' && navigator.serviceWorker.controller) _showBanner(nw);
       });
     });
-    navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload());
     _reg.update().catch(() => {});
     setInterval(() => _reg?.update().catch(() => {}), 5 * 60 * 1000);
   }).catch(() => {});
