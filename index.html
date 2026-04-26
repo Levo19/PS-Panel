@@ -2955,8 +2955,10 @@ const ViewLanchas = {
                   </div>
                   <!-- Anular operación (solo admin) -->
                   <div v-if="isAdmin" style="padding-top:10px;border-top:1px solid var(--border);margin-top:4px;">
-                    <button @click.stop="confirmarAnularOp(op.id)"
-                      style="width:100%;padding:8px;border-radius:8px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);color:#f87171;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+                    <button @click.stop="op.movimientos.filter(m=>m.estado!=='Cancelado').length===0 && confirmarAnularOp(op.id)"
+                      :disabled="op.movimientos.filter(m=>m.estado!=='Cancelado').length>0"
+                      :title="op.movimientos.filter(m=>m.estado!=='Cancelado').length>0 ? 'Cancela todos los movimientos antes de anular' : ''"
+                      :style="op.movimientos.filter(m=>m.estado!=='Cancelado').length>0 ? 'width:100%;padding:8px;border-radius:8px;background:rgba(239,68,68,0.04);border:1px solid rgba(239,68,68,0.12);color:rgba(248,113,113,0.3);font-size:12px;cursor:not-allowed;display:flex;align-items:center;justify-content:center;gap:6px;' : 'width:100%;padding:8px;border-radius:8px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);color:#f87171;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;'">
                       🚫 Anular operación
                     </button>
                   </div>
@@ -4484,7 +4486,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.4.42';
+const APP_VERSION = '1.4.43';
 (function() {
   let _reg = null, _waitingWorker = null;
 
