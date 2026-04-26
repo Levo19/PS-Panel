@@ -1864,15 +1864,20 @@ const ViewLanchas = {
     const selectedMov    = ref(null);
 
     function contactColorByTipo(tipo) {
-      switch(String(tipo||'').toLowerCase()) {
-        case 'directo':     return '#4ade80';
-        case 'agencia':     return '#90cdf4';
-        case 'comisionado': return '#a78bfa';
-        case 'pasein':      return '#fbbf24';
-        case 'paseout':     return '#fb923c';
-        case 'aliado':      return '#f0abfc';
-      }
-      return 'rgba(240,230,211,0.55)';
+      const t = String(tipo||'').toLowerCase();
+      if (t.includes('agencia'))     return '#90cdf4'; // azul
+      if (t.includes('comisionado')) return '#c084fc'; // morado
+      if (t.includes('pasein'))      return '#fbbf24'; // ámbar
+      if (t.includes('paseout'))     return '#fb923c'; // naranja
+      if (t.includes('aliado'))      return '#f0abfc'; // fuchsia
+      return '#4ade80'; // verde — Directo / Libre / default
+    }
+    function chipStyle(tipo) {
+      const c = contactColorByTipo(tipo);
+      return `color:${c};background:${c}20;border:1px solid ${c}55;`;
+    }
+    function esPaseOut(tipo) {
+      return String(tipo||'').toLowerCase().includes('paseout');
     }
 
     function movPayments(op, movId) {
@@ -2404,6 +2409,7 @@ const ViewLanchas = {
              selectedPase, pagoStatusStyle, openPaseModal,
              isIngreso, metodoIcon, cajaRowStyle, selectedCajaDia,
              resolveQuien, expandedCajaGroups, toggleCajaGroup, groupedCajaDia, groupIcon,
+             chipStyle, esPaseOut,
              opModal, embarcaciones, personalOps, isAdmin, openOpModal, guardarOp, confirmarAnularOp,
              contactosOps, movFormModal, pagoModal, derivarModal,
              tipoEsCobrable, calcPagoEstado, pagadoAgencia,
@@ -2659,13 +2665,15 @@ const ViewLanchas = {
                   </div>
                   <!-- Fila 4: tipo chips -->
                   <div class="type-chips" v-if="Object.keys(op.tipo_chips||{}).length">
-                    <span v-for="(cnt, tipo) in op.tipo_chips" :key="tipo" class="type-chip" :class="tipoBadgeClass(tipo)">{{ tipo }} ×{{ cnt }}</span>
+                    <span v-for="(cnt, tipo) in op.tipo_chips" :key="tipo"
+                      v-if="!esPaseOut(tipo)"
+                      class="type-chip" :style="chipStyle(tipo)">{{ tipo }} ×{{ cnt }}</span>
                   </div>
                 </div>
                 <div v-if="expandedOps.has(op.id)" class="boat-body">
                   <div v-if="!(op.movimientos||[]).length" style="color:var(--text-muted);font-size:13px;padding:8px 0;">Sin movimientos</div>
                   <div v-else>
-                    <div v-for="m in (op.movimientos||[]).filter(m=>m.tipo!=='PaseOUT')" :key="m.id_mov"
+                    <div v-for="m in (op.movimientos||[]).filter(m=>!esPaseOut(m.tipo))" :key="m.id_mov"
                       class="mov-row" :class="{'mov-cancelled': m.estado==='Cancelado'}"
                       @click="openMovModal(op, m)">
                       <div style="display:flex;align-items:center;gap:7px;flex:1;min-width:0;">
@@ -2685,8 +2693,8 @@ const ViewLanchas = {
                       </div>
                     </div>
                     <div style="display:flex;justify-content:space-between;padding:8px 10px;border-top:1px solid var(--border);margin-top:2px;">
-                      <span style="font-size:11px;color:var(--text-muted);">{{ totalMovs((op.movimientos||[]).filter(m=>m.tipo!=='PaseOUT')).pax }} pax total</span>
-                      <span style="font-size:12px;font-weight:800;color:var(--gold);">S/ {{ fmt(totalMovs((op.movimientos||[]).filter(m=>m.tipo!=='PaseOUT')).monto) }}</span>
+                      <span style="font-size:11px;color:var(--text-muted);">{{ totalMovs((op.movimientos||[]).filter(m=>!esPaseOut(m.tipo))).pax }} pax total</span>
+                      <span style="font-size:12px;font-weight:800;color:var(--gold);">S/ {{ fmt(totalMovs((op.movimientos||[]).filter(m=>!esPaseOut(m.tipo))).monto) }}</span>
                     </div>
                   </div>
                   <!-- Agregar movimiento -->
@@ -4048,7 +4056,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.4.21';
+const APP_VERSION = '1.4.22';
 (function() {
   let _reg = null, _waitingWorker = null;
 
