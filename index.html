@@ -1793,12 +1793,12 @@ const ViewLanchas = {
       (d.operaciones || []).forEach(op => {
         (op.movimientos || []).forEach(m => {
           if (esPaseOut(m.tipo) && m.estado !== 'Cancelado')
-            result.push({ ...m, _bote: op.destino || op.id_bote, _hora: op.hora_salida });
+            result.push({ ...m, _bote: op.destino || op.id_bote, _hora: op.hora_salida, _caja: op.caja || [] });
         });
       });
       (d.pases_sueltos || []).forEach(m => {
         if (esPaseOut(String(m.tipo || '')) && m.estado !== 'Cancelado')
-          result.push({ ...m, _bote: '—', _hora: '—' });
+          result.push({ ...m, _bote: '—', _hora: '—', _caja: [] });
       });
       return result;
     }
@@ -1886,7 +1886,7 @@ const ViewLanchas = {
     function montoPayStyle(op, mov) {
       if (mov.estado === 'Cancelado') return 'color:#6b7280;text-decoration:line-through';
       const paid  = movPayments(op, mov.id_mov).reduce((s,c) => s+(parseFloat(c.monto)||0), 0);
-      const total = parseFloat(mov.monto_total)||0;
+      const total = (parseFloat(mov.monto_total)||0) + (parseFloat(mov.adicionales)||0);
       if (total === 0)            return 'color:var(--text-muted)';
       if (paid >= total * 0.99)   return 'color:#4ade80';
       if (paid > 0)               return 'color:#fbbf24';
@@ -2156,11 +2156,19 @@ const ViewLanchas = {
 
     function calcPagoEstado(mov, op) {
       if (!tipoEsCobrable(mov.tipo)) return { cobrable: false, estado: 'sin_cobro', pendiente: 0, total: 0, pagado: 0 };
-      const total   = parseFloat(mov.monto_total) || 0;
+      const total   = (parseFloat(mov.monto_total) || 0) + (parseFloat(mov.adicionales) || 0);
       const pagado  = movPayments(op, mov.id_mov).reduce((s, c) => s + (parseFloat(c.monto) || 0), 0);
       const pendiente = Math.max(0, total - pagado);
       const estado  = pagado <= 0 ? 'por_cobrar' : pendiente > 0.01 ? 'pagado_parcial' : 'pagado_completo';
       return { cobrable: true, estado, pendiente, total, pagado };
+    }
+
+    function calcPagoEstadoPase(p) {
+      if (!tipoEsCobrable(p.tipo)) return { estado: 'sin_cobro' };
+      const total  = (parseFloat(p.monto_total) || 0) + (parseFloat(p.adicionales) || 0);
+      const pagado = (p._caja || []).filter(c => String(c.id_movimiento || '') === String(p.id_mov || '')).reduce((s, c) => s + (parseFloat(c.monto) || 0), 0);
+      const estado = pagado <= 0 ? 'por_cobrar' : (total - pagado) > 0.01 ? 'pagado_parcial' : 'pagado_completo';
+      return { estado };
     }
 
     function pagadoAgencia(selMov) {
@@ -2405,7 +2413,7 @@ const ViewLanchas = {
              lToast,
              showDatePicker, datesByMonth, fmtMes, pickDate,
              selectedMov, contactColorByTipo, movPayments, montoPayStyle, openMovModal, allCajaDia,
-             selectedPase, pagoStatusStyle, openPaseModal,
+             selectedPase, pagoStatusStyle, openPaseModal, calcPagoEstadoPase,
              isIngreso, metodoIcon, cajaRowStyle, selectedCajaDia,
              resolveQuien, expandedCajaGroups, toggleCajaGroup, groupedCajaDia, groupIcon,
              chipStyle, esPaseOut,
@@ -2537,8 +2545,13 @@ const ViewLanchas = {
                       </div>
                     </div>
                   </div>
-                  <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
+                  <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
                     <span style="font-size:12px;color:var(--text-muted);">{{ p.cant_pax }} pax</span>
+                    <span v-if="calcPagoEstadoPase(p).estado !== 'pagado_completo' && calcPagoEstadoPase(p).estado !== 'sin_cobro'"
+                      style="font-size:10px;font-weight:900;padding:1px 6px;border-radius:4px;line-height:1.5;flex-shrink:0;"
+                      :style="calcPagoEstadoPase(p).estado==='pagado_parcial' ? 'color:#fbbf24;background:rgba(251,191,36,0.18)' : 'color:#f87171;background:rgba(248,113,113,0.18)'">
+                      {{ calcPagoEstadoPase(p).estado==='pagado_parcial' ? '½' : '!' }}
+                    </span>
                     <span style="font-size:14px;font-weight:800;color:#fb923c;">S/ {{ fmt(p.monto_total) }}</span>
                     <span style="color:var(--text-muted);font-size:14px;">›</span>
                   </div>
@@ -2677,10 +2690,10 @@ const ViewLanchas = {
                       </div>
                       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
                         <span style="font-size:12px;color:var(--text-muted);">{{ m.cant_pax }} pax</span>
-                        <span v-if="tipoEsCobrable(m.tipo) && m.estado !== 'Cancelado'"
-                          style="font-size:11px;font-weight:900;"
-                          :style="calcPagoEstado(m, op).estado === 'pagado_completo' ? 'color:#4ade80' : calcPagoEstado(m, op).estado === 'pagado_parcial' ? 'color:#fbbf24' : 'color:#f87171'">
-                          {{ calcPagoEstado(m, op).estado === 'pagado_completo' ? '✓$' : calcPagoEstado(m, op).estado === 'pagado_parcial' ? '½$' : '$' }}
+                        <span v-if="tipoEsCobrable(m.tipo) && m.estado !== 'Cancelado' && calcPagoEstado(m,op).estado !== 'pagado_completo'"
+                          style="font-size:10px;font-weight:900;padding:1px 6px;border-radius:4px;line-height:1.5;flex-shrink:0;"
+                          :style="calcPagoEstado(m,op).estado==='pagado_parcial' ? 'color:#fbbf24;background:rgba(251,191,36,0.18)' : 'color:#f87171;background:rgba(248,113,113,0.18)'">
+                          {{ calcPagoEstado(m,op).estado==='pagado_parcial' ? '½' : '!' }}
                         </span>
                         <span style="font-size:14px;font-weight:800;" :style="montoPayStyle(op,m)">S/ {{ fmt(m.monto_total) }}</span>
                         <span style="color:var(--text-muted);font-size:14px;">›</span>
@@ -4050,7 +4063,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.4.26';
+const APP_VERSION = '1.4.27';
 (function() {
   let _reg = null, _waitingWorker = null;
 
