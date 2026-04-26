@@ -989,7 +989,7 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 }
 .mov-row:last-child { border-bottom: none; }
 .mov-row:hover { background: rgba(255,255,255,0.05); }
-.mov-row.mov-cancelled { opacity: 0.4; }
+.mov-row.mov-cancelled { opacity: 0.4; text-decoration: line-through; }
 
 /* Boat cards */
 .boat-card {
@@ -2662,11 +2662,11 @@ const ViewLanchas = {
                 <div v-if="expandedOps.has(op.id)" class="boat-body">
                   <div v-if="!(op.movimientos||[]).length" style="color:var(--text-muted);font-size:13px;padding:8px 0;">Sin movimientos</div>
                   <div v-else>
-                    <div v-for="m in (op.movimientos||[])" :key="m.id_mov"
+                    <div v-for="m in (op.movimientos||[]).filter(m=>m.tipo!=='PaseOUT')" :key="m.id_mov"
                       class="mov-row" :class="{'mov-cancelled': m.estado==='Cancelado'}"
                       @click="openMovModal(op, m)">
                       <div style="display:flex;align-items:center;gap:7px;flex:1;min-width:0;">
-                        <span class="tipo-badge" :class="tipoBadgeClass(m.tipo)" style="font-size:9px;padding:1px 5px;flex-shrink:0;">{{ m.tipo }}</span>
+                        <span style="width:8px;height:8px;border-radius:50%;flex-shrink:0;" :style="'background:'+contactColorByTipo(m.tipo)"></span>
                         <span style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
                           :style="'color:'+contactColorByTipo(m.tipo)">{{ m.nombre_contacto }}</span>
                       </div>
@@ -2682,8 +2682,8 @@ const ViewLanchas = {
                       </div>
                     </div>
                     <div style="display:flex;justify-content:space-between;padding:8px 10px;border-top:1px solid var(--border);margin-top:2px;">
-                      <span style="font-size:11px;color:var(--text-muted);">{{ totalMovs(op.movimientos||[]).pax }} pax total</span>
-                      <span style="font-size:12px;font-weight:800;color:var(--gold);">S/ {{ fmt(totalMovs(op.movimientos||[]).monto) }}</span>
+                      <span style="font-size:11px;color:var(--text-muted);">{{ totalMovs((op.movimientos||[]).filter(m=>m.tipo!=='PaseOUT')).pax }} pax total</span>
+                      <span style="font-size:12px;font-weight:800;color:var(--gold);">S/ {{ fmt(totalMovs((op.movimientos||[]).filter(m=>m.tipo!=='PaseOUT')).monto) }}</span>
                     </div>
                   </div>
                   <!-- Agregar movimiento -->
@@ -4045,7 +4045,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.4.18';
+const APP_VERSION = '1.4.19';
 (function() {
   let _reg = null, _waitingWorker = null;
 
