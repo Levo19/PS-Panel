@@ -258,7 +258,23 @@ function metIcon(m) {
 }
 function isIngreso(c) {
   const cat = String(c.categoria||'').toLowerCase();
+  if (cat === 'varios') return String(c.comentarios||'').trimStart().startsWith('[I]');
   return cat.includes('cobro')||cat.includes('ingreso')||cat.includes('venta');
+}
+function resolveQuienCaja(c) {
+  if (c.id_contacto === 'CON-00') {
+    const m = (c.comentarios||'').match(/Varios:\s*(.+)/i);
+    return m ? m[1].trim() : (c.nombre_contacto || '—');
+  }
+  const cat = String(c.categoria||'').toLowerCase();
+  if (cat === 'varios') return (c.comentarios||'').replace(/^\[.\]\s*/,'').trim() || '—';
+  return c.nombre_contacto || c.id_contacto || '—';
+}
+function cajaTipoLabel(c) {
+  const cat = String(c.categoria||'').toLowerCase();
+  if (cat === 'varios') return isIngreso(c) ? 'INGRESO' : 'SALIDA';
+  if (cat.includes('pago')) return 'PAGO';
+  return 'COBRO';
 }
 function adicsSum(m) {
   return m.adicionales
@@ -701,11 +717,11 @@ function render(data) {
   ).join('') || '<div class="flujo-di"><span style="color:var(--text-muted);">Sin pendientes</span></div>';
 
   const flujoDetEfectivo = allCaja.filter(c=>isIngreso(c)&&(!c.metodo_pago||String(c.metodo_pago||'').toLowerCase().includes('efectivo'))).map(c=>
-    `<div class="flujo-di"><span>${c.operador||c.categoria}${c._bote?' · ⛵'+c._bote:''}</span><span style="color:var(--green);">${S(c.monto)}</span></div>`
+    `<div class="flujo-di"><span>[${cajaTipoLabel(c)}] ${resolveQuienCaja(c)}${c._bote?' · ⛵'+c._bote:''}</span><span style="color:var(--green);">${S(c.monto)}</span></div>`
   ).join('') || '<div class="flujo-di"><span style="color:var(--text-muted);">Sin efectivo</span></div>';
 
   const flujoDetVirtual = allCaja.filter(c=>isIngreso(c)&&c.metodo_pago&&!String(c.metodo_pago||'').toLowerCase().includes('efectivo')).map(c=>
-    `<div class="flujo-di"><span>${metIcon(c.metodo_pago)} ${c.operador||c.categoria} · ${c.metodo_pago}</span><span style="color:var(--blue);">${S(c.monto)}</span></div>`
+    `<div class="flujo-di"><span>${metIcon(c.metodo_pago)} [${cajaTipoLabel(c)}] ${resolveQuienCaja(c)} · ${c.metodo_pago}</span><span style="color:var(--blue);">${S(c.monto)}</span></div>`
   ).join('') || '<div class="flujo-di"><span style="color:var(--text-muted);">Sin pagos virtuales</span></div>';
 
   function fRow(labelHtml, labelStyle, barColor, barWidth, val, valStyle, detailHtml, extraRowStyle) {
@@ -1052,12 +1068,14 @@ function render(data) {
       const ing = isIngreso(c);
       const hora = c.timestamp ? new Date(c.timestamp).toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'}) : '—';
       const cat  = String(c.categoria||'').replace(/_/g,' ');
+      const tipo = cajaTipoLabel(c);
+      const quien = resolveQuienCaja(c);
       return `<div class="caja-row ${ing?'caja-ingreso':'caja-salida'}">
         <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;">
           <span style="font-size:20px;flex-shrink:0;">${metIcon(c.metodo_pago)}</span>
           <div style="min-width:0;">
-            <div style="font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.operador||cat}
-              ${c._bote?`<span style="font-size:10px;color:var(--text-muted);"> · ⛵ ${c._bote}</span>`:''}
+            <div style="font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+              <span style="font-size:9px;font-weight:900;padding:1px 5px;border-radius:3px;margin-right:4px;${ing?'color:#5cd98a;background:rgba(92,217,138,0.15)':'color:#f07070;background:rgba(240,112,112,0.15)'}">${tipo}</span>${quien}${c._bote?` <span style="font-size:10px;color:var(--text-muted);">· ⛵ ${c._bote}</span>`:''}
             </div>
             <div style="font-size:10px;color:var(--text-muted);">${hora} · ${cat}</div>
           </div>
