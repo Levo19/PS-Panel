@@ -990,6 +990,12 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 .mov-row:last-child { border-bottom: none; }
 .mov-row:hover { background: rgba(255,255,255,0.05); }
 .mov-row.mov-cancelled { opacity: 0.4; text-decoration: line-through; }
+.mov-row.mov-pulsing    { animation: movPulse 0.7s ease-in-out 3; }
+.caja-row-pulsing       { animation: movPulse 0.7s ease-in-out 3; }
+@keyframes movPulse {
+  0%,100% { box-shadow: none; }
+  50%      { box-shadow: 0 0 0 2px rgba(201,168,76,0.7), 0 0 18px rgba(201,168,76,0.35); }
+}
 
 /* Boat cards */
 .boat-card {
@@ -1850,6 +1856,15 @@ const ViewLanchas = {
     }
 
     function fmt(v) { return (parseFloat(v)||0).toLocaleString('es-PE',{minimumFractionDigits:0,maximumFractionDigits:0}); }
+    function fmtHora(ts) {
+      if (!ts) return '';
+      const s = String(ts);
+      const m = s.match(/(\d{1,2}):(\d{2})(?::\d{2})?(?:\s*(AM|PM))?/i);
+      if (!m) return s;
+      let h = parseInt(m[1]), min = m[2];
+      if (m[3]) { if (m[3].toUpperCase()==='PM'&&h!==12) h+=12; if (m[3].toUpperCase()==='AM'&&h===12) h=0; }
+      return String(h).padStart(2,'0')+':'+min;
+    }
 
     // adicionales viene como string "taxport:5,seguro:10" — mismo parser que GAS
     function parseAdicionales(str) {
@@ -2017,6 +2032,29 @@ const ViewLanchas = {
       return 'linear-gradient(to right,rgba(74,222,128,0.28) calc(' + pct + '% - 10px),rgba(96,165,250,0.28) calc(' + pct + '% + 10px))';
     }
 
+    function adicionalItems(str) {
+      if (!str) return [];
+      return String(str).split(',').map(p => {
+        const sep = p.indexOf(':');
+        if (sep === -1) return null;
+        const lbl = p.substring(0, sep).trim();
+        const val = parseFloat(p.substring(sep+1).trim()) || 0;
+        return val > 0 ? { label: lbl, monto: val } : null;
+      }).filter(Boolean);
+    }
+    function pasePayments(p) {
+      return (p._caja || []).filter(c => String(c.id_movimiento||'') === String(p.id_mov||''));
+    }
+    function movPaidPct(mov, payments) {
+      const total = montoTotalMov(mov);
+      if (total <= 0) return 0;
+      const paid = payments.reduce((s,c) => s+(parseFloat(c.monto)||0), 0);
+      return Math.min(100, Math.round(paid / total * 100));
+    }
+    function paidBarColor(pct) {
+      return pct >= 100 ? '#4ade80' : pct > 0 ? '#fbbf24' : '#f87171';
+    }
+
     function cajaTipoPill(g) {
       const cat = String(g.categoria||'').toLowerCase();
       if (cat === 'varios') {
@@ -2029,6 +2067,62 @@ const ViewLanchas = {
     }
 
     const selectedCajaDia = ref(null);
+    const pulsMovId       = ref(null);
+    const pulsCajaId      = ref(null);
+
+    async function irAMovimiento(cajaDia) {
+      const movId = String(cajaDia.id_movimiento || '');
+      if (!movId) return;
+      selectedCajaDia.value = null;
+      const d = cache.value[currentFecha.value];
+      if (!d?.loaded) return;
+      let isPase = false, opId = null;
+      for (const op of (d.operaciones || [])) {
+        for (const m of (op.movimientos || [])) {
+          if (String(m.id_mov) === movId) {
+            if (esPaseOut(m.tipo)) isPase = true;
+            else opId = op.id;
+            break;
+          }
+        }
+        if (isPase || opId) break;
+      }
+      if (!isPase && !opId) {
+        for (const m of (d.pases_sueltos || [])) {
+          if (String(m.id_mov) === movId) { isPase = true; break; }
+        }
+      }
+      if (isPase) {
+        dateTab.value = 'pases';
+      } else {
+        dateTab.value = 'operaciones';
+        if (opId) { const s = new Set(expandedOps.value); s.add(opId); expandedOps.value = s; }
+      }
+      pulsMovId.value = movId;
+      await nextTick();
+      const el = document.querySelector('[data-movid="' + movId + '"]');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => { pulsMovId.value = null; }, 2200);
+    }
+
+    async function irACajaPago(entry) {
+      selectedMov.value  = null;
+      selectedPase.value = null;
+      dateTab.value = 'caja';
+      const groups = groupedCajaDia(currentFecha.value);
+      for (const g of groups) {
+        if (g.entries.some(e => e.id_transaccion === entry.id_transaccion)) {
+          if (g.entries.length > 1)
+            expandedCajaGroups.value = { ...expandedCajaGroups.value, [g.key]: true };
+          break;
+        }
+      }
+      pulsCajaId.value = entry.id_transaccion;
+      await nextTick();
+      const el = document.querySelector('[data-cajaid="' + entry.id_transaccion + '"]');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => { pulsCajaId.value = null; }, 2200);
+    }
 
     const opModal = ref({ show: false, mode: 'crear', saving: false, error: '',
       id: '', fecha: '', hora_salida: '', id_bote: '', id_capitan: '', id_guia: '',
@@ -2455,7 +2549,8 @@ const ViewLanchas = {
              showDatePicker, datesByMonth, fmtMes, pickDate,
              selectedMov, contactColorByTipo, movPayments, montoPayStyle, openMovModal, allCajaDia,
              selectedPase, pagoStatusStyle, openPaseModal, calcPagoEstadoPase,
-             isIngreso, metodoIcon, cajaRowStyle, selectedCajaDia,
+             isIngreso, metodoIcon, cajaRowStyle, selectedCajaDia, pulsMovId, irAMovimiento, fmtHora,
+             pulsCajaId, irACajaPago, adicionalItems, pasePayments, movPaidPct, paidBarColor,
              resolveQuien, expandedCajaGroups, toggleCajaGroup, groupedCajaDia, groupIcon, cajaTipoPill, cajaDiaStats, cajaBgGradient,
              chipStyle, esPaseOut, montoTotalMov,
              opModal, embarcaciones, personalOps, isAdmin, openOpModal, guardarOp, confirmarAnularOp,
@@ -2571,7 +2666,8 @@ const ViewLanchas = {
                 </div>
                 <!-- Cards -->
                 <div v-for="p in allPasesDia(currentFecha)" :key="p.id_mov"
-                  class="mov-row" :class="{'mov-cancelled': p.estado==='Cancelado'}"
+                  class="mov-row" :class="{'mov-cancelled': p.estado==='Cancelado', 'mov-pulsing': pulsMovId===p.id_mov}"
+                  :data-movid="p.id_mov"
                   @click="openPaseModal(p)"
                   style="border-left:3px solid rgba(251,146,60,0.45);background:rgba(251,146,60,0.04);border-radius:8px;margin-bottom:4px;padding-left:10px;">
                   <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;">
@@ -2634,6 +2730,8 @@ const ViewLanchas = {
                   :style="isIngreso(g.entries[0])?'border-left:3px solid rgba(74,222,128,0.45);background:rgba(74,222,128,0.05);':'border-left:3px solid rgba(239,68,68,0.4);background:rgba(239,68,68,0.05);'">
                   <!-- Header grupo -->
                   <div class="mov-row" style="padding-left:10px;"
+                    :class="{'caja-row-pulsing': g.entries.length===1 && pulsCajaId===g.entries[0].id_transaccion}"
+                    :data-cajaid="g.entries.length===1 ? g.entries[0].id_transaccion : ''"
                     @click="g.entries.length===1 ? selectedCajaDia=g.entries[0] : toggleCajaGroup(g.key)">
                     <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;">
                       <span style="font-size:16px;flex-shrink:0;">{{ groupIcon(g) }}</span>
@@ -2663,6 +2761,8 @@ const ViewLanchas = {
                   <div v-if="g.entries.length > 1 && expandedCajaGroups[g.key]"
                     style="border-top:1px solid var(--border);padding:4px 10px 6px;">
                     <div v-for="e in g.entries" :key="e.id_transaccion"
+                      :class="{'caja-row-pulsing': pulsCajaId===e.id_transaccion}"
+                      :data-cajaid="e.id_transaccion"
                       @click="selectedCajaDia=e"
                       style="display:flex;align-items:center;justify-content:space-between;padding:5px 4px;border-radius:6px;cursor:pointer;margin-bottom:2px;background:rgba(255,255,255,0.03);">
                       <div style="display:flex;align-items:center;gap:6px;">
@@ -2729,7 +2829,8 @@ const ViewLanchas = {
                   <div v-if="!(op.movimientos||[]).length" style="color:var(--text-muted);font-size:13px;padding:8px 0;">Sin movimientos</div>
                   <div v-else>
                     <div v-for="m in (op.movimientos||[]).filter(m=>!esPaseOut(m.tipo))" :key="m.id_mov"
-                      class="mov-row" :class="{'mov-cancelled': m.estado==='Cancelado'}"
+                      class="mov-row" :class="{'mov-cancelled': m.estado==='Cancelado', 'mov-pulsing': pulsMovId===m.id_mov}"
+                      :data-movid="m.id_mov"
                       @click="openMovModal(op, m)">
                       <div style="display:flex;align-items:center;gap:7px;flex:1;min-width:0;">
                         <span style="width:8px;height:8px;border-radius:50%;flex-shrink:0;" :style="'background:'+contactColorByTipo(m.tipo)"></span>
@@ -2778,81 +2879,133 @@ const ViewLanchas = {
       <!-- Movement Detail Modal -->
       <teleport to="body">
         <div v-if="selectedMov" class="date-picker-overlay" @click.self="selectedMov=null">
-          <div class="date-picker-modal" style="max-width:400px;">
-            <div class="date-picker-header">
-              <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+          <div class="date-picker-modal" style="max-width:410px;">
+
+            <!-- Header -->
+            <div class="date-picker-header" :style="'border-bottom:2px solid '+contactColorByTipo(selectedMov.mov.tipo)+'44'">
+              <div style="display:flex;align-items:center;gap:8px;min-width:0;flex:1;">
                 <span class="tipo-badge" :class="tipoBadgeClass(selectedMov.mov.tipo)" style="flex-shrink:0;">{{ selectedMov.mov.tipo }}</span>
-                <span style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
-                  :style="'color:'+contactColorByTipo(selectedMov.mov.tipo)">{{ selectedMov.mov.nombre_contacto }}</span>
+                <div style="min-width:0;">
+                  <div style="font-weight:800;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+                    :style="'color:'+contactColorByTipo(selectedMov.mov.tipo)">{{ selectedMov.mov.nombre_contacto }}</div>
+                  <div style="font-size:11px;color:var(--text-muted);margin-top:1px;">
+                    ⛵ {{ selectedMov.op.nombre_bote || selectedMov.op.id_bote }}&nbsp;·&nbsp;🕐 {{ selectedMov.op.hora_salida }}
+                  </div>
+                </div>
               </div>
               <button @click="selectedMov=null" style="font-size:18px;color:var(--text-muted);flex-shrink:0;">✕</button>
             </div>
-            <div style="overflow-y:auto;max-height:65vh;padding:14px;display:flex;flex-direction:column;gap:12px;">
 
-              <!-- KPIs del movimiento -->
-              <div class="kpi-grid">
-                <div class="kpi-card glass" style="padding:10px;text-align:center;">
-                  <div class="kpi-label">PAX</div>
-                  <div class="kpi-value" style="font-size:20px;color:var(--gold);">{{ selectedMov.mov.cant_pax }}</div>
+            <div style="overflow-y:auto;max-height:68vh;padding:14px;display:flex;flex-direction:column;gap:12px;">
+
+              <!-- 1. Barra de cobro -->
+              <div v-if="tipoEsCobrable(selectedMov.mov.tipo)"
+                style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:13px;padding:13px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;">
+                  <span style="font-size:10px;font-weight:900;letter-spacing:.1em;color:var(--text-muted);">ESTADO DE COBRO</span>
+                  <span style="font-size:13px;font-weight:800;" :style="'color:'+paidBarColor(movPaidPct(selectedMov.mov,selectedMov.payments))">
+                    {{ movPaidPct(selectedMov.mov,selectedMov.payments) }}%
+                  </span>
                 </div>
-                <div class="kpi-card glass" style="padding:10px;text-align:center;">
-                  <div class="kpi-label">Precio / pax</div>
-                  <div class="kpi-value" style="font-size:20px;">S/ {{ fmt(selectedMov.mov.precio_aplicado) }}</div>
+                <div style="background:rgba(255,255,255,0.09);border-radius:100px;height:8px;overflow:hidden;margin-bottom:11px;">
+                  <div style="height:100%;border-radius:100px;transition:width 0.5s ease;"
+                    :style="'width:'+movPaidPct(selectedMov.mov,selectedMov.payments)+'%;background:'+paidBarColor(movPaidPct(selectedMov.mov,selectedMov.payments))"></div>
                 </div>
-                <div class="kpi-card glass" style="padding:10px;text-align:center;">
-                  <div class="kpi-label">Total</div>
-                  <div class="kpi-value" style="font-size:20px;color:var(--gold);">S/ {{ fmt(selectedMov.mov.monto_total) }}</div>
-                </div>
-                <div class="kpi-card glass" style="padding:10px;text-align:center;">
-                  <div class="kpi-label">Cobrado</div>
-                  <div class="kpi-value" style="font-size:20px;" :style="montoPayStyle(selectedMov.op, selectedMov.mov)">
-                    S/ {{ fmt(selectedMov.payments.reduce((s,c)=>s+(parseFloat(c.monto)||0),0)) }}
+                <div style="display:flex;justify-content:space-between;">
+                  <div>
+                    <div style="font-size:10px;color:var(--text-muted);margin-bottom:2px;">COBRADO</div>
+                    <div style="font-size:20px;font-weight:900;" :style="'color:'+paidBarColor(movPaidPct(selectedMov.mov,selectedMov.payments))">
+                      S/ {{ fmt(selectedMov.payments.reduce((s,c)=>s+(parseFloat(c.monto)||0),0)) }}
+                    </div>
+                  </div>
+                  <div style="text-align:right;">
+                    <div style="font-size:10px;color:var(--text-muted);margin-bottom:2px;">PENDIENTE</div>
+                    <div style="font-size:20px;font-weight:900;"
+                      :style="montoTotalMov(selectedMov.mov)-selectedMov.payments.reduce((s,c)=>s+(parseFloat(c.monto)||0),0)>0.01?'color:#f87171':'color:rgba(240,230,211,0.25)'">
+                      S/ {{ fmt(Math.max(0, montoTotalMov(selectedMov.mov)-selectedMov.payments.reduce((s,c)=>s+(parseFloat(c.monto)||0),0))) }}
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <!-- Estado + detalles -->
+              <!-- 2. Desglose de monto -->
+              <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:13px;padding:13px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                  <div>
+                    <span style="font-size:12px;color:var(--text-muted);">{{ selectedMov.mov.cant_pax }} pax</span>
+                    <div style="font-size:10px;color:rgba(240,230,211,0.3);margin-top:1px;">ref. S/ {{ fmt(selectedMov.mov.precio_aplicado) }}/pax</div>
+                  </div>
+                  <span style="font-size:15px;font-weight:700;">S/ {{ fmt(selectedMov.mov.monto_total) }}</span>
+                </div>
+                <template v-if="adicionalItems(selectedMov.mov.adicionales).length">
+                  <div v-for="a in adicionalItems(selectedMov.mov.adicionales)" :key="a.label"
+                    style="display:flex;justify-content:space-between;align-items:center;padding:2px 0;font-size:12px;">
+                    <span style="color:var(--text-muted);">+ {{ a.label }}</span>
+                    <span style="color:var(--gold);">S/ {{ fmt(a.monto) }}</span>
+                  </div>
+                  <div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;align-items:center;">
+                    <span style="font-size:11px;font-weight:800;letter-spacing:.06em;color:var(--text-muted);">TOTAL</span>
+                    <span style="font-size:20px;font-weight:900;color:var(--gold);">S/ {{ fmt(montoTotalMov(selectedMov.mov)) }}</span>
+                  </div>
+                </template>
+                <template v-else>
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
+                    <span style="font-size:11px;font-weight:800;letter-spacing:.06em;color:var(--text-muted);">TOTAL</span>
+                    <span style="font-size:20px;font-weight:900;color:var(--gold);">S/ {{ fmt(montoTotalMov(selectedMov.mov)) }}</span>
+                  </div>
+                </template>
+              </div>
+
+              <!-- 3. Pagos registrados -->
+              <div>
+                <div style="font-size:10px;font-weight:900;letter-spacing:.1em;color:var(--text-muted);margin-bottom:8px;">
+                  💵 PAGOS REGISTRADOS&nbsp;({{ selectedMov.payments.length }})
+                </div>
+                <div v-if="!selectedMov.payments.length"
+                  style="padding:12px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);border-radius:10px;font-size:13px;color:#f87171;text-align:center;">
+                  ⚠ Sin pagos — monto pendiente
+                </div>
+                <div v-else style="display:flex;flex-direction:column;gap:6px;">
+                  <div v-for="c in selectedMov.payments" :key="c.id_transaccion"
+                    style="display:flex;align-items:center;justify-content:space-between;background:rgba(74,222,128,0.05);border:1px solid rgba(74,222,128,0.22);border-radius:10px;padding:10px 12px;">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                      <span style="font-size:22px;line-height:1;">{{ metodoIcon(c) }}</span>
+                      <div>
+                        <div style="font-size:17px;font-weight:900;color:#4ade80;line-height:1.1;">S/ {{ fmt(c.monto) }}</div>
+                        <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">
+                          {{ c.metodo_pago }}<template v-if="c.timestamp">&nbsp;·&nbsp;{{ fmtHora(c.timestamp) }}</template>
+                        </div>
+                        <div v-if="c.comentarios" style="font-size:11px;color:var(--gold);margin-top:2px;">{{ c.comentarios }}</div>
+                      </div>
+                    </div>
+                    <button @click="irACajaPago(c)"
+                      style="padding:6px 11px;border-radius:8px;background:rgba(201,168,76,0.13);border:1px solid rgba(201,168,76,0.38);color:var(--gold);font-size:11px;font-weight:800;cursor:pointer;white-space:nowrap;letter-spacing:.02em;">
+                      Ver pago ›
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 4. Meta -->
               <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
                 <span class="estado-chip" :class="movEstadoClass(selectedMov.mov.estado)">{{ selectedMov.mov.estado }}</span>
                 <span v-if="selectedMov.mov.operador" style="font-size:11px;color:var(--text-muted);">por {{ selectedMov.mov.operador }}</span>
               </div>
-              <div v-if="selectedMov.mov.adicionales || selectedMov.mov.id_contacto_pase || selectedMov.mov.id_agencia_comprada"
-                style="font-size:12px;color:var(--text-muted);display:flex;flex-direction:column;gap:4px;">
-                <span v-if="selectedMov.mov.adicionales">📝 {{ selectedMov.mov.adicionales }}</span>
-                <span v-if="selectedMov.mov.id_contacto_pase">→ Pasado a: <strong style="color:var(--text);">{{ selectedMov.mov.id_contacto_pase }}</strong></span>
-                <span v-if="selectedMov.mov.id_agencia_comprada">🏢 Agencia comprada: <strong style="color:var(--text);">{{ selectedMov.mov.id_agencia_comprada }}</strong>
-                  <span v-if="selectedMov.mov.monto_comprado > 0" style="color:#4ade80;"> · S/ {{ fmt(selectedMov.mov.monto_comprado) }}</span>
-                </span>
+
+              <!-- 5. Derivación / agencia -->
+              <div v-if="selectedMov.mov.id_contacto_pase || selectedMov.mov.id_agencia_comprada"
+                style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:10px;font-size:12px;display:flex;flex-direction:column;gap:6px;">
+                <div v-if="selectedMov.mov.id_contacto_pase" style="display:flex;justify-content:space-between;align-items:center;">
+                  <span style="color:var(--text-muted);">→ Pase derivado a</span>
+                  <span style="font-weight:700;color:#60a5fa;">{{ selectedMov.mov.id_contacto_pase }}</span>
+                </div>
+                <div v-if="selectedMov.mov.id_agencia_comprada" style="display:flex;justify-content:space-between;align-items:center;">
+                  <span style="color:var(--text-muted);">🏢 Agencia</span>
+                  <span style="font-weight:700;color:#4ade80;">{{ selectedMov.mov.id_agencia_comprada }}<template v-if="selectedMov.mov.monto_comprado>0">&nbsp;· S/ {{ fmt(selectedMov.mov.monto_comprado) }}</template></span>
+                </div>
               </div>
 
-              <!-- Registros de pago -->
-              <div>
-                <div style="font-size:12px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:8px;">
-                  💵 Pagos registrados ({{ selectedMov.payments.length }})
-                </div>
-                <div v-if="!selectedMov.payments.length"
-                  style="font-size:13px;color:var(--text-muted);padding:10px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);border-radius:8px;">
-                  ⚠ Sin pagos — monto pendiente
-                </div>
-                <table v-else class="mov-table">
-                  <thead><tr><th>Categoría</th><th>Monto</th><th>Método</th><th>Nota</th></tr></thead>
-                  <tbody>
-                    <tr v-for="c in selectedMov.payments" :key="c.id_transaccion">
-                      <td>{{ c.categoria }}</td>
-                      <td style="font-weight:700;color:#4ade80;">S/ {{ fmt(c.monto) }}</td>
-                      <td>{{ c.metodo_pago }}</td>
-                      <td style="font-size:11px;color:var(--text-muted);">{{ c.comentarios }}</td>
-                    </tr>
-                    <tr class="totals-row">
-                      <td>TOTAL COBRADO</td>
-                      <td style="color:#4ade80;">S/ {{ fmt(selectedMov.payments.reduce((s,c)=>s+(parseFloat(c.monto)||0),0)) }}</td>
-                      <td colspan="2"></td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-
-              <!-- Acciones del movimiento -->
+              <!-- 6. Acciones -->
               <div v-if="selectedMov.mov.estado !== 'Cancelado'" style="display:flex;flex-wrap:wrap;gap:8px;border-top:1px solid var(--border);padding-top:12px;">
                 <button v-if="isAdmin"
                   @click="openMovFormModal(selectedMov.op, selectedMov.mov);selectedMov=null"
@@ -3138,11 +3291,14 @@ const ViewLanchas = {
                 </div>
                 <div v-if="selectedCajaDia.timestamp" style="display:flex;justify-content:space-between;">
                   <span style="color:var(--text-muted);">🕐 Hora</span>
-                  <span>{{ selectedCajaDia.timestamp }}</span>
+                  <span>{{ fmtHora(selectedCajaDia.timestamp) }}</span>
                 </div>
-                <div v-if="selectedCajaDia.id_movimiento" style="display:flex;justify-content:space-between;">
+                <div v-if="selectedCajaDia.id_movimiento" style="display:flex;justify-content:space-between;align-items:center;">
                   <span style="color:var(--text-muted);">Mov. ref.</span>
-                  <span style="font-size:11px;color:var(--text-muted);">{{ selectedCajaDia.id_movimiento }}</span>
+                  <button @click="irAMovimiento(selectedCajaDia)"
+                    style="padding:4px 12px;border-radius:8px;background:rgba(201,168,76,0.15);border:1px solid rgba(201,168,76,0.45);color:var(--gold);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.03em;">
+                    ⚡ Ver movimiento
+                  </button>
                 </div>
               </div>
               <div v-if="selectedCajaDia.comentarios"
@@ -3164,75 +3320,136 @@ const ViewLanchas = {
       <!-- Pase Detail Modal -->
       <teleport to="body">
         <div v-if="selectedPase" class="date-picker-overlay" @click.self="selectedPase=null">
-          <div class="date-picker-modal" style="max-width:380px;">
-            <div class="date-picker-header">
-              <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+          <div class="date-picker-modal" style="max-width:400px;">
+
+            <!-- Header -->
+            <div class="date-picker-header" style="border-bottom:2px solid rgba(251,146,60,0.35)">
+              <div style="display:flex;align-items:center;gap:8px;min-width:0;flex:1;">
                 <span class="tipo-badge" :class="tipoBadgeClass(selectedPase.tipo)" style="flex-shrink:0;">{{ selectedPase.tipo }}</span>
-                <span style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
-                  :style="'color:'+contactColorByTipo(selectedPase.tipo)">{{ selectedPase.nombre_contacto }}</span>
+                <div style="min-width:0;">
+                  <div style="font-weight:800;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#fb923c;">
+                    {{ selectedPase.nombre_contacto }}
+                  </div>
+                  <div v-if="selectedPase.nombre_contacto_pase || selectedPase.id_contacto_pase"
+                    style="font-size:11px;color:var(--text-muted);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                    → {{ selectedPase.nombre_contacto_pase || selectedPase.id_contacto_pase }}
+                  </div>
+                </div>
               </div>
               <button @click="selectedPase=null" style="font-size:18px;color:var(--text-muted);flex-shrink:0;">✕</button>
             </div>
-            <div style="overflow-y:auto;max-height:65vh;padding:14px;display:flex;flex-direction:column;gap:12px;">
 
-              <!-- KPIs -->
-              <div class="kpi-grid">
-                <div class="kpi-card glass" style="padding:10px;text-align:center;">
-                  <div class="kpi-label">PAX</div>
-                  <div class="kpi-value" style="font-size:20px;color:var(--gold);">{{ selectedPase.cant_pax }}</div>
+            <div style="overflow-y:auto;max-height:68vh;padding:14px;display:flex;flex-direction:column;gap:12px;">
+
+              <!-- 1. Contexto: bote · hora · estado -->
+              <div style="display:flex;gap:6px;">
+                <span style="flex:1;padding:8px 6px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:9px;font-size:12px;text-align:center;color:var(--text-muted);">
+                  ⛵ {{ selectedPase._bote }}
+                </span>
+                <span style="flex:1;padding:8px 6px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:9px;font-size:12px;text-align:center;color:var(--text-muted);">
+                  🕐 {{ selectedPase._hora }}
+                </span>
+                <span class="estado-chip" :class="movEstadoClass(selectedPase.estado)"
+                  style="flex:1;text-align:center;display:flex;align-items:center;justify-content:center;">{{ selectedPase.estado }}</span>
+              </div>
+
+              <!-- 2. Barra de cobro -->
+              <div v-if="tipoEsCobrable(selectedPase.tipo)"
+                style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:13px;padding:13px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;">
+                  <span style="font-size:10px;font-weight:900;letter-spacing:.1em;color:var(--text-muted);">ESTADO DE COBRO</span>
+                  <span style="font-size:13px;font-weight:800;" :style="'color:'+paidBarColor(movPaidPct(selectedPase,pasePayments(selectedPase)))">
+                    {{ movPaidPct(selectedPase,pasePayments(selectedPase)) }}%
+                  </span>
                 </div>
-                <div class="kpi-card glass" style="padding:10px;text-align:center;">
-                  <div class="kpi-label">Precio / pax</div>
-                  <div class="kpi-value" style="font-size:20px;">S/ {{ fmt(selectedPase.precio_aplicado) }}</div>
+                <div style="background:rgba(255,255,255,0.09);border-radius:100px;height:8px;overflow:hidden;margin-bottom:11px;">
+                  <div style="height:100%;border-radius:100px;transition:width 0.5s ease;"
+                    :style="'width:'+movPaidPct(selectedPase,pasePayments(selectedPase))+'%;background:'+paidBarColor(movPaidPct(selectedPase,pasePayments(selectedPase)))"></div>
                 </div>
-                <div class="kpi-card glass" style="padding:10px;text-align:center;">
-                  <div class="kpi-label">Monto</div>
-                  <div class="kpi-value" style="font-size:20px;color:var(--gold);">S/ {{ fmt(selectedPase.monto_total) }}</div>
-                </div>
-                <div class="kpi-card glass" style="padding:10px;text-align:center;">
-                  <div class="kpi-label">Cobrado</div>
-                  <div class="kpi-value" style="font-size:20px;" :style="pagoStatusStyle(selectedPase)">
-                    <template v-if="selectedPase.id_agencia_comprada">S/ {{ fmt(selectedPase.monto_comprado) }}</template>
-                    <template v-else>—</template>
+                <div style="display:flex;justify-content:space-between;">
+                  <div>
+                    <div style="font-size:10px;color:var(--text-muted);margin-bottom:2px;">COBRADO</div>
+                    <div style="font-size:20px;font-weight:900;" :style="'color:'+paidBarColor(movPaidPct(selectedPase,pasePayments(selectedPase)))">
+                      S/ {{ fmt(pasePayments(selectedPase).reduce((s,c)=>s+(parseFloat(c.monto)||0),0)) }}
+                    </div>
+                  </div>
+                  <div style="text-align:right;">
+                    <div style="font-size:10px;color:var(--text-muted);margin-bottom:2px;">PENDIENTE</div>
+                    <div style="font-size:20px;font-weight:900;"
+                      :style="montoTotalMov(selectedPase)-pasePayments(selectedPase).reduce((s,c)=>s+(parseFloat(c.monto)||0),0)>0.01?'color:#f87171':'color:rgba(240,230,211,0.25)'">
+                      S/ {{ fmt(Math.max(0, montoTotalMov(selectedPase)-pasePayments(selectedPase).reduce((s,c)=>s+(parseFloat(c.monto)||0),0))) }}
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <!-- Estado + bote -->
-              <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
-                <span class="estado-chip" :class="movEstadoClass(selectedPase.estado)">{{ selectedPase.estado }}</span>
-                <span style="font-size:11px;color:var(--text-muted);">🕐 {{ selectedPase._hora }}</span>
-                <span style="font-size:11px;color:var(--text-muted);">⛵ {{ selectedPase._bote }}</span>
-              </div>
-
-              <!-- Contacto destino -->
-              <div v-if="selectedPase.nombre_contacto_pase || selectedPase.id_contacto_pase"
-                style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:10px;padding:10px;">
-                <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">→ Pasado a</div>
-                <div style="font-weight:700;font-size:14px;">{{ selectedPase.nombre_contacto_pase || selectedPase.id_contacto_pase }}</div>
-              </div>
-
-              <!-- Cobro aliado -->
-              <div style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:10px;padding:10px;">
-                <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">💰 Estado de cobro</div>
-                <template v-if="selectedPase.id_agencia_comprada">
-                  <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <span style="font-size:13px;color:#4ade80;font-weight:700;">✓ Cobrado</span>
-                    <span style="font-size:15px;font-weight:800;color:#4ade80;">S/ {{ fmt(selectedPase.monto_comprado) }}</span>
+              <!-- 3. Desglose de monto -->
+              <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:13px;padding:13px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                  <div>
+                    <span style="font-size:12px;color:var(--text-muted);">{{ selectedPase.cant_pax }} pax</span>
+                    <div style="font-size:10px;color:rgba(240,230,211,0.3);margin-top:1px;">ref. S/ {{ fmt(selectedPase.precio_aplicado) }}/pax</div>
                   </div>
-                  <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">por {{ selectedPase.id_agencia_comprada }}</div>
+                  <span style="font-size:15px;font-weight:700;">S/ {{ fmt(selectedPase.monto_total) }}</span>
+                </div>
+                <template v-if="adicionalItems(selectedPase.adicionales).length">
+                  <div v-for="a in adicionalItems(selectedPase.adicionales)" :key="a.label"
+                    style="display:flex;justify-content:space-between;align-items:center;padding:2px 0;font-size:12px;">
+                    <span style="color:var(--text-muted);">+ {{ a.label }}</span>
+                    <span style="color:var(--gold);">S/ {{ fmt(a.monto) }}</span>
+                  </div>
+                  <div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;align-items:center;">
+                    <span style="font-size:11px;font-weight:800;letter-spacing:.06em;color:var(--text-muted);">TOTAL</span>
+                    <span style="font-size:20px;font-weight:900;color:#fb923c;">S/ {{ fmt(montoTotalMov(selectedPase)) }}</span>
+                  </div>
                 </template>
                 <template v-else>
-                  <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <span style="font-size:13px;color:#f87171;font-weight:700;">⏳ Pendiente</span>
-                    <span style="font-size:15px;font-weight:800;color:#f87171;">S/ {{ fmt(selectedPase.monto_total) }}</span>
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
+                    <span style="font-size:11px;font-weight:800;letter-spacing:.06em;color:var(--text-muted);">TOTAL</span>
+                    <span style="font-size:20px;font-weight:900;color:#fb923c;">S/ {{ fmt(montoTotalMov(selectedPase)) }}</span>
                   </div>
                 </template>
               </div>
 
-              <!-- Adicionales -->
-              <div v-if="selectedPase.adicionales"
-                style="font-size:12px;color:var(--text-muted);">📝 {{ selectedPase.adicionales }}</div>
+              <!-- 4. Pagos registrados (de caja) -->
+              <div>
+                <div style="font-size:10px;font-weight:900;letter-spacing:.1em;color:var(--text-muted);margin-bottom:8px;">
+                  💵 PAGOS REGISTRADOS&nbsp;({{ pasePayments(selectedPase).length }})
+                </div>
+                <div v-if="!pasePayments(selectedPase).length"
+                  style="padding:12px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);border-radius:10px;font-size:13px;color:#f87171;text-align:center;">
+                  ⚠ Sin pagos registrados
+                </div>
+                <div v-else style="display:flex;flex-direction:column;gap:6px;">
+                  <div v-for="c in pasePayments(selectedPase)" :key="c.id_transaccion"
+                    style="display:flex;align-items:center;justify-content:space-between;background:rgba(74,222,128,0.05);border:1px solid rgba(74,222,128,0.22);border-radius:10px;padding:10px 12px;">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                      <span style="font-size:22px;line-height:1;">{{ metodoIcon(c) }}</span>
+                      <div>
+                        <div style="font-size:17px;font-weight:900;color:#4ade80;line-height:1.1;">S/ {{ fmt(c.monto) }}</div>
+                        <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">
+                          {{ c.metodo_pago }}<template v-if="c.timestamp">&nbsp;·&nbsp;{{ fmtHora(c.timestamp) }}</template>
+                        </div>
+                        <div v-if="c.comentarios" style="font-size:11px;color:var(--gold);margin-top:2px;">{{ c.comentarios }}</div>
+                      </div>
+                    </div>
+                    <button @click="irACajaPago(c)"
+                      style="padding:6px 11px;border-radius:8px;background:rgba(201,168,76,0.13);border:1px solid rgba(201,168,76,0.38);color:var(--gold);font-size:11px;font-weight:800;cursor:pointer;white-space:nowrap;letter-spacing:.02em;">
+                      Ver pago ›
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 5. Agencia (si aplica) -->
+              <div v-if="selectedPase.id_agencia_comprada"
+                style="background:rgba(168,85,247,0.07);border:1px solid rgba(168,85,247,0.28);border-radius:10px;padding:10px;">
+                <div style="font-size:10px;font-weight:900;letter-spacing:.1em;color:#c084fc;margin-bottom:5px;">AGENCIA</div>
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <span style="font-size:13px;font-weight:700;color:#c084fc;">{{ selectedPase.id_agencia_comprada }}</span>
+                  <span v-if="selectedPase.monto_comprado>0" style="font-size:16px;font-weight:900;color:#4ade80;">S/ {{ fmt(selectedPase.monto_comprado) }}</span>
+                </div>
+              </div>
 
             </div>
           </div>
@@ -4111,7 +4328,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.4.34';
+const APP_VERSION = '1.4.36';
 (function() {
   let _reg = null, _waitingWorker = null;
 
