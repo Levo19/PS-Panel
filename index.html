@@ -2651,7 +2651,7 @@ const ViewLanchas = {
                     <span style="font-size:11px;color:var(--text-muted);">
                       {{ op.nombre_capitan || op.id_capitan }}<template v-if="op.nombre_guia || op.id_guia">&nbsp;·&nbsp;{{ op.nombre_guia || op.id_guia }}</template>
                     </span>
-                    <span style="font-size:12px;font-weight:700;color:var(--gold);">{{ op.pax_total }} pax</span>
+                    <span style="font-size:12px;font-weight:700;color:var(--gold);">{{ totalMovs((op.movimientos||[]).filter(m=>!esPaseOut(m.tipo))).pax }} pax</span>
                   </div>
                   <!-- Fila 3: destino · hora -->
                   <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">
@@ -4050,7 +4050,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.4.25';
+const APP_VERSION = '1.4.26';
 (function() {
   let _reg = null, _waitingWorker = null;
 
