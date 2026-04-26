@@ -4050,7 +4050,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.4.24';
+const APP_VERSION = '1.4.25';
 (function() {
   let _reg = null, _waitingWorker = null;
 
@@ -4087,14 +4087,26 @@ const APP_VERSION = '1.4.24';
   };
   window._psDismissUpdate = function() { _hideBanner(); };
 
+  let _bannerShown = false;
   function _pollVersion() {
-    fetch('./version.json?t=' + Date.now())
+    if (_bannerShown) return;
+    fetch('./version.json?t=' + Date.now(), { cache: 'no-store' })
       .then(r => r.json())
-      .then(v => { if (v.version && v.version !== APP_VERSION) _showBanner(null); })
+      .then(v => {
+        if (!_bannerShown && v.version && v.version !== APP_VERSION) {
+          _bannerShown = true;
+          _showBanner(null);
+        }
+      })
       .catch(() => {});
   }
-
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) _pollVersion(); });
+  // iOS: al volver de background la red puede tardar ~2s en estar lista → doble intento
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      _pollVersion();
+      setTimeout(_pollVersion, 3000);
+    }
+  });
 
   if (!('serviceWorker' in navigator)) {
     _pollVersion(); setInterval(_pollVersion, 5 * 60 * 1000); return;
@@ -4115,6 +4127,7 @@ const APP_VERSION = '1.4.24';
   }).catch(() => {});
 
   _pollVersion();
+  setTimeout(_pollVersion, 3000); // segundo intento a los 3s — iOS cold start
   setInterval(_pollVersion, 5 * 60 * 1000);
 })();
 </script>

@@ -2,7 +2,7 @@
 // PS Panel — Service Worker
 // Bumpa VERSION en cada deploy para invalidar caché
 // ============================================================
-const VERSION = '1.4.24';
+const VERSION = '1.4.25';
 const CACHE   = 'ps-panel-v' + VERSION;
 const ASSETS  = [
   './',
@@ -34,7 +34,11 @@ self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (url.hostname.includes('script.google.com')) return;
   if (url.pathname.endsWith('version.json')) {
-    e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+    // Siempre red sin caché; fallback a version.json sin query params
+    e.respondWith(
+      fetch(url.origin + url.pathname, { cache: 'no-store' })
+        .catch(() => caches.match('./version.json'))
+    );
     return;
   }
   e.respondWith(
