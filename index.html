@@ -1789,16 +1789,15 @@ const ViewLanchas = {
     function allPasesDia(fecha) {
       const d = cache.value[fecha];
       if (!d?.loaded) return [];
-      const isPase = t => t.includes('Pase') || t.includes('Aliado');
       const result = [];
       (d.operaciones || []).forEach(op => {
         (op.movimientos || []).forEach(m => {
-          if (isPase(String(m.tipo || '')) && m.estado !== 'Cancelado')
+          if (esPaseOut(m.tipo) && m.estado !== 'Cancelado')
             result.push({ ...m, _bote: op.destino || op.id_bote, _hora: op.hora_salida });
         });
       });
       (d.pases_sueltos || []).forEach(m => {
-        if (isPase(String(m.tipo || '')) && m.estado !== 'Cancelado')
+        if (esPaseOut(String(m.tipo || '')) && m.estado !== 'Cancelado')
           result.push({ ...m, _bote: '—', _hora: '—' });
       });
       return result;
@@ -1865,11 +1864,10 @@ const ViewLanchas = {
 
     function contactColorByTipo(tipo) {
       const t = String(tipo||'').toLowerCase();
-      if (t.includes('agencia'))     return '#90cdf4'; // azul
-      if (t.includes('comisionado')) return '#c084fc'; // morado
-      if (t.includes('pasein'))      return '#fbbf24'; // ámbar
-      if (t.includes('paseout'))     return '#fb923c'; // naranja
-      if (t.includes('aliado'))      return '#f0abfc'; // fuchsia
+      if (t.includes('agencia'))                       return '#90cdf4'; // azul
+      if (t.includes('comisionado'))                   return '#c084fc'; // morado
+      if (t.includes('pasein'))                        return '#fbbf24'; // ámbar
+      if (t.includes('paseout') || t.includes('aliado')) return '#fb923c'; // naranja — paseout/aliado
       return '#4ade80'; // verde — Directo / Libre / default
     }
     function chipStyle(tipo) {
@@ -1877,7 +1875,8 @@ const ViewLanchas = {
       return `color:${c};background:${c}20;border:1px solid ${c}55;`;
     }
     function esPaseOut(tipo) {
-      return String(tipo||'').toLowerCase().includes('paseout');
+      const t = String(tipo||'').toLowerCase();
+      return t.includes('paseout') || t.includes('aliado');
     }
 
     function movPayments(op, movId) {
@@ -2516,43 +2515,38 @@ const ViewLanchas = {
                 <!-- Chips resumen por tipo -->
                 <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
                   <span v-for="tipo in [...new Set(allPasesDia(currentFecha).map(p=>p.tipo))]" :key="tipo"
-                    class="tipo-badge" :class="tipoBadgeClass(tipo)"
+                    class="tipo-badge" :style="chipStyle(tipo)"
                     style="padding:3px 10px;font-size:11px;">
-                    {{ tipo }}
-                    ×{{ allPasesDia(currentFecha).filter(p=>p.tipo===tipo).reduce((s,p)=>s+(parseFloat(p.cant_pax)||0),0) }} pax
+                    {{ tipo }} ×{{ allPasesDia(currentFecha).filter(p=>p.tipo===tipo).reduce((s,p)=>s+(parseFloat(p.cant_pax)||0),0) }} pax
                   </span>
                 </div>
                 <!-- Cards -->
                 <div v-for="p in allPasesDia(currentFecha)" :key="p.id_mov"
                   class="mov-row" :class="{'mov-cancelled': p.estado==='Cancelado'}"
-                  @click="openPaseModal(p)">
-                  <!-- Izquierda: badge + origen → destino -->
-                  <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;">
-                    <span class="tipo-badge" :class="tipoBadgeClass(p.tipo)" style="font-size:9px;padding:1px 5px;flex-shrink:0;">{{ p.tipo }}</span>
+                  @click="openPaseModal(p)"
+                  style="border-left:3px solid rgba(251,146,60,0.45);background:rgba(251,146,60,0.04);border-radius:8px;margin-bottom:4px;padding-left:10px;">
+                  <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;">
+                    <span style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:#fb923c;"></span>
                     <div style="min-width:0;">
-                      <div style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
-                        :style="'color:'+contactColorByTipo(p.tipo)">{{ p.nombre_contacto }}</div>
+                      <div style="font-weight:800;font-size:13px;color:#fb923c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                        {{ p.nombre_contacto }}
+                      </div>
                       <div v-if="p.nombre_contacto_pase || p.id_contacto_pase"
                         style="font-size:11px;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
                         → {{ p.nombre_contacto_pase || p.id_contacto_pase }}
                       </div>
                     </div>
                   </div>
-                  <!-- Derecha: pax + monto + chevron -->
                   <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
                     <span style="font-size:12px;color:var(--text-muted);">{{ p.cant_pax }} pax</span>
-                    <span style="font-size:14px;font-weight:800;" :style="pagoStatusStyle(p)">S/ {{ fmt(p.monto_total) }}</span>
+                    <span style="font-size:14px;font-weight:800;color:#fb923c;">S/ {{ fmt(p.monto_total) }}</span>
                     <span style="color:var(--text-muted);font-size:14px;">›</span>
                   </div>
                 </div>
                 <!-- Total -->
                 <div style="display:flex;justify-content:space-between;padding:8px 10px;border-top:1px solid var(--border);margin-top:2px;">
-                  <span style="font-size:11px;color:var(--text-muted);">
-                    {{ allPasesDia(currentFecha).reduce((s,p)=>s+(parseFloat(p.cant_pax)||0),0) }} pax total
-                  </span>
-                  <span style="font-size:12px;font-weight:800;color:var(--gold);">
-                    S/ {{ fmt(allPasesDia(currentFecha).reduce((s,p)=>s+(parseFloat(p.monto_total)||0),0)) }}
-                  </span>
+                  <span style="font-size:11px;color:var(--text-muted);">{{ allPasesDia(currentFecha).reduce((s,p)=>s+(parseFloat(p.cant_pax)||0),0) }} pax total</span>
+                  <span style="font-size:12px;font-weight:800;color:var(--gold);">S/ {{ fmt(allPasesDia(currentFecha).reduce((s,p)=>s+(parseFloat(p.monto_total)||0),0)) }}</span>
                 </div>
               </template>
             </div>
@@ -4056,7 +4050,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.4.22';
+const APP_VERSION = '1.4.23';
 (function() {
   let _reg = null, _waitingWorker = null;
 
