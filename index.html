@@ -1851,6 +1851,18 @@ const ViewLanchas = {
 
     function fmt(v) { return (parseFloat(v)||0).toLocaleString('es-PE',{minimumFractionDigits:0,maximumFractionDigits:0}); }
 
+    // adicionales viene como string "taxport:5,seguro:10" — mismo parser que GAS
+    function parseAdicionales(str) {
+      if (!str) return 0;
+      return String(str).split(',').reduce((acc, p) => {
+        const sep = p.indexOf(':');
+        return acc + (sep !== -1 ? parseFloat(p.substring(sep + 1).trim()) || 0 : 0);
+      }, 0);
+    }
+    function montoTotalMov(mov) {
+      return (parseFloat(mov.monto_total) || 0) + parseAdicionales(mov.adicionales);
+    }
+
     function totalMovs(movs) {
       const activos = movs.filter(m => m.estado !== 'Cancelado');
       return {
@@ -1886,7 +1898,7 @@ const ViewLanchas = {
     function montoPayStyle(op, mov) {
       if (mov.estado === 'Cancelado') return 'color:#6b7280;text-decoration:line-through';
       const paid  = movPayments(op, mov.id_mov).reduce((s,c) => s+(parseFloat(c.monto)||0), 0);
-      const total = (parseFloat(mov.monto_total)||0) + (parseFloat(mov.adicionales)||0);
+      const total = montoTotalMov(mov);
       if (total === 0)            return 'color:var(--text-muted)';
       if (paid >= total * 0.99)   return 'color:#4ade80';
       if (paid > 0)               return 'color:#fbbf24';
@@ -2156,16 +2168,16 @@ const ViewLanchas = {
 
     function calcPagoEstado(mov, op) {
       if (!tipoEsCobrable(mov.tipo)) return { cobrable: false, estado: 'sin_cobro', pendiente: 0, total: 0, pagado: 0 };
-      const total   = (parseFloat(mov.monto_total) || 0) + (parseFloat(mov.adicionales) || 0);
-      const pagado  = movPayments(op, mov.id_mov).reduce((s, c) => s + (parseFloat(c.monto) || 0), 0);
+      const total     = montoTotalMov(mov);
+      const pagado    = movPayments(op, mov.id_mov).reduce((s, c) => s + (parseFloat(c.monto) || 0), 0);
       const pendiente = Math.max(0, total - pagado);
-      const estado  = pagado <= 0 ? 'por_cobrar' : pendiente > 0.01 ? 'pagado_parcial' : 'pagado_completo';
+      const estado    = pagado <= 0 ? 'por_cobrar' : pendiente > 0.01 ? 'pagado_parcial' : 'pagado_completo';
       return { cobrable: true, estado, pendiente, total, pagado };
     }
 
     function calcPagoEstadoPase(p) {
       if (!tipoEsCobrable(p.tipo)) return { estado: 'sin_cobro' };
-      const total  = (parseFloat(p.monto_total) || 0) + (parseFloat(p.adicionales) || 0);
+      const total  = montoTotalMov(p);
       const pagado = (p._caja || []).filter(c => String(c.id_movimiento || '') === String(p.id_mov || '')).reduce((s, c) => s + (parseFloat(c.monto) || 0), 0);
       const estado = pagado <= 0 ? 'por_cobrar' : (total - pagado) > 0.01 ? 'pagado_parcial' : 'pagado_completo';
       return { estado };
@@ -2416,7 +2428,7 @@ const ViewLanchas = {
              selectedPase, pagoStatusStyle, openPaseModal, calcPagoEstadoPase,
              isIngreso, metodoIcon, cajaRowStyle, selectedCajaDia,
              resolveQuien, expandedCajaGroups, toggleCajaGroup, groupedCajaDia, groupIcon,
-             chipStyle, esPaseOut,
+             chipStyle, esPaseOut, montoTotalMov,
              opModal, embarcaciones, personalOps, isAdmin, openOpModal, guardarOp, confirmarAnularOp,
              contactosOps, movFormModal, pagoModal, derivarModal,
              tipoEsCobrable, calcPagoEstado, pagadoAgencia,
@@ -4063,7 +4075,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.4.27';
+const APP_VERSION = '1.4.28';
 (function() {
   let _reg = null, _waitingWorker = null;
 
