@@ -2275,7 +2275,7 @@ const ViewLanchas = {
       } else {
         opModal.value = { show: true, mode: 'crear', saving: false, error: '',
           id: '', fecha: currentFecha.value, hora_salida: '', id_bote: '',
-          id_capitan: '', id_guia: '', estado: 'Abierta', destino: '' };
+          id_capitan: '', id_guia: '', estado: 'Abierta', destino: 'Islas Ballestas' };
       }
     }
 
@@ -3677,11 +3677,18 @@ const ViewLanchas = {
                   <input type="date" v-model="opModal.fecha"
                     style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 10px;font-size:13px;color:var(--text);color-scheme:dark;width:100%;" />
                 </label>
-                <label style="display:flex;flex-direction:column;gap:5px;">
+                <div style="display:flex;flex-direction:column;gap:5px;">
                   <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">Hora salida *</span>
-                  <input type="time" v-model="opModal.hora_salida"
-                    style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 10px;font-size:13px;color:var(--text);color-scheme:dark;width:100%;" />
-                </label>
+                  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:5px;">
+                    <button v-for="hh in ['06','07','08','09','10','11','12','13','14','15']" :key="hh"
+                      @click="opModal.hora_salida = hh+':00'"
+                      :style="opModal.hora_salida===hh+':00'
+                        ? 'padding:8px 4px;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;background:rgba(201,168,76,0.2);border:1.5px solid var(--gold);color:var(--gold);text-align:center;'
+                        : 'padding:8px 4px;border-radius:9px;font-size:12px;cursor:pointer;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);text-align:center;'">
+                      {{ parseInt(hh) < 12 ? parseInt(hh)+' AM' : (parseInt(hh)===12 ? '12 PM' : (parseInt(hh)-12)+' PM') }}
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <!-- Embarcación (solo crear) -->
@@ -4522,7 +4529,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.4.46';
+const APP_VERSION = '1.4.47';
 (function() {
   let _reg = null, _waitingWorker = null;
 
