@@ -1103,8 +1103,8 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 @keyframes psBtnPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.06)} }
 .ps-upd-btn:active { transform:scale(.93) !important;opacity:.85; }
 .ps-upd-dismiss { background:none;border:none;color:rgba(240,230,211,.4);font-size:1rem;cursor:pointer;padding:4px;flex-shrink:0;line-height:1; }
-#psUpdateOverlay { position:fixed;inset:0;background:#0e0608;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;opacity:0;pointer-events:none;transition:opacity .4s; }
-#psUpdateOverlay.visible { opacity:1;pointer-events:all; }
+#psUpdateOverlay { position:fixed;inset:0;background:#0e0608;z-index:9999;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px; }
+#psUpdateOverlay.visible { display:flex; }
 .ps-upd-ring { width:64px;height:64px;border-radius:50%;border:3px solid #2d0f17;border-top-color:#C9A84C;animation:psSpin .9s linear infinite; }
 @keyframes psSpin { to{transform:rotate(360deg)} }
 .ps-upd-dots { display:flex;gap:6px; }
@@ -4107,7 +4107,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.4.30';
+const APP_VERSION = '1.4.31';
 (function() {
   let _reg = null, _waitingWorker = null;
 
@@ -4132,10 +4132,15 @@ const APP_VERSION = '1.4.30';
   }
 
   window._psApplyUpdate = function() {
-    _hideBanner(); _showOverlay();
+    _hideBanner();
+    _showOverlay(); // display:flex instantáneo — bloquea la vista antes de cualquier async
+    // Fallback: si el SW no dispara controllerchange en 4s, forzar reload
+    const fallback = setTimeout(() => window.location.reload(), 4000);
     if (_waitingWorker) {
       _waitingWorker.postMessage('SKIP_WAITING');
+      // controllerchange listener hace el reload; fallback cubre el caso iOS donde no dispara
     } else {
+      clearTimeout(fallback);
       const doReload = () => window.location.reload();
       ('caches' in window)
         ? caches.keys().then(ks => Promise.all(ks.map(k => caches.delete(k)))).then(doReload).catch(doReload)
