@@ -1028,15 +1028,28 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 
 /* Tabs */
 .tab-bar {
-  display: flex; border-bottom: 1px solid var(--border);
-  padding: 0 14px;
+  display: flex; gap: 7px;
+  padding: 12px 14px 14px;
 }
 .tab-btn {
-  padding: 10px 14px; font-size: 12px; font-weight: 700;
-  color: var(--text-muted); border-bottom: 2px solid transparent;
-  transition: all 0.2s; margin-bottom: -1px;
+  flex: 1; padding: 12px 6px; font-size: 13px; font-weight: 700;
+  text-align: center; border-radius: 11px;
+  color: var(--text-muted);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  transition: all 0.22s;
+  line-height: 1.25;
 }
-.tab-btn.active { color: var(--gold); border-bottom-color: var(--gold); }
+.tab-btn:hover:not(.active) {
+  background: rgba(255,255,255,0.08);
+  color: var(--text);
+}
+.tab-btn.active {
+  color: var(--gold);
+  background: rgba(201,168,76,0.16);
+  border-color: rgba(201,168,76,0.5);
+  box-shadow: 0 0 16px rgba(201,168,76,0.22), inset 0 1px 0 rgba(201,168,76,0.14);
+}
 .tab-content { padding: 14px; }
 
 /* Totals row */
@@ -2602,6 +2615,20 @@ const ViewLanchas = {
                 <span v-if="cache[currentFecha].kpis?.deuda_comisionados > 0" class="date-kpi-chip" style="color:#f87171;">-S/ {{ fmt(cache[currentFecha].kpis?.deuda_comisionados) }}</span>
                 <div class="date-semaforo" :class="'sem-'+(cache[currentFecha].kpis?.semaforo||'gris')" style="display:inline-block;vertical-align:middle;"></div>
               </div>
+              <div style="display:flex;gap:5px;margin-top:9px;justify-content:center;">
+                <button @click="openReport(currentFecha)"
+                  style="flex:1;padding:6px 4px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.3);color:var(--gold);">
+                  📊 Reporte
+                </button>
+                <button @click="openTicket()"
+                  style="flex:1;padding:6px 4px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;background:rgba(92,217,138,0.1);border:1px solid rgba(92,217,138,0.35);color:#5cd98a;">
+                  🎫 Ticket
+                </button>
+                <button @click="openOpModal(null)"
+                  style="flex:1;padding:6px 4px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;background:rgba(201,168,76,0.15);border:1px solid rgba(201,168,76,0.5);color:var(--gold);">
+                  ＋ Op
+                </button>
+              </div>
             </template>
             <div v-else-if="cache[currentFecha]?.loading" style="margin-top:6px;"><div class="spin" style="width:14px;height:14px;display:inline-block;"></div></div>
           </div>
@@ -2611,32 +2638,16 @@ const ViewLanchas = {
         <!-- Cuerpo -->
         <div class="date-view-body">
 
-          <!-- Botones reporte + ticket + nueva op -->
-          <div v-if="cache[currentFecha]?.loaded" style="display:flex;gap:8px;margin-bottom:12px;">
-            <button class="btn-report" @click="openReport(currentFecha)"
-              style="flex:1;justify-content:center;padding:9px;">
-              📊 Reporte
-            </button>
-            <button class="btn-report" @click="openTicket()"
-              style="flex:1;justify-content:center;padding:9px;background:rgba(92,217,138,0.12);border-color:rgba(92,217,138,0.4);color:#5cd98a;">
-              🎫 Ticket
-            </button>
-            <button class="btn-report" @click="openOpModal(null)"
-              style="flex:1;justify-content:center;padding:9px;background:rgba(201,168,76,0.15);border-color:rgba(201,168,76,0.5);color:var(--gold);">
-              ＋ Nueva Op
-            </button>
-          </div>
-
           <!-- Tabs -->
-          <div class="tab-bar" style="margin-bottom:12px;">
+          <div class="tab-bar">
             <button class="tab-btn" :class="{active: dateTab==='operaciones'}" @click="dateTab='operaciones'">
-              ⛵ Ops ({{ (cache[currentFecha]?.operaciones||[]).length }})
+              ⛵ Ops<br><span style="font-size:11px;font-weight:600;opacity:0.8;">{{ (cache[currentFecha]?.operaciones||[]).length }}</span>
             </button>
             <button class="tab-btn" :class="{active: dateTab==='pases'}" @click="dateTab='pases'">
-              🔀 Pases ({{ allPasesDia(currentFecha).length }})
+              🔀 Pases<br><span style="font-size:11px;font-weight:600;opacity:0.8;">{{ allPasesDia(currentFecha).length }}</span>
             </button>
             <button class="tab-btn" :class="{active: dateTab==='caja'}" @click="dateTab='caja'">
-              💵 Caja ({{ allCajaDia(currentFecha).length }})
+              💵 Caja<br><span style="font-size:11px;font-weight:600;opacity:0.8;">{{ allCajaDia(currentFecha).length }}</span>
             </button>
           </div>
 
@@ -4315,7 +4326,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.4.37';
+const APP_VERSION = '1.4.38';
 (function() {
   let _reg = null, _waitingWorker = null;
 
