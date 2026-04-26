@@ -255,6 +255,14 @@ function getLanchasDia(fecha) {
   }
 
   // Caja operadores
+  // Lookup id_mov → id_operacion para caja sin id_operacion (registrada desde otra app)
+  const movToOp = {};
+  Object.keys(ops).forEach(function(opId) {
+    (ops[opId].movimientos || []).forEach(function(m) {
+      if (m.id_mov) movToOp[String(m.id_mov)] = opId;
+    });
+  });
+
   let cajaEfectivo = 0, cajaTransferencia = 0;
   const cajaSuelta = [];
   const shCaj = ss.getSheetByName('Caja_Operador');
@@ -262,14 +270,19 @@ function getLanchasDia(fecha) {
     const d = shCaj.getDataRange().getValues();
     for (let i = 1; i < d.length; i++) {
       const row = d[i];
-      const idOp = String(row[1] || '').trim();
+      const idMov = String(row[10] || '').trim();
+      let idOp = String(row[1] || '').trim();
+      // Fallback: si id_operacion vacío, buscarlo por id_movimiento
+      if ((!idOp || !opIds.has(idOp)) && idMov && movToOp[idMov]) {
+        idOp = movToOp[idMov];
+      }
       const monto = parseFloat(row[4]) || 0;
       const metodo = String(row[5] || '').toLowerCase();
       const cajEntry = {
         id_transaccion: row[0], id_operacion: idOp, id_contacto: row[2],
         categoria: row[3], monto, metodo_pago: row[5],
         comentarios: row[6], foto_url: row[7], operador: row[8],
-        timestamp: row[9], id_movimiento: row[10],
+        timestamp: row[9], id_movimiento: idMov,
         nombre_contacto: nombreContacto[String(row[2]||'')] || ''
       };
       if (idOp && opIds.has(idOp)) {
