@@ -1999,6 +1999,20 @@ const ViewLanchas = {
       return g.entries.every(e => metodoIcon(e) === first) ? first : '💸';
     }
 
+    function cajaDiaStats(fecha) {
+      let neto = 0, efectivo = 0, virtual = 0;
+      for (const c of allCajaDia(fecha)) {
+        const m = parseFloat(c.monto) || 0;
+        neto += isIngreso(c) ? m : -m;
+        const met = String(c.metodo_pago||'').toLowerCase();
+        if (met.includes('efect') || met === 'cash') efectivo += m;
+        else if (c.metodo_pago) virtual += m;
+      }
+      const tot = efectivo + virtual;
+      const pct = tot > 0 ? Math.round(efectivo / tot * 100) : 50;
+      return { neto, efectivo, virtual, pct };
+    }
+
     function cajaTipoPill(g) {
       const cat = String(g.categoria||'').toLowerCase();
       if (cat === 'varios') {
@@ -2438,7 +2452,7 @@ const ViewLanchas = {
              selectedMov, contactColorByTipo, movPayments, montoPayStyle, openMovModal, allCajaDia,
              selectedPase, pagoStatusStyle, openPaseModal, calcPagoEstadoPase,
              isIngreso, metodoIcon, cajaRowStyle, selectedCajaDia,
-             resolveQuien, expandedCajaGroups, toggleCajaGroup, groupedCajaDia, groupIcon, cajaTipoPill,
+             resolveQuien, expandedCajaGroups, toggleCajaGroup, groupedCajaDia, groupIcon, cajaTipoPill, cajaDiaStats,
              chipStyle, esPaseOut, montoTotalMov,
              opModal, embarcaciones, personalOps, isAdmin, openOpModal, guardarOp, confirmarAnularOp,
              contactosOps, movFormModal, pagoModal, derivarModal,
@@ -2594,19 +2608,20 @@ const ViewLanchas = {
                 <p style="font-size:13px;">Sin registros de caja este día</p>
               </div>
               <template v-else>
-                <!-- KPI chips -->
-                <div class="kpi-grid" style="margin-bottom:12px;">
-                  <div class="kpi-card glass" style="padding:10px;text-align:center;">
-                    <div class="kpi-label">Total</div>
-                    <div class="kpi-value shimmer" style="font-size:18px;">S/ {{ fmt(allCajaDia(currentFecha).reduce((s,c)=>s+(parseFloat(c.monto)||0),0)) }}</div>
-                  </div>
-                  <div class="kpi-card glass" style="padding:10px;text-align:center;">
-                    <div class="kpi-label">💵 Efectivo</div>
-                    <div class="kpi-value" style="font-size:18px;color:#4ade80;">S/ {{ fmt(allCajaDia(currentFecha).filter(c=>String(c.metodo_pago||'').toLowerCase().includes('efect')||String(c.metodo_pago||'').toLowerCase()==='cash').reduce((s,c)=>s+(parseFloat(c.monto)||0),0)) }}</div>
-                  </div>
-                  <div class="kpi-card glass" style="padding:10px;text-align:center;">
-                    <div class="kpi-label">💳 Transfer.</div>
-                    <div class="kpi-value" style="font-size:18px;color:#60a5fa;">S/ {{ fmt(allCajaDia(currentFecha).filter(c=>!String(c.metodo_pago||'').toLowerCase().includes('efect')&&String(c.metodo_pago||'').toLowerCase()!=='cash'&&!!c.metodo_pago).reduce((s,c)=>s+(parseFloat(c.monto)||0),0)) }}</div>
+                <!-- Barra neto del día -->
+                <div style="position:relative;border-radius:14px;overflow:hidden;height:72px;margin-bottom:12px;"
+                  :style="{background:`linear-gradient(to right,rgba(74,222,128,0.28) calc(${cajaDiaStats(currentFecha).pct}% - 10px),rgba(96,165,250,0.28) calc(${cajaDiaStats(currentFecha).pct}% + 10px))`}">
+                  <div style="position:absolute;inset:0;border:1px solid rgba(255,255,255,0.07);border-radius:14px;pointer-events:none;"></div>
+                  <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;">
+                    <div style="font-size:9px;font-weight:700;letter-spacing:.1em;color:rgba(240,230,211,0.45);">NETO DEL DÍA</div>
+                    <div style="font-size:26px;font-weight:900;line-height:1;"
+                      :style="cajaDiaStats(currentFecha).neto>=0?'color:#4ade80':'color:#f87171'">
+                      {{ cajaDiaStats(currentFecha).neto >= 0 ? '+' : '' }}S/ {{ fmt(cajaDiaStats(currentFecha).neto) }}
+                    </div>
+                    <div style="display:flex;gap:14px;font-size:10px;font-weight:600;margin-top:1px;">
+                      <span style="color:rgba(74,222,128,0.85);">💵 S/ {{ fmt(cajaDiaStats(currentFecha).efectivo) }}</span>
+                      <span style="color:rgba(96,165,250,0.85);">💳 S/ {{ fmt(cajaDiaStats(currentFecha).virtual) }}</span>
+                    </div>
                   </div>
                 </div>
                 <!-- Grupos de caja -->
@@ -4092,7 +4107,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.4.29';
+const APP_VERSION = '1.4.30';
 (function() {
   let _reg = null, _waitingWorker = null;
 
