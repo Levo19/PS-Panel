@@ -269,7 +269,8 @@ function getLanchasDia(fecha) {
         id_transaccion: row[0], id_operacion: idOp, id_contacto: row[2],
         categoria: row[3], monto, metodo_pago: row[5],
         comentarios: row[6], foto_url: row[7], operador: row[8],
-        timestamp: row[9], id_movimiento: row[10]
+        timestamp: row[9], id_movimiento: row[10],
+        nombre_contacto: nombreContacto[String(row[2]||'')] || ''
       };
       if (idOp && opIds.has(idOp)) {
         ops[idOp].caja.push(cajEntry);
