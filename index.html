@@ -1864,11 +1864,11 @@ const ViewLanchas = {
 
     function contactColorByTipo(tipo) {
       const t = String(tipo||'').toLowerCase();
+      if (t.includes('paseout'))                       return '#fb923c'; // naranja — Aliado(PaseOut)
+      if (t.includes('pasein'))                        return '#fbbf24'; // amarillo — Aliado(PaseIn)
       if (t.includes('agencia'))                       return '#90cdf4'; // azul
       if (t.includes('comisionado'))                   return '#c084fc'; // morado
-      if (t.includes('pasein'))                        return '#fbbf24'; // ámbar
-      if (t.includes('paseout') || t.includes('aliado')) return '#fb923c'; // naranja — paseout/aliado
-      return '#4ade80'; // verde — Directo / Libre / default
+      return '#4ade80'; // verde — Libre / Directo / default
     }
     function chipStyle(tipo) {
       const c = contactColorByTipo(tipo);
@@ -1876,7 +1876,7 @@ const ViewLanchas = {
     }
     function esPaseOut(tipo) {
       const t = String(tipo||'').toLowerCase();
-      return t.includes('paseout') || t.includes('aliado');
+      return t.includes('paseout');
     }
 
     function movPayments(op, movId) {
@@ -4050,7 +4050,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.4.23';
+const APP_VERSION = '1.4.24';
 (function() {
   let _reg = null, _waitingWorker = null;
 

@@ -2,7 +2,7 @@
 // PS Panel — Service Worker
 // Bumpa VERSION en cada deploy para invalidar caché
 // ============================================================
-const VERSION = '1.4.23';
+const VERSION = '1.4.24';
 const CACHE   = 'ps-panel-v' + VERSION;
 const ASSETS  = [
   './',
