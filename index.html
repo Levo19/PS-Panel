@@ -2315,10 +2315,12 @@ const ViewLanchas = {
         if (idx >= 0) {
           rollback = { ...ops[idx] };
           const updated = { ...ops[idx],
-            hora_salida: to12h(m.hora_salida),
-            id_capitan:  m.id_capitan,
-            id_guia:     m.id_guia,
-            destino:     m.destino,
+            hora_salida:    to12h(m.hora_salida),
+            id_capitan:     m.id_capitan,
+            nombre_capitan: (personalOps.value.find(p => p.id === m.id_capitan) || {}).nombre || ops[idx].nombre_capitan,
+            id_guia:        m.id_guia,
+            nombre_guia:    m.id_guia ? ((personalOps.value.find(p => p.id === m.id_guia) || {}).nombre || ops[idx].nombre_guia) : '',
+            destino:        m.destino,
             ...(admin ? { fecha: m.fecha, estado: m.estado } : {})
           };
           const newOps = [...ops]; newOps[idx] = updated;
@@ -2621,10 +2623,12 @@ const ViewLanchas = {
 
     onMounted(() => {
       if (!fechas.value.length) loadFechas();
+      loadCatalogos();
       refreshInterval = setInterval(silentRefresh, 60000);
     });
     onActivated(() => {
       if (!fechas.value.length && !loadingFechas.value) loadFechas();
+      loadCatalogos();
       if (!refreshInterval) refreshInterval = setInterval(silentRefresh, 60000);
     });
     onDeactivated(() => {
@@ -3634,85 +3638,106 @@ const ViewLanchas = {
       <!-- Op CRUD Modal -->
       <teleport to="body">
         <div v-if="opModal.show" class="date-picker-overlay" @click.self="opModal.show=false">
-          <div class="date-picker-modal" style="max-width:400px;">
-            <div class="date-picker-header">
-              <span style="font-weight:800;">{{ opModal.mode==='crear' ? '＋ Nueva Operación' : '✏ Editar Operación' }}</span>
-              <button @click="opModal.show=false" style="font-size:18px;color:var(--text-muted);">✕</button>
-            </div>
-            <div style="overflow-y:auto;max-height:70vh;padding:16px;display:flex;flex-direction:column;gap:14px;">
+          <div style="background:var(--bg2);border:1px solid rgba(201,168,76,0.2);border-radius:18px;width:92%;max-width:400px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,0.85);">
 
-              <!-- Fecha (admin + crear siempre) -->
-              <label v-if="opModal.mode==='crear' || isAdmin"
-                style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text-muted);">
-                Fecha
-                <div style="display:flex;align-items:center;gap:8px;">
-                  <input type="date" v-model="opModal.fecha"
-                    style="flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);color-scheme:dark;" />
-                  <span v-if="isAdmin && opModal.mode==='editar'"
-                    style="font-size:10px;color:var(--gold);background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);border-radius:5px;padding:2px 6px;white-space:nowrap;">Admin</span>
+            <!-- Header -->
+            <div style="background:linear-gradient(135deg,rgba(90,23,34,0.9),rgba(22,10,13,0.97));padding:16px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(201,168,76,0.15);">
+              <div>
+                <div style="font-size:10px;letter-spacing:.1em;color:var(--gold);text-transform:uppercase;margin-bottom:2px;">
+                  {{ opModal.mode==='crear' ? 'Nueva operación' : 'Editar operación' }}
                 </div>
-              </label>
+                <div v-if="opModal.mode==='editar'" style="font-size:13px;font-weight:700;color:var(--text);">
+                  {{ (embarcaciones.find(b=>b.id===opModal.id_bote)||{}).nombre || opModal.id_bote }}
+                </div>
+                <div v-else style="font-size:13px;font-weight:700;color:var(--text);">{{ opModal.fecha }}</div>
+              </div>
+              <button @click="opModal.show=false" style="font-size:20px;color:var(--text-muted);line-height:1;padding:2px 6px;">✕</button>
+            </div>
 
-              <!-- Hora salida -->
-              <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text-muted);">
-                Hora de salida *
-                <input type="time" v-model="opModal.hora_salida"
-                  style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);color-scheme:dark;" />
-              </label>
+            <!-- Body -->
+            <div style="padding:16px 18px;display:flex;flex-direction:column;gap:14px;max-height:72vh;overflow-y:auto;">
 
-              <!-- Embarcación (solo al crear — inmutable después) -->
-              <label v-if="opModal.mode==='crear'"
-                style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text-muted);">
-                Embarcación *
+              <!-- Fecha + Hora (inline when both visible) -->
+              <div :style="(opModal.mode==='crear'||isAdmin) ? 'display:grid;grid-template-columns:1fr 1fr;gap:10px;' : ''">
+                <label v-if="opModal.mode==='crear' || isAdmin" style="display:flex;flex-direction:column;gap:5px;">
+                  <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">
+                    Fecha{{ isAdmin && opModal.mode==='editar' ? ' · Admin' : '' }}
+                  </span>
+                  <input type="date" v-model="opModal.fecha"
+                    style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 10px;font-size:13px;color:var(--text);color-scheme:dark;width:100%;" />
+                </label>
+                <label style="display:flex;flex-direction:column;gap:5px;">
+                  <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">Hora salida *</span>
+                  <input type="time" v-model="opModal.hora_salida"
+                    style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 10px;font-size:13px;color:var(--text);color-scheme:dark;width:100%;" />
+                </label>
+              </div>
+
+              <!-- Embarcación (solo crear) -->
+              <label v-if="opModal.mode==='crear'" style="display:flex;flex-direction:column;gap:5px;">
+                <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">Embarcación *</span>
                 <select v-model="opModal.id_bote"
-                  style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);appearance:none;">
+                  style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 10px;font-size:13px;color:var(--text);appearance:none;">
                   <option value="">— seleccionar —</option>
                   <option v-for="b in embarcaciones" :key="b.id" :value="b.id">{{ b.nombre }}</option>
                 </select>
               </label>
 
-              <!-- Capitán -->
-              <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text-muted);">
-                {{ opModal.mode==='crear' ? 'Capitán *' : 'Capitán' }}
-                <select v-model="opModal.id_capitan"
-                  style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);appearance:none;">
-                  <option value="">— seleccionar —</option>
-                  <option v-for="p in personalOps.filter(x=>x.rol&&x.rol.toLowerCase().includes('capit'))" :key="p.id" :value="p.id">{{ p.nombre }}</option>
-                </select>
-              </label>
+              <!-- Capitán + Guía -->
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <label style="display:flex;flex-direction:column;gap:5px;">
+                  <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">Capitán{{ opModal.mode==='crear' ? ' *' : '' }}</span>
+                  <select v-model="opModal.id_capitan"
+                    style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 10px;font-size:13px;color:var(--text);appearance:none;">
+                    <option value="">—</option>
+                    <option v-for="p in personalOps.filter(x=>x.rol&&x.rol.toLowerCase().includes('capit'))" :key="p.id" :value="p.id">{{ p.nombre }}</option>
+                  </select>
+                </label>
+                <label style="display:flex;flex-direction:column;gap:5px;">
+                  <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">Guía</span>
+                  <select v-model="opModal.id_guia"
+                    style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 10px;font-size:13px;color:var(--text);appearance:none;">
+                    <option value="">— ninguno —</option>
+                    <option v-for="p in personalOps.filter(x=>x.rol&&x.rol.toLowerCase().includes('guia'))" :key="p.id" :value="p.id">{{ p.nombre }}</option>
+                  </select>
+                </label>
+              </div>
 
-              <!-- Guía -->
-              <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text-muted);">
-                Guía
-                <select v-model="opModal.id_guia"
-                  style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);appearance:none;">
-                  <option value="">— ninguno —</option>
-                  <option v-for="p in personalOps.filter(x=>x.rol&&x.rol.toLowerCase().includes('guia'))" :key="p.id" :value="p.id">{{ p.nombre }}</option>
-                </select>
-              </label>
-
-              <!-- Destino -->
-              <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text-muted);">
-                Destino
-                <input type="text" v-model="opModal.destino" placeholder="Ej: Palomino, Las Palmas…"
-                  style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);" />
-              </label>
-
-              <!-- Estado (solo admin, solo al editar) -->
-              <label v-if="isAdmin && opModal.mode==='editar'"
-                style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text-muted);">
-                <div style="display:flex;align-items:center;gap:6px;">
-                  Estado
-                  <span style="font-size:10px;color:var(--gold);background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);border-radius:5px;padding:2px 6px;">Admin</span>
+              <!-- Destino pills -->
+              <div style="display:flex;flex-direction:column;gap:7px;">
+                <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">Destino</span>
+                <div style="display:flex;gap:8px;">
+                  <button @click="opModal.destino='Islas Ballestas'"
+                    :style="opModal.destino==='Islas Ballestas'
+                      ? 'flex:1;padding:11px 6px;border-radius:11px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(201,168,76,0.2);border:1.5px solid var(--gold);color:var(--gold);'
+                      : 'flex:1;padding:11px 6px;border-radius:11px;font-size:13px;font-weight:500;cursor:pointer;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);'">
+                    🏝 Ballestas
+                  </button>
+                  <button @click="opModal.destino='Islas Blancas'"
+                    :style="opModal.destino==='Islas Blancas'
+                      ? 'flex:1;padding:11px 6px;border-radius:11px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(201,168,76,0.2);border:1.5px solid var(--gold);color:var(--gold);'
+                      : 'flex:1;padding:11px 6px;border-radius:11px;font-size:13px;font-weight:500;cursor:pointer;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);'">
+                    🏖 Blancas
+                  </button>
                 </div>
-                <select v-model="opModal.estado"
-                  style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);appearance:none;">
-                  <option>Abierta</option>
-                  <option>En_Viaje</option>
-                  <option>Cerrada</option>
-                  <option>Cancelada</option>
-                </select>
-              </label>
+              </div>
+
+              <!-- Estado pills (admin + editar) -->
+              <div v-if="isAdmin && opModal.mode==='editar'" style="display:flex;flex-direction:column;gap:7px;">
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">Estado</span>
+                  <span style="font-size:9px;color:var(--gold);background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);border-radius:4px;padding:1px 5px;">Admin</span>
+                </div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                  <button v-for="est in ['Abierta','En_Viaje','Cerrada','Cancelada']" :key="est"
+                    @click="opModal.estado=est"
+                    :style="opModal.estado===est
+                      ? 'padding:7px 12px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;background:rgba(201,168,76,0.18);border:1.5px solid var(--gold);color:var(--gold);'
+                      : 'padding:7px 12px;border-radius:8px;font-size:12px;cursor:pointer;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);'">
+                    {{ est }}
+                  </button>
+                </div>
+              </div>
 
               <!-- Error -->
               <div v-if="opModal.error"
@@ -3721,16 +3746,16 @@ const ViewLanchas = {
               </div>
 
               <!-- Botones -->
-              <div style="display:flex;gap:10px;padding-top:4px;">
+              <div style="display:flex;gap:10px;padding-top:2px;">
                 <button @click="opModal.show=false"
-                  style="flex:1;padding:10px;border-radius:10px;background:transparent;border:1px solid var(--border);font-size:14px;cursor:pointer;color:var(--text-muted);">
+                  style="flex:1;padding:11px;border-radius:11px;background:transparent;border:1px solid var(--border);font-size:13px;cursor:pointer;color:var(--text-muted);">
                   Cancelar
                 </button>
                 <button @click="guardarOp()" :disabled="opModal.saving"
-                  style="flex:2;padding:10px;border-radius:10px;background:var(--gold);border:none;font-size:14px;font-weight:800;color:#1a0a05;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;"
+                  style="flex:2;padding:11px;border-radius:11px;background:var(--gold);border:none;font-size:14px;font-weight:800;color:#1a0a05;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;"
                   :style="opModal.saving?'opacity:0.6;cursor:default':''">
                   <span v-if="opModal.saving" class="spin" style="width:14px;height:14px;border-color:rgba(26,10,5,0.3);border-top-color:#1a0a05;"></span>
-                  {{ opModal.saving ? 'Guardando…' : (opModal.mode==='crear' ? 'Crear operación' : 'Guardar cambios') }}
+                  {{ opModal.saving ? 'Guardando…' : (opModal.mode==='crear' ? 'Crear operación' : 'Guardar') }}
                 </button>
               </div>
 
@@ -4486,7 +4511,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.4.43';
+const APP_VERSION = '1.4.44';
 (function() {
   let _reg = null, _waitingWorker = null;
 
