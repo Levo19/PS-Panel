@@ -2012,6 +2012,10 @@ const ViewLanchas = {
       const pct = tot > 0 ? Math.round(efectivo / tot * 100) : 50;
       return { neto, efectivo, virtual, pct };
     }
+    function cajaBgGradient(fecha) {
+      const pct = cajaDiaStats(fecha).pct;
+      return 'linear-gradient(to right,rgba(74,222,128,0.28) calc(' + pct + '% - 10px),rgba(96,165,250,0.28) calc(' + pct + '% + 10px))';
+    }
 
     function cajaTipoPill(g) {
       const cat = String(g.categoria||'').toLowerCase();
@@ -2452,7 +2456,7 @@ const ViewLanchas = {
              selectedMov, contactColorByTipo, movPayments, montoPayStyle, openMovModal, allCajaDia,
              selectedPase, pagoStatusStyle, openPaseModal, calcPagoEstadoPase,
              isIngreso, metodoIcon, cajaRowStyle, selectedCajaDia,
-             resolveQuien, expandedCajaGroups, toggleCajaGroup, groupedCajaDia, groupIcon, cajaTipoPill, cajaDiaStats,
+             resolveQuien, expandedCajaGroups, toggleCajaGroup, groupedCajaDia, groupIcon, cajaTipoPill, cajaDiaStats, cajaBgGradient,
              chipStyle, esPaseOut, montoTotalMov,
              opModal, embarcaciones, personalOps, isAdmin, openOpModal, guardarOp, confirmarAnularOp,
              contactosOps, movFormModal, pagoModal, derivarModal,
@@ -2610,7 +2614,7 @@ const ViewLanchas = {
               <template v-else>
                 <!-- Barra neto del día -->
                 <div style="position:relative;border-radius:14px;overflow:hidden;height:72px;margin-bottom:12px;"
-                  :style="{background:`linear-gradient(to right,rgba(74,222,128,0.28) calc(${cajaDiaStats(currentFecha).pct}% - 10px),rgba(96,165,250,0.28) calc(${cajaDiaStats(currentFecha).pct}% + 10px))`}">
+                  :style="{background: cajaBgGradient(currentFecha)}">
                   <div style="position:absolute;inset:0;border:1px solid rgba(255,255,255,0.07);border-radius:14px;pointer-events:none;"></div>
                   <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;">
                     <div style="font-size:9px;font-weight:700;letter-spacing:.1em;color:rgba(240,230,211,0.45);">NETO DEL DÍA</div>
@@ -4107,7 +4111,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.4.31';
+const APP_VERSION = '1.4.32';
 (function() {
   let _reg = null, _waitingWorker = null;
 
