@@ -1999,6 +1999,17 @@ const ViewLanchas = {
       return g.entries.every(e => metodoIcon(e) === first) ? first : '💸';
     }
 
+    function cajaTipoPill(g) {
+      const cat = String(g.categoria||'').toLowerCase();
+      if (cat === 'varios') {
+        return isIngreso(g.entries[0])
+          ? { text: 'INGRESO', style: 'color:#4ade80;background:rgba(74,222,128,0.15)' }
+          : { text: 'SALIDA',  style: 'color:#f87171;background:rgba(248,113,113,0.15)' };
+      }
+      if (cat.includes('pago'))  return { text: 'PAGO',  style: 'color:#fb923c;background:rgba(251,146,60,0.15)' };
+      return                            { text: 'COBRO', style: 'color:#4ade80;background:rgba(74,222,128,0.15)' };
+    }
+
     const selectedCajaDia = ref(null);
 
     const opModal = ref({ show: false, mode: 'crear', saving: false, error: '',
@@ -2427,7 +2438,7 @@ const ViewLanchas = {
              selectedMov, contactColorByTipo, movPayments, montoPayStyle, openMovModal, allCajaDia,
              selectedPase, pagoStatusStyle, openPaseModal, calcPagoEstadoPase,
              isIngreso, metodoIcon, cajaRowStyle, selectedCajaDia,
-             resolveQuien, expandedCajaGroups, toggleCajaGroup, groupedCajaDia, groupIcon,
+             resolveQuien, expandedCajaGroups, toggleCajaGroup, groupedCajaDia, groupIcon, cajaTipoPill,
              chipStyle, esPaseOut, montoTotalMov,
              opModal, embarcaciones, personalOps, isAdmin, openOpModal, guardarOp, confirmarAnularOp,
              contactosOps, movFormModal, pagoModal, derivarModal,
@@ -2606,13 +2617,19 @@ const ViewLanchas = {
                   <div class="mov-row" style="padding-left:10px;"
                     @click="g.entries.length===1 ? selectedCajaDia=g.entries[0] : toggleCajaGroup(g.key)">
                     <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;">
-                      <span style="font-size:18px;flex-shrink:0;">{{ groupIcon(g) }}</span>
+                      <span style="font-size:16px;flex-shrink:0;">{{ groupIcon(g) }}</span>
                       <div style="min-width:0;flex:1;">
-                        <div style="font-weight:800;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ g.quien }}</div>
-                        <div style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text-muted);flex-wrap:wrap;">
-                          <span>{{ g.categoria }}</span>
-                          <template v-if="g.entries[0]._bote"><span>·</span><span>⛵ {{ g.entries[0]._bote }}</span></template>
-                          <template v-if="g.entries.length > 1"><span>·</span><span style="color:var(--gold);font-weight:700;">{{ g.entries.length }} pagos</span></template>
+                        <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">
+                          <span style="font-size:9px;font-weight:900;padding:1px 6px;border-radius:4px;flex-shrink:0;letter-spacing:.05em;"
+                            :style="cajaTipoPill(g).style">{{ cajaTipoPill(g).text }}</span>
+                          <span style="font-weight:800;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ g.quien }}</span>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text-muted);">
+                          <template v-if="g.entries[0]._bote"><span>⛵ {{ g.entries[0]._bote }}</span></template>
+                          <template v-if="g.entries.length > 1">
+                            <span v-if="g.entries[0]._bote">·</span>
+                            <span style="color:var(--gold);font-weight:700;">{{ g.entries.length }} cobros</span>
+                          </template>
                         </div>
                       </div>
                     </div>
@@ -4075,7 +4092,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.4.28';
+const APP_VERSION = '1.4.29';
 (function() {
   let _reg = null, _waitingWorker = null;
 
