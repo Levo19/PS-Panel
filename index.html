@@ -2077,9 +2077,11 @@ const ViewLanchas = {
       return                            { text: 'COBRO', style: 'color:#4ade80;background:rgba(74,222,128,0.15)' };
     }
 
-    const selectedCajaDia = ref(null);
-    const pulsMovId       = ref(null);
-    const pulsCajaId      = ref(null);
+    const selectedCajaDia  = ref(null);
+    const pulsMovId        = ref(null);
+    const pulsCajaId       = ref(null);
+    const impuestosCatalog = ref([]);
+    const adicionalesModal = ref({ show: false, movId: '', movLabel: '', items: [], saving: false, error: '' });
 
     async function irAMovimiento(cajaDia) {
       const movId = String(cajaDia.id_movimiento || '');
@@ -2133,6 +2135,76 @@ const ViewLanchas = {
       const el = document.querySelector('[data-cajaid="' + entry.id_transaccion + '"]');
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       setTimeout(() => { pulsCajaId.value = null; }, 2200);
+    }
+
+    function canHaveAdicionales(mov) {
+      const tipo = String(mov.tipo || '').toLowerCase();
+      return tipo === 'agencia' || (mov.adicionales && String(mov.adicionales).trim() !== '');
+    }
+
+    async function openAdicionalesModal(mov) {
+      if (!impuestosCatalog.value.length) {
+        const r = await apiGet('listar_impuestos');
+        if (r.ok) impuestosCatalog.value = r.data;
+      }
+      const currentMap = {};
+      if (mov.adicionales) {
+        String(mov.adicionales).split(',').forEach(p => {
+          const sep = p.indexOf(':');
+          if (sep !== -1) {
+            const nombre = p.substring(0, sep).trim();
+            const total  = parseFloat(p.substring(sep + 1).trim()) || 0;
+            currentMap[nombre] = total;
+          }
+        });
+      }
+      const items = impuestosCatalog.value.map(imp => {
+        const total = currentMap[imp.nombre] || 0;
+        const qty   = total > 0 ? Math.round(total / imp.monto) : 0;
+        return { id: imp.id, nombre: imp.nombre, montoUnit: imp.monto, qty };
+      });
+      adicionalesModal.value = { show: true, movId: mov.id_mov, movLabel: mov.nombre_contacto, items, saving: false, error: '' };
+    }
+
+    function adicionalesSetQty(idx, delta) {
+      const items = adicionalesModal.value.items.map((it, i) =>
+        i === idx ? { ...it, qty: Math.max(0, it.qty + delta) } : it
+      );
+      adicionalesModal.value = { ...adicionalesModal.value, items };
+    }
+
+    function adicionalesTotal() {
+      return adicionalesModal.value.items.reduce((s, it) => s + it.qty * it.montoUnit, 0);
+    }
+
+    function buildAdicionalesStr() {
+      return adicionalesModal.value.items
+        .filter(it => it.qty > 0)
+        .map(it => it.nombre + ':' + (it.qty * it.montoUnit).toFixed(2))
+        .join(', ');
+    }
+
+    async function guardarAdicionales() {
+      adicionalesModal.value.saving = true;
+      adicionalesModal.value.error  = '';
+      try {
+        const str = buildAdicionalesStr();
+        const r = await apiPost({ accion: 'actualizar_adicionales', id_mov: adicionalesModal.value.movId, adicionales: str });
+        if (!r.ok) throw new Error(r.error || 'Error al guardar');
+        if (selectedMov.value && selectedMov.value.mov.id_mov === adicionalesModal.value.movId)
+          selectedMov.value = { ...selectedMov.value, mov: { ...selectedMov.value.mov, adicionales: str } };
+        if (selectedPase.value && selectedPase.value.id_mov === adicionalesModal.value.movId)
+          selectedPase.value = { ...selectedPase.value, adicionales: str };
+        adicionalesModal.value.show = false;
+        showToast('✅ Adicionales guardados');
+        const fecha = currentFecha.value;
+        cache.value = { ...cache.value, [fecha]: { loaded: false, loading: false } };
+        loadFecha(fecha);
+      } catch(e) {
+        adicionalesModal.value.error = e.message;
+      } finally {
+        adicionalesModal.value.saving = false;
+      }
     }
 
     const opModal = ref({ show: false, mode: 'crear', saving: false, error: '',
@@ -2562,6 +2634,7 @@ const ViewLanchas = {
              selectedPase, pagoStatusStyle, openPaseModal, calcPagoEstadoPase,
              isIngreso, metodoIcon, cajaRowStyle, selectedCajaDia, pulsMovId, irAMovimiento, fmtHora,
              pulsCajaId, irACajaPago, adicionalItems, pasePayments, movPaidPct, paidBarColor,
+             canHaveAdicionales, impuestosCatalog, adicionalesModal, openAdicionalesModal, adicionalesSetQty, adicionalesTotal, guardarAdicionales,
              resolveQuien, expandedCajaGroups, toggleCajaGroup, groupedCajaDia, groupIcon, cajaTipoPill, cajaDiaStats, cajaBgGradient,
              chipStyle, esPaseOut, montoTotalMov,
              opModal, embarcaciones, personalOps, isAdmin, openOpModal, guardarOp, confirmarAnularOp,
@@ -2957,6 +3030,13 @@ const ViewLanchas = {
                     <span style="font-size:20px;font-weight:900;color:var(--gold);">S/ {{ fmt(montoTotalMov(selectedMov.mov)) }}</span>
                   </div>
                 </template>
+                <div v-if="canHaveAdicionales(selectedMov.mov)"
+                  style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);text-align:center;">
+                  <button @click="openAdicionalesModal(selectedMov.mov)"
+                    style="padding:5px 16px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.32);color:var(--gold);letter-spacing:.04em;">
+                    {{ adicionalItems(selectedMov.mov.adicionales).length ? '✎ Adicionales (' + adicionalItems(selectedMov.mov.adicionales).length + ')' : '+ Adicionales' }}
+                  </button>
+                </div>
               </div>
 
               <!-- 3. Pagos registrados -->
@@ -3412,6 +3492,13 @@ const ViewLanchas = {
                     <span style="font-size:20px;font-weight:900;color:#fb923c;">S/ {{ fmt(montoTotalMov(selectedPase)) }}</span>
                   </div>
                 </template>
+                <div v-if="canHaveAdicionales(selectedPase)"
+                  style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);text-align:center;">
+                  <button @click="openAdicionalesModal(selectedPase)"
+                    style="padding:5px 16px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.32);color:var(--gold);letter-spacing:.04em;">
+                    {{ adicionalItems(selectedPase.adicionales).length ? '✎ Adicionales (' + adicionalItems(selectedPase.adicionales).length + ')' : '+ Adicionales' }}
+                  </button>
+                </div>
               </div>
 
               <!-- 4. Pagos registrados (de caja) -->
@@ -3455,6 +3542,77 @@ const ViewLanchas = {
               </div>
 
             </div>
+          </div>
+        </div>
+      </teleport>
+
+      <!-- Adicionales Modal -->
+      <teleport to="body">
+        <div v-if="adicionalesModal.show" class="date-picker-overlay" @click.self="adicionalesModal.show=false">
+          <div class="date-picker-modal" style="max-width:360px;">
+
+            <div class="date-picker-header" style="border-bottom:1px solid rgba(201,168,76,0.25);">
+              <div>
+                <div style="font-weight:800;font-size:14px;color:var(--gold);">Adicionales</div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:1px;">{{ adicionalesModal.movLabel }}</div>
+              </div>
+              <button @click="adicionalesModal.show=false" style="font-size:18px;color:var(--text-muted);">✕</button>
+            </div>
+
+            <div style="overflow-y:auto;max-height:60vh;padding:14px;">
+
+              <!-- Spinner si catalog vacío -->
+              <div v-if="!impuestosCatalog.length" style="display:flex;justify-content:center;padding:24px;">
+                <div class="spin"></div>
+              </div>
+
+              <!-- Lista de impuestos -->
+              <div v-else style="display:flex;flex-direction:column;gap:8px;">
+                <div v-for="(it, idx) in adicionalesModal.items" :key="it.id"
+                  style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;transition:all 0.18s;"
+                  :style="it.qty>0 ? 'background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.35);' : 'background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);'">
+                  <!-- Nombre + precio unit -->
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-size:13px;font-weight:700;" :style="it.qty>0?'color:var(--gold)':'color:var(--text-muted)'">{{ it.nombre }}</div>
+                    <div style="font-size:10px;color:rgba(240,230,211,0.4);">S/ {{ fmt(it.montoUnit) }} c/u</div>
+                  </div>
+                  <!-- Controles qty -->
+                  <div style="display:flex;align-items:center;gap:6px;">
+                    <button @click="adicionalesSetQty(idx,-1)"
+                      style="width:28px;height:28px;border-radius:7px;font-size:16px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);color:var(--text-muted);">−</button>
+                    <span style="min-width:22px;text-align:center;font-size:15px;font-weight:800;"
+                      :style="it.qty>0?'color:var(--gold)':'color:var(--text-muted)'">{{ it.qty }}</span>
+                    <button @click="adicionalesSetQty(idx,1)"
+                      style="width:28px;height:28px;border-radius:7px;font-size:16px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;background:rgba(201,168,76,0.15);border:1px solid rgba(201,168,76,0.4);color:var(--gold);">+</button>
+                  </div>
+                  <!-- Subtotal -->
+                  <div style="min-width:52px;text-align:right;font-size:13px;font-weight:800;"
+                    :style="it.qty>0?'color:#4ade80':'color:rgba(240,230,211,0.2)'">
+                    {{ it.qty>0 ? 'S/ '+fmt(it.qty*it.montoUnit) : '—' }}
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Footer total + guardar -->
+            <div style="padding:12px 14px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;">
+              <div>
+                <div style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;">TOTAL ADICIONALES</div>
+                <div style="font-size:20px;font-weight:900;color:var(--gold);">S/ {{ fmt(adicionalesTotal()) }}</div>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+                <div v-if="adicionalesModal.error" style="font-size:11px;color:#f87171;">{{ adicionalesModal.error }}</div>
+                <button @click="guardarAdicionales()"
+                  :disabled="adicionalesModal.saving"
+                  style="padding:9px 22px;border-radius:10px;font-size:13px;font-weight:800;cursor:pointer;background:rgba(201,168,76,0.18);border:1px solid rgba(201,168,76,0.5);color:var(--gold);"
+                  :style="adicionalesModal.saving?'opacity:0.6;cursor:default':''">
+                  <span v-if="adicionalesModal.saving" class="spin" style="width:13px;height:13px;display:inline-block;border-color:rgba(201,168,76,0.3);border-top-color:var(--gold);vertical-align:middle;margin-right:5px;"></span>
+                  {{ adicionalesModal.saving ? 'Guardando…' : 'Guardar' }}
+                </button>
+              </div>
+            </div>
+
           </div>
         </div>
       </teleport>
@@ -4314,7 +4472,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.4.39';
+const APP_VERSION = '1.4.40';
 (function() {
   let _reg = null, _waitingWorker = null;
 

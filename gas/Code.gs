@@ -23,6 +23,9 @@ function doGet(e) {
       case 'listar_contactos_ops':
         data = listarContactosOps();
         break;
+      case 'listar_impuestos':
+        data = listarImpuestos();
+        break;
       case 'dashboard':
         const fecha = e.parameter.fecha || hoy();
         data = getDashboardKPIs(fecha);
@@ -67,7 +70,8 @@ function doPost(e) {
       case 'anular_operacion':       data = anularOperacion(body.id); break;
       case 'crear_movimiento':       data = crearMovimiento(body); break;
       case 'editar_movimiento':      data = editarMovimiento(body); break;
-      case 'cancelar_movimiento':    data = cancelarMovimiento(body.id); break;
+      case 'cancelar_movimiento':      data = cancelarMovimiento(body.id); break;
+      case 'actualizar_adicionales':   data = actualizarAdicionales(body); break;
       case 'derivar_pase_ps':        data = derivarPasePS(body); break;
       case 'anular_pase_ps':         data = anularPasePS(body); break;
       case 'convertir_pase_compra':  data = convertirPaseCompra(body); break;
@@ -515,6 +519,37 @@ function listarContactosOps() {
     });
   }
   return result;
+}
+
+// ── Catálogo Impuestos ────────────────────────────────────────
+function listarImpuestos() {
+  const sh = getSS_OPS().getSheetByName('Impuestos');
+  if (!sh) return [];
+  const d = sh.getDataRange().getValues();
+  const result = [];
+  for (let i = 1; i < d.length; i++) {
+    if (!d[i][0]) continue;
+    result.push({
+      id:     String(d[i][0]),
+      nombre: String(d[i][1] || ''),
+      monto:  parseFloat(String(d[i][2] || '').replace(',', '.')) || 0
+    });
+  }
+  return result;
+}
+
+// ── Actualizar adicionales de un movimiento ───────────────────
+function actualizarAdicionales(body) {
+  const sh = getSS_OPS().getSheetByName('Movimientos');
+  if (!sh) throw new Error('Hoja Movimientos no encontrada');
+  const d = sh.getDataRange().getValues();
+  for (let i = 1; i < d.length; i++) {
+    if (String(d[i][0]) === String(body.id_mov)) {
+      sh.getRange(i + 1, 9).setValue(body.adicionales || '');
+      return { id_mov: body.id_mov, adicionales: body.adicionales || '' };
+    }
+  }
+  throw new Error('Movimiento no encontrado: ' + body.id_mov);
 }
 
 // ── CRUD Movimientos ──────────────────────────────────────────
