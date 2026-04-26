@@ -1618,10 +1618,7 @@ const ViewDashboard = {
   template: `
     <div>
       <div class="module-header">
-        <div>
-          <div class="module-title shimmer">Dashboard</div>
-          <div class="module-date">{{ data?.hoy?.fecha || '—' }}</div>
-        </div>
+        <div class="module-date">{{ data?.hoy?.fecha || '—' }}</div>
         <button @click="$emit('action',{type:'refresh'})" style="color:var(--text-muted);font-size:20px;" :style="loading?'animation:spin 1s linear infinite':''">↻</button>
       </div>
 
@@ -2567,7 +2564,6 @@ const ViewLanchas = {
 
       <!-- Header -->
       <div class="module-header">
-        <div class="module-title">⛵ Lanchas</div>
         <button @click="loadFechas()" style="color:var(--text-muted);font-size:20px;" title="Recargar">↻</button>
       </div>
 
@@ -3603,10 +3599,6 @@ const ViewHotel = {
   template: `
     <div>
       <div class="module-header">
-        <div>
-          <div class="module-title">🏨 Hotel</div>
-          <div class="module-date">Estado actual</div>
-        </div>
         <button @click="$emit('action',{type:'refresh_hotel'})" style="color:var(--text-muted);font-size:20px;">↻</button>
       </div>
 
@@ -3819,7 +3811,6 @@ const ViewFinanzas = {
   template: `
     <div>
       <div class="module-header">
-        <div class="module-title">💰 Finanzas</div>
         <button @click="loadFechas()" style="color:var(--text-muted);font-size:20px;" title="Recargar">↻</button>
       </div>
 
@@ -3994,10 +3985,6 @@ const ViewConfig = {
   emits: ['action'],
   template: `
     <div>
-      <div class="module-header">
-        <div class="module-title">⚙ Configuración</div>
-      </div>
-
       <!-- Conexión -->
       <div class="section-card glass">
         <div class="section-title">Servidor</div>
@@ -4328,7 +4315,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.4.36';
+const APP_VERSION = '1.4.37';
 (function() {
   let _reg = null, _waitingWorker = null;
 
