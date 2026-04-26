@@ -170,7 +170,24 @@ function metIcon(m){
   return k.includes('yape')?'📱':k.includes('plin')?'📲':k.includes('trans')?'🏦':k.includes('tarj')?'💳':'💵';
 }
 function isIngreso(c){
-  return String(c.categoria||'').toLowerCase().match(/cobro|ingreso|venta/);
+  const cat = String(c.categoria||'').toLowerCase();
+  if (cat === 'varios') return String(c.comentarios||'').trimStart().startsWith('[I]');
+  return /cobro|ingreso|venta/.test(cat);
+}
+function resolveQuienCaja(c) {
+  if (c.id_contacto === 'CON-00') {
+    const m = (c.comentarios||'').match(/Varios:\s*(.+)/i);
+    return m ? m[1].trim() : (c.nombre_contacto || '—');
+  }
+  const cat = String(c.categoria||'').toLowerCase();
+  if (cat === 'varios') return (c.comentarios||'').replace(/^\[.\]\s*/,'').trim() || '—';
+  return c.nombre_contacto || c.id_contacto || '—';
+}
+function cajaTipoLabel(c) {
+  const cat = String(c.categoria||'').toLowerCase();
+  if (cat === 'varios') return isIngreso(c) ? 'INGRESO' : 'SALIDA';
+  if (cat.includes('pago')) return 'PAGO';
+  return 'COBRO';
 }
 function pagadoMov(allCaja, movId){
   return allCaja.filter(c=>String(c.id_movimiento||'')===String(movId||'')).reduce((s,c)=>s+(parseFloat(c.monto)||0),0);
@@ -319,11 +336,12 @@ function render(data) {
   const neto     = totalIng - totalEgr;
 
   function cajaRow(c, esIng) {
-    const cat = String(c.categoria||'').replace(/_/g,' ');
+    const tipo  = cajaTipoLabel(c);
+    const quien = resolveQuienCaja(c);
     return `<div class="caja-item">
       <span class="caja-icon">${metIcon(c.metodo_pago)}</span>
       <div class="caja-desc">
-        <div>${c.operador||cat}</div>
+        <div><span style="font-size:10px;font-weight:900;padding:1px 5px;border-radius:3px;margin-right:5px;${esIng?'color:#5cd98a;background:rgba(92,217,138,0.15)':'color:#f87171;background:rgba(240,112,112,0.15)'}">${tipo}</span>${quien}</div>
         ${c._bote ? `<div class="caja-sub">⛵ ${c._bote}</div>` : ''}
       </div>
       <span class="caja-monto" style="color:${esIng?'var(--green)':'var(--red)'};">${esIng?'+':'-'}${S(c.monto)}</span>
@@ -415,7 +433,7 @@ function render(data) {
     if (ingresos.length > 0) {
       t += `💵 *INGRESOS*\n${SEP}\n`;
       ingresos.forEach(c => {
-        t += `  + ${c.operador||String(c.categoria||'').replace(/_/g,' ')}${c._bote?' ('+c._bote+')':''}  ${S(c.monto)}\n`;
+        t += `  + [${cajaTipoLabel(c)}] ${resolveQuienCaja(c)}${c._bote?' ('+c._bote+')':''}  ${S(c.monto)}\n`;
       });
       t += `  ${sep}\n  TOTAL  ${S(totalIng)}\n\n`;
     }
@@ -423,7 +441,7 @@ function render(data) {
     if (egresos.length > 0) {
       t += `📤 *EGRESOS*\n${SEP}\n`;
       egresos.forEach(c => {
-        t += `  - ${c.operador||String(c.categoria||'').replace(/_/g,' ')}${c._bote?' ('+c._bote+')':''}  ${S(c.monto)}\n`;
+        t += `  - [${cajaTipoLabel(c)}] ${resolveQuienCaja(c)}${c._bote?' ('+c._bote+')':''}  ${S(c.monto)}\n`;
       });
       t += `  ${sep}\n  TOTAL  ${S(totalEgr)}\n\n`;
     }
