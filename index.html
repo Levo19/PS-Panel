@@ -2350,8 +2350,13 @@ const ViewLanchas = {
         if (!r.ok) throw new Error(r.error || 'Error al guardar');
         opModal.value.show = false;
         const fecha = m.fecha || currentFecha.value;
+        // Insertar fecha en la lista de navegación si aún no existe
+        if (!fechas.value.includes(fecha)) {
+          fechas.value = [...fechas.value, fecha].sort((a, b) => b.localeCompare(a));
+        }
         cache.value = { ...cache.value, [fecha]: { loaded: false, loading: false } };
         loadFecha(fecha);
+        currentFecha.value = fecha;
         showToast('✅ Operación creada');
       } catch(e) {
         m.error = e.message;
@@ -2614,10 +2619,16 @@ const ViewLanchas = {
     let refreshInterval = null;
 
     function silentRefresh() {
-      if (!currentFecha.value || cache.value[currentFecha.value]?.loading) return;
-      const fecha = currentFecha.value;
-      apiGet('lanchas_dia', { fecha }).then(r => {
-        if (r.ok) cache.value = { ...cache.value, [fecha]: { loaded: true, loading: false, ...r.data } };
+      // Refresca datos del día actual
+      if (currentFecha.value && !cache.value[currentFecha.value]?.loading) {
+        const fecha = currentFecha.value;
+        apiGet('lanchas_dia', { fecha }).then(r => {
+          if (r.ok) cache.value = { ...cache.value, [fecha]: { loaded: true, loading: false, ...r.data } };
+        }).catch(() => {});
+      }
+      // Refresca la lista de fechas disponibles para que aparezcan fechas nuevas
+      apiGet('lanchas_fechas').then(r => {
+        if (r.ok && Array.isArray(r.data)) fechas.value = r.data;
       }).catch(() => {});
     }
 
@@ -4511,7 +4522,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.4.45';
+const APP_VERSION = '1.4.46';
 (function() {
   let _reg = null, _waitingWorker = null;
 
