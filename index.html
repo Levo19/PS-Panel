@@ -2184,25 +2184,42 @@ const ViewLanchas = {
     }
 
     async function guardarAdicionales() {
-      adicionalesModal.value.saving = true;
-      adicionalesModal.value.error  = '';
+      const str   = buildAdicionalesStr();
+      const movId = adicionalesModal.value.movId;
+      const fecha = currentFecha.value;
+
+      // Snapshot for rollback
+      const snapMov  = selectedMov.value  ? JSON.parse(JSON.stringify(selectedMov.value))  : null;
+      const snapPase = selectedPase.value ? JSON.parse(JSON.stringify(selectedPase.value)) : null;
+      const snapCache = cache.value[fecha] ? JSON.parse(JSON.stringify(cache.value[fecha])) : null;
+
+      // ── Optimistic: patch everything locally ─────────────
+      const patch = m => m.id_mov === movId ? { ...m, adicionales: str } : m;
+
+      if (snapMov  && snapMov.mov.id_mov === movId)
+        selectedMov.value  = { ...selectedMov.value,  mov: { ...selectedMov.value.mov,  adicionales: str } };
+      if (snapPase && snapPase.id_mov  === movId)
+        selectedPase.value = { ...selectedPase.value, adicionales: str };
+      if (snapCache) {
+        cache.value = { ...cache.value, [fecha]: {
+          ...cache.value[fecha],
+          operaciones:   (cache.value[fecha].operaciones   || []).map(op => ({ ...op, movimientos: (op.movimientos || []).map(patch) })),
+          pases_sueltos: (cache.value[fecha].pases_sueltos || []).map(patch)
+        }};
+      }
+
+      adicionalesModal.value = { ...adicionalesModal.value, show: false };
+      showToast('✅ Adicionales guardados');
+
+      // ── Background save with rollback on failure ──────────
       try {
-        const str = buildAdicionalesStr();
-        const r = await apiPost({ accion: 'actualizar_adicionales', id_mov: adicionalesModal.value.movId, adicionales: str });
+        const r = await apiPost({ accion: 'actualizar_adicionales', id_mov: movId, adicionales: str });
         if (!r.ok) throw new Error(r.error || 'Error al guardar');
-        if (selectedMov.value && selectedMov.value.mov.id_mov === adicionalesModal.value.movId)
-          selectedMov.value = { ...selectedMov.value, mov: { ...selectedMov.value.mov, adicionales: str } };
-        if (selectedPase.value && selectedPase.value.id_mov === adicionalesModal.value.movId)
-          selectedPase.value = { ...selectedPase.value, adicionales: str };
-        adicionalesModal.value.show = false;
-        showToast('✅ Adicionales guardados');
-        const fecha = currentFecha.value;
-        cache.value = { ...cache.value, [fecha]: { loaded: false, loading: false } };
-        loadFecha(fecha);
       } catch(e) {
-        adicionalesModal.value.error = e.message;
-      } finally {
-        adicionalesModal.value.saving = false;
+        if (snapMov)   selectedMov.value  = snapMov;
+        if (snapPase)  selectedPase.value = snapPase;
+        if (snapCache) cache.value = { ...cache.value, [fecha]: snapCache };
+        showToast('⚠ ' + e.message, 4000);
       }
     }
 
@@ -3600,14 +3617,10 @@ const ViewLanchas = {
                 <div style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;">TOTAL ADICIONALES</div>
                 <div style="font-size:20px;font-weight:900;color:var(--gold);">S/ {{ fmt(adicionalesTotal()) }}</div>
               </div>
-              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
-                <div v-if="adicionalesModal.error" style="font-size:11px;color:#f87171;">{{ adicionalesModal.error }}</div>
+              <div>
                 <button @click="guardarAdicionales()"
-                  :disabled="adicionalesModal.saving"
-                  style="padding:9px 22px;border-radius:10px;font-size:13px;font-weight:800;cursor:pointer;background:rgba(201,168,76,0.18);border:1px solid rgba(201,168,76,0.5);color:var(--gold);"
-                  :style="adicionalesModal.saving?'opacity:0.6;cursor:default':''">
-                  <span v-if="adicionalesModal.saving" class="spin" style="width:13px;height:13px;display:inline-block;border-color:rgba(201,168,76,0.3);border-top-color:var(--gold);vertical-align:middle;margin-right:5px;"></span>
-                  {{ adicionalesModal.saving ? 'Guardando…' : 'Guardar' }}
+                  style="padding:9px 22px;border-radius:10px;font-size:13px;font-weight:800;cursor:pointer;background:rgba(201,168,76,0.18);border:1px solid rgba(201,168,76,0.5);color:var(--gold);">
+                  Guardar
                 </button>
               </div>
             </div>
@@ -4471,7 +4484,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.4.41';
+const APP_VERSION = '1.4.42';
 (function() {
   let _reg = null, _waitingWorker = null;
 
