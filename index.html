@@ -2328,6 +2328,7 @@ const ViewLanchas = {
         }
         opModal.value.show = false;
         showToast('✅ Operación actualizada');
+        refreshFechasList();
         try {
           const r = await apiPost(body);
           if (!r.ok) throw new Error(r.error || 'Error al guardar');
@@ -2357,6 +2358,7 @@ const ViewLanchas = {
         cache.value = { ...cache.value, [fecha]: { loaded: false, loading: false } };
         loadFecha(fecha);
         currentFecha.value = fecha;
+        refreshFechasList();
         showToast('✅ Operación creada');
       } catch(e) {
         m.error = e.message;
@@ -2618,18 +2620,20 @@ const ViewLanchas = {
 
     let refreshInterval = null;
 
+    function refreshFechasList() {
+      apiGet('lanchas_fechas').then(r => {
+        if (r.ok && Array.isArray(r.data)) fechas.value = r.data;
+      }).catch(() => {});
+    }
+
     function silentRefresh() {
-      // Refresca datos del día actual
       if (currentFecha.value && !cache.value[currentFecha.value]?.loading) {
         const fecha = currentFecha.value;
         apiGet('lanchas_dia', { fecha }).then(r => {
           if (r.ok) cache.value = { ...cache.value, [fecha]: { loaded: true, loading: false, ...r.data } };
         }).catch(() => {});
       }
-      // Refresca la lista de fechas disponibles para que aparezcan fechas nuevas
-      apiGet('lanchas_fechas').then(r => {
-        if (r.ok && Array.isArray(r.data)) fechas.value = r.data;
-      }).catch(() => {});
+      refreshFechasList();
     }
 
     onMounted(() => {
@@ -4529,7 +4533,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.4.47';
+const APP_VERSION = '1.4.48';
 (function() {
   let _reg = null, _waitingWorker = null;
 
