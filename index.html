@@ -1864,12 +1864,15 @@ const ViewLanchas = {
     const selectedMov    = ref(null);
 
     function contactColorByTipo(tipo) {
-      const t = String(tipo||'').toLowerCase();
-      if (t.includes('agencia'))              return '#60a5fa';
-      if (t.includes('comisionado'))          return '#fbbf24';
-      if (t.includes('aliado')||t.includes('paseout')) return '#f0abfc';
-      if (t.includes('pase'))                 return '#fb923c';
-      return '#4ade80';
+      switch(String(tipo||'').toLowerCase()) {
+        case 'directo':     return '#4ade80';
+        case 'agencia':     return '#90cdf4';
+        case 'comisionado': return '#a78bfa';
+        case 'pasein':      return '#fbbf24';
+        case 'paseout':     return '#fb923c';
+        case 'aliado':      return '#f0abfc';
+      }
+      return 'rgba(240,230,211,0.55)';
     }
 
     function movPayments(op, movId) {
@@ -4045,7 +4048,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.4.19';
+const APP_VERSION = '1.4.20';
 (function() {
   let _reg = null, _waitingWorker = null;
 
