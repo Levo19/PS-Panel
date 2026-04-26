@@ -2138,8 +2138,7 @@ const ViewLanchas = {
     }
 
     function canHaveAdicionales(mov) {
-      const tipo = String(mov.tipo || '').toLowerCase();
-      return tipo === 'agencia' || (mov.adicionales && String(mov.adicionales).trim() !== '');
+      return mov.es_agencia_origen === true || (mov.adicionales && String(mov.adicionales).trim() !== '');
     }
 
     async function openAdicionalesModal(mov) {
@@ -4472,7 +4471,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.4.40';
+const APP_VERSION = '1.4.41';
 (function() {
   let _reg = null, _waitingWorker = null;
 

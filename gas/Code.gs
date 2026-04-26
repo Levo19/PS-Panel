@@ -134,10 +134,11 @@ function getLanchasDia(fecha) {
     PropertiesService.getScriptProperties().getProperty('SS_OPERACIONES_ID')
   );
 
-  // Mapa contactos: precio_pax_defecto y nombre_comercial
+  // Mapa contactos: precio_pax_defecto, nombre_comercial, tipo
   // Columnas: id_contacto | nombre_comercial | tipo | precio_pax_defecto
   const precioDefecto  = {};
   const nombreContacto = {};
+  const tipoContacto   = {};
   const shCon = ss.getSheetByName('Contactos');
   if (shCon) {
     const d = shCon.getDataRange().getValues();
@@ -145,6 +146,7 @@ function getLanchasDia(fecha) {
       const cid = String(d[i][0]);
       precioDefecto[cid]  = parseFloat(d[i][3]) || 0;
       nombreContacto[cid] = String(d[i][1] || '');
+      tipoContacto[cid]   = String(d[i][2] || '');
     }
   }
 
@@ -226,7 +228,8 @@ function getLanchasDia(fecha) {
         estado, id_contacto_pase: idPase,
         nombre_contacto_pase: idPase ? (nombreContacto[idPase] || idPase) : '',
         id_agencia_comprada: String(row[13] || ''), monto_comprado: montoComprado,
-        precio_defecto: precioDefecto[idContacto] || 0
+        precio_defecto: precioDefecto[idContacto] || 0,
+        es_agencia_origen: tipoContacto[idContacto] === 'Agencia'
       };
 
       if (idOp && opIds.has(idOp)) {
