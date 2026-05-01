@@ -119,12 +119,10 @@ function crearContacto(body) {
   const sh = getSS_OPS().getSheetByName('Contactos');
   if (!sh) throw new Error('Hoja Contactos no encontrada');
   const id = _nextIdCat(sh, 1, 'CON-', 2);
-  sh.appendRow([
-    id,
-    body.nombre || '',
-    body.tipo || 'Libre',
-    parseFloat(body.precio) || 0
-  ]);
+  const tipo = body.tipo || 'Libre';
+  // Aliados se manejan solo por cantidad de pax → sin precio
+  const precio = tipo === 'Aliado' ? '' : (parseFloat(body.precio) || 0);
+  sh.appendRow([id, body.nombre || '', tipo, precio]);
   return { ok: true, id };
 }
 
@@ -134,9 +132,15 @@ function actualizarContacto(body) {
   const d = sh.getDataRange().getValues();
   for (let i = 1; i < d.length; i++) {
     if (String(d[i][0]) === String(body.id)) {
+      const tipoNuevo = body.tipo !== undefined ? body.tipo : String(d[i][2] || '');
       if (body.nombre !== undefined) sh.getRange(i + 1, 2).setValue(body.nombre);
       if (body.tipo   !== undefined) sh.getRange(i + 1, 3).setValue(body.tipo);
-      if (body.precio !== undefined) sh.getRange(i + 1, 4).setValue(parseFloat(body.precio) || 0);
+      // Aliado siempre limpia precio; resto respeta lo enviado
+      if (tipoNuevo === 'Aliado') {
+        sh.getRange(i + 1, 4).setValue('');
+      } else if (body.precio !== undefined) {
+        sh.getRange(i + 1, 4).setValue(parseFloat(body.precio) || 0);
+      }
       return { ok: true };
     }
   }
