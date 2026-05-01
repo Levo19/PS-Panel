@@ -26,6 +26,12 @@ function doGet(e) {
       case 'listar_impuestos':
         data = listarImpuestos();
         break;
+      case 'listar_embarcaciones_catalogo':
+        data = listarEmbarcacionesCatalogo();
+        break;
+      case 'listar_personal_catalogo':
+        data = listarPersonalCatalogo();
+        break;
       case 'dashboard':
         const fecha = e.parameter.fecha || hoy();
         data = getDashboardKPIs(fecha);
@@ -76,6 +82,15 @@ function doPost(e) {
       case 'anular_pase_ps':         data = anularPasePS(body); break;
       case 'convertir_pase_compra':  data = convertirPaseCompra(body); break;
       case 'registrar_pago':         data = registrarPago(body); break;
+      // ── Catálogos ──
+      case 'crear_embarcacion':      data = crearEmbarcacion(body); break;
+      case 'actualizar_embarcacion': data = actualizarEmbarcacion(body); break;
+      case 'crear_personal_ops':     data = crearPersonalOps(body); break;
+      case 'actualizar_personal_ops':data = actualizarPersonalOps(body); break;
+      case 'crear_contacto':         data = crearContacto(body); break;
+      case 'actualizar_contacto':    data = actualizarContacto(body); break;
+      case 'crear_impuesto':         data = crearImpuesto(body); break;
+      case 'actualizar_impuesto':    data = actualizarImpuesto(body); break;
       default: data = { ok: false, error: 'Acción desconocida: ' + accion };
     }
     return jsonResponse({ ok: true, data });

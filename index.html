@@ -1358,6 +1358,9 @@ select.config-input option { background: #1e0a10; color: var(--text); }
               </div>
             </div>
             <div class="user-menu-sep"></div>
+            <button v-if="isAdminRoot" class="user-menu-item" @click="goModule('catalogos'); showUserMenu=false">
+              <span class="mi-icon">📚</span> Catálogos
+            </button>
             <button class="user-menu-item" @click="goModule('config'); showUserMenu=false">
               <span class="mi-icon">⚙️</span> Configuración
             </button>
@@ -2569,12 +2572,24 @@ const ViewLanchas = {
         });
         if (!r.ok) throw new Error(r.error || 'Error');
         pagoModal.value.show = false;
-        selectedMov.value = null;
+        selectedMov.value  = null;
+        selectedPase.value = null;
         const fecha = currentFecha.value;
         cache.value = { ...cache.value, [fecha]: { loaded: false, loading: false } };
         loadFecha(fecha);
       } catch(e) { p.error = e.message; }
       finally    { p.saving = false; }
+    }
+
+    function openPagoModalPase(pase) {
+      const paid      = pasePayments(pase).reduce((s, c) => s + (parseFloat(c.monto) || 0), 0);
+      const pendiente = Math.max(0, (parseFloat(pase.monto_total) || 0) - paid);
+      pagoModal.value = { show: true, saving: false, error: '', modo: 'cobro',
+        id_mov: pase.id_mov, id_operacion: pase.id_operacion,
+        id_contacto: pase.id_contacto,
+        nombre_contacto: pase.nombre_contacto,
+        monto: pendiente > 0 ? pendiente.toFixed(2) : (parseFloat(pase.monto_total) || 0).toFixed(2),
+        metodo_pago: 'Efectivo', comentarios: '' };
     }
 
     function openDerivarModal(selMov) {
@@ -2723,7 +2738,7 @@ const ViewLanchas = {
              contactosOps, movFormModal, pagoModal, derivarModal,
              tipoEsCobrable, calcPagoEstado, pagadoAgencia,
              openMovFormModal, guardarMov, confirmarCancelarMov,
-             openPagoModal, guardarPago,
+             openPagoModal, openPagoModalPase, guardarPago,
              openDerivarModal, openConvertirModal, guardarDerivarConvertir,
              confirmarAnularPaseMov };
   },
@@ -3645,6 +3660,20 @@ const ViewLanchas = {
                 </div>
               </div>
 
+              <!-- 6. Acciones -->
+              <div v-if="selectedPase.estado !== 'Cancelado'" style="display:flex;flex-wrap:wrap;gap:8px;border-top:1px solid var(--border);padding-top:12px;">
+                <button v-if="tipoEsCobrable(selectedPase.tipo)"
+                  @click="openPagoModalPase(selectedPase);selectedPase=null"
+                  style="flex:1;min-width:130px;padding:9px 12px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(74,222,128,0.12);border:1px solid rgba(74,222,128,0.3);color:#4ade80;">
+                  💰 Cobrar
+                </button>
+                <button v-if="isAdmin"
+                  @click="confirmarAnularPaseMov(selectedPase.id_mov);selectedPase=null"
+                  style="width:100%;padding:9px 12px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.25);color:#fbbf24;">
+                  ↩ Anular pase
+                </button>
+              </div>
+
             </div>
           </div>
         </div>
@@ -4264,6 +4293,413 @@ const ViewFinanzas = {
   `
 };
 
+// ── ViewCatalogos: gestión de tablas maestras (admin) ─────────
+const ViewCatalogos = {
+  name: 'ViewCatalogos',
+  props: ['data', 'loading'],
+  emits: ['action'],
+  setup() {
+    const view    = ref('hub'); // hub | impuestos | embarcaciones | personal | contactos
+    const lists   = ref({ impuestos: [], embarcaciones: [], personal: [], contactos: [] });
+    const loading = ref(false);
+    const search  = ref('');
+    const personalFilter  = ref('todos');  // todos | activos | inactivos
+    const contactosFilter = ref('todos');  // todos | Agencia | Aliado | Libre
+
+    const catModal = ref({ show: false, type: null, mode: 'crear', saving: false, error: '',
+      id: '', nombre: '', monto: '',
+      capacidad_pax: '', matricula: '',
+      rol: 'Capitan', tarifa_fija: '', estado: 'activo',
+      tipo: 'Libre', precio: '' });
+
+    const cards = [
+      { id: 'embarcaciones', icon: '🛥',  label: 'Embarcaciones',   unit: 'botes',     hint: 'Flota disponible' },
+      { id: 'personal',      icon: '👥', label: 'Personal',        unit: 'personas',  hint: 'Capitanes · Guías · Operadores' },
+      { id: 'contactos',     icon: '📇', label: 'Contactos',       unit: 'contactos', hint: 'Agencias · Aliados · Libre' },
+      { id: 'impuestos',     icon: '🧾', label: 'Impuestos / Adicionales', unit: 'items', hint: 'Muelle, Adulto, etc.' }
+    ];
+
+    const ENDPOINTS = {
+      impuestos:     { list: 'listar_impuestos',                crear: 'crear_impuesto',      editar: 'actualizar_impuesto' },
+      embarcaciones: { list: 'listar_embarcaciones_catalogo',   crear: 'crear_embarcacion',   editar: 'actualizar_embarcacion' },
+      personal:      { list: 'listar_personal_catalogo',        crear: 'crear_personal_ops',  editar: 'actualizar_personal_ops' },
+      contactos:     { list: 'listar_contactos_ops',            crear: 'crear_contacto',      editar: 'actualizar_contacto' }
+    };
+
+    async function loadCat(type) {
+      try {
+        const r = await apiGet(ENDPOINTS[type].list);
+        lists.value[type] = (r.ok && Array.isArray(r.data)) ? r.data : [];
+      } catch(e) { lists.value[type] = []; }
+    }
+
+    function openHub() {
+      view.value = 'hub';
+      search.value = '';
+      ['impuestos','embarcaciones','personal','contactos'].forEach(t => loadCat(t));
+    }
+
+    function openCat(type) {
+      view.value = type;
+      search.value = '';
+      loadCat(type);
+    }
+
+    function openCatModal(type, item = null) {
+      catModal.value = {
+        show: true, type, saving: false, error: '',
+        mode: item ? 'editar' : 'crear',
+        id:    item?.id || '',
+        nombre: item?.nombre || '',
+        monto: item ? String(item.monto || '') : '',
+        capacidad_pax: item ? String(item.capacidad_pax || '') : '',
+        matricula:     item?.matricula || '',
+        rol:           item?.rol || 'Capitan',
+        tarifa_fija:   item ? String(item.tarifa_fija || '') : '',
+        estado:        item?.estado || 'activo',
+        tipo:          item?.tipo || 'Libre',
+        precio:        item ? String(item.precio || '') : ''
+      };
+    }
+
+    async function guardarCat() {
+      const m = catModal.value;
+      if (!m.nombre.trim()) { m.error = 'Nombre requerido'; return; }
+      const body = { accion: ENDPOINTS[m.type][m.mode], nombre: m.nombre.trim() };
+      if (m.mode === 'editar') body.id = m.id;
+      if (m.type === 'impuestos')     { body.monto = parseFloat(m.monto) || 0; }
+      if (m.type === 'embarcaciones') { body.capacidad_pax = parseInt(m.capacidad_pax) || 0; body.matricula = m.matricula.trim(); }
+      if (m.type === 'personal')      { body.rol = m.rol; body.tarifa_fija = parseFloat(m.tarifa_fija) || 0; body.estado = m.estado; }
+      if (m.type === 'contactos')     { body.tipo = m.tipo; body.precio = parseFloat(m.precio) || 0; }
+
+      m.saving = true; m.error = '';
+      try {
+        const r = await apiPost(body);
+        if (!r.ok) throw new Error(r.error || 'Error');
+        catModal.value.show = false;
+        await loadCat(m.type);
+      } catch(e) { m.error = e.message; }
+      finally    { m.saving = false; }
+    }
+
+    // Personal agrupado por rol
+    const personalGrouped = computed(() => {
+      const f = personalFilter.value;
+      const filtered = lists.value.personal.filter(p => {
+        const est = String(p.estado || 'activo').toLowerCase();
+        if (f === 'activos')   return est === 'activo';
+        if (f === 'inactivos') return est === 'inactivo' || est === 'baja';
+        return true;
+      });
+      const groups = { Capitan: [], Guia: [], Operador: [] };
+      filtered.forEach(p => {
+        const r = String(p.rol || '').replace(/[áéíóúñ]/g, c => ({á:'a',é:'e',í:'i',ó:'o',ú:'u',ñ:'n'}[c]));
+        if (/capitan/i.test(r))      groups.Capitan.push(p);
+        else if (/guia/i.test(r))    groups.Guia.push(p);
+        else if (/operador/i.test(r)) groups.Operador.push(p);
+        else (groups[p.rol] = groups[p.rol] || []).push(p);
+      });
+      return groups;
+    });
+
+    // Contactos filtrados + agrupados
+    const contactosGrouped = computed(() => {
+      const q = search.value.toLowerCase().trim();
+      const tipoF = contactosFilter.value;
+      const filtered = lists.value.contactos.filter(c => {
+        if (tipoF !== 'todos' && c.tipo !== tipoF) return false;
+        if (q && !String(c.nombre).toLowerCase().includes(q)) return false;
+        return true;
+      });
+      const groups = {};
+      filtered.forEach(c => {
+        const t = c.tipo || 'Otro';
+        (groups[t] = groups[t] || []).push(c);
+      });
+      return groups;
+    });
+
+    onMounted(openHub);
+
+    function fmt(n) { return (parseFloat(n) || 0).toFixed(2); }
+
+    return { view, lists, loading, search, personalFilter, contactosFilter,
+             catModal, cards, openHub, openCat, openCatModal, guardarCat,
+             personalGrouped, contactosGrouped, fmt };
+  },
+  template: `
+    <div>
+
+      <!-- ── HUB ─────────────────────────────────────────── -->
+      <div v-if="view==='hub'" style="padding-bottom:32px;">
+        <div style="font-size:11px;color:var(--text-muted);letter-spacing:.1em;text-transform:uppercase;padding:14px 4px 10px;font-weight:700;">
+          Datos maestros
+        </div>
+        <div v-for="c in cards" :key="c.id" @click="openCat(c.id)"
+          style="display:flex;align-items:center;gap:14px;padding:14px;background:var(--bg2);border:1px solid var(--border);border-radius:14px;margin-bottom:10px;cursor:pointer;">
+          <div style="width:48px;height:48px;border-radius:12px;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.25);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">{{ c.icon }}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:800;font-size:15px;color:var(--text);">{{ c.label }}</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">
+              <span style="color:var(--gold);font-weight:700;">{{ lists[c.id].length }}</span> {{ c.unit }} · {{ c.hint }}
+            </div>
+          </div>
+          <span style="color:var(--gold);font-size:20px;flex-shrink:0;">›</span>
+        </div>
+      </div>
+
+      <!-- ── EMBARCACIONES ──────────────────────────────── -->
+      <div v-else-if="view==='embarcaciones'" style="padding-bottom:32px;">
+        <div style="display:flex;align-items:center;gap:10px;padding:12px 4px 14px;">
+          <button @click="openHub()" style="background:transparent;border:1px solid var(--border);color:var(--text-muted);width:34px;height:34px;border-radius:9px;font-size:18px;cursor:pointer;">←</button>
+          <div style="flex:1;font-weight:800;font-size:16px;">🛥 Embarcaciones</div>
+          <button @click="openCatModal('embarcaciones')" style="background:var(--gold);color:#1a0a05;border:none;padding:7px 14px;border-radius:9px;font-weight:800;font-size:13px;cursor:pointer;">+ Nuevo</button>
+        </div>
+        <div v-if="!lists.embarcaciones.length" style="text-align:center;padding:40px 20px;color:var(--text-muted);">Sin embarcaciones</div>
+        <div v-for="e in lists.embarcaciones" :key="e.id" @click="openCatModal('embarcaciones', e)"
+          style="display:flex;align-items:center;gap:12px;padding:13px;background:var(--bg2);border:1px solid var(--border);border-radius:11px;margin-bottom:8px;cursor:pointer;">
+          <div style="width:38px;height:38px;border-radius:10px;background:rgba(96,165,250,0.12);display:flex;align-items:center;justify-content:center;font-size:18px;">⛵</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:800;font-size:14px;">{{ e.nombre }}</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:1px;">
+              <span style="color:var(--gold);">{{ e.id }}</span>
+              <template v-if="e.capacidad_pax"> · {{ e.capacidad_pax }} pax</template>
+              <template v-if="e.matricula"> · {{ e.matricula }}</template>
+            </div>
+          </div>
+          <span style="color:var(--text-muted);">›</span>
+        </div>
+      </div>
+
+      <!-- ── PERSONAL ────────────────────────────────────── -->
+      <div v-else-if="view==='personal'" style="padding-bottom:32px;">
+        <div style="display:flex;align-items:center;gap:10px;padding:12px 4px 10px;">
+          <button @click="openHub()" style="background:transparent;border:1px solid var(--border);color:var(--text-muted);width:34px;height:34px;border-radius:9px;font-size:18px;cursor:pointer;">←</button>
+          <div style="flex:1;font-weight:800;font-size:16px;">👥 Personal</div>
+          <button @click="openCatModal('personal')" style="background:var(--gold);color:#1a0a05;border:none;padding:7px 14px;border-radius:9px;font-weight:800;font-size:13px;cursor:pointer;">+ Nuevo</button>
+        </div>
+        <div style="display:flex;gap:6px;padding:0 4px 14px;">
+          <button v-for="f in [{k:'todos',l:'Todos'},{k:'activos',l:'Activos'},{k:'inactivos',l:'Inactivos'}]" :key="f.k"
+            @click="personalFilter=f.k"
+            :style="personalFilter===f.k
+              ? 'flex:1;padding:7px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;background:rgba(201,168,76,0.18);border:1.5px solid var(--gold);color:var(--gold);'
+              : 'flex:1;padding:7px;border-radius:8px;font-size:12px;cursor:pointer;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);'">
+            {{ f.l }}
+          </button>
+        </div>
+        <template v-for="(items, rolKey) in personalGrouped" :key="rolKey">
+          <div v-if="items.length" style="font-size:10px;font-weight:900;letter-spacing:.12em;color:var(--text-muted);text-transform:uppercase;padding:14px 6px 8px;">
+            {{ rolKey === 'Capitan' ? '⚓ Capitanes' : rolKey === 'Guia' ? '🧭 Guías' : rolKey === 'Operador' ? '💼 Operadores' : rolKey }} ({{ items.length }})
+          </div>
+          <div v-for="p in items" :key="p.id" @click="openCatModal('personal', p)"
+            style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg2);border:1px solid var(--border);border-radius:11px;margin-bottom:6px;cursor:pointer;"
+            :style="String(p.estado).toLowerCase()!=='activo' ? 'opacity:0.55;' : ''">
+            <div style="width:36px;height:36px;border-radius:50%;background:rgba(201,168,76,0.15);color:var(--gold);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;">
+              {{ p.nombre.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase() }}
+            </div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-weight:700;font-size:14px;">{{ p.nombre }}</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:1px;">
+                {{ p.rol }}<template v-if="p.tarifa_fija"> · S/ {{ fmt(p.tarifa_fija) }}</template>
+                <template v-if="String(p.estado).toLowerCase()!=='activo'"> · <span style="color:#f87171;">{{ p.estado }}</span></template>
+              </div>
+            </div>
+            <span style="color:var(--text-muted);">›</span>
+          </div>
+        </template>
+      </div>
+
+      <!-- ── CONTACTOS ───────────────────────────────────── -->
+      <div v-else-if="view==='contactos'" style="padding-bottom:32px;">
+        <div style="display:flex;align-items:center;gap:10px;padding:12px 4px 10px;">
+          <button @click="openHub()" style="background:transparent;border:1px solid var(--border);color:var(--text-muted);width:34px;height:34px;border-radius:9px;font-size:18px;cursor:pointer;">←</button>
+          <div style="flex:1;font-weight:800;font-size:16px;">📇 Contactos</div>
+          <button @click="openCatModal('contactos')" style="background:var(--gold);color:#1a0a05;border:none;padding:7px 14px;border-radius:9px;font-weight:800;font-size:13px;cursor:pointer;">+ Nuevo</button>
+        </div>
+        <input v-model="search" placeholder="🔍 Buscar contacto..."
+          style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 12px;font-size:13px;color:var(--text);margin-bottom:10px;" />
+        <div style="display:flex;gap:5px;padding:0 0 12px;flex-wrap:wrap;">
+          <button v-for="f in ['todos','Agencia','Aliado','Libre']" :key="f"
+            @click="contactosFilter=f"
+            :style="contactosFilter===f
+              ? 'padding:6px 12px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;background:rgba(201,168,76,0.18);border:1.5px solid var(--gold);color:var(--gold);'
+              : 'padding:6px 12px;border-radius:8px;font-size:12px;cursor:pointer;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);'">
+            {{ f === 'todos' ? 'Todos' : f }}
+          </button>
+        </div>
+        <template v-for="(items, tipo) in contactosGrouped" :key="tipo">
+          <div style="font-size:10px;font-weight:900;letter-spacing:.12em;color:var(--text-muted);text-transform:uppercase;padding:14px 6px 8px;">
+            {{ tipo === 'Agencia' ? '🏢 Agencias' : tipo === 'Aliado' ? '🤝 Aliados' : tipo === 'Libre' ? '🆓 Libre' : tipo }} ({{ items.length }})
+          </div>
+          <div v-for="c in items" :key="c.id" @click="openCatModal('contactos', c)"
+            style="display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--bg2);border:1px solid var(--border);border-radius:11px;margin-bottom:6px;cursor:pointer;">
+            <div style="flex:1;min-width:0;">
+              <div style="font-weight:700;font-size:14px;">{{ c.nombre }}</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:1px;">
+                <span style="color:var(--gold);">{{ c.id }}</span>
+                <template v-if="c.precio>0"> · S/ {{ fmt(c.precio) }}/pax</template>
+              </div>
+            </div>
+            <span style="color:var(--text-muted);">›</span>
+          </div>
+        </template>
+      </div>
+
+      <!-- ── IMPUESTOS ───────────────────────────────────── -->
+      <div v-else-if="view==='impuestos'" style="padding-bottom:32px;">
+        <div style="display:flex;align-items:center;gap:10px;padding:12px 4px 14px;">
+          <button @click="openHub()" style="background:transparent;border:1px solid var(--border);color:var(--text-muted);width:34px;height:34px;border-radius:9px;font-size:18px;cursor:pointer;">←</button>
+          <div style="flex:1;font-weight:800;font-size:16px;">🧾 Impuestos / Adicionales</div>
+          <button @click="openCatModal('impuestos')" style="background:var(--gold);color:#1a0a05;border:none;padding:7px 14px;border-radius:9px;font-weight:800;font-size:13px;cursor:pointer;">+ Nuevo</button>
+        </div>
+        <div v-if="!lists.impuestos.length" style="text-align:center;padding:40px 20px;color:var(--text-muted);">Sin impuestos</div>
+        <div v-for="i in lists.impuestos" :key="i.id" @click="openCatModal('impuestos', i)"
+          style="display:flex;align-items:center;gap:12px;padding:13px;background:var(--bg2);border:1px solid var(--border);border-radius:11px;margin-bottom:8px;cursor:pointer;">
+          <div style="width:38px;height:38px;border-radius:10px;background:rgba(201,168,76,0.1);display:flex;align-items:center;justify-content:center;font-size:18px;">🧾</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:800;font-size:14px;">{{ i.nombre }}</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:1px;">{{ i.id }}</div>
+          </div>
+          <div style="font-size:15px;font-weight:900;color:var(--gold);">S/ {{ fmt(i.monto) }}</div>
+        </div>
+      </div>
+
+      <!-- ── MODAL UNIFICADO ─────────────────────────────── -->
+      <teleport to="body">
+        <div v-if="catModal.show" class="date-picker-overlay" @click.self="catModal.show=false">
+          <div style="background:var(--bg2);border:1px solid rgba(201,168,76,0.25);border-radius:16px;width:92%;max-width:380px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,0.85);">
+
+            <div style="background:linear-gradient(135deg,rgba(90,23,34,0.9),rgba(22,10,13,0.97));padding:14px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(201,168,76,0.15);">
+              <div>
+                <div style="font-size:10px;letter-spacing:.1em;color:var(--gold);text-transform:uppercase;margin-bottom:2px;">
+                  {{ catModal.mode==='crear' ? 'Nuevo' : 'Editar' }}
+                </div>
+                <div style="font-size:14px;font-weight:800;color:var(--text);">
+                  {{ catModal.type==='embarcaciones' ? 'Embarcación' : catModal.type==='personal' ? 'Personal' : catModal.type==='contactos' ? 'Contacto' : 'Impuesto' }}
+                </div>
+              </div>
+              <button @click="catModal.show=false" style="font-size:20px;color:var(--text-muted);line-height:1;padding:2px 6px;">✕</button>
+            </div>
+
+            <div style="padding:16px;display:flex;flex-direction:column;gap:13px;max-height:72vh;overflow-y:auto;">
+
+              <!-- Nombre (común) -->
+              <div style="display:flex;flex-direction:column;gap:5px;">
+                <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">Nombre *</span>
+                <input v-model="catModal.nombre" type="text"
+                  style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 11px;font-size:14px;color:var(--text);" />
+              </div>
+
+              <!-- Embarcaciones -->
+              <template v-if="catModal.type==='embarcaciones'">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                  <div style="display:flex;flex-direction:column;gap:5px;">
+                    <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">Capacidad PAX</span>
+                    <input v-model="catModal.capacidad_pax" type="number" min="0"
+                      style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 11px;font-size:14px;color:var(--text);text-align:center;font-weight:700;" />
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:5px;">
+                    <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">Matrícula</span>
+                    <input v-model="catModal.matricula" type="text"
+                      style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 11px;font-size:14px;color:var(--text);" />
+                  </div>
+                </div>
+              </template>
+
+              <!-- Personal -->
+              <template v-if="catModal.type==='personal'">
+                <div style="display:flex;flex-direction:column;gap:6px;">
+                  <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">Rol *</span>
+                  <div style="display:flex;gap:5px;">
+                    <button v-for="r in ['Capitan','Guia','Operador']" :key="r"
+                      @click="catModal.rol=r"
+                      :style="catModal.rol===r
+                        ? 'flex:1;padding:9px 4px;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;background:rgba(201,168,76,0.2);border:1.5px solid var(--gold);color:var(--gold);'
+                        : 'flex:1;padding:9px 4px;border-radius:9px;font-size:12px;cursor:pointer;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);'">
+                      {{ r === 'Capitan' ? 'Capitán' : r === 'Guia' ? 'Guía' : r }}
+                    </button>
+                  </div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:5px;">
+                  <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">Tarifa fija (S/)</span>
+                  <input v-model="catModal.tarifa_fija" type="number" min="0" step="0.01"
+                    style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 11px;font-size:14px;color:var(--gold);font-weight:700;" />
+                </div>
+                <div style="display:flex;flex-direction:column;gap:6px;">
+                  <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">Estado</span>
+                  <div style="display:flex;gap:5px;">
+                    <button v-for="e in ['activo','inactivo']" :key="e"
+                      @click="catModal.estado=e"
+                      :style="catModal.estado===e
+                        ? (e==='activo' ? 'flex:1;padding:8px;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;background:rgba(74,222,128,0.18);border:1.5px solid #4ade80;color:#4ade80;' : 'flex:1;padding:8px;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;background:rgba(239,68,68,0.15);border:1.5px solid #f87171;color:#f87171;')
+                        : 'flex:1;padding:8px;border-radius:9px;font-size:12px;cursor:pointer;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);'">
+                      {{ e === 'activo' ? '🟢 Activo' : '⚫ Inactivo' }}
+                    </button>
+                  </div>
+                </div>
+              </template>
+
+              <!-- Contactos -->
+              <template v-if="catModal.type==='contactos'">
+                <div style="display:flex;flex-direction:column;gap:6px;">
+                  <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">Tipo *</span>
+                  <div style="display:flex;gap:5px;">
+                    <button v-for="t in ['Libre','Agencia','Aliado']" :key="t"
+                      @click="catModal.tipo=t"
+                      :style="catModal.tipo===t
+                        ? 'flex:1;padding:9px 4px;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;background:rgba(201,168,76,0.2);border:1.5px solid var(--gold);color:var(--gold);'
+                        : 'flex:1;padding:9px 4px;border-radius:9px;font-size:12px;cursor:pointer;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);'">
+                      {{ t }}
+                    </button>
+                  </div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:5px;">
+                  <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">
+                    Precio por PAX (S/)<template v-if="catModal.tipo==='Aliado'"> · opcional</template>
+                  </span>
+                  <input v-model="catModal.precio" type="number" min="0" step="0.01"
+                    style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 11px;font-size:14px;color:var(--gold);font-weight:700;" />
+                </div>
+              </template>
+
+              <!-- Impuestos -->
+              <template v-if="catModal.type==='impuestos'">
+                <div style="display:flex;flex-direction:column;gap:5px;">
+                  <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">Monto (S/) *</span>
+                  <input v-model="catModal.monto" type="number" min="0" step="0.01"
+                    style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 11px;font-size:16px;color:var(--gold);font-weight:800;text-align:center;" />
+                </div>
+              </template>
+
+              <!-- Error -->
+              <div v-if="catModal.error"
+                style="padding:9px 11px;border-radius:8px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);font-size:13px;color:#f87171;">
+                ⚠ {{ catModal.error }}
+              </div>
+
+              <!-- Botones -->
+              <div style="display:flex;gap:9px;padding-top:4px;">
+                <button @click="catModal.show=false"
+                  style="flex:1;padding:10px;border-radius:10px;background:transparent;border:1px solid var(--border);font-size:13px;cursor:pointer;color:var(--text-muted);">
+                  Cancelar
+                </button>
+                <button @click="guardarCat()" :disabled="catModal.saving"
+                  style="flex:2;padding:10px;border-radius:10px;background:var(--gold);border:none;font-size:14px;font-weight:800;color:#1a0a05;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;"
+                  :style="catModal.saving?'opacity:0.6;cursor:default':''">
+                  <span v-if="catModal.saving" class="spin" style="width:14px;height:14px;border-color:rgba(26,10,5,0.3);border-top-color:#1a0a05;"></span>
+                  {{ catModal.saving ? 'Guardando…' : (catModal.mode==='crear' ? 'Registrar' : 'Guardar') }}
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </teleport>
+
+    </div>
+  `
+};
+
 const ViewConfig = {
   name: 'ViewConfig',
   props: ['data', 'loading'],
@@ -4320,7 +4756,7 @@ const ViewConfig = {
 
 // ── Main app ─────────────────────────────────────────────────
 createApp({
-  components: { ViewDashboard, ViewLanchas, ViewHotel, ViewFinanzas, ViewConfig },
+  components: { ViewDashboard, ViewLanchas, ViewHotel, ViewFinanzas, ViewConfig, ViewCatalogos },
 
   setup() {
     const session        = ref(JSON.parse(localStorage.getItem('ps_session') || 'null'));
@@ -4384,7 +4820,7 @@ createApp({
     function navIcon(id) { return NAV_ICONS[id] || ''; }
 
     const currentView = computed(() => {
-      const map = { dashboard: 'ViewDashboard', lanchas: 'ViewLanchas', hotel: 'ViewHotel', finanzas: 'ViewFinanzas', config: 'ViewConfig' };
+      const map = { dashboard: 'ViewDashboard', lanchas: 'ViewLanchas', hotel: 'ViewHotel', finanzas: 'ViewFinanzas', config: 'ViewConfig', catalogos: 'ViewCatalogos' };
       return map[currentModule.value] || 'ViewDashboard';
     });
 
@@ -4586,13 +5022,18 @@ createApp({
       });
     });
 
+    const isAdminRoot = computed(() => {
+      const r = String(session.value?.rol || '');
+      return r === 'Administrador' || r === 'Supervisor';
+    });
+
     return {
       session, currentModule, currentView, navModules,
       moduleData, moduleLoading, showInfoPanel,
       isOnline, orbitDotState, showUserMenu, canInstall, installPWA,
       personalList, loadingPersonal, loginStep, loginSelected, loginPin, loginError, loginLoading, setupApiUrl,
       bootstrapNombre, bootstrapRol, bootstrapPin, crearPrimerAdmin,
-      pmModal, toast,
+      pmModal, toast, isAdminRoot,
       navIcon, iniciales, pinPress, verificarPin, guardarSetupUrl,
       goModule, handleAction, guardarPersonal
     };
@@ -4600,7 +5041,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.4.49';
+const APP_VERSION = '1.5.0';
 (function() {
   let _reg = null, _waitingWorker = null;
 
