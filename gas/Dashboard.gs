@@ -427,7 +427,7 @@ function getBalanceAgencias(desde, hasta) {
   const inRange = f => (!desde || !f || f >= desde) && (!hasta || !f || f <= hasta);
 
   const ag = {};
-  function getAg(id) { const k = String(id).trim(); if (!ag[k]) ag[k] = { id: k, nombre: nombreDe(k), facturado: 0, cobrado: 0, comprado: 0, pagado: 0, _movs: {}, _ventas: {} }; return ag[k]; }
+  function getAg(id) { const k = String(id).trim(); if (!ag[k]) ag[k] = { id: k, nombre: nombreDe(k), facturado: 0, cobrado: 0, comprado: 0, pagado: 0, _movs: {}, _ventas: {}, _abonos: [] }; return ag[k]; }
   const movToAg = {};
 
   const shMov = ss.getSheetByName('Movimientos');
@@ -475,6 +475,9 @@ function getBalanceAgencias(desde, hasta) {
       if (cat === 'Cobro' && idMov && movToAg[idMov]) {
         const a = ag[movToAg[idMov]];
         if (a && a._movs[idMov]) { a._movs[idMov].cobros.push({ monto, operador: oper, hora, fecha, metodo: String(row[5] || '') }); a._movs[idMov].cobrado += monto; a.cobrado += monto; }
+      } else if (cat === 'Cobro' && !idMov && esAgencia(idCont)) {     // cobro adelantado / abono a cuenta
+        const a = getAg(idCont); a.cobrado += monto;
+        a._abonos.push({ monto, operador: oper, hora, fecha, metodo: String(row[5] || '') });
       } else if (cat === 'Pago Agencia' && esAgencia(idCont)) {
         const b = getAg(idCont); b.pagado += monto;
         if (idMov && b._ventas[idMov]) { b._ventas[idMov].pagos.push({ monto, operador: oper, hora, fecha }); b._ventas[idMov].pagado += monto; }
@@ -486,7 +489,9 @@ function getBalanceAgencias(desde, hasta) {
     const a = ag[k];
     a.movimientos = Object.keys(a._movs).map(x => a._movs[x]).sort((p, q) => (p.fecha + p.hora).localeCompare(q.fecha + q.hora));
     a.ventas      = Object.keys(a._ventas).map(x => a._ventas[x]).sort((p, q) => (p.fecha + p.hora).localeCompare(q.fecha + q.hora));
-    delete a._movs; delete a._ventas;
+    a.abonos      = a._abonos.sort((p, q) => (p.fecha + p.hora).localeCompare(q.fecha + q.hora));
+    a.abonado     = a.abonos.reduce((s, x) => s + x.monto, 0);
+    delete a._movs; delete a._ventas; delete a._abonos;
     a.te_debe = a.facturado - a.cobrado;
     a.le_debo = a.comprado - a.pagado;
     a.neto = a.te_debe - a.le_debo;
@@ -508,4 +513,64 @@ function getBalanceAgencias(desde, hasta) {
       n_le_debo:  lista.filter(a => a.le_debo > 0.005).length
     }
   };
+}
+
+// ── CAJA: feed por día (todo tipo de pago/cobro) ─────────────
+// Lee Caja_Operador y agrupa por día (reciente primero), clasificando ingreso/egreso.
+function getCajaFeed(desde, hasta) {
+  const ss = SpreadsheetApp.openById(
+    PropertiesService.getScriptProperties().getProperty('SS_OPERACIONES_ID')
+  );
+  const nombreC = {};
+  const shCon = ss.getSheetByName('Contactos');
+  if (shCon) { const d = shCon.getDataRange().getValues(); for (let i = 1; i < d.length; i++) { const id = String(d[i][0] || '').trim(); if (id) nombreC[id] = String(d[i][1] || id); } }
+
+  const SAL = { 'pagos':1, 'pago_comisionado':1, 'pago comisionado':1, 'retiro_jefatura':1, 'retiro a jefatura':1, 'pago agencia':1 };
+  function labelDe(catL, idMov) {
+    if (catL === 'cobro') return idMov ? 'Cobro' : 'Abono a cuenta';
+    if (catL === 'pagos' || catL.indexOf('comision') !== -1) return 'Pago comisionado';
+    if (catL === 'pago agencia') return 'Pago a agencia';
+    if (catL.indexOf('retiro') !== -1) return 'Retiro';
+    if (catL.indexOf('caja') !== -1) return 'Caja chica';
+    if (catL === 'varios') return 'Varios';
+    return catL ? (catL.charAt(0).toUpperCase() + catL.slice(1)) : '—';
+  }
+
+  const dias = {};
+  const shCaj = ss.getSheetByName('Caja_Operador');
+  if (shCaj) {
+    const d = shCaj.getDataRange().getValues();
+    for (let i = 1; i < d.length; i++) {
+      const row = d[i];
+      const cat = String(row[3] || ''); const catL = cat.toLowerCase();
+      const monto = parseFloat(row[4]) || 0;
+      const metodo = String(row[5] || ''); const coment = String(row[6] || '');
+      let fecha = '', hora = '';
+      try { const ts = new Date(row[9]); fecha = Utilities.formatDate(ts, 'America/Lima', 'yyyy-MM-dd'); hora = Utilities.formatDate(ts, 'America/Lima', 'HH:mm'); } catch(e) {}
+      if (!fecha) continue;
+      if (desde && fecha < desde) continue;
+      if (hasta && fecha > hasta) continue;
+
+      const idMov = String(row[10] || '').trim();
+      const idCont = String(row[2] || '').trim();
+      let esIngreso;
+      if (catL === 'varios') esIngreso = coment.indexOf('[S]') !== 0;
+      else esIngreso = !SAL[catL];
+      const metL = metodo.toLowerCase();
+      const efvo = metL.indexOf('efect') !== -1 || metL === 'cash';
+
+      const D = (dias[fecha] = dias[fecha] || { fecha, ingresos: 0, egresos: 0, efectivo: 0, digital: 0, items: [] });
+      if (esIngreso) D.ingresos += monto; else D.egresos += monto;
+      const signed = esIngreso ? monto : -monto;
+      if (efvo) D.efectivo += signed; else D.digital += signed;
+      D.items.push({ id: String(row[0] || ''), categoria: cat, label: labelDe(catL, idMov), esIngreso,
+                     contacto: nombreC[idCont] || idCont || '', monto, metodo, operador: String(row[8] || ''), hora, id_mov: idMov });
+    }
+  }
+  const lista = Object.keys(dias).sort((a, b) => b.localeCompare(a)).map(f => {
+    const D = dias[f]; D.balance = D.ingresos - D.egresos;
+    D.items.sort((x, y) => String(y.hora).localeCompare(String(x.hora)));
+    return D;
+  });
+  return { desde: desde || '', hasta: hasta || '', dias: lista };
 }

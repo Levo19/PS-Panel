@@ -1182,6 +1182,17 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 .mes-hdr:first-child, .ali-detail > div:first-child .mes-hdr { margin-top:6px; }
 .mes-name { font-size:13px; font-weight:800; color:var(--gold); text-transform:capitalize; }
 .mes-net { font-size:11px; font-weight:800; white-space:nowrap; }
+
+/* ── Caja: feed tipo banco ──────────────────────────────── */
+.caja-day { border:1px solid var(--border); border-radius:14px; margin-bottom:8px; overflow:hidden; background:var(--bg2); }
+.caja-day-hdr { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:11px 14px; cursor:pointer; }
+.caja-day-hdr:active { background:rgba(255,255,255,0.03); }
+.caja-day-body { padding:0 12px 8px; }
+.caja-item { display:flex; align-items:center; gap:10px; padding:7px 2px; border-top:1px dashed rgba(255,255,255,0.06); cursor:pointer; }
+.caja-item:first-child { border-top:none; }
+.reg-input { width:100%; box-sizing:border-box; padding:10px 12px; border-radius:10px; border:1px solid var(--border); background:rgba(255,255,255,0.05); color:#f0e6d3; font-size:14px; }
+.reg-input:focus { outline:none; border-color:rgba(201,168,76,0.5); }
+.reg-input option { color:#111; }
 .day-hdr { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:4px 0 6px; border-bottom:1px solid var(--border); margin-bottom:4px; }
 .day-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; box-shadow:0 0 8px currentColor; }
 .day-date { font-size:12px; font-weight:800; text-transform:capitalize; }
@@ -4145,6 +4156,7 @@ function preloadInsAli(preset) { preset = preset || 'todo'; if (!_insAliCache[pr
 const _insAgCache = {};
 async function _fetchInsAg(preset) { const r = await apiGet('balance_agencias', _insAliRango(preset)); if (r && r.ok) { _insAgCache[preset] = r.data; return r.data; } return null; }
 function preloadInsAg(preset) { preset = preset || 'todo'; if (!_insAgCache[preset]) _fetchInsAg(preset).catch(() => {}); }
+function refreshInsAg() { for (const k in _insAgCache) delete _insAgCache[k]; preloadInsAg('todo'); }
 
 // ── Exportador Excel (ExcelJS lazy-load por CDN) ─────────────
 function ensureExcelJS() {
@@ -4433,6 +4445,14 @@ async function _buildAgenciasXlsx(ExcelJS, data, periodo, logoBuf) {
           });
         });
       });
+    });
+    // abonos a cuenta (cobros sin movimiento) — reducen el saldo
+    (a.abonos||[]).forEach(ab=>{
+      saldo-=ab.monto;
+      const r2=ws.getRow(rr);r2.getCell(1).value=ab.fecha;r2.getCell(2).value=ab.hora||'';r2.getCell(3).value='💰 Abono a cuenta';r2.getCell(5).value=ab.monto;r2.getCell(6).value=saldo;r2.getCell(7).value=(ab.metodo||'')+(ab.operador?(' · '+ab.operador):'');
+      for(let ci=1;ci<=7;ci++){const c=r2.getCell(ci);c.border=bd;c.alignment={horizontal:(ci===3||ci===7)?'left':'center',vertical:'middle'};c.fill=fill(COBRO);}
+      r2.getCell(5).numFmt='#,##0';r2.getCell(5).font={bold:true,color:{argb:GREEN}};r2.getCell(6).numFmt='#,##0';r2.getCell(6).font={color:{argb:saldo>0?RED:GREEN}};
+      rr++;
     });
     const tr=ws.getRow(rr);ws.mergeCells(rr,1,rr,3);tr.getCell(1).value='TOTALES';tr.getCell(4).value=a.facturado;tr.getCell(5).value=a.cobrado;tr.getCell(6).value=a.te_debe;tr.getCell(7).value=a.te_debe>0.005?'TE DEBE':a.te_debe<-0.005?'LE DEBES':'SALDADO';
     for(let ci=1;ci<=7;ci++){const c=tr.getCell(ci);c.border=bd;c.fill=fill(HEADc);c.font={bold:true,color:{argb:WHITE}};c.alignment={horizontal:(ci===1||ci===7)?'left':'center',vertical:'middle'};}
@@ -4821,12 +4841,30 @@ const InsightAgencias = {
       } catch (e) { exportErr.value = e.message || 'Error al exportar'; sndDown(); }
     }
 
+    // ── Registrar pago recibido (cobro adelantado / abono a cuenta) ──
+    const METODOS_PG = ['Efectivo','Transferencia','Yape','Plin'];
+    const operadorPS = ((JSON.parse(localStorage.getItem('ps_session')||'null'))||{}).nombre || 'PS';
+    const pago = ref({ show:false, ag:null, monto:'', metodo:'Efectivo', nota:'', sending:false });
+    function abrirPago(a) { pago.value = { show:true, ag:a, monto:'', metodo:'Efectivo', nota:'', sending:false }; sndTap(); }
+    async function enviarPago() {
+      const p = pago.value, monto = parseFloat(p.monto)||0;
+      if (!p.ag || monto <= 0) { sndDown(); return; }
+      p.sending = true; sndTap();
+      try {
+        await apiPost({ accion:'registrar_pago', categoria:'Cobro', id_contacto: p.ag.id, monto, metodo_pago: p.metodo, comentarios: p.nota||'', operador: operadorPS, id_movimiento:'', id_operacion:'' });
+        sndUp(); pago.value.show = false;
+        for (const k in _insAgCache) delete _insAgCache[k];   // invalida cache → recarga con el abono
+        load();
+      } catch(e) { pago.value.sending = false; sndDown(); }
+    }
+
     let _timer = null;
     onMounted(() => { load({ silent: !!data.value }); _timer = setInterval(() => load({ silent: true }), 60000); });
     onUnmounted(() => { if (_timer) clearInterval(_timer); _timer = null; });
 
     return { data, loading, error, preset, expanded, exporting, exportErr, tDebe: tDebe.val, tDebo: tDebo.val,
-             load, setPreset, toggle, exportarExcel, fmt, pct, saldoColor, saldoLabel, movEstado, fmtMes, fmtDia, porMesAg, emit };
+             load, setPreset, toggle, exportarExcel, fmt, pct, saldoColor, saldoLabel, movEstado, fmtMes, fmtDia, porMesAg,
+             pago, abrirPago, enviarPago, METODOS_PG, emit };
   },
   template: `
     <div>
@@ -4886,9 +4924,12 @@ const InsightAgencias = {
                 <div :style="{ width: pct(a)+'%', height:'100%', background:'linear-gradient(90deg,#16a34a,#4ade80)', transition:'width .6s cubic-bezier(.22,1,.36,1)' }"></div>
               </div>
             </div>
-            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0;margin-left:10px;">
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0;margin-left:10px;">
               <span class="ali-badge" :style="{ background: a.neto>0.005 ? 'rgba(248,113,113,0.16)' : a.neto<-0.005 ? 'rgba(251,191,36,0.16)' : 'rgba(255,255,255,0.06)', color: saldoColor(a) }">{{ saldoLabel(a) }}</span>
-              <span style="color:var(--text-muted);font-size:14px;transition:transform .2s;" :style="{ transform: expanded[a.id] ? 'rotate(90deg)' : 'none' }">›</span>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <button @click.stop="abrirPago(a)" style="font-size:10px;font-weight:800;color:#4ade80;background:rgba(74,222,128,0.14);border:1px solid rgba(74,222,128,0.35);padding:3px 8px;border-radius:8px;white-space:nowrap;">💰 Pago</button>
+                <span style="color:var(--text-muted);font-size:14px;transition:transform .2s;" :style="{ transform: expanded[a.id] ? 'rotate(90deg)' : 'none' }">›</span>
+              </div>
             </div>
           </div>
           <div v-if="expanded[a.id]" class="ali-detail">
@@ -4917,6 +4958,14 @@ const InsightAgencias = {
                   </div>
                   <div v-if="(m.monto - m.cobrado) > 0.005" style="margin:2px 0 0 18px;font-size:10.5px;color:#f87171;font-weight:700;">pendiente {{ fmt(m.monto - m.cobrado) }}</div>
                 </div>
+              </div>
+            </div>
+
+            <div v-if="a.abonos && a.abonos.length" style="margin-top:10px;padding:10px;border-radius:12px;background:rgba(74,222,128,0.07);border:1px dashed rgba(74,222,128,0.35);">
+              <div style="font-size:11px;font-weight:800;color:#4ade80;margin-bottom:4px;">💰 Abonos a cuenta · {{ fmt(a.abonado) }}</div>
+              <div v-for="(ab,bi) in a.abonos" :key="'ab-'+bi" style="font-size:11px;display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-top:1px dashed rgba(74,222,128,0.2);">
+                <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ ab.fecha }} · {{ ab.metodo }}<template v-if="ab.operador"> · {{ ab.operador }}</template></span>
+                <span style="flex-shrink:0;color:#4ade80;font-weight:700;">+{{ fmt(ab.monto) }}</span>
               </div>
             </div>
 
@@ -4949,6 +4998,40 @@ const InsightAgencias = {
         </div>
       </teleport>
 
+      <!-- Registrar pago recibido de la agencia -->
+      <teleport to="body">
+        <div v-if="pago.show" style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:210;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;padding:20px;" @click.self="pago.show=false">
+          <div class="reveal-pop" style="background:var(--bg2);border:1px solid rgba(201,168,76,0.4);border-radius:18px;width:100%;max-width:360px;max-height:88vh;overflow-y:auto;-webkit-overflow-scrolling:touch;box-shadow:0 20px 60px rgba(0,0,0,0.7);">
+            <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+              <span style="font-weight:800;font-size:15px;color:#4ade80;">💰 Pago de {{ pago.ag && pago.ag.nombre }}</span>
+              <button @click="pago.show=false" style="font-size:18px;color:var(--text-muted);">✕</button>
+            </div>
+            <div style="padding:16px;display:flex;flex-direction:column;gap:13px;">
+              <div v-if="pago.ag" style="font-size:12px;color:var(--text-muted);">Debe actualmente: <b :style="{ color: pago.ag.te_debe>0?'#f87171':'#4ade80' }">S/ {{ fmt(pago.ag.te_debe) }}</b></div>
+              <div>
+                <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:5px;">MONTO (S/)</div>
+                <input v-model="pago.monto" type="number" inputmode="decimal" placeholder="0.00" class="reg-input" style="font-size:18px;font-weight:800;" />
+              </div>
+              <div>
+                <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:5px;">MÉTODO</div>
+                <div style="display:flex;gap:6px;">
+                  <button v-for="m in METODOS_PG" :key="m" @click="pago.metodo=m"
+                    :style="{ flex:'1', padding:'8px 4px', borderRadius:'9px', fontSize:'11px', fontWeight:'700', border:'1px solid var(--border)', background: pago.metodo===m?'rgba(201,168,76,0.22)':'transparent', color: pago.metodo===m?'var(--gold)':'var(--text-muted)' }">{{ m }}</button>
+                </div>
+              </div>
+              <div>
+                <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:5px;">NOTA (opcional)</div>
+                <input v-model="pago.nota" type="text" placeholder="ej. transferencia BCP" class="reg-input" />
+              </div>
+              <button @click="enviarPago()" :disabled="pago.sending" :style="{ opacity: pago.sending?0.6:1 }"
+                style="margin-top:4px;padding:12px;border:none;border-radius:12px;font-size:15px;font-weight:800;color:#0e0608;background:linear-gradient(135deg,#16a34a,#4ade80);box-shadow:0 4px 16px rgba(74,222,128,0.3);">
+                {{ pago.sending ? 'Registrando…' : 'Registrar pago' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </teleport>
+
       <div style="height:24px;"></div>
     </div>
   `
@@ -4960,140 +5043,87 @@ const ViewFinanzas = {
   props: ['data', 'loading'],
   emits: ['action'],
   setup(props, { emit }) {
-    const fechas        = ref([]);
-    const cache         = ref({});
-    const currentFecha  = ref('');
-    const loadingFechas = ref(true);
-    const fetchError    = ref('');
-    const today         = new Date().toISOString().slice(0, 10);
-
-    const fechaIdx = computed(() => fechas.value.indexOf(currentFecha.value));
-
+    const today = new Date().toISOString().slice(0, 10);
     function fmt(v) { return (parseFloat(v)||0).toLocaleString('es-PE',{minimumFractionDigits:0,maximumFractionDigits:0}); }
 
-    function fmtFecha(f) {
-      if (!f) return '';
-      const [y, m, d] = f.split('-');
-      const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-      const label = `${d} ${meses[parseInt(m)-1]}`;
-      return f === today ? `Hoy · ${label}` : label;
-    }
-
-    async function loadFechas() {
-      loadingFechas.value = true; fetchError.value = '';
-      try {
-        const r = await apiGet('lanchas_fechas');
-        if (r.ok && Array.isArray(r.data)) {
-          fechas.value = r.data;
-          const si = r.data.includes(today) ? r.data.indexOf(today) : 0;
-          currentFecha.value = r.data[si] || '';
-          [si-1, si, si+1].forEach(i => { if (r.data[i]) loadFecha(r.data[i]); });
-        } else { fetchError.value = r.error || 'Error al cargar fechas'; }
-      } catch(e) { fetchError.value = 'Error de conexión: ' + e.message; }
-      finally { loadingFechas.value = false; }
-    }
-
-    async function loadFecha(fecha) {
-      if (cache.value[fecha]?.loaded || cache.value[fecha]?.loading) return;
-      cache.value = { ...cache.value, [fecha]: { loaded: false, loading: true } };
-      try {
-        const r = await apiGet('lanchas_dia', { fecha });
-        cache.value = { ...cache.value, [fecha]: {
-          loaded: true, loading: false,
-          ...(r.ok ? r.data : { operaciones: [], pases_sueltos: [], kpis: {} })
-        }};
-      } catch(e) {
-        cache.value = { ...cache.value, [fecha]: { loaded: true, loading: false, operaciones: [], pases_sueltos: [], kpis: {} } };
-      }
-    }
-
-    function navigate(dir) {
-      const ni = fechaIdx.value + dir;
-      const target = fechas.value[ni];
-      if (!target) return;
-      currentFecha.value = target;
-      loadFecha(target);
-      if (fechas.value[ni-1]) loadFecha(fechas.value[ni-1]);
-      if (fechas.value[ni+1]) loadFecha(fechas.value[ni+1]);
-    }
-
-    // Sub-navegación del módulo: caja | insights
-    const tab         = ref('caja');
+    // Sub-navegación: caja | insights
+    const tab = ref('caja');
     const openInsight = ref(null);
     function goInsight(id) { openInsight.value = id; sndTap(); }
     function backInsight() { openInsight.value = null; sndTap(); }
 
-    const selectedCaja = ref(null);
+    // ── Caja: feed vertical tipo banco ──
+    const feed = ref(null), feedErr = ref(''), expDay = ref({}), selectedCaja = ref(null);
+    async function loadFeed(opts) {
+      const silent = !!(opts && opts.silent);
+      if (!silent) feedErr.value = '';
+      try { const r = await apiGet('caja_feed'); if (r && r.ok) feed.value = r.data.dias; else if (!feed.value) feedErr.value = (r && r.error) || 'Error al cargar'; }
+      catch(e) { if (!feed.value) feedErr.value = 'Conexión: ' + e.message; }
+    }
+    function toggleDay(f) { expDay.value = { ...expDay.value, [f]: !expDay.value[f] }; sndTap(); }
+    const MESES_C = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+    const DIAS_W  = ['dom','lun','mar','mié','jue','vie','sáb'];
+    function fmtDiaCaja(f) {
+      if (!f) return '—';
+      const p = f.split('-'); const dt = new Date(+p[0], +p[1]-1, +p[2], 12);
+      const base = DIAS_W[dt.getDay()] + ' ' + p[2] + ' ' + MESES_C[+p[1]-1];
+      const ay = new Date(); ay.setDate(ay.getDate()-1);
+      if (f === today) return 'Hoy · ' + base;
+      if (f === ay.toISOString().slice(0,10)) return 'Ayer · ' + base;
+      return base;
+    }
 
-    const allCaja = computed(() => {
-      const d = cache.value[currentFecha.value];
-      if (!d?.loaded) return [];
-      const entries = [];
-      (d.operaciones || []).forEach(op =>
-        (op.caja || []).forEach(c => entries.push({ ...c, _bote: op.nombre_bote || op.id_bote }))
-      );
-      (d.caja_suelta || []).forEach(c => entries.push({ ...c, _bote: '' }));
-      return entries;
+    // ── Registrar (multi-tipo) ──
+    const operador = ((JSON.parse(localStorage.getItem('ps_session')||'null'))||{}).nombre || 'PS';
+    const METODOS = ['Efectivo','Transferencia','Yape','Plin'];
+    const CATS = [
+      { v:'Cobro',             label:'💰 Cobro a agencia',     ing:true,  need:'agencia' },
+      { v:'Varios',            label:'🟢 Ingreso varios',      ing:true,  need:'' },
+      { v:'Pagos',             label:'🤝 Pago a comisionado',  ing:false, need:'comisionado' },
+      { v:'Pago Agencia',      label:'🏢 Pago a agencia',      ing:false, need:'agencia' },
+      { v:'Retiro a Jefatura', label:'💸 Retiro a jefatura',   ing:false, need:'' },
+      { v:'Varios',            label:'🔴 Egreso varios',       ing:false, need:'', salida:true }
+    ];
+    const contactos = ref([]);
+    async function loadContactos() { if (contactos.value.length) return; try { const r = await apiGet('listar_contactos_ops'); if (r && r.ok && Array.isArray(r.data)) contactos.value = r.data; } catch(e){} }
+    const reg = ref({ show:false, idx:0, id_contacto:'', monto:'', metodo:'Efectivo', nota:'', sending:false, lock:false, titulo:'' });
+    const regCat = computed(() => CATS[reg.value.idx] || CATS[0]);
+    const contactosFiltrados = computed(() => {
+      const need = regCat.value.need;
+      if (!need) return contactos.value;
+      return contactos.value.filter(c => String(c.tipo||'').trim().toLowerCase() === need);
     });
-
-    const cajaKpis = computed(() => {
-      const d = cache.value[currentFecha.value];
-      if (!d?.loaded) return { total: 0, efectivo: 0, transferencia: 0 };
-      return {
-        total:         (d.kpis?.caja_efectivo || 0) + (d.kpis?.caja_transferencia || 0),
-        efectivo:      d.kpis?.caja_efectivo || 0,
-        transferencia: d.kpis?.caja_transferencia || 0
-      };
-    });
-
-    function isIngreso(c) {
-      const cat = String(c.categoria||'').toLowerCase();
-      return cat.includes('cobro') || cat.includes('ingreso') || cat.includes('venta');
+    function abrirReg(preset) {
+      preset = preset || {};
+      reg.value = { show:true, idx: preset.idx!=null?preset.idx:0, id_contacto: preset.id_contacto||'', monto: preset.monto||'', metodo:'Efectivo', nota:'', sending:false, lock: !!preset.lock, titulo: preset.titulo||'Registrar pago / cobro' };
+      sndTap(); loadContactos();
     }
-
-    function metodoIcon(c) {
-      const m = String(c.metodo_pago||'').toLowerCase();
-      if (m.includes('efect') || m === 'cash') return '💵';
-      return '💳';
+    async function enviarReg() {
+      const r = reg.value, cat = CATS[r.idx], monto = parseFloat(r.monto)||0;
+      if (monto <= 0) { sndDown(); return; }
+      if (cat.need && !r.id_contacto) { sndDown(); return; }
+      r.sending = true; sndTap();
+      const coment = (cat.salida ? '[S] ' : '') + (r.nota||'');
+      try {
+        await apiPost({ accion:'registrar_pago', categoria: cat.v, id_contacto: r.id_contacto, monto, metodo_pago: r.metodo, comentarios: coment, operador, id_movimiento:'', id_operacion:'' });
+        sndUp(); reg.value.show = false;
+        loadFeed({ silent:true });
+        if (cat.v === 'Cobro' || cat.v === 'Pago Agencia') refreshInsAg();
+      } catch(e) { reg.value.sending = false; sndDown(); }
     }
-
-    function cajaRowStyle(c) {
-      return isIngreso(c)
-        ? 'background:rgba(74,222,128,0.07);border-left:3px solid rgba(74,222,128,0.45);'
-        : 'background:rgba(239,68,68,0.07);border-left:3px solid rgba(239,68,68,0.35);';
-    }
-
-    function openCajaModal(c) { selectedCaja.value = c; }
 
     let refreshInterval = null;
-
-    function silentRefresh() {
-      if (!currentFecha.value || cache.value[currentFecha.value]?.loading) return;
-      const fecha = currentFecha.value;
-      apiGet('lanchas_dia', { fecha }).then(r => {
-        if (r.ok) cache.value = { ...cache.value, [fecha]: { loaded: true, loading: false, ...r.data } };
-      }).catch(() => {});
-    }
-
     onMounted(() => {
-      if (!fechas.value.length) loadFechas();
-      refreshInterval = setInterval(silentRefresh, 60000);
-      preloadInsAli('todo');   // precarga Insights→Aliados en background (apertura instantánea)
-      preloadInsAg('todo');    // precarga Insights→Agencias en background
+      if (!feed.value) loadFeed();
+      refreshInterval = setInterval(() => loadFeed({ silent:true }), 60000);
+      preloadInsAli('todo'); preloadInsAg('todo');
     });
-    onActivated(() => {
-      if (!fechas.value.length && !loadingFechas.value) loadFechas();
-      if (!refreshInterval) refreshInterval = setInterval(silentRefresh, 60000);
-    });
-    onDeactivated(() => {
-      clearInterval(refreshInterval);
-      refreshInterval = null;
-    });
+    onActivated(() => { if (!feed.value) loadFeed(); if (!refreshInterval) refreshInterval = setInterval(() => loadFeed({ silent:true }), 60000); });
+    onDeactivated(() => { clearInterval(refreshInterval); refreshInterval = null; });
 
-    return { fechas, cache, currentFecha, fechaIdx, loadingFechas, fetchError,
-             today, fmt, fmtFecha, navigate, loadFechas, allCaja, cajaKpis,
-             selectedCaja, isIngreso, metodoIcon, cajaRowStyle, openCajaModal,
-             tab, openInsight, goInsight, backInsight };
+    return { fmt, tab, openInsight, goInsight, backInsight,
+             feed, feedErr, expDay, selectedCaja, loadFeed, toggleDay, fmtDiaCaja,
+             METODOS, CATS, contactos, reg, regCat, contactosFiltrados, abrirReg, enviarReg };
   },
   template: `
     <div>
@@ -5104,104 +5134,46 @@ const ViewFinanzas = {
 
       <!-- ══════ CAJA ══════ -->
       <div v-show="tab==='caja'">
-      <div v-if="loadingFechas" style="display:flex;justify-content:center;padding:60px 0;">
-        <div class="spin"></div>
-      </div>
-      <div v-else-if="fetchError" class="empty-state" style="border-color:rgba(239,68,68,0.3);">
-        <div class="empty-icon" style="font-size:32px;">⚠️</div>
-        <p style="color:#f87171;font-size:13px;margin-bottom:8px;">{{ fetchError }}</p>
-        <button @click="loadFechas()" style="padding:8px 16px;background:rgba(123,32,48,0.3);border:1px solid var(--border);border-radius:8px;font-size:13px;">Reintentar</button>
-      </div>
-      <div v-else-if="!fechas.length" class="empty-state">
-        <div class="empty-icon">💰</div><p>Sin datos de caja</p>
-      </div>
-
-      <div v-else class="date-view-frame">
-
-        <!-- Navegación fecha -->
-        <div class="date-view-nav">
-          <button class="date-nav-arrow" :disabled="fechaIdx >= fechas.length - 1" @click="navigate(1)">‹</button>
-          <div class="date-view-center">
-            <div class="date-view-label">{{ fmtFecha(currentFecha) }}</div>
-            <template v-if="cache[currentFecha]?.loaded">
-              <div class="date-view-kpis-row">
-                <span class="date-kpi-chip" style="color:#4ade80;">S/ {{ fmt(cajaKpis.efectivo) }} Efect.</span>
-                <span class="date-kpi-chip" style="color:#60a5fa;">S/ {{ fmt(cajaKpis.transferencia) }} Trans.</span>
-              </div>
-            </template>
-            <div v-else-if="cache[currentFecha]?.loading" style="margin-top:6px;"><div class="spin" style="width:14px;height:14px;display:inline-block;"></div></div>
-          </div>
-          <button class="date-nav-arrow" :disabled="fechaIdx <= 0" @click="navigate(-1)">›</button>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:10px;">
+          <div style="font-size:13px;font-weight:800;">💵 Movimientos de caja</div>
+          <button @click="abrirReg()" style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:800;color:#0e0608;background:linear-gradient(135deg,#C9A84C,#e0c46a);border:none;padding:8px 14px;border-radius:11px;box-shadow:0 2px 10px rgba(201,168,76,0.3);">+ Registrar</button>
         </div>
 
-        <!-- Cuerpo -->
-        <div class="date-view-body">
+        <div v-if="!feed && !feedErr" style="display:flex;justify-content:center;padding:50px 0;"><div class="spin"></div></div>
+        <div v-else-if="feedErr" class="empty-state" style="border-color:rgba(239,68,68,0.3);">
+          <div class="empty-icon" style="font-size:30px;">⚠️</div>
+          <p style="color:#f87171;font-size:13px;">{{ feedErr }}</p>
+          <button @click="loadFeed()" style="margin-top:8px;padding:8px 16px;background:rgba(123,32,48,0.3);border:1px solid var(--border);border-radius:8px;font-size:13px;">Reintentar</button>
+        </div>
+        <div v-else-if="!feed.length" class="empty-state"><div class="empty-icon">💰</div><p>Sin movimientos de caja</p></div>
 
-          <!-- KPIs Caja -->
-          <div v-if="cache[currentFecha]?.loaded" class="kpi-grid" style="margin-bottom:14px;">
-            <div class="kpi-card glass" style="padding:12px;">
-              <div class="kpi-label">Total Caja</div>
-              <div class="kpi-value shimmer" style="font-size:20px;">S/ {{ fmt(cajaKpis.total) }}</div>
+        <template v-else>
+          <div v-for="D in feed" :key="D.fecha" class="caja-day">
+            <div class="caja-day-hdr" @click="toggleDay(D.fecha)">
+              <div style="min-width:0;">
+                <div style="font-size:13px;font-weight:800;text-transform:capitalize;">{{ fmtDiaCaja(D.fecha) }}</div>
+                <div style="font-size:10px;color:var(--text-muted);">▲ S/ {{ fmt(D.ingresos) }} · ▼ S/ {{ fmt(D.egresos) }} · {{ D.items.length }} mov</div>
+              </div>
+              <div style="text-align:right;flex-shrink:0;display:flex;align-items:center;gap:8px;">
+                <div>
+                  <div style="font-size:15px;font-weight:900;" :style="{ color: D.balance>=0 ? '#4ade80' : '#f87171' }">{{ D.balance>=0?'+':'−' }}S/ {{ fmt(Math.abs(D.balance)) }}</div>
+                  <div style="font-size:10px;color:var(--text-muted);">💵 {{ fmt(D.efectivo) }} · 💳 {{ fmt(D.digital) }}</div>
+                </div>
+                <span style="color:var(--text-muted);font-size:13px;transition:transform .2s;" :style="{ transform: expDay[D.fecha] ? 'rotate(-90deg)' : 'none' }">▾</span>
+              </div>
             </div>
-            <div class="kpi-card glass" style="padding:12px;">
-              <div class="kpi-label">Efectivo</div>
-              <div class="kpi-value" style="font-size:20px;color:#4ade80;">S/ {{ fmt(cajaKpis.efectivo) }}</div>
-            </div>
-            <div class="kpi-card glass" style="padding:12px;">
-              <div class="kpi-label">Transferencia</div>
-              <div class="kpi-value" style="font-size:20px;color:#60a5fa;">S/ {{ fmt(cajaKpis.transferencia) }}</div>
-            </div>
-            <div class="kpi-card glass" style="padding:12px;">
-              <div class="kpi-label">Entradas</div>
-              <div class="kpi-value" style="font-size:20px;color:var(--gold);">{{ allCaja.length }}</div>
+            <div v-if="!expDay[D.fecha]" class="caja-day-body">
+              <div v-for="it in D.items" :key="it.id" class="caja-item" @click="selectedCaja=it">
+                <div class="mov-pill" :style="{ background: it.esIngreso?'rgba(74,222,128,0.16)':'rgba(248,113,113,0.16)', color: it.esIngreso?'#4ade80':'#f87171', minWidth:'76px' }">{{ it.esIngreso?'+':'−' }}S/{{ fmt(it.monto) }}</div>
+                <div style="flex:1;min-width:0;">
+                  <div class="mov-meta1">{{ it.label }}<template v-if="it.contacto"> · {{ it.contacto }}</template></div>
+                  <div class="mov-meta2">{{ it.metodo }}<template v-if="it.operador"> · {{ it.operador }}</template> · {{ it.hora }}</div>
+                </div>
+                <span style="color:var(--text-muted);font-size:13px;flex-shrink:0;">›</span>
+              </div>
             </div>
           </div>
-
-          <div v-if="!cache[currentFecha]?.loaded" class="date-loading"><div class="spin"></div></div>
-
-          <!-- Entradas -->
-          <template v-else>
-            <div v-if="!allCaja.length" class="empty-state" style="padding:20px;">
-              <div class="empty-icon" style="font-size:28px;">💵</div>
-              <p style="font-size:13px;">Sin entradas de caja este día</p>
-            </div>
-            <template v-else>
-              <div v-for="c in allCaja" :key="c.id_transaccion"
-                class="mov-row" :style="cajaRowStyle(c)"
-                @click="openCajaModal(c)"
-                style="border-radius:8px;margin-bottom:4px;padding-left:10px;">
-                <!-- Izquierda: icono método + operador + categoría -->
-                <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;">
-                  <span style="font-size:20px;flex-shrink:0;">{{ metodoIcon(c) }}</span>
-                  <div style="min-width:0;">
-                    <div style="display:flex;align-items:center;gap:5px;">
-                      <span style="font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.operador || '—' }}</span>
-                      <span v-if="c.comentarios"
-                        style="width:15px;height:15px;border-radius:50%;background:rgba(201,168,76,0.25);color:var(--gold);font-size:9px;font-weight:900;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;font-style:italic;">i</span>
-                      <span v-if="c._bote" style="font-size:13px;flex-shrink:0;" :title="c._bote">⛵</span>
-                    </div>
-                    <div style="font-size:11px;color:var(--text-muted);">{{ c.categoria }}</div>
-                  </div>
-                </div>
-                <!-- Derecha: monto + chevron -->
-                <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
-                  <span style="font-size:15px;font-weight:800;" :style="isIngreso(c)?'color:#4ade80':'color:#f87171'">
-                    {{ isIngreso(c) ? '+' : '-' }}S/ {{ fmt(c.monto) }}
-                  </span>
-                  <span style="color:var(--text-muted);font-size:14px;">›</span>
-                </div>
-              </div>
-              <!-- Total -->
-              <div style="display:flex;justify-content:space-between;padding:10px 10px 2px;border-top:1px solid var(--border);margin-top:4px;">
-                <span style="font-size:11px;color:var(--text-muted);">{{ allCaja.length }} registros</span>
-                <span style="font-size:13px;font-weight:800;color:var(--gold);">S/ {{ fmt(allCaja.reduce((s,c)=>s+(parseFloat(c.monto)||0),0)) }}</span>
-              </div>
-            </template>
-          </template>
-
-        </div>
-      </div>
-
+        </template>
       </div><!-- /caja -->
 
       <!-- ══════ INSIGHTS (Paracas Insights) ══════ -->
@@ -5237,63 +5209,73 @@ const ViewFinanzas = {
         <insight-agencias v-else-if="openInsight==='agencias'" @back="backInsight()" />
       </div>
 
-      <!-- Caja Detail Modal -->
+      <!-- Caja item detail -->
       <teleport to="body">
-        <div v-if="selectedCaja" style="position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.65);display:flex;align-items:center;justify-content:center;padding:24px;" @click.self="selectedCaja=null">
-          <div style="background:var(--bg2);border:1px solid rgba(201,168,76,0.35);border-radius:var(--radius);width:100%;max-width:360px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.7);">
-            <!-- Header coloreado -->
-            <div :style="(isIngreso(selectedCaja)?'background:rgba(74,222,128,0.12);border-bottom:1px solid rgba(74,222,128,0.25)':'background:rgba(239,68,68,0.1);border-bottom:1px solid rgba(239,68,68,0.25)')+';padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px;'">
-              <div style="display:flex;align-items:center;gap:10px;">
-                <span style="font-size:24px;">{{ metodoIcon(selectedCaja) }}</span>
-                <div>
-                  <div style="font-weight:800;font-size:15px;">{{ selectedCaja.operador || '—' }}</div>
-                  <div style="font-size:11px;opacity:0.7;">{{ selectedCaja.categoria }}</div>
-                </div>
-              </div>
+        <div v-if="selectedCaja" style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:200;background:rgba(0,0,0,0.65);display:flex;align-items:center;justify-content:center;padding:24px;" @click.self="selectedCaja=null">
+          <div class="reveal-pop" style="background:var(--bg2);border:1px solid rgba(201,168,76,0.35);border-radius:var(--radius);width:100%;max-width:340px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.7);">
+            <div :style="{ background: selectedCaja.esIngreso?'rgba(74,222,128,0.12)':'rgba(239,68,68,0.1)', borderBottom:'1px solid var(--border)' }" style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
+              <div style="font-weight:800;font-size:15px;">{{ selectedCaja.label }}</div>
               <button @click="selectedCaja=null" style="font-size:18px;color:var(--text-muted);">✕</button>
             </div>
             <div style="padding:16px;display:flex;flex-direction:column;gap:12px;">
-
-              <!-- Monto grande -->
-              <div style="text-align:center;padding:8px 0;">
-                <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">{{ isIngreso(selectedCaja) ? 'INGRESO' : 'SALIDA' }}</div>
-                <div style="font-size:32px;font-weight:900;" :style="isIngreso(selectedCaja)?'color:#4ade80':'color:#f87171'">
-                  {{ isIngreso(selectedCaja) ? '+' : '-' }}S/ {{ fmt(selectedCaja.monto) }}
-                </div>
-                <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">{{ selectedCaja.metodo_pago }}</div>
+              <div style="text-align:center;padding:6px 0;">
+                <div style="font-size:11px;color:var(--text-muted);">{{ selectedCaja.esIngreso?'INGRESO':'SALIDA' }}</div>
+                <div style="font-size:30px;font-weight:900;" :style="{ color: selectedCaja.esIngreso?'#4ade80':'#f87171' }">{{ selectedCaja.esIngreso?'+':'−' }}S/ {{ fmt(selectedCaja.monto) }}</div>
+                <div style="font-size:12px;color:var(--text-muted);">{{ selectedCaja.metodo }}</div>
               </div>
+              <div style="display:flex;flex-direction:column;gap:7px;font-size:13px;">
+                <div v-if="selectedCaja.contacto" style="display:flex;justify-content:space-between;gap:8px;"><span style="color:var(--text-muted);">Contacto</span><span style="font-weight:600;text-align:right;">{{ selectedCaja.contacto }}</span></div>
+                <div style="display:flex;justify-content:space-between;gap:8px;"><span style="color:var(--text-muted);">Categoría</span><span>{{ selectedCaja.categoria }}</span></div>
+                <div v-if="selectedCaja.operador" style="display:flex;justify-content:space-between;gap:8px;"><span style="color:var(--text-muted);">Operador</span><span>{{ selectedCaja.operador }}</span></div>
+                <div v-if="selectedCaja.hora" style="display:flex;justify-content:space-between;gap:8px;"><span style="color:var(--text-muted);">🕐 Hora</span><span>{{ selectedCaja.hora }}</span></div>
+                <div v-if="selectedCaja.id_mov" style="display:flex;justify-content:space-between;gap:8px;"><span style="color:var(--text-muted);">Mov. ref.</span><span style="font-size:11px;color:var(--text-muted);">{{ selectedCaja.id_mov }}</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </teleport>
 
-              <!-- Detalles -->
-              <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;">
-                <div v-if="selectedCaja._bote" style="display:flex;justify-content:space-between;">
-                  <span style="color:var(--text-muted);">⛵ Bote</span>
-                  <span style="font-weight:600;">{{ selectedCaja._bote }}</span>
-                </div>
-                <div v-if="selectedCaja.timestamp" style="display:flex;justify-content:space-between;">
-                  <span style="color:var(--text-muted);">🕐 Hora</span>
-                  <span>{{ selectedCaja.timestamp }}</span>
-                </div>
-                <div v-if="selectedCaja.id_movimiento" style="display:flex;justify-content:space-between;">
-                  <span style="color:var(--text-muted);">Mov. ref.</span>
-                  <span style="font-size:11px;color:var(--text-muted);">{{ selectedCaja.id_movimiento }}</span>
+      <!-- Registrar pago/cobro -->
+      <teleport to="body">
+        <div v-if="reg.show" style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:210;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;padding:20px;" @click.self="reg.show=false">
+          <div class="reveal-pop" style="background:var(--bg2);border:1px solid rgba(201,168,76,0.4);border-radius:18px;width:100%;max-width:380px;max-height:88vh;overflow-y:auto;-webkit-overflow-scrolling:touch;box-shadow:0 20px 60px rgba(0,0,0,0.7);">
+            <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+              <span style="font-weight:800;font-size:15px;color:var(--gold);">{{ reg.titulo }}</span>
+              <button @click="reg.show=false" style="font-size:18px;color:var(--text-muted);">✕</button>
+            </div>
+            <div style="padding:16px;display:flex;flex-direction:column;gap:13px;">
+              <div>
+                <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:5px;">TIPO</div>
+                <select v-model.number="reg.idx" :disabled="reg.lock" class="reg-input">
+                  <option v-for="(c,ci) in CATS" :key="ci" :value="ci">{{ c.label }}</option>
+                </select>
+              </div>
+              <div v-if="regCat.need">
+                <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:5px;">{{ regCat.need.toUpperCase() }}</div>
+                <select v-model="reg.id_contacto" :disabled="reg.lock" class="reg-input">
+                  <option value="">— Seleccionar —</option>
+                  <option v-for="c in contactosFiltrados" :key="c.id" :value="c.id">{{ c.nombre }}</option>
+                </select>
+              </div>
+              <div>
+                <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:5px;">MONTO (S/)</div>
+                <input v-model="reg.monto" type="number" inputmode="decimal" placeholder="0.00" class="reg-input" style="font-size:18px;font-weight:800;" />
+              </div>
+              <div>
+                <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:5px;">MÉTODO</div>
+                <div style="display:flex;gap:6px;">
+                  <button v-for="m in METODOS" :key="m" @click="reg.metodo=m"
+                    :style="{ flex:'1', padding:'8px 4px', borderRadius:'9px', fontSize:'11px', fontWeight:'700', border:'1px solid var(--border)', background: reg.metodo===m?'rgba(201,168,76,0.22)':'transparent', color: reg.metodo===m?'var(--gold)':'var(--text-muted)' }">{{ m }}</button>
                 </div>
               </div>
-
-              <!-- Nota -->
-              <div v-if="selectedCaja.comentarios"
-                style="background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.2);border-radius:10px;padding:10px;">
-                <div style="font-size:10px;font-weight:800;color:var(--gold);letter-spacing:0.07em;margin-bottom:4px;">NOTA</div>
-                <div style="font-size:13px;">{{ selectedCaja.comentarios }}</div>
+              <div>
+                <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:5px;">NOTA (opcional)</div>
+                <input v-model="reg.nota" type="text" placeholder="ej. transferencia BCP" class="reg-input" />
               </div>
-
-              <!-- Foto -->
-              <div v-if="selectedCaja.foto_url">
-                <a :href="selectedCaja.foto_url" target="_blank"
-                  style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--gold);text-decoration:none;">
-                  📎 Ver comprobante
-                </a>
-              </div>
-
+              <button @click="enviarReg()" :disabled="reg.sending" :style="{ opacity: reg.sending?0.6:1 }"
+                style="margin-top:4px;padding:12px;border:none;border-radius:12px;font-size:15px;font-weight:800;color:#0e0608;background:linear-gradient(135deg,#16a34a,#4ade80);box-shadow:0 4px 16px rgba(74,222,128,0.3);">
+                {{ reg.sending ? 'Registrando…' : 'Registrar' }}
+              </button>
             </div>
           </div>
         </div>
@@ -6131,7 +6113,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.8.1';
+const APP_VERSION = '1.9.0';
 (function() {
   let _reg = null, _waitingWorker = null;
 

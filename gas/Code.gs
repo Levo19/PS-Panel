@@ -51,6 +51,9 @@ function doGet(e) {
       case 'balance_agencias':
         data = getBalanceAgencias(e.parameter.desde || '', e.parameter.hasta || '');
         break;
+      case 'caja_feed':
+        data = getCajaFeed(e.parameter.desde || '', e.parameter.hasta || '');
+        break;
       case 'hotel_habitaciones':
         data = getHotelHabitaciones();
         break;
