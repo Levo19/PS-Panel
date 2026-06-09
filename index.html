@@ -4285,7 +4285,7 @@ const InsightAliados = {
                 <div v-for="(m,i) in g.items" :key="a.id+'-m-'+g.fecha+'-'+i" class="mov2">
                   <div class="mov-pill" :style="{ background: m.dir==='in'?'rgba(74,222,128,0.16)':'rgba(248,113,113,0.16)', color: m.dir==='in'?'#4ade80':'#f87171' }">{{ m.dir==='in'?'▲':'▼' }}{{ m.dir==='in'?'+':'−' }}{{ m.pax }}</div>
                   <div style="flex:1;min-width:0;">
-                    <div class="mov-meta1"><span style="opacity:.65;">🕐</span> {{ m.hora || '—' }}<template v-if="m.embarcacion"> · ⛵ {{ m.embarcacion }}</template></div>
+                    <div class="mov-meta1"><span style="opacity:.65;">🕐</span> {{ m.hora || '—' }}<template v-if="m.embarcacion"> · ⛵ {{ m.embarcacion }}</template><template v-else-if="m.directo"> · 🏃 pase directo</template></div>
                     <div v-if="m.origen" class="mov-meta2">origen · {{ m.origen }}</div>
                   </div>
                 </div>
@@ -5473,7 +5473,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.6.1';
+const APP_VERSION = '1.6.2';
 (function() {
   let _reg = null, _waitingWorker = null;
 

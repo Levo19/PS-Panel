@@ -303,6 +303,7 @@ function getBalanceAliados(desde, hasta) {
 
       const idOp        = String(row[1] || '').trim();
       const embarcacion = boteNombre[opBote[idOp]] || '';
+      const directo     = (!idOp || idOp === 'PASE_DIRECTO');
       const idContacto = String(row[3]  || '').trim();
       const pax        = parseFloat(row[5]) || 0;
       const idPase     = String(row[12] || '').trim();             // col 12 Id_contactoPase
@@ -314,11 +315,11 @@ function getBalanceAliados(desde, hasta) {
         if (esVarios(idContacto) || !idContacto) continue;         // Varios no es aliado
         const a = ali(idContacto);
         a.pax_in += pax;
-        a.movimientos.push({ fecha, hora, embarcacion, dir: 'in', pax, origen: '', id_mov: String(row[0] || '') });
+        a.movimientos.push({ fecha, hora, embarcacion, directo, dir: 'in', pax, origen: '', id_mov: String(row[0] || '') });
       } else if (idPase) {
         const a = ali(idPase);                                     // favor en pax: le debemos
         a.pax_out += pax;
-        a.movimientos.push({ fecha, hora, embarcacion, dir: 'out', pax, origen: nombreDe(idContacto), id_mov: String(row[0] || '') });
+        a.movimientos.push({ fecha, hora, embarcacion, directo, dir: 'out', pax, origen: nombreDe(idContacto), id_mov: String(row[0] || '') });
       } else if (montoComp > 0 && idCompra) {
         const a = ali(idCompra);                                   // venta convertida (dinero)
         a.ventas_count += 1;
