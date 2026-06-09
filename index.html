@@ -1173,6 +1173,19 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 .stat-big { font-size:25px; font-weight:900; line-height:1; margin:4px 0; }
 .reveal-pop { animation:reveal-pop .45s cubic-bezier(.22,1.4,.4,1); }
 @keyframes reveal-pop { 0%{transform:scale(0.6); opacity:0;} 100%{transform:scale(1); opacity:1;} }
+
+/* ── Aliado detalle: timeline por día ───────────────────── */
+.day-grp { margin-top:12px; }
+.day-grp:first-child { margin-top:4px; }
+.day-hdr { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:4px 0 6px; border-bottom:1px solid var(--border); margin-bottom:4px; }
+.day-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; box-shadow:0 0 8px currentColor; }
+.day-date { font-size:12px; font-weight:800; text-transform:capitalize; }
+.day-net { font-size:10px; font-weight:800; padding:2px 8px; border-radius:999px; white-space:nowrap; flex-shrink:0; }
+.mov2 { display:flex; align-items:center; gap:10px; padding:6px 2px; }
+.mov2 + .mov2 { border-top:1px dashed rgba(255,255,255,0.05); }
+.mov-pill { min-width:50px; text-align:center; font-size:15px; font-weight:900; padding:6px 8px; border-radius:11px; flex-shrink:0; letter-spacing:-.01em; }
+.mov-meta1 { font-size:12px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.mov-meta2 { font-size:10.5px; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:1px; }
 </style>
 <div id="psUpdateBanner" role="alert" aria-live="polite">
   <div class="ps-upd-inner">
@@ -4155,9 +4168,28 @@ const InsightAliados = {
     function netoLabel(a) { return a.neto > 0 ? 'te debe ' + a.neto : a.neto < 0 ? 'le debes ' + (-a.neto) : 'a mano'; }
     function netoColor(a) { return a.neto > 0 ? '#4ade80' : a.neto < 0 ? '#f87171' : 'var(--text-muted)'; }
 
+    const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+    const DIAS  = ['dom','lun','mar','mié','jue','vie','sáb'];
+    function fmtDia(f) {
+      if (!f) return '—';
+      const p = f.split('-');
+      const dt = new Date(parseInt(p[0]), parseInt(p[1]) - 1, parseInt(p[2]), 12);
+      return DIAS[dt.getDay()] + ' ' + p[2] + ' ' + MESES[parseInt(p[1]) - 1];
+    }
+    // Agrupa movimientos por día (más reciente primero) con neto diario; ordena por hora dentro del día
+    function porDia(a) {
+      const map = {};
+      (a.movimientos || []).forEach(m => { (map[m.fecha] = map[m.fecha] || []).push(m); });
+      return Object.keys(map).sort((x, y) => y.localeCompare(x)).map(f => {
+        const items = map[f].slice().sort((m, n) => String(m.hora).localeCompare(String(n.hora)));
+        const neto = items.reduce((s, m) => s + (m.dir === 'in' ? m.pax : -m.pax), 0);
+        return { fecha: f, items, neto };
+      });
+    }
+
     onMounted(load);
     return { data, loading, error, preset, expanded, muted, tDeben: tDeben.val, tDebes: tDebes.val,
-             load, setPreset, toggle, toggleMute, barW, fmt, netoLabel, netoColor, emit };
+             load, setPreset, toggle, toggleMute, barW, fmt, netoLabel, netoColor, fmtDia, porDia, emit };
   },
   template: `
     <div>
@@ -4242,10 +4274,21 @@ const InsightAliados = {
               </div>
             </div>
             <div v-if="expanded[a.id]" class="ali-detail">
-              <div v-for="(m,i) in a.movimientos" :key="a.id+'-m-'+i" class="ali-mov">
-                <span style="color:var(--text-muted);width:64px;flex-shrink:0;">{{ m.fecha }}</span>
-                <span :style="{ color: m.dir==='in' ? '#4ade80' : '#f87171', fontWeight:'700', flexShrink:0 }">{{ m.dir==='in' ? 'PaseIn +'+m.pax : 'PaseOut −'+m.pax }}</span>
-                <span style="font-size:10px;color:var(--text-muted);flex:1;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><template v-if="m.origen">origen: {{ m.origen }}</template></span>
+              <div v-for="g in porDia(a)" :key="a.id+'-d-'+g.fecha" class="day-grp">
+                <div class="day-hdr">
+                  <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+                    <span class="day-dot" :style="{ color: g.neto>0?'#4ade80':g.neto<0?'#f87171':'var(--text-muted)', background: g.neto>0?'#4ade80':g.neto<0?'#f87171':'var(--text-muted)' }"></span>
+                    <span class="day-date">{{ fmtDia(g.fecha) }}</span>
+                  </div>
+                  <span class="day-net" :style="{ background: g.neto>0?'rgba(74,222,128,0.14)':g.neto<0?'rgba(248,113,113,0.14)':'rgba(255,255,255,0.05)', color: g.neto>0?'#4ade80':g.neto<0?'#f87171':'var(--text-muted)' }">{{ g.neto>0?'+':'' }}{{ g.neto }} pax</span>
+                </div>
+                <div v-for="(m,i) in g.items" :key="a.id+'-m-'+g.fecha+'-'+i" class="mov2">
+                  <div class="mov-pill" :style="{ background: m.dir==='in'?'rgba(74,222,128,0.16)':'rgba(248,113,113,0.16)', color: m.dir==='in'?'#4ade80':'#f87171' }">{{ m.dir==='in'?'▲':'▼' }}{{ m.dir==='in'?'+':'−' }}{{ m.pax }}</div>
+                  <div style="flex:1;min-width:0;">
+                    <div class="mov-meta1"><span style="opacity:.65;">🕐</span> {{ m.hora || '—' }}<template v-if="m.embarcacion"> · ⛵ {{ m.embarcacion }}</template></div>
+                    <div v-if="m.origen" class="mov-meta2">origen · {{ m.origen }}</div>
+                  </div>
+                </div>
               </div>
               <div v-if="a.ventas_count" style="margin-top:8px;padding:8px 10px;border-radius:10px;background:rgba(201,168,76,0.08);border:1px dashed rgba(201,168,76,0.35);">
                 <div style="font-size:11px;font-weight:800;color:var(--gold);">💵 {{ a.ventas_count }} pase(s) pagados en efectivo · S/ {{ fmt(a.ventas_monto) }}</div>
@@ -5430,7 +5473,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.6.0';
+const APP_VERSION = '1.6.1';
 (function() {
   let _reg = null, _waitingWorker = null;
 

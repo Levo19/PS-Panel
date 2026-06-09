@@ -251,6 +251,26 @@ function getBalanceAliados(desde, hasta) {
   const esVarios = id => /^CON-00/i.test(String(id || ''));
   const nombreDe = id => nombreContacto[String(id || '').trim()] || String(id || '');
 
+  // Mapa operación → id_bote (Operaciones col 3) y id_bote → nombre (Embarcaciones col 1)
+  const opBote = {};
+  const shOps = ss.getSheetByName('Operaciones');
+  if (shOps) {
+    const d = shOps.getDataRange().getValues();
+    for (let i = 1; i < d.length; i++) {
+      const idOp = String(d[i][0] || '').trim();
+      if (idOp) opBote[idOp] = String(d[i][3] || '').trim();
+    }
+  }
+  const boteNombre = {};
+  const shEmb = ss.getSheetByName('Embarcaciones');
+  if (shEmb) {
+    const d = shEmb.getDataRange().getValues();
+    for (let i = 1; i < d.length; i++) {
+      const idB = String(d[i][0] || '').trim();
+      if (idB) boteNombre[idB] = String(d[i][1] || idB);
+    }
+  }
+
   const aliados = {};
   function ali(id) {
     const key = String(id).trim();
@@ -272,11 +292,17 @@ function getBalanceAliados(desde, hasta) {
       const estado = String(row[11] || '').toLowerCase();
       if (estado.indexOf('cancel') !== -1) continue;               // sin cancelados
 
-      let fecha = '';
-      try { fecha = Utilities.formatDate(new Date(row[10]), 'America/Lima', 'yyyy-MM-dd'); } catch(e) {}
+      let fecha = '', hora = '';
+      try {
+        const ts = new Date(row[10]);
+        fecha = Utilities.formatDate(ts, 'America/Lima', 'yyyy-MM-dd');
+        hora  = Utilities.formatDate(ts, 'America/Lima', 'HH:mm');
+      } catch(e) {}
       if (desde && fecha && fecha < desde) continue;
       if (hasta && fecha && fecha > hasta) continue;
 
+      const idOp        = String(row[1] || '').trim();
+      const embarcacion = boteNombre[opBote[idOp]] || '';
       const idContacto = String(row[3]  || '').trim();
       const pax        = parseFloat(row[5]) || 0;
       const idPase     = String(row[12] || '').trim();             // col 12 Id_contactoPase
@@ -288,11 +314,11 @@ function getBalanceAliados(desde, hasta) {
         if (esVarios(idContacto) || !idContacto) continue;         // Varios no es aliado
         const a = ali(idContacto);
         a.pax_in += pax;
-        a.movimientos.push({ fecha, dir: 'in', pax, origen: '', id_mov: String(row[0] || '') });
+        a.movimientos.push({ fecha, hora, embarcacion, dir: 'in', pax, origen: '', id_mov: String(row[0] || '') });
       } else if (idPase) {
         const a = ali(idPase);                                     // favor en pax: le debemos
         a.pax_out += pax;
-        a.movimientos.push({ fecha, dir: 'out', pax, origen: nombreDe(idContacto), id_mov: String(row[0] || '') });
+        a.movimientos.push({ fecha, hora, embarcacion, dir: 'out', pax, origen: nombreDe(idContacto), id_mov: String(row[0] || '') });
       } else if (montoComp > 0 && idCompra) {
         const a = ali(idCompra);                                   // venta convertida (dinero)
         a.ventas_count += 1;
