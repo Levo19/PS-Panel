@@ -4417,7 +4417,9 @@ async function _buildAgenciasXlsx(ExcelJS, data, periodo, logoBuf) {
     ws.getRow(5).height=18;
     const movs=(a.movimientos||[]).slice().sort((x,y)=>(x.fecha+(x.hora||'')).localeCompare(y.fecha+(y.hora||'')));
     const meses={};
-    movs.forEach(m=>{const ym=(m.fecha||'').slice(0,7);(meses[ym]=meses[ym]||{dias:{},debe:0,cobr:0});meses[ym].debe+=m.monto;meses[ym].cobr+=m.cobrado;(meses[ym].dias[m.fecha]=meses[ym].dias[m.fecha]||{items:[],debe:0,cobr:0});meses[ym].dias[m.fecha].debe+=m.monto;meses[ym].dias[m.fecha].cobr+=m.cobrado;meses[ym].dias[m.fecha].items.push(m);});
+    const diaOf=(fecha)=>{const ym=(fecha||'').slice(0,7);const M=(meses[ym]=meses[ym]||{dias:{},debe:0,cobr:0});const D=(M.dias[fecha]=M.dias[fecha]||{items:[],abonos:[],debe:0,cobr:0});return {M,D};};
+    movs.forEach(m=>{const o=diaOf(m.fecha);o.M.debe+=m.monto;o.M.cobr+=m.cobrado;o.D.debe+=m.monto;o.D.cobr+=m.cobrado;o.D.items.push(m);});
+    (a.abonos||[]).forEach(ab=>{if(!ab.fecha)return;const o=diaOf(ab.fecha);o.M.cobr+=ab.monto;o.D.cobr+=ab.monto;o.D.abonos.push(ab);});
     let saldo=0,rr=6;
     Object.keys(meses).sort().forEach(ym=>{
       const M=meses[ym],yy=ym.split('-')[0],mm=ym.split('-')[1];
@@ -4444,15 +4446,14 @@ async function _buildAgenciasXlsx(ExcelJS, data, periodo, logoBuf) {
             cr.outlineLevel=2;rr++;
           });
         });
+        (D.abonos||[]).forEach(ab=>{
+          saldo-=ab.monto;
+          const r2=ws.getRow(rr);r2.getCell(2).value=ab.hora||'';r2.getCell(3).value='   💰 Abono a cuenta';r2.getCell(5).value=ab.monto;r2.getCell(6).value=saldo;r2.getCell(7).value=(ab.metodo||'')+(ab.operador?(' · '+ab.operador):'');
+          for(let ci=1;ci<=7;ci++){const c=r2.getCell(ci);c.border=bd;c.alignment={horizontal:(ci===3||ci===7)?'left':'center',vertical:'middle'};c.fill=fill(COBRO);}
+          r2.getCell(5).numFmt='#,##0';r2.getCell(5).font={bold:true,color:{argb:GREEN}};r2.getCell(6).numFmt='#,##0';r2.getCell(6).font={color:{argb:saldo>0?RED:GREEN}};
+          r2.outlineLevel=2;rr++;
+        });
       });
-    });
-    // abonos a cuenta (cobros sin movimiento) — reducen el saldo
-    (a.abonos||[]).forEach(ab=>{
-      saldo-=ab.monto;
-      const r2=ws.getRow(rr);r2.getCell(1).value=ab.fecha;r2.getCell(2).value=ab.hora||'';r2.getCell(3).value='💰 Abono a cuenta';r2.getCell(5).value=ab.monto;r2.getCell(6).value=saldo;r2.getCell(7).value=(ab.metodo||'')+(ab.operador?(' · '+ab.operador):'');
-      for(let ci=1;ci<=7;ci++){const c=r2.getCell(ci);c.border=bd;c.alignment={horizontal:(ci===3||ci===7)?'left':'center',vertical:'middle'};c.fill=fill(COBRO);}
-      r2.getCell(5).numFmt='#,##0';r2.getCell(5).font={bold:true,color:{argb:GREEN}};r2.getCell(6).numFmt='#,##0';r2.getCell(6).font={color:{argb:saldo>0?RED:GREEN}};
-      rr++;
     });
     const tr=ws.getRow(rr);ws.mergeCells(rr,1,rr,3);tr.getCell(1).value='TOTALES';tr.getCell(4).value=a.facturado;tr.getCell(5).value=a.cobrado;tr.getCell(6).value=a.te_debe;tr.getCell(7).value=a.te_debe>0.005?'TE DEBE':a.te_debe<-0.005?'LE DEBES':'SALDADO';
     for(let ci=1;ci<=7;ci++){const c=tr.getCell(ci);c.border=bd;c.fill=fill(HEADc);c.font={bold:true,color:{argb:WHITE}};c.alignment={horizontal:(ci===1||ci===7)?'left':'center',vertical:'middle'};}
@@ -6122,7 +6123,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.9.1';
+const APP_VERSION = '1.9.2';
 (function() {
   let _reg = null, _waitingWorker = null;
 
