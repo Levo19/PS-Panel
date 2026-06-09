@@ -4145,8 +4145,17 @@ function ensureExcelJS() {
   });
 }
 
+// Logo Grupo PS (Paracas Sights) para los Excel — fetch una vez, cacheado
+let _logoBuf = null, _logoTried = false;
+async function loadLogo() {
+  if (_logoTried) return _logoBuf;
+  _logoTried = true;
+  try { const res = await fetch('./logo.png', { cache: 'force-cache' }); if (res.ok) _logoBuf = await res.arrayBuffer(); } catch(e) {}
+  return _logoBuf;
+}
+
 // Construye el libro: portada RESUMEN + una pestaña por aliado. Formato Grupo PS.
-async function _buildAliadosXlsx(ExcelJS, data, periodo) {
+async function _buildAliadosXlsx(ExcelJS, data, periodo, logoBuf) {
   const GUINDA='FF7B2030', HEADc='FF5A1722', GOLD='FFC9A84C', WHITE='FFFFFFFF',
         DARK='FF3E0F17', GREEN='FF1F7A4D', RED='FFC02434', ZEBRA='FFF6EFEA';
   const thin = { style:'thin', color:{argb:'FFD9C9A0'} };
@@ -4158,6 +4167,9 @@ async function _buildAliadosXlsx(ExcelJS, data, periodo) {
   const fmtDiaCorto = f => { const p = f.split('-'); const dt = new Date(+p[0], +p[1] - 1, +p[2], 12); return DIAS_C[dt.getDay()] + ' ' + p[2]; };
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Grupo PS';
+  let logoId = null;
+  if (logoBuf) { try { logoId = wb.addImage({ buffer: logoBuf, extension: 'png' }); } catch(e) {} }
+  const ponerLogo = ws => { if (logoId !== null) { try { ws.addImage(logoId, { tl: { col: 0.12, row: 0.12 }, ext: { width: 38, height: 38 } }); } catch(e) {} } };
 
   // tab names: ≤31, sin caracteres prohibidos, sin duplicados (RESUMEN reservado para la portada)
   const used = { resumen: true };
@@ -4180,6 +4192,7 @@ async function _buildAliadosXlsx(ExcelJS, data, periodo) {
   // ── RESUMEN ──
   const rs = wb.addWorksheet('RESUMEN', { properties:{ tabColor:{ argb: GUINDA } }, views:[{ state:'frozen', ySplit:5 }] });
   rs.columns = [{ width:5 }, { width:26 }, { width:11 }, { width:11 }, { width:18 }, { width:16 }];
+  ponerLogo(rs);
   banda(rs, 'A1:F1', '⚓ GRUPO PS — TURISMO MARÍTIMO', GUINDA, GOLD, 16, 30);
   banda(rs, 'A2:F2', 'ESTADO DE CUENTA DE PASES (PAX)', HEADc, WHITE, 12, 22);
   banda(rs, 'A3:F3', 'Periodo: ' + periodo + '     ·     Generado: ' + new Date().toLocaleString('es-PE'), GUINDA, GOLD, 9, 18);
@@ -4239,6 +4252,7 @@ async function _buildAliadosXlsx(ExcelJS, data, periodo) {
     const ws = wb.addWorksheet(tabName(a.nombre, a.id), { properties:{ tabColor:{ argb: a.neto > 0 ? GREEN : a.neto < 0 ? RED : 'FF9A8C6A' } }, views:[{ state:'frozen', ySplit:5 }] });
     try { ws.properties.outlineProperties = { summaryBelow:false, summaryRight:false }; } catch(e) {}
     ws.columns = [{ width:15 }, { width:8 }, { width:9 }, { width:9 }, { width:9 }, { width:44 }];
+    ponerLogo(ws);
     banda(ws, 'A1:F1', '⚓ GRUPO PS     ·     ESTADO DE CUENTA', GUINDA, GOLD, 14, 26);
     banda(ws, 'A2:F2', a.nombre + '   (' + a.id + ')', HEADc, WHITE, 12, 22);
     const balTxt = a.neto > 0 ? ('BALANCE: +' + a.neto + ' pax · TE DEBE') : a.neto < 0 ? ('BALANCE: ' + a.neto + ' pax · LE DEBES') : 'BALANCE: 0 · A MANO';
@@ -4420,8 +4434,9 @@ const InsightAliados = {
       exporting.value = true; exportErr.value = ''; sndTap();
       try {
         const ExcelJS = await ensureExcelJS();
+        const logoBuf = await loadLogo();
         const PER = { todo:'Todo', mes:'Este mes', '30d':'Últimos 30 días', '7d':'Últimos 7 días' };
-        const wb = await _buildAliadosXlsx(ExcelJS, data.value, PER[preset.value] || 'Todo');
+        const wb = await _buildAliadosXlsx(ExcelJS, data.value, PER[preset.value] || 'Todo', logoBuf);
         const buf = await wb.xlsx.writeBuffer();
         const blob = new Blob([buf], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
         const url = URL.createObjectURL(blob);
@@ -5776,7 +5791,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.7.3';
+const APP_VERSION = '1.7.4';
 (function() {
   let _reg = null, _waitingWorker = null;
 
