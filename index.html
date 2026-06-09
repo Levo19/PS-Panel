@@ -4133,6 +4133,11 @@ async function _fetchInsAli(preset) {
 }
 function preloadInsAli(preset) { preset = preset || 'todo'; if (!_insAliCache[preset]) _fetchInsAli(preset).catch(() => {}); }
 
+// ── Insights→Agencias: cache (mismo rango que aliados) ──
+const _insAgCache = {};
+async function _fetchInsAg(preset) { const r = await apiGet('balance_agencias', _insAliRango(preset)); if (r && r.ok) { _insAgCache[preset] = r.data; return r.data; } return null; }
+function preloadInsAg(preset) { preset = preset || 'todo'; if (!_insAgCache[preset]) _fetchInsAg(preset).catch(() => {}); }
+
 // ── Exportador Excel (ExcelJS lazy-load por CDN) ─────────────
 function ensureExcelJS() {
   return new Promise((resolve, reject) => {
@@ -4335,6 +4340,117 @@ async function _buildAliadosXlsx(ExcelJS, data, periodo, logoBuf) {
     ws.pageSetup.printTitlesRow = '1:5';
   });
 
+  return wb;
+}
+
+// ── Excel Agencias: RESUMEN + una pestaña por agencia (cuenta corriente S/) ──
+async function _buildAgenciasXlsx(ExcelJS, data, periodo, logoBuf) {
+  const GUINDA='FF7B2030', HEADc='FF5A1722', GOLD='FFC9A84C', WHITE='FFFFFFFF',
+        DARK='FF3E0F17', GREEN='FF1F7A4D', RED='FFC02434', ZEBRA='FFF6EFEA', DAYBG='FFEFE3C8', COBRO='FFEAF5EE';
+  const thin={style:'thin',color:{argb:'FFD9C9A0'}}, bd={top:thin,left:thin,bottom:thin,right:thin};
+  const fill=argb=>({type:'pattern',pattern:'solid',fgColor:{argb}});
+  const MESES_L=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const DIAS_C=['dom','lun','mar','mié','jue','vie','sáb'];
+  const fmtDiaCorto=f=>{const p=f.split('-');const dt=new Date(+p[0],+p[1]-1,+p[2],12);return DIAS_C[dt.getDay()]+' '+p[2];};
+  const S=v=>'S/ '+(Math.round((parseFloat(v)||0))).toLocaleString('es-PE');
+  const wb=new ExcelJS.Workbook(); wb.creator='Grupo PS';
+  let logoId=null; if(logoBuf){try{logoId=wb.addImage({buffer:logoBuf,extension:'png'});}catch(e){}}
+  const ponerLogo=ws=>{if(logoId!==null){try{ws.addImage(logoId,{tl:{col:0.12,row:0.12},ext:{width:38,height:38}});}catch(e){}}};
+  const used={resumen:true};
+  function tabName(nombre,id){let n=String(nombre||id).replace(/[\\\/\?\*\[\]:]/g,' ').trim().slice(0,28)||id;if(used[n.toLowerCase()])n=(n.slice(0,24)+' '+id).slice(0,31);used[n.toLowerCase()]=true;return n;}
+  function banda(ws,span,txt,bg,fg,size,h){ws.mergeCells(span);const c=ws.getCell(span.split(':')[0]);c.value=txt;c.fill=fill(bg);c.font={bold:true,size,color:{argb:fg}};c.alignment={horizontal:'center',vertical:'middle'};ws.getRow(parseInt(span.match(/\d+/)[0])).height=h;}
+
+  // RESUMEN
+  const rs=wb.addWorksheet('RESUMEN',{properties:{tabColor:{argb:GUINDA}},views:[{state:'frozen',ySplit:5}]});
+  rs.columns=[{width:5},{width:26},{width:13},{width:13},{width:20},{width:14}]; ponerLogo(rs);
+  banda(rs,'A1:F1','⚓ GRUPO PS — TURISMO MARÍTIMO',GUINDA,GOLD,16,30);
+  banda(rs,'A2:F2','ESTADO DE CUENTA · AGENCIAS (S/)',HEADc,WHITE,12,22);
+  banda(rs,'A3:F3','Periodo: '+periodo+'     ·     Generado: '+new Date().toLocaleString('es-PE'),GUINDA,GOLD,9,18);
+  ['#','AGENCIA','FACTURADO','COBRADO','SALDO','TENDENCIA'].forEach((hh,i)=>{const c=rs.getRow(5).getCell(i+1);c.value=hh;c.fill=fill(GUINDA);c.border=bd;c.font={bold:true,color:{argb:WHITE},size:11};c.alignment={horizontal:i===1?'left':'center',vertical:'middle'};});
+  rs.getRow(5).height=20;
+  const maxAbs=Math.max(1,...data.agencias.map(a=>Math.abs(a.neto)));
+  let r=6;
+  data.agencias.forEach((a,idx)=>{
+    const sal=a.neto>0?(S(a.neto)+'  te debe'):a.neto<0?(S(-a.neto)+'  le debes'):'0  a mano';
+    const n=Math.round(Math.abs(a.neto)/maxAbs*10); const barra='█'.repeat(n)+'░'.repeat(10-n);
+    const row=rs.getRow(r);
+    row.getCell(1).value=idx+1; row.getCell(2).value=a.nombre+' ('+a.id+')';
+    row.getCell(3).value=a.facturado; row.getCell(4).value=a.cobrado; row.getCell(5).value=sal; row.getCell(6).value=barra;
+    for(let ci=1;ci<=6;ci++){const c=row.getCell(ci);c.border=bd;c.alignment={horizontal:ci===2?'left':'center',vertical:'middle'};if(idx%2)c.fill=fill(ZEBRA);}
+    row.getCell(3).numFmt='#,##0'; row.getCell(4).numFmt='#,##0';
+    const col=a.neto>0?GREEN:a.neto<0?RED:DARK; row.getCell(5).font={bold:true,color:{argb:col}}; row.getCell(6).font={bold:true,color:{argb:col}};
+    r++;
+  });
+  const trs=rs.getRow(r); trs.getCell(2).value='TOTALES'; trs.getCell(3).value=data.totales.facturado_total; trs.getCell(4).value=data.totales.cobrado_total; trs.getCell(5).value='te deben '+S(data.totales.te_deben);
+  for(let ci=1;ci<=6;ci++){const c=trs.getCell(ci);c.border=bd;c.fill=fill(HEADc);c.font={bold:true,color:{argb:WHITE}};c.alignment={horizontal:ci===2?'left':'center',vertical:'middle'};}
+  trs.getCell(3).numFmt='#,##0'; trs.getCell(4).numFmt='#,##0';
+  if(data.agencias.length){const last=5+data.agencias.length;
+    rs.addConditionalFormatting({ref:'C6:C'+last,rules:[{type:'dataBar',cfvo:[{type:'num',value:0},{type:'max'}],color:{argb:GUINDA}}]});
+    rs.addConditionalFormatting({ref:'D6:D'+last,rules:[{type:'dataBar',cfvo:[{type:'num',value:0},{type:'max'}],color:{argb:GREEN}}]});
+    rs.autoFilter='A5:F'+last;}
+  rs.headerFooter={oddFooter:'&L⚓ Grupo PS&CEstado de cuenta · Agencias&R&P / &N'};
+  rs.pageSetup={fitToPage:true,fitToWidth:1,fitToHeight:0,orientation:'portrait',margins:{left:0.4,right:0.4,top:0.5,bottom:0.5,header:0.2,footer:0.3}};
+  rs.pageSetup.printTitlesRow='1:5';
+
+  // por agencia
+  data.agencias.forEach(a=>{
+    const ws=wb.addWorksheet(tabName(a.nombre,a.id),{properties:{tabColor:{argb:a.neto>0?GREEN:a.neto<0?RED:'FF9A8C6A'}},views:[{state:'frozen',ySplit:5}]});
+    try{ws.properties.outlineProperties={summaryBelow:false,summaryRight:false};}catch(e){}
+    ws.columns=[{width:13},{width:7},{width:22},{width:12},{width:12},{width:12},{width:34}]; ponerLogo(ws);
+    banda(ws,'A1:G1','⚓ GRUPO PS     ·     ESTADO DE CUENTA',GUINDA,GOLD,14,26);
+    banda(ws,'A2:G2',a.nombre+'   ('+a.id+')',HEADc,WHITE,12,22);
+    const balTxt=a.te_debe>0.005?('TE DEBE '+S(a.te_debe)):a.te_debe<-0.005?('LE DEBES '+S(-a.te_debe)):'SALDADO';
+    banda(ws,'A3:G3','Periodo: '+periodo+'   ·   Facturado '+S(a.facturado)+' · Cobrado '+S(a.cobrado)+' · '+balTxt,GUINDA,a.te_debe>0.005?GOLD:'FFF2B8C0',11,20);
+    ['FECHA','HORA','CONCEPTO','DEBE','ABONO','SALDO','OBSERVACIONES'].forEach((hh,i)=>{const c=ws.getRow(5).getCell(i+1);c.value=hh;c.fill=fill(GUINDA);c.border=bd;c.font={bold:true,color:{argb:WHITE},size:10};c.alignment={horizontal:(i===2||i===6)?'left':'center',vertical:'middle'};});
+    ws.getRow(5).height=18;
+    const movs=(a.movimientos||[]).slice().sort((x,y)=>(x.fecha+(x.hora||'')).localeCompare(y.fecha+(y.hora||'')));
+    const meses={};
+    movs.forEach(m=>{const ym=(m.fecha||'').slice(0,7);(meses[ym]=meses[ym]||{dias:{},debe:0,cobr:0});meses[ym].debe+=m.monto;meses[ym].cobr+=m.cobrado;(meses[ym].dias[m.fecha]=meses[ym].dias[m.fecha]||{items:[],debe:0,cobr:0});meses[ym].dias[m.fecha].debe+=m.monto;meses[ym].dias[m.fecha].cobr+=m.cobrado;meses[ym].dias[m.fecha].items.push(m);});
+    let saldo=0,rr=6;
+    Object.keys(meses).sort().forEach(ym=>{
+      const M=meses[ym],yy=ym.split('-')[0],mm=ym.split('-')[1];
+      const mr=ws.getRow(rr);ws.mergeCells(rr,1,rr,3);mr.getCell(1).value='📅 '+(MESES_L[+mm-1]||mm)+' '+yy;mr.getCell(4).value=M.debe;mr.getCell(5).value=M.cobr;mr.getCell(7).value='subtotal del mes';
+      for(let ci=1;ci<=7;ci++){const c=mr.getCell(ci);c.fill=fill(HEADc);c.border=bd;c.font={bold:true,color:{argb:GOLD},size:11};c.alignment={horizontal:(ci===1||ci===7)?'left':'center',vertical:'middle'};}
+      mr.getCell(4).numFmt='#,##0';mr.getCell(5).numFmt='#,##0'; mr.outlineLevel=0;mr.height=18;rr++;
+      Object.keys(M.dias).sort().forEach(dia=>{
+        const D=M.dias[dia];const dr=ws.getRow(rr);ws.mergeCells(rr,1,rr,3);dr.getCell(1).value='   '+fmtDiaCorto(dia);dr.getCell(4).value=D.debe;dr.getCell(5).value=D.cobr;
+        for(let ci=1;ci<=7;ci++){const c=dr.getCell(ci);c.fill=fill(DAYBG);c.border=bd;c.font={bold:true,color:{argb:DARK},size:10};c.alignment={horizontal:(ci===1||ci===7)?'left':'center',vertical:'middle'};}
+        dr.getCell(4).numFmt='#,##0';dr.getCell(5).numFmt='#,##0'; dr.outlineLevel=1;rr++;
+        D.items.forEach((m,idx)=>{
+          saldo+=m.monto;
+          const obs=[m.bote?('⛵ '+m.bote):'',m.capitan?('👨‍✈️ '+m.capitan):'',m.operador?('🧾 '+m.operador):''].filter(Boolean).join('  ·  ');
+          const row=ws.getRow(rr);
+          row.getCell(2).value=m.hora||'—'; row.getCell(3).value=(m.pax+' pax · '+(m.tipo||'')); row.getCell(4).value=m.monto; row.getCell(6).value=saldo; row.getCell(7).value=obs;
+          for(let ci=1;ci<=7;ci++){const c=row.getCell(ci);c.border=bd;c.alignment={horizontal:(ci===3||ci===7)?'left':'center',vertical:'middle',wrapText:ci===7};if(idx%2)c.fill=fill(ZEBRA);}
+          row.getCell(4).numFmt='#,##0';row.getCell(4).font={bold:true,color:{argb:DARK}}; row.getCell(6).numFmt='#,##0';row.getCell(6).font={bold:true,color:{argb:saldo>0?RED:GREEN}};
+          row.outlineLevel=2;rr++;
+          (m.cobros||[]).forEach(co=>{
+            saldo-=co.monto;
+            const cr=ws.getRow(rr);cr.getCell(2).value=co.hora||'';cr.getCell(3).value='   ↳ cobro'+(co.metodo?(' '+co.metodo):'');cr.getCell(5).value=co.monto;cr.getCell(6).value=saldo;cr.getCell(7).value=co.operador?('🧾 '+co.operador):'';
+            for(let ci=1;ci<=7;ci++){const c=cr.getCell(ci);c.border=bd;c.alignment={horizontal:(ci===3||ci===7)?'left':'center',vertical:'middle'};c.fill=fill(COBRO);}
+            cr.getCell(5).numFmt='#,##0';cr.getCell(5).font={bold:true,color:{argb:GREEN}}; cr.getCell(6).numFmt='#,##0';cr.getCell(6).font={color:{argb:saldo>0?RED:GREEN}};
+            cr.outlineLevel=2;rr++;
+          });
+        });
+      });
+    });
+    const tr=ws.getRow(rr);ws.mergeCells(rr,1,rr,3);tr.getCell(1).value='TOTALES';tr.getCell(4).value=a.facturado;tr.getCell(5).value=a.cobrado;tr.getCell(6).value=a.te_debe;tr.getCell(7).value=a.te_debe>0.005?'TE DEBE':a.te_debe<-0.005?'LE DEBES':'SALDADO';
+    for(let ci=1;ci<=7;ci++){const c=tr.getCell(ci);c.border=bd;c.fill=fill(HEADc);c.font={bold:true,color:{argb:WHITE}};c.alignment={horizontal:(ci===1||ci===7)?'left':'center',vertical:'middle'};}
+    tr.getCell(4).numFmt='#,##0';tr.getCell(5).numFmt='#,##0';tr.getCell(6).numFmt='#,##0';tr.getCell(6).font={bold:true,size:11,color:{argb:GOLD}};
+    rr++;
+    if((a.ventas||[]).length){
+      const vh=ws.getRow(rr);ws.mergeCells(rr,1,rr,7);vh.getCell(1).value='💵 LO QUE LE DEBES (ventas convertidas)';vh.getCell(1).fill=fill('FFF3E6C8');vh.getCell(1).font={bold:true,color:{argb:DARK}};vh.getCell(1).border=bd;vh.getCell(1).alignment={horizontal:'left',vertical:'middle'};rr++;
+      a.ventas.forEach((v,idx)=>{
+        const vr=ws.getRow(rr);vr.getCell(1).value=v.fecha;vr.getCell(2).value=v.hora||'';vr.getCell(3).value=(v.pax+' pax · origen '+v.origen);vr.getCell(4).value=v.monto;vr.getCell(5).value=v.pagado;vr.getCell(6).value=(v.monto-v.pagado);vr.getCell(7).value=(v.monto-v.pagado)<=0.005?'✓ pagado':'pendiente';
+        for(let ci=1;ci<=7;ci++){const c=vr.getCell(ci);c.border=bd;c.alignment={horizontal:(ci===3||ci===7)?'left':'center',vertical:'middle'};if(idx%2)c.fill=fill(ZEBRA);}
+        vr.getCell(4).numFmt='#,##0';vr.getCell(5).numFmt='#,##0';vr.getCell(6).numFmt='#,##0';
+        rr++;
+      });
+    }
+    ws.headerFooter={oddFooter:'&L⚓ Grupo PS&C'+a.nombre+'&R&P / &N'};
+    ws.pageSetup={fitToPage:true,fitToWidth:1,fitToHeight:0,orientation:'portrait',margins:{left:0.4,right:0.4,top:0.5,bottom:0.5,header:0.2,footer:0.3}};
+    ws.pageSetup.printTitlesRow='1:5';
+  });
   return wb;
 }
 
@@ -4624,9 +4740,223 @@ const InsightAliados = {
   `
 };
 
+// ── InsightAgencias: cuenta corriente por agencia (SOLES) ─────
+const InsightAgencias = {
+  name: 'InsightAgencias',
+  emits: ['back'],
+  setup(props, { emit }) {
+    const preset   = ref('todo');
+    const data     = ref(_insAgCache[preset.value] || null);
+    const loading  = ref(!data.value);
+    const error    = ref('');
+    const expanded = ref({});
+    const exporting = ref(false);
+    const exportErr = ref('');
+    const tDebe = useTween(), tDebo = useTween();
+
+    async function load(opts) {
+      const silent = !!(opts && opts.silent);
+      if (!silent && !data.value) loading.value = true;
+      error.value = '';
+      try {
+        const d = await _fetchInsAg(preset.value);
+        if (d) {
+          data.value = d;
+          tDebe.to(d.totales.te_deben); tDebo.to(d.totales.le_debo);
+          if (!silent) (d.totales.te_deben >= d.totales.le_debo) ? sndUp() : sndDown();
+        } else if (!data.value) error.value = 'Error al cargar';
+      } catch(e) { if (!data.value) error.value = 'Conexión: ' + e.message; }
+      finally { loading.value = false; }
+    }
+    function setPreset(p) {
+      if (preset.value === p) return;
+      preset.value = p; sndTap();
+      if (_insAgCache[p]) { data.value = _insAgCache[p]; tDebe.to(data.value.totales.te_deben); tDebo.to(data.value.totales.le_debo); load({ silent: true }); }
+      else { data.value = null; load(); }
+    }
+    function toggle(id) { expanded.value = { ...expanded.value, [id]: !expanded.value[id] }; sndTap(); }
+
+    function fmt(v) { return 'S/ ' + (Math.round(parseFloat(v) || 0)).toLocaleString('es-PE'); }
+    function pct(a) { return a.facturado > 0 ? Math.min(100, Math.round(a.cobrado / a.facturado * 100)) : (a.cobrado > 0 ? 100 : 0); }
+    function saldoColor(a) { return a.neto > 0.005 ? '#f87171' : a.neto < -0.005 ? '#fbbf24' : 'var(--text-muted)'; }
+    function saldoLabel(a) { return a.neto > 0.005 ? 'te debe ' + fmt(a.neto) : a.neto < -0.005 ? 'le debes ' + fmt(-a.neto) : 'saldado'; }
+    function movEstado(m) { const pend = m.monto - m.cobrado; return pend <= 0.005 ? { t:'✓ pagado', c:'#4ade80' } : m.cobrado > 0.005 ? { t:'parcial', c:'#fbbf24' } : { t:'por cobrar', c:'#f87171' }; }
+
+    const MESES_LARGOS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    const DIAS_C = ['dom','lun','mar','mié','jue','vie','sáb'];
+    function fmtMes(ym) { const p = ym.split('-'); return (MESES_LARGOS[parseInt(p[1]) - 1] || p[1]) + ' ' + p[0]; }
+    function fmtDia(f) { if (!f) return '—'; const p = f.split('-'); const dt = new Date(+p[0], +p[1] - 1, +p[2], 12); return DIAS_C[dt.getDay()] + ' ' + p[2] + ' ' + (MESES_LARGOS[+p[1]-1]||'').slice(0,3).toLowerCase(); }
+    function porMesAg(a) {
+      const meses = {};
+      (a.movimientos || []).forEach(m => { const ym = (m.fecha || '').slice(0, 7); (meses[ym] = meses[ym] || []).push(m); });
+      return Object.keys(meses).sort((x, y) => y.localeCompare(x)).map(ym => {
+        const its = meses[ym];
+        const debe = its.reduce((s, m) => s + m.monto, 0), cobr = its.reduce((s, m) => s + m.cobrado, 0);
+        const dmap = {}; its.forEach(m => { (dmap[m.fecha] = dmap[m.fecha] || []).push(m); });
+        const dias = Object.keys(dmap).sort((x, y) => y.localeCompare(x)).map(f => {
+          const di = dmap[f].slice().sort((p, q) => String(p.hora).localeCompare(String(q.hora)));
+          return { fecha: f, items: di, debe: di.reduce((s, m) => s + m.monto, 0), cobr: di.reduce((s, m) => s + m.cobrado, 0) };
+        });
+        return { ym, label: fmtMes(ym), debe, cobr, dias };
+      });
+    }
+
+    async function exportarExcel() {
+      if (!data.value || !data.value.agencias || !data.value.agencias.length) return;
+      exporting.value = true; exportErr.value = ''; sndTap();
+      try {
+        const ExcelJS = await ensureExcelJS();
+        const logoBuf = await loadLogo();
+        const PER = { todo:'Todo', mes:'Este mes', '30d':'Últimos 30 días', '7d':'Últimos 7 días' };
+        const wb = await _buildAgenciasXlsx(ExcelJS, data.value, PER[preset.value] || 'Todo', logoBuf);
+        const buf = await wb.xlsx.writeBuffer();
+        const blob = new Blob([buf], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = URL.createObjectURL(blob);
+        const aTag = document.createElement('a'); aTag.href = url;
+        aTag.download = 'EstadoCuentaAgencias_GrupoPS_' + new Date().toISOString().slice(0, 10) + '.xlsx';
+        document.body.appendChild(aTag); aTag.click(); aTag.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+        sndUp();
+        setTimeout(() => { exporting.value = false; }, 450);
+      } catch (e) { exportErr.value = e.message || 'Error al exportar'; sndDown(); }
+    }
+
+    let _timer = null;
+    onMounted(() => { load({ silent: !!data.value }); _timer = setInterval(() => load({ silent: true }), 60000); });
+    onUnmounted(() => { if (_timer) clearInterval(_timer); _timer = null; });
+
+    return { data, loading, error, preset, expanded, exporting, exportErr, tDebe: tDebe.val, tDebo: tDebo.val,
+             load, setPreset, toggle, exportarExcel, fmt, pct, saldoColor, saldoLabel, movEstado, fmtMes, fmtDia, porMesAg, emit };
+  },
+  template: `
+    <div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+        <button @click="$emit('back')" style="font-size:22px;color:var(--text-muted);padding:2px 6px;line-height:1;">‹</button>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:16px;font-weight:800;">🏢 Agencias</div>
+          <div style="font-size:11px;color:var(--text-muted);">Cuenta corriente · soles</div>
+        </div>
+        <button @click="exportarExcel()" :disabled="!data || !data.agencias.length" :style="{ opacity: (!data || !data.agencias.length) ? 0.4 : 1 }" title="Exportar a Excel" style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800;color:#4ade80;background:rgba(74,222,128,0.16);border:1px solid rgba(74,222,128,0.4);padding:7px 12px;border-radius:11px;">📊 Excel</button>
+      </div>
+
+      <div style="display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;">
+        <button v-for="p in [['todo','Todo'],['mes','Este mes'],['30d','30 días'],['7d','7 días']]" :key="p[0]"
+          @click="setPreset(p[0])"
+          :style="{ padding:'6px 13px', borderRadius:'999px', fontSize:'12px', fontWeight:'700', whiteSpace:'nowrap', border:'1px solid var(--border)', background: preset===p[0] ? 'rgba(201,168,76,0.22)' : 'transparent', color: preset===p[0] ? 'var(--gold)' : 'var(--text-muted)' }">
+          {{ p[1] }}
+        </button>
+      </div>
+
+      <div v-if="loading" style="display:flex;justify-content:center;padding:50px 0;"><div class="spin"></div></div>
+      <div v-else-if="error" class="empty-state" style="border-color:rgba(239,68,68,0.3);">
+        <div class="empty-icon" style="font-size:30px;">⚠️</div>
+        <p style="color:#f87171;font-size:13px;">{{ error }}</p>
+        <button @click="load()" style="margin-top:8px;padding:8px 16px;background:rgba(123,32,48,0.3);border:1px solid var(--border);border-radius:8px;font-size:13px;">Reintentar</button>
+      </div>
+
+      <template v-else-if="data">
+        <div style="display:flex;gap:8px;margin-bottom:16px;">
+          <div class="stat-tile reveal-pop">
+            <div style="font-size:10px;color:var(--text-muted);font-weight:700;letter-spacing:.05em;">TE DEBEN</div>
+            <div class="stat-big" style="color:#f87171;font-size:20px;">{{ fmt(tDebe) }}</div>
+            <div style="font-size:10px;color:var(--text-muted);">{{ data.totales.n_te_deben }} agencias</div>
+          </div>
+          <div class="stat-tile reveal-pop">
+            <div style="font-size:10px;color:var(--text-muted);font-weight:700;letter-spacing:.05em;">FACTURADO</div>
+            <div class="stat-big" style="color:var(--gold);font-size:20px;">{{ fmt(data.totales.facturado_total) }}</div>
+            <div style="font-size:10px;color:var(--text-muted);">cobrado {{ fmt(data.totales.cobrado_total) }}</div>
+          </div>
+          <div class="stat-tile reveal-pop">
+            <div style="font-size:10px;color:var(--text-muted);font-weight:700;letter-spacing:.05em;">LE DEBES</div>
+            <div class="stat-big" style="color:#fbbf24;font-size:20px;">{{ fmt(tDebo) }}</div>
+            <div style="font-size:10px;color:var(--text-muted);">{{ data.totales.n_le_debo }} agencias</div>
+          </div>
+        </div>
+
+        <div v-if="!data.agencias.length" class="empty-state" style="padding:24px;">
+          <div class="empty-icon" style="font-size:30px;">🏢</div><p style="font-size:13px;">Sin movimientos de agencias en este rango</p>
+        </div>
+
+        <div v-for="a in data.agencias" :key="a.id" class="ali-card" :style="{ borderColor: expanded[a.id] ? saldoColor(a) : 'var(--border)' }">
+          <div class="ali-head" @click="toggle(a.id)">
+            <div style="min-width:0;flex:1;">
+              <div style="font-weight:800;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ a.nombre }}</div>
+              <div style="font-size:11px;color:var(--text-muted);">{{ a.id }} · fact {{ fmt(a.facturado) }} · cobr {{ fmt(a.cobrado) }}</div>
+              <div style="height:6px;border-radius:4px;background:rgba(255,255,255,0.06);margin-top:5px;overflow:hidden;">
+                <div :style="{ width: pct(a)+'%', height:'100%', background:'linear-gradient(90deg,#16a34a,#4ade80)', transition:'width .6s cubic-bezier(.22,1,.36,1)' }"></div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0;margin-left:10px;">
+              <span class="ali-badge" :style="{ background: a.neto>0.005 ? 'rgba(248,113,113,0.16)' : a.neto<-0.005 ? 'rgba(251,191,36,0.16)' : 'rgba(255,255,255,0.06)', color: saldoColor(a) }">{{ saldoLabel(a) }}</span>
+              <span style="color:var(--text-muted);font-size:14px;transition:transform .2s;" :style="{ transform: expanded[a.id] ? 'rotate(90deg)' : 'none' }">›</span>
+            </div>
+          </div>
+          <div v-if="expanded[a.id]" class="ali-detail">
+            <div v-for="mes in porMesAg(a)" :key="a.id+'-M-'+mes.ym">
+              <div class="mes-hdr">
+                <span class="mes-name">📅 {{ mes.label }}</span>
+                <span class="mes-net" style="color:var(--text-muted);">debe {{ fmt(mes.debe) }} · cobró {{ fmt(mes.cobr) }}</span>
+              </div>
+              <div v-for="g in mes.dias" :key="a.id+'-d-'+g.fecha" class="day-grp">
+                <div class="day-hdr">
+                  <span class="day-date">{{ fmtDia(g.fecha) }}</span>
+                  <span class="day-net" style="background:rgba(255,255,255,0.05);color:var(--text-muted);">debe {{ fmt(g.debe) }}</span>
+                </div>
+                <div v-for="(m,i) in g.items" :key="a.id+'-m-'+g.fecha+'-'+i" style="padding:7px 2px;border-top:1px dashed rgba(255,255,255,0.05);">
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <div class="mov-pill" style="background:rgba(248,113,113,0.14);color:#f87171;min-width:64px;">{{ fmt(m.monto) }}</div>
+                    <div style="flex:1;min-width:0;">
+                      <div class="mov-meta1"><b>{{ m.pax }} pax</b> · <span style="opacity:.65;">🕐</span>{{ m.hora || '—' }}<template v-if="m.bote"> · ⛵ {{ m.bote }}</template></div>
+                      <div class="mov-meta2"><template v-if="m.operador">🧾 {{ m.operador }}</template><template v-if="m.tipo && m.tipo!=='Agencia'"> · {{ m.tipo }}</template></div>
+                    </div>
+                    <span style="font-size:10px;font-weight:800;flex-shrink:0;" :style="{ color: movEstado(m).c }">{{ movEstado(m).t }}</span>
+                  </div>
+                  <div v-for="(c,ci) in m.cobros" :key="i+'-c-'+ci" style="display:flex;align-items:center;gap:8px;margin:3px 0 0 18px;font-size:11px;">
+                    <span style="color:#4ade80;font-weight:800;">✓ {{ fmt(c.monto) }}</span>
+                    <span style="color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.operador }}<template v-if="c.hora"> · {{ c.hora }}</template><template v-if="c.metodo"> · {{ c.metodo }}</template></span>
+                  </div>
+                  <div v-if="(m.monto - m.cobrado) > 0.005" style="margin:2px 0 0 18px;font-size:10.5px;color:#f87171;font-weight:700;">pendiente {{ fmt(m.monto - m.cobrado) }}</div>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="a.ventas && a.ventas.length" style="margin-top:10px;padding:10px;border-radius:12px;background:rgba(201,168,76,0.07);border:1px dashed rgba(201,168,76,0.35);">
+              <div style="font-size:11px;font-weight:800;color:var(--gold);margin-bottom:4px;">💵 Lo que le debes (ventas convertidas) · {{ fmt(a.le_debo) }}</div>
+              <div v-for="(v,vi) in a.ventas" :key="'v-'+vi" style="font-size:11px;display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-top:1px dashed rgba(201,168,76,0.2);">
+                <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ v.fecha }} · origen {{ v.origen }} · {{ v.pax }}pax</span>
+                <span style="flex-shrink:0;" :style="{ color: (v.monto-v.pagado)<=0.005 ? '#4ade80' : '#fbbf24' }">{{ fmt(v.monto) }} {{ (v.monto-v.pagado)<=0.005 ? '✓' : '· falta '+fmt(v.monto-v.pagado) }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <teleport to="body">
+        <div v-if="exporting" style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:300;background:rgba(0,0,0,0.72);display:flex;align-items:center;justify-content:center;padding:24px;" @click.self="exportErr ? (exporting=false) : null">
+          <div class="reveal-pop" style="background:var(--bg2);border:1px solid rgba(201,168,76,0.4);border-radius:18px;padding:28px 30px;display:flex;flex-direction:column;align-items:center;gap:14px;box-shadow:0 20px 60px rgba(0,0,0,0.7);max-width:300px;text-align:center;">
+            <template v-if="!exportErr">
+              <div class="spin" style="width:44px;height:44px;"></div>
+              <div style="font-weight:800;font-size:15px;color:var(--gold);">Generando Excel…</div>
+              <div style="font-size:11px;color:var(--text-muted);">⚓ Grupo PS · una pestaña por agencia</div>
+            </template>
+            <template v-else>
+              <div style="font-size:30px;">⚠️</div>
+              <div style="font-weight:800;font-size:14px;color:#f87171;">No se pudo exportar</div>
+              <div style="font-size:11px;color:var(--text-muted);">{{ exportErr }}</div>
+              <button @click="exporting=false" style="margin-top:4px;padding:8px 18px;background:rgba(123,32,48,0.4);border:1px solid var(--border);border-radius:10px;font-size:13px;color:#f0e6d3;">Cerrar</button>
+            </template>
+          </div>
+        </div>
+      </teleport>
+
+      <div style="height:24px;"></div>
+    </div>
+  `
+};
+
 const ViewFinanzas = {
   name: 'ViewFinanzas',
-  components: { InsightAliados },
+  components: { InsightAliados, InsightAgencias },
   props: ['data', 'loading'],
   emits: ['action'],
   setup(props, { emit }) {
@@ -4749,6 +5079,7 @@ const ViewFinanzas = {
       if (!fechas.value.length) loadFechas();
       refreshInterval = setInterval(silentRefresh, 60000);
       preloadInsAli('todo');   // precarga Insights→Aliados en background (apertura instantánea)
+      preloadInsAg('todo');    // precarga Insights→Agencias en background
     });
     onActivated(() => {
       if (!fechas.value.length && !loadingFechas.value) loadFechas();
@@ -4885,16 +5216,25 @@ const ViewFinanzas = {
             </div>
             <span style="color:var(--text-muted);font-size:18px;">›</span>
           </div>
+          <div class="insight-card" @click="goInsight('agencias')">
+            <div class="insight-ic">🏢</div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-weight:800;font-size:15px;">Agencias</div>
+              <div style="font-size:12px;color:var(--text-muted);">Cuenta corriente en soles (te deben / le debes)</div>
+            </div>
+            <span style="color:var(--text-muted);font-size:18px;">›</span>
+          </div>
           <div class="insight-card locked">
             <div class="insight-ic">💸</div>
             <div style="flex:1;min-width:0;">
-              <div style="font-weight:800;font-size:15px;">Deudas</div>
-              <div style="font-size:12px;color:var(--text-muted);">Comisionados y agencias (S/) · próximamente</div>
+              <div style="font-weight:800;font-size:15px;">Comisionados</div>
+              <div style="font-size:12px;color:var(--text-muted);">Comisiones por pagar (S/) · próximamente</div>
             </div>
             <span style="font-size:13px;color:var(--text-muted);">🔒</span>
           </div>
         </div>
         <insight-aliados v-else-if="openInsight==='aliados'" @back="backInsight()" />
+        <insight-agencias v-else-if="openInsight==='agencias'" @back="backInsight()" />
       </div>
 
       <!-- Caja Detail Modal -->
@@ -5791,7 +6131,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.7.4';
+const APP_VERSION = '1.8.0';
 (function() {
   let _reg = null, _waitingWorker = null;
 

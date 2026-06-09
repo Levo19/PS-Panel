@@ -385,3 +385,127 @@ function getBalanceAliados(desde, hasta) {
     }
   };
 }
+
+// ── AGENCIAS: cuenta corriente en SOLES ───────────────────────
+// Modelo confirmado con operación:
+//   ME DEBE  = Σ (monto_total_cobrar + adicionales) de TODO movimiento cuyo
+//              id_contacto sea un contacto tipo 'Agencia' (sea Agencia, Aliado(PaseIn)
+//              o Aliado(PaseOut) — el origen agencia siempre me debe su grupo)
+//              − Σ Cobro (Caja_Operador ligados por id_movimiento; parciales OK)
+//   LE DEBO  = Σ monto_comprado donde id_agencia_comprada sea agencia (ventas convertidas)
+//              − Σ 'Pago Agencia'
+//   Excluye Cancelado, CON-00 (Varios), e id_contacto tipo Comisionado.
+function getBalanceAgencias(desde, hasta) {
+  const ss = SpreadsheetApp.openById(
+    PropertiesService.getScriptProperties().getProperty('SS_OPERACIONES_ID')
+  );
+
+  const nombreContacto = {}, tipoContacto = {};
+  const shCon = ss.getSheetByName('Contactos');
+  if (shCon) {
+    const d = shCon.getDataRange().getValues();
+    for (let i = 1; i < d.length; i++) {
+      const id = String(d[i][0] || '').trim();
+      if (id) { nombreContacto[id] = String(d[i][1] || id); tipoContacto[id] = String(d[i][2] || '').trim().toLowerCase(); }
+    }
+  }
+  const nombreDe  = id => nombreContacto[String(id || '').trim()] || String(id || '');
+  const esAgencia = id => tipoContacto[String(id || '').trim()] === 'agencia';
+
+  const opBote = {}, opCapitan = {};
+  const shOps = ss.getSheetByName('Operaciones');
+  if (shOps) {
+    const d = shOps.getDataRange().getValues();
+    for (let i = 1; i < d.length; i++) { const idOp = String(d[i][0] || '').trim(); if (idOp) { opBote[idOp] = String(d[i][3] || '').trim(); opCapitan[idOp] = String(d[i][4] || '').trim(); } }
+  }
+  const boteNombre = {}; const shEmb = ss.getSheetByName('Embarcaciones');
+  if (shEmb) { const d = shEmb.getDataRange().getValues(); for (let i = 1; i < d.length; i++) { const idB = String(d[i][0] || '').trim(); if (idB) boteNombre[idB] = String(d[i][1] || idB); } }
+  const personalNombre = {}; const shPer = ss.getSheetByName('Personal');
+  if (shPer) { const d = shPer.getDataRange().getValues(); for (let i = 1; i < d.length; i++) { const idP = String(d[i][0] || '').trim(); if (idP) personalNombre[idP] = String(d[i][1] || idP); } }
+
+  const parseAdic = s => { if (!s) return 0; return String(s).split(',').reduce((acc, p) => { const v = parseFloat((p.split(':')[1] || '').trim()); return acc + (isNaN(v) ? 0 : v); }, 0); };
+  const inRange = f => (!desde || !f || f >= desde) && (!hasta || !f || f <= hasta);
+
+  const ag = {};
+  function getAg(id) { const k = String(id).trim(); if (!ag[k]) ag[k] = { id: k, nombre: nombreDe(k), facturado: 0, cobrado: 0, comprado: 0, pagado: 0, _movs: {}, _ventas: {} }; return ag[k]; }
+  const movToAg = {};
+
+  const shMov = ss.getSheetByName('Movimientos');
+  if (shMov) {
+    const m = shMov.getDataRange().getValues();
+    for (let i = 1; i < m.length; i++) {
+      const row = m[i];
+      const estado = String(row[11] || '').toLowerCase(); if (estado.indexOf('cancel') !== -1) continue;
+      let fecha = '', hora = '';
+      try { const ts = new Date(row[10]); fecha = Utilities.formatDate(ts, 'America/Lima', 'yyyy-MM-dd'); hora = Utilities.formatDate(ts, 'America/Lima', 'HH:mm'); } catch(e) {}
+      if (!inRange(fecha)) continue;
+      const idMov = String(row[0] || '');
+      const idContacto = String(row[3] || '').trim();
+      const idOp = String(row[1] || '').trim();
+      const pax = parseFloat(row[5]) || 0;
+      const cargo = (parseFloat(row[7]) || 0) + parseAdic(row[8]);
+      const idCompra = String(row[13] || '').trim();
+      const montoComp = parseFloat(row[14]) || 0;
+
+      if (esAgencia(idContacto)) {                       // la agencia (origen) me debe
+        const a = getAg(idContacto); a.facturado += cargo;
+        a._movs[idMov] = { id_mov: idMov, fecha, hora, pax, monto: cargo, bote: boteNombre[opBote[idOp]] || '', capitan: personalNombre[opCapitan[idOp]] || '', operador: String(row[9] || ''), tipo: String(row[2] || ''), cobros: [], cobrado: 0 };
+        movToAg[idMov] = idContacto;
+      }
+      if (idCompra && montoComp > 0 && esAgencia(idCompra)) {   // venta convertida → le debo a la compradora
+        const b = getAg(idCompra); b.comprado += montoComp;
+        b._ventas[idMov] = { id_mov: idMov, fecha, hora, pax, monto: montoComp, origen: nombreDe(idContacto), pagos: [], pagado: 0 };
+      }
+    }
+  }
+
+  const shCaj = ss.getSheetByName('Caja_Operador');
+  if (shCaj) {
+    const d = shCaj.getDataRange().getValues();
+    for (let i = 1; i < d.length; i++) {
+      const row = d[i];
+      const cat = String(row[3] || '');
+      const monto = parseFloat(row[4]) || 0;
+      const idMov = String(row[10] || '').trim();
+      const idCont = String(row[2] || '').trim();
+      const oper = String(row[8] || '');
+      let fecha = '', hora = '';
+      try { const ts = new Date(row[9]); fecha = Utilities.formatDate(ts, 'America/Lima', 'yyyy-MM-dd'); hora = Utilities.formatDate(ts, 'America/Lima', 'HH:mm'); } catch(e) {}
+      if (!inRange(fecha)) continue;
+      if (cat === 'Cobro' && idMov && movToAg[idMov]) {
+        const a = ag[movToAg[idMov]];
+        if (a && a._movs[idMov]) { a._movs[idMov].cobros.push({ monto, operador: oper, hora, fecha, metodo: String(row[5] || '') }); a._movs[idMov].cobrado += monto; a.cobrado += monto; }
+      } else if (cat === 'Pago Agencia' && esAgencia(idCont)) {
+        const b = getAg(idCont); b.pagado += monto;
+        if (idMov && b._ventas[idMov]) { b._ventas[idMov].pagos.push({ monto, operador: oper, hora, fecha }); b._ventas[idMov].pagado += monto; }
+      }
+    }
+  }
+
+  const lista = Object.keys(ag).map(k => {
+    const a = ag[k];
+    a.movimientos = Object.keys(a._movs).map(x => a._movs[x]).sort((p, q) => (p.fecha + p.hora).localeCompare(q.fecha + q.hora));
+    a.ventas      = Object.keys(a._ventas).map(x => a._ventas[x]).sort((p, q) => (p.fecha + p.hora).localeCompare(q.fecha + q.hora));
+    delete a._movs; delete a._ventas;
+    a.te_debe = a.facturado - a.cobrado;
+    a.le_debo = a.comprado - a.pagado;
+    a.neto = a.te_debe - a.le_debo;
+    return a;
+  }).filter(a => a.facturado || a.comprado || a.cobrado || a.pagado)
+    .sort((x, y) => Math.abs(y.neto) - Math.abs(x.neto));
+
+  let te_deben = 0, le_debo = 0;
+  lista.forEach(a => { if (a.te_debe > 0.005) te_deben += a.te_debe; if (a.le_debo > 0.005) le_debo += a.le_debo; });
+
+  return {
+    desde: desde || '', hasta: hasta || '',
+    agencias: lista,
+    totales: {
+      te_deben, le_debo, neto_global: te_deben - le_debo,
+      facturado_total: lista.reduce((s, a) => s + a.facturado, 0),
+      cobrado_total:   lista.reduce((s, a) => s + a.cobrado, 0),
+      n_te_deben: lista.filter(a => a.te_debe > 0.005).length,
+      n_le_debo:  lista.filter(a => a.le_debo > 0.005).length
+    }
+  };
+}

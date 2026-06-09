@@ -48,6 +48,9 @@ function doGet(e) {
       case 'balance_aliados':
         data = getBalanceAliados(e.parameter.desde || '', e.parameter.hasta || '');
         break;
+      case 'balance_agencias':
+        data = getBalanceAgencias(e.parameter.desde || '', e.parameter.hasta || '');
+        break;
       case 'hotel_habitaciones':
         data = getHotelHabitaciones();
         break;
