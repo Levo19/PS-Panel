@@ -4125,6 +4125,7 @@ const InsightAliados = {
     const preset   = ref('todo');
     const expanded = ref({});
     const muted    = ref(localStorage.getItem('ps_muted') === '1');
+    const showVentas = ref(false);
     const tDeben   = useTween(), tDebes = useTween();
 
     const today = () => new Date().toISOString().slice(0, 10);
@@ -4188,7 +4189,7 @@ const InsightAliados = {
     }
 
     onMounted(load);
-    return { data, loading, error, preset, expanded, muted, tDeben: tDeben.val, tDebes: tDebes.val,
+    return { data, loading, error, preset, expanded, muted, showVentas, tDeben: tDeben.val, tDebes: tDebes.val,
              load, setPreset, toggle, toggleMute, barW, fmt, netoLabel, netoColor, fmtDia, porDia, emit };
   },
   template: `
@@ -4237,6 +4238,16 @@ const InsightAliados = {
             <div style="font-size:10px;color:var(--text-muted);font-weight:700;letter-spacing:.05em;">LES DEBES</div>
             <div class="stat-big" style="color:#f87171;">▼ {{ fmt(tDebes) }}</div>
             <div style="font-size:10px;color:var(--text-muted);">{{ data.totales.n_les_debes }} aliados · pax</div>
+          </div>
+        </div>
+
+        <!-- Alertas de datos: campo de aliado que NO apunta a un contacto tipo 'Aliado' -->
+        <div v-if="data.alertas && data.alertas.length" style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.4);border-radius:14px;padding:12px;margin-bottom:14px;">
+          <div style="font-size:12px;font-weight:800;color:#f87171;">⚠️ {{ data.alertas.length }} pase(s) con contacto que NO es tipo Aliado</div>
+          <div style="font-size:11px;color:var(--text-muted);margin:3px 0 8px;">Revisar en Contactos · no entran al balance hasta corregir el tipo.</div>
+          <div v-for="(al,i) in data.alertas" :key="'al-'+i" style="font-size:11px;padding:6px 0;border-top:1px dashed rgba(248,113,113,0.25);display:flex;justify-content:space-between;gap:8px;">
+            <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ al.fecha }} · {{ al.pase }} · <b>{{ al.nombre }}</b> ({{ al.id }})</span>
+            <span style="flex-shrink:0;color:#fbbf24;font-weight:700;">tipo: {{ al.tipo_real }} · {{ al.pax }}pax</span>
           </div>
         </div>
 
@@ -4290,16 +4301,26 @@ const InsightAliados = {
                   </div>
                 </div>
               </div>
-              <div v-if="a.ventas_count" style="margin-top:8px;padding:8px 10px;border-radius:10px;background:rgba(201,168,76,0.08);border:1px dashed rgba(201,168,76,0.35);">
-                <div style="font-size:11px;font-weight:800;color:var(--gold);">💵 {{ a.ventas_count }} pase(s) pagados en efectivo · S/ {{ fmt(a.ventas_monto) }}</div>
-                <div style="font-size:10px;color:var(--text-muted);margin-top:2px;">⚠ caso especial — no entra al balance de pax</div>
-                <div v-for="(v,i) in a.ventas" :key="a.id+'-v-'+i" style="font-size:11px;color:var(--text-muted);margin-top:3px;display:flex;justify-content:space-between;gap:8px;">
-                  <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ v.fecha }} · {{ v.origen }} {{ v.pax }}pax</span><span style="flex-shrink:0;">S/ {{ fmt(v.monto) }}</span>
-                </div>
-              </div>
             </div>
           </div>
         </template>
+
+        <!-- Ventas convertidas (global — comprador = agencia, NO es pax) -->
+        <div v-if="data.ventas && data.ventas.length" style="margin-top:10px;">
+          <div @click="showVentas=!showVentas" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 14px;border:1px dashed rgba(201,168,76,0.4);border-radius:14px;cursor:pointer;background:rgba(201,168,76,0.06);">
+            <div style="min-width:0;">
+              <div style="font-weight:800;font-size:13px;color:var(--gold);">💵 Pases convertidos a venta</div>
+              <div style="font-size:11px;color:var(--text-muted);">{{ data.ventas.length }} pases · S/ {{ fmt(data.ventas_monto) }} — dinero, no entra al balance de pax</div>
+            </div>
+            <span style="color:var(--text-muted);font-size:14px;transition:transform .2s;flex-shrink:0;" :style="{ transform: showVentas ? 'rotate(90deg)' : 'none' }">›</span>
+          </div>
+          <div v-if="showVentas" style="padding:6px 8px;">
+            <div v-for="(v,i) in data.ventas" :key="'v-'+i" style="font-size:11px;padding:6px 0;border-top:1px dashed var(--border);display:flex;justify-content:space-between;gap:8px;">
+              <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ v.fecha }} · {{ v.origen }} {{ v.pax }}pax → <b>{{ v.comprador }}</b></span>
+              <span style="flex-shrink:0;color:var(--gold);font-weight:700;">S/ {{ fmt(v.monto) }}</span>
+            </div>
+          </div>
+        </div>
       </template>
 
       <div style="height:24px;"></div>
@@ -5473,7 +5494,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.6.2';
+const APP_VERSION = '1.6.3';
 (function() {
   let _reg = null, _waitingWorker = null;
 

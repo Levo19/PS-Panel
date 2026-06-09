@@ -240,16 +240,21 @@ function getBalanceAliados(desde, hasta) {
 
   // Mapa contactos: id → nombre
   const nombreContacto = {};
+  const tipoContacto   = {};
   const shCon = ss.getSheetByName('Contactos');
   if (shCon) {
     const d = shCon.getDataRange().getValues();
     for (let i = 1; i < d.length; i++) {
       const id = String(d[i][0] || '').trim();
-      if (id) nombreContacto[id] = String(d[i][1] || id);
+      if (id) {
+        nombreContacto[id] = String(d[i][1] || id);
+        tipoContacto[id]   = String(d[i][2] || '').trim().toLowerCase();  // normaliza 'Agencia ' → 'agencia'
+      }
     }
   }
-  const esVarios = id => /^CON-00/i.test(String(id || ''));
-  const nombreDe = id => nombreContacto[String(id || '').trim()] || String(id || '');
+  const esVarios     = id => /^CON-00/i.test(String(id || ''));
+  const nombreDe     = id => nombreContacto[String(id || '').trim()] || String(id || '');
+  const esAliadoTipo = id => tipoContacto[String(id || '').trim()] === 'aliado';
 
   // Mapa operación → id_bote (Operaciones col 3) y id_bote → nombre (Embarcaciones col 1)
   const opBote = {};
@@ -272,12 +277,11 @@ function getBalanceAliados(desde, hasta) {
   }
 
   const aliados = {};
+  const ventas  = [];   // pases convertidos a venta (comprador = agencia) → dinero, NO es aliado
+  const alertas = [];   // pases cuyo campo de aliado NO apunta a un contacto tipo 'Aliado'
   function ali(id) {
     const key = String(id).trim();
-    if (!aliados[key]) {
-      aliados[key] = { id: key, nombre: nombreDe(key), pax_in: 0, pax_out: 0,
-                       movimientos: [], ventas_count: 0, ventas_monto: 0, ventas: [] };
-    }
+    if (!aliados[key]) aliados[key] = { id: key, nombre: nombreDe(key), pax_in: 0, pax_out: 0, movimientos: [] };
     return aliados[key];
   }
 
@@ -311,20 +315,33 @@ function getBalanceAliados(desde, hasta) {
       const montoComp  = parseFloat(row[14]) || 0;                 // col 14 monto_comprado
       const esPaseOut  = tipo.indexOf('PaseOut') !== -1;
 
+      const idMov = String(row[0] || '');
       if (!esPaseOut) {
-        if (esVarios(idContacto) || !idContacto) continue;         // Varios no es aliado
-        const a = ali(idContacto);
-        a.pax_in += pax;
-        a.movimientos.push({ fecha, hora, embarcacion, directo, dir: 'in', pax, origen: '', id_mov: String(row[0] || '') });
+        // PaseIn → el aliado es id_contacto
+        if (esVarios(idContacto) || !idContacto) continue;          // Varios = informativo
+        if (!esAliadoTipo(idContacto)) {                            // dato inconsistente → alerta
+          alertas.push({ id_mov: idMov, fecha, hora, pase: 'PaseIn', campo: 'id_contacto',
+                         id: idContacto, nombre: nombreDe(idContacto),
+                         tipo_real: tipoContacto[idContacto] || '(sin tipo)', pax, origen: '' });
+          continue;
+        }
+        const a = ali(idContacto); a.pax_in += pax;
+        a.movimientos.push({ fecha, hora, embarcacion, directo, dir: 'in', pax, origen: '', id_mov: idMov });
       } else if (idPase) {
-        const a = ali(idPase);                                     // favor en pax: le debemos
-        a.pax_out += pax;
-        a.movimientos.push({ fecha, hora, embarcacion, directo, dir: 'out', pax, origen: nombreDe(idContacto), id_mov: String(row[0] || '') });
+        // PaseOut → el aliado es Id_contactoPase (col 12); id_contacto es solo el origen
+        if (esVarios(idPase)) continue;
+        if (!esAliadoTipo(idPase)) {                                // dato inconsistente → alerta
+          alertas.push({ id_mov: idMov, fecha, hora, pase: 'PaseOut', campo: 'Id_contactoPase',
+                         id: idPase, nombre: nombreDe(idPase),
+                         tipo_real: tipoContacto[idPase] || '(sin tipo)', pax, origen: nombreDe(idContacto) });
+          continue;
+        }
+        const a = ali(idPase); a.pax_out += pax;
+        a.movimientos.push({ fecha, hora, embarcacion, directo, dir: 'out', pax, origen: nombreDe(idContacto), id_mov: idMov });
       } else if (montoComp > 0 && idCompra) {
-        const a = ali(idCompra);                                   // venta convertida (dinero)
-        a.ventas_count += 1;
-        a.ventas_monto += montoComp;
-        a.ventas.push({ fecha, pax, monto: montoComp, origen: nombreDe(idContacto), id_mov: String(row[0] || '') });
+        // venta convertida → dinero a una agencia (comprador). NO es aliado → sección aparte.
+        ventas.push({ fecha, hora, pax, monto: montoComp, origen: nombreDe(idContacto),
+                      comprador: nombreDe(idCompra), comprador_id: idCompra, id_mov: idMov });
       }
       // PaseOut huérfano (sin destino ni venta) → se ignora
     }
@@ -334,10 +351,12 @@ function getBalanceAliados(desde, hasta) {
     const a = aliados[k];
     a.neto = a.pax_in - a.pax_out;
     a.movimientos.sort((x, y) => String(x.fecha).localeCompare(String(y.fecha)));
-    a.ventas.sort((x, y) => String(x.fecha).localeCompare(String(y.fecha)));
     return a;
-  }).filter(a => a.pax_in || a.pax_out || a.ventas_count)
+  }).filter(a => a.pax_in || a.pax_out)
     .sort((x, y) => Math.abs(y.neto) - Math.abs(x.neto));
+
+  ventas.sort((x, y) => String(x.fecha).localeCompare(String(y.fecha)));
+  alertas.sort((x, y) => String(x.fecha).localeCompare(String(y.fecha)));
 
   let te_deben = 0, les_debes = 0;
   lista.forEach(a => { if (a.neto > 0) te_deben += a.neto; else if (a.neto < 0) les_debes += -a.neto; });
@@ -345,11 +364,14 @@ function getBalanceAliados(desde, hasta) {
   return {
     desde: desde || '', hasta: hasta || '',
     aliados: lista,
+    ventas: ventas, alertas: alertas,
+    ventas_monto: ventas.reduce((s, v) => s + v.monto, 0),
     totales: {
       te_deben, les_debes, neto_global: te_deben - les_debes,
       n_te_deben:  lista.filter(a => a.neto > 0).length,
       n_les_debes: lista.filter(a => a.neto < 0).length,
-      n_a_mano:    lista.filter(a => a.neto === 0).length
+      n_a_mano:    lista.filter(a => a.neto === 0).length,
+      n_alertas:   alertas.length, n_ventas: ventas.length
     }
   };
 }
