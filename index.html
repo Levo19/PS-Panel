@@ -1175,8 +1175,12 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 @keyframes reveal-pop { 0%{transform:scale(0.6); opacity:0;} 100%{transform:scale(1); opacity:1;} }
 
 /* ── Aliado detalle: timeline por día ───────────────────── */
-.day-grp { margin-top:12px; }
+.day-grp { margin-top:10px; }
 .day-grp:first-child { margin-top:4px; }
+.mes-hdr { display:flex; align-items:center; justify-content:space-between; gap:8px; margin:16px 0 2px; padding-bottom:4px; border-bottom:2px solid rgba(201,168,76,0.3); }
+.mes-hdr:first-child, .ali-detail > div:first-child .mes-hdr { margin-top:6px; }
+.mes-name { font-size:13px; font-weight:800; color:var(--gold); text-transform:capitalize; }
+.mes-net { font-size:11px; font-weight:800; white-space:nowrap; }
 .day-hdr { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:4px 0 6px; border-bottom:1px solid var(--border); margin-bottom:4px; }
 .day-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; box-shadow:0 0 8px currentColor; }
 .day-date { font-size:12px; font-weight:800; text-transform:capitalize; }
@@ -4175,32 +4179,38 @@ async function _buildAliadosXlsx(ExcelJS, data, periodo) {
 
   // ── RESUMEN ──
   const rs = wb.addWorksheet('RESUMEN', { properties:{ tabColor:{ argb: GUINDA } }, views:[{ state:'frozen', ySplit:5 }] });
-  rs.columns = [{ width:5 }, { width:28 }, { width:12 }, { width:12 }, { width:22 }];
-  banda(rs, 'A1:E1', '⚓ GRUPO PS — TURISMO MARÍTIMO', GUINDA, GOLD, 16, 30);
-  banda(rs, 'A2:E2', 'ESTADO DE CUENTA DE PASES (PAX)', HEADc, WHITE, 12, 22);
-  banda(rs, 'A3:E3', 'Periodo: ' + periodo + '     ·     Generado: ' + new Date().toLocaleString('es-PE'), GUINDA, GOLD, 9, 18);
-  ['#','ALIADO','ENTRÓ ▲','SALIÓ ▼','BALANCE (pax)'].forEach((hh, i) => {
-    const c = rs.getCell(5, i + 1);
+  rs.columns = [{ width:5 }, { width:26 }, { width:11 }, { width:11 }, { width:18 }, { width:16 }];
+  banda(rs, 'A1:F1', '⚓ GRUPO PS — TURISMO MARÍTIMO', GUINDA, GOLD, 16, 30);
+  banda(rs, 'A2:F2', 'ESTADO DE CUENTA DE PASES (PAX)', HEADc, WHITE, 12, 22);
+  banda(rs, 'A3:F3', 'Periodo: ' + periodo + '     ·     Generado: ' + new Date().toLocaleString('es-PE'), GUINDA, GOLD, 9, 18);
+  ['#','ALIADO','ENTRÓ ▲','SALIÓ ▼','BALANCE','TENDENCIA'].forEach((hh, i) => {
+    const c = rs.getRow(5).getCell(i + 1);
     c.value = hh; c.fill = fill(GUINDA); c.border = bd;
     c.font = { bold:true, color:{ argb: WHITE }, size:11 };
     c.alignment = { horizontal: i === 1 ? 'left' : 'center', vertical:'middle' };
   });
   rs.getRow(5).height = 20;
+  const maxAbs = Math.max(1, ...data.aliados.map(a => Math.abs(a.neto)));
   let r = 6;
   data.aliados.forEach((a, idx) => {
     const bal = a.neto > 0 ? '+' + a.neto + '  te debe' : a.neto < 0 ? a.neto + '  le debes' : '0  a mano';
+    const n = Math.round(Math.abs(a.neto) / maxAbs * 10);
+    const barra = '█'.repeat(n) + '░'.repeat(10 - n);
     const row = rs.getRow(r);
     row.getCell(1).value = idx + 1;
     row.getCell(2).value = a.nombre + ' (' + a.id + ')';
     row.getCell(3).value = a.pax_in;
     row.getCell(4).value = a.pax_out;
     row.getCell(5).value = bal;
-    for (let ci = 1; ci <= 5; ci++) {
+    row.getCell(6).value = barra;
+    for (let ci = 1; ci <= 6; ci++) {
       const c = row.getCell(ci); c.border = bd;
       c.alignment = { horizontal: ci === 2 ? 'left' : 'center', vertical:'middle' };
       if (idx % 2) c.fill = fill(ZEBRA);
     }
-    row.getCell(5).font = { bold:true, color:{ argb: a.neto > 0 ? GREEN : a.neto < 0 ? RED : DARK } };
+    const col = a.neto > 0 ? GREEN : a.neto < 0 ? RED : DARK;
+    row.getCell(5).font = { bold:true, color:{ argb: col } };
+    row.getCell(6).font = { bold:true, color:{ argb: col } };
     r++;
   });
   const trs = rs.getRow(r);
@@ -4208,17 +4218,25 @@ async function _buildAliadosXlsx(ExcelJS, data, periodo) {
   trs.getCell(3).value = data.aliados.reduce((s, a) => s + a.pax_in, 0);
   trs.getCell(4).value = data.aliados.reduce((s, a) => s + a.pax_out, 0);
   trs.getCell(5).value = 'te deben ' + data.totales.te_deben + ' / les debes ' + data.totales.les_debes;
-  for (let ci = 1; ci <= 5; ci++) {
+  for (let ci = 1; ci <= 6; ci++) {
     const c = trs.getCell(ci); c.border = bd; c.fill = fill(HEADc);
     c.font = { bold:true, color:{ argb: WHITE } };
     c.alignment = { horizontal: ci === 2 ? 'left' : 'center', vertical:'middle' };
   }
-  rs.pageSetup = { fitToPage:true, fitToWidth:1, fitToHeight:0, orientation:'portrait', margins:{ left:0.4, right:0.4, top:0.5, bottom:0.5, header:0.2, footer:0.2 } };
+  // data bars en ENTRÓ/SALIÓ (solo filas de datos) + autofiltro
+  if (data.aliados.length) {
+    const lastData = 5 + data.aliados.length;
+    rs.addConditionalFormatting({ ref: 'C6:C' + lastData, rules:[{ type:'dataBar', cfvo:[{ type:'num', value:0 }, { type:'max' }], color:{ argb: GREEN } }] });
+    rs.addConditionalFormatting({ ref: 'D6:D' + lastData, rules:[{ type:'dataBar', cfvo:[{ type:'num', value:0 }, { type:'max' }], color:{ argb: RED } }] });
+    rs.autoFilter = 'A5:F' + lastData;
+  }
+  rs.headerFooter = { oddFooter: '&L⚓ Grupo PS&CEstado de cuenta de pases&R&P / &N' };
+  rs.pageSetup = { fitToPage:true, fitToWidth:1, fitToHeight:0, orientation:'portrait', margins:{ left:0.4, right:0.4, top:0.5, bottom:0.5, header:0.2, footer:0.3 } };
   rs.pageSetup.printTitlesRow = '1:5';
 
   // ── una pestaña por aliado (agrupada por MES → DÍA, colapsable) ──
   data.aliados.forEach(a => {
-    const ws = wb.addWorksheet(tabName(a.nombre, a.id), { views:[{ state:'frozen', ySplit:5 }] });
+    const ws = wb.addWorksheet(tabName(a.nombre, a.id), { properties:{ tabColor:{ argb: a.neto > 0 ? GREEN : a.neto < 0 ? RED : 'FF9A8C6A' } }, views:[{ state:'frozen', ySplit:5 }] });
     try { ws.properties.outlineProperties = { summaryBelow:false, summaryRight:false }; } catch(e) {}
     ws.columns = [{ width:15 }, { width:8 }, { width:9 }, { width:9 }, { width:9 }, { width:44 }];
     banda(ws, 'A1:F1', '⚓ GRUPO PS     ·     ESTADO DE CUENTA', GUINDA, GOLD, 14, 26);
@@ -4298,7 +4316,8 @@ async function _buildAliadosXlsx(ExcelJS, data, periodo) {
     for (let ci = 1; ci <= 6; ci++) { const c = tr.getCell(ci); c.border = bd; c.fill = fill(HEADc); c.font = { bold:true, color:{ argb: WHITE } }; c.alignment = { horizontal: ci === 1 ? 'left' : (ci === 6 ? 'left' : 'center'), vertical:'middle' }; }
     tr.getCell(5).font = { bold:true, size:12, color:{ argb: a.neto > 0 ? GOLD : a.neto < 0 ? 'FFF2B8C0' : GOLD } };
     tr.getCell(6).font = { bold:true, color:{ argb: GOLD } };
-    ws.pageSetup = { fitToPage:true, fitToWidth:1, fitToHeight:0, orientation:'portrait', margins:{ left:0.4, right:0.4, top:0.5, bottom:0.5, header:0.2, footer:0.2 } };
+    ws.headerFooter = { oddFooter: '&L⚓ Grupo PS&C' + a.nombre + '&R&P / &N' };
+    ws.pageSetup = { fitToPage:true, fitToWidth:1, fitToHeight:0, orientation:'portrait', margins:{ left:0.4, right:0.4, top:0.5, bottom:0.5, header:0.2, footer:0.3 } };
     ws.pageSetup.printTitlesRow = '1:5';
   });
 
@@ -4376,6 +4395,26 @@ const InsightAliados = {
       });
     }
 
+    const MESES_LARGOS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    function fmtMes(ym) { const p = ym.split('-'); return (MESES_LARGOS[parseInt(p[1]) - 1] || p[1]) + ' ' + p[0]; }
+    // Agrupa por mes (reciente primero) → días, con subtotales del mes
+    function porMes(a) {
+      const meses = {};
+      (a.movimientos || []).forEach(m => { const ym = (m.fecha || '').slice(0, 7); (meses[ym] = meses[ym] || []).push(m); });
+      return Object.keys(meses).sort((x, y) => y.localeCompare(x)).map(ym => {
+        const its = meses[ym];
+        const inP = its.filter(m => m.dir === 'in').reduce((s, m) => s + m.pax, 0);
+        const outP = its.filter(m => m.dir === 'out').reduce((s, m) => s + m.pax, 0);
+        const dmap = {};
+        its.forEach(m => { (dmap[m.fecha] = dmap[m.fecha] || []).push(m); });
+        const dias = Object.keys(dmap).sort((x, y) => y.localeCompare(x)).map(f => {
+          const di = dmap[f].slice().sort((m, n) => String(m.hora).localeCompare(String(n.hora)));
+          return { fecha: f, items: di, neto: di.reduce((s, m) => s + (m.dir === 'in' ? m.pax : -m.pax), 0) };
+        });
+        return { ym, label: fmtMes(ym), in: inP, out: outP, neto: inP - outP, dias };
+      });
+    }
+
     async function exportarExcel() {
       if (!data.value || !data.value.aliados || !data.value.aliados.length) return;
       exporting.value = true; exportErr.value = ''; sndTap();
@@ -4407,7 +4446,7 @@ const InsightAliados = {
     onUnmounted(() => { if (_timer) clearInterval(_timer); _timer = null; });
 
     return { data, loading, error, preset, expanded, showVentas, exporting, exportErr, tDeben: tDeben.val, tDebes: tDebes.val,
-             load, setPreset, toggle, exportarExcel, barW, fmt, netoLabel, netoColor, fmtDia, porDia, emit };
+             load, setPreset, toggle, exportarExcel, barW, fmt, netoLabel, netoColor, fmtDia, porDia, porMes, emit };
   },
   template: `
     <div>
@@ -4502,7 +4541,12 @@ const InsightAliados = {
               </div>
             </div>
             <div v-if="expanded[a.id]" class="ali-detail">
-              <div v-for="g in porDia(a)" :key="a.id+'-d-'+g.fecha" class="day-grp">
+              <div v-for="mes in porMes(a)" :key="a.id+'-M-'+mes.ym">
+                <div class="mes-hdr">
+                  <span class="mes-name">📅 {{ mes.label }}</span>
+                  <span class="mes-net" :style="{ color: mes.neto>0?'#4ade80':mes.neto<0?'#f87171':'var(--text-muted)' }">▲{{ mes.in }} · ▼{{ mes.out }} · {{ mes.neto>0?'+':'' }}{{ mes.neto }} pax</span>
+                </div>
+                <div v-for="g in mes.dias" :key="a.id+'-d-'+g.fecha" class="day-grp">
                 <div class="day-hdr">
                   <div style="display:flex;align-items:center;gap:8px;min-width:0;">
                     <span class="day-dot" :style="{ color: g.neto>0?'#4ade80':g.neto<0?'#f87171':'var(--text-muted)', background: g.neto>0?'#4ade80':g.neto<0?'#f87171':'var(--text-muted)' }"></span>
@@ -4517,6 +4561,7 @@ const InsightAliados = {
                     <div v-if="m.origen" class="mov-meta2">origen · {{ m.origen }}</div>
                   </div>
                 </div>
+              </div>
               </div>
             </div>
           </div>
@@ -5731,7 +5776,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.7.2';
+const APP_VERSION = '1.7.3';
 (function() {
   let _reg = null, _waitingWorker = null;
 
