@@ -1597,7 +1597,7 @@ Deuda comisionado = (precio_aplicado − precio_pax_defecto) × cant_pax
 </div>
 
 <script>
-const { createApp, ref, reactive, computed, onMounted, onActivated, onDeactivated, watch, nextTick } = Vue;
+const { createApp, ref, reactive, computed, onMounted, onUnmounted, onActivated, onDeactivated, watch, nextTick } = Vue;
 
 // ── API URL ──────────────────────────────────────────────────
 const API_URL_KEY = 'ps_api_url';
@@ -4079,7 +4079,6 @@ const ViewHotel = {
 let _audioCtx = null;
 function _ac() { try { _audioCtx = _audioCtx || new (window.AudioContext || window.webkitAudioContext)(); return _audioCtx; } catch(e){ return null; } }
 function playTone(freqs, opts) {
-  if (localStorage.getItem('ps_muted') === '1') return;
   const o = opts || {}, dur = o.dur || 0.12, type = o.type || 'sine', gain = o.gain || 0.06;
   const ac = _ac(); if (!ac) return;
   if (ac.state === 'suspended') { try { ac.resume(); } catch(e){} }
@@ -4114,51 +4113,62 @@ function useTween() {
   return { val, to };
 }
 
+// ── Insights→Aliados: cache + rango (precarga + refresco silencioso) ──
+const _insAliCache = {};
+function _insAliRango(preset) {
+  const today = new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  if (preset === 'mes') return { desde: now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-01', hasta: today };
+  if (preset === '30d' || preset === '7d') { const n = preset === '30d' ? 30 : 7; const dt = new Date(); dt.setDate(dt.getDate() - (n - 1)); return { desde: dt.toISOString().slice(0, 10), hasta: today }; }
+  return { desde: '', hasta: '' };
+}
+async function _fetchInsAli(preset) {
+  const r = await apiGet('balance_aliados', _insAliRango(preset));
+  if (r && r.ok) { _insAliCache[preset] = r.data; return r.data; }
+  return null;
+}
+function preloadInsAli(preset) { preset = preset || 'todo'; if (!_insAliCache[preset]) _fetchInsAli(preset).catch(() => {}); }
+
 // ── InsightAliados: balance de pases por aliado (PAX) ─────────
 const InsightAliados = {
   name: 'InsightAliados',
-  emits: ['back'],
+  emits: ['back', 'export'],
   setup(props, { emit }) {
-    const data     = ref(null);
-    const loading  = ref(true);
-    const error    = ref('');
     const preset   = ref('todo');
+    const data     = ref(_insAliCache[preset.value] || null);
+    const loading  = ref(!data.value);
+    const error    = ref('');
     const expanded = ref({});
-    const muted    = ref(localStorage.getItem('ps_muted') === '1');
     const showVentas = ref(false);
     const tDeben   = useTween(), tDebes = useTween();
 
-    const today = () => new Date().toISOString().slice(0, 10);
-    function rango() {
-      const now = new Date();
-      if (preset.value === 'mes') {
-        return { desde: now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-01', hasta: today() };
-      }
-      if (preset.value === '30d' || preset.value === '7d') {
-        const n = preset.value === '30d' ? 30 : 7;
-        const dt = new Date(); dt.setDate(dt.getDate() - (n - 1));
-        return { desde: dt.toISOString().slice(0, 10), hasta: today() };
-      }
-      return { desde: '', hasta: '' };
-    }
-
-    async function load() {
-      loading.value = true; error.value = '';
+    // Carga; opts.silent = sin spinner ni sonido (refresco de fondo cada 60s, sin parpadeo)
+    async function load(opts) {
+      const silent = !!(opts && opts.silent);
+      if (!silent && !data.value) loading.value = true;
+      error.value = '';
       try {
-        const r = await apiGet('balance_aliados', rango());
-        if (r.ok) {
-          data.value = r.data;
-          tDeben.to(r.data.totales.te_deben);
-          tDebes.to(r.data.totales.les_debes);
-          (r.data.totales.te_deben >= r.data.totales.les_debes) ? sndUp() : sndDown();
-        } else { error.value = r.error || 'Error al cargar'; }
-      } catch(e) { error.value = 'Conexión: ' + e.message; }
+        const d = await _fetchInsAli(preset.value);
+        if (d) {
+          data.value = d;
+          tDeben.to(d.totales.te_deben);
+          tDebes.to(d.totales.les_debes);
+          if (!silent) (d.totales.te_deben >= d.totales.les_debes) ? sndUp() : sndDown();
+        } else if (!data.value) { error.value = 'Error al cargar'; }
+      } catch(e) { if (!data.value) error.value = 'Conexión: ' + e.message; }
       finally { loading.value = false; }
     }
 
-    function setPreset(p) { if (preset.value === p) return; preset.value = p; sndTap(); load(); }
+    function setPreset(p) {
+      if (preset.value === p) return;
+      preset.value = p; sndTap();
+      if (_insAliCache[p]) {                                   // cache hit → instantáneo + refresco silencioso
+        data.value = _insAliCache[p];
+        tDeben.to(data.value.totales.te_deben); tDebes.to(data.value.totales.les_debes);
+        load({ silent: true });
+      } else { data.value = null; load(); }                    // cache miss → carga visible solo de ese rango
+    }
     function toggle(id)   { expanded.value = { ...expanded.value, [id]: !expanded.value[id] }; sndTap(); }
-    function toggleMute()  { muted.value = !muted.value; localStorage.setItem('ps_muted', muted.value ? '1' : '0'); if (!muted.value) sndTap(); }
 
     const maxAbs = computed(() => {
       const l = (data.value && data.value.aliados) || [];
@@ -4188,9 +4198,15 @@ const InsightAliados = {
       });
     }
 
-    onMounted(load);
-    return { data, loading, error, preset, expanded, muted, showVentas, tDeben: tDeben.val, tDebes: tDebes.val,
-             load, setPreset, toggle, toggleMute, barW, fmt, netoLabel, netoColor, fmtDia, porDia, emit };
+    let _timer = null;
+    onMounted(() => {
+      load({ silent: !!data.value });                          // cache pintada al instante; si no hay, spinner una vez
+      _timer = setInterval(() => load({ silent: true }), 60000); // refresco silencioso 60s
+    });
+    onUnmounted(() => { if (_timer) clearInterval(_timer); _timer = null; });
+
+    return { data, loading, error, preset, expanded, showVentas, tDeben: tDeben.val, tDebes: tDebes.val,
+             load, setPreset, toggle, barW, fmt, netoLabel, netoColor, fmtDia, porDia, emit };
   },
   template: `
     <div>
@@ -4201,7 +4217,7 @@ const InsightAliados = {
           <div style="font-size:16px;font-weight:800;">🤝 Aliados</div>
           <div style="font-size:11px;color:var(--text-muted);">Balance de pases · personas</div>
         </div>
-        <button @click="toggleMute()" :title="muted ? 'Activar sonido' : 'Silenciar'" style="font-size:17px;padding:6px;">{{ muted ? '🔇' : '🔊' }}</button>
+        <button @click="$emit('export')" title="Exportar a Excel" style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800;color:#1f7a4d;background:rgba(74,222,128,0.16);border:1px solid rgba(74,222,128,0.4);padding:7px 12px;border-radius:11px;">📊 Excel</button>
       </div>
 
       <!-- rango -->
@@ -4452,6 +4468,7 @@ const ViewFinanzas = {
     onMounted(() => {
       if (!fechas.value.length) loadFechas();
       refreshInterval = setInterval(silentRefresh, 60000);
+      preloadInsAli('todo');   // precarga Insights→Aliados en background (apertura instantánea)
     });
     onActivated(() => {
       if (!fechas.value.length && !loadingFechas.value) loadFechas();
@@ -5494,7 +5511,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.6.3';
+const APP_VERSION = '1.6.4';
 (function() {
   let _reg = null, _waitingWorker = null;
 
