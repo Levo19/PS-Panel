@@ -1134,6 +1134,45 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 .ps-upd-dots span { width:8px;height:8px;border-radius:50%;background:#C9A84C;animation:psDotP 1s ease-in-out infinite; }
 .ps-upd-dots span:nth-child(2){animation-delay:.2s} .ps-upd-dots span:nth-child(3){animation-delay:.4s}
 @keyframes psDotP { 0%,80%,100%{opacity:.2;transform:scale(.8)} 40%{opacity:1;transform:scale(1.2)} }
+
+/* ── Finanzas: segmented tabs ───────────────────────────── */
+.fin-tabs { display:flex; gap:6px; padding:4px; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:14px; margin-bottom:14px; }
+.fin-tab { flex:1; padding:9px 0; border-radius:10px; font-size:13px; font-weight:700; color:var(--text-muted); display:flex; align-items:center; justify-content:center; gap:6px; transition:all .18s; }
+.fin-tab.active { background:linear-gradient(135deg, rgba(201,168,76,0.25), rgba(123,32,48,0.28)); color:var(--gold); box-shadow:0 2px 10px rgba(0,0,0,0.3); }
+.fin-tab:active { transform:scale(0.96); }
+
+/* ── Insights hub ───────────────────────────────────────── */
+.insight-card { display:flex; align-items:center; gap:14px; padding:16px; border-radius:16px; background:var(--bg2); border:1px solid var(--border); cursor:pointer; transition:transform .15s, border-color .2s, box-shadow .2s; position:relative; overflow:hidden; }
+.insight-card:active { transform:scale(0.98); }
+.insight-card:hover { border-color:rgba(201,168,76,0.5); box-shadow:0 6px 24px rgba(0,0,0,0.3); }
+.insight-card.locked { opacity:0.5; cursor:not-allowed; }
+.insight-card.locked:hover { border-color:var(--border); box-shadow:none; }
+.insight-ic { width:48px; height:48px; border-radius:13px; display:flex; align-items:center; justify-content:center; font-size:24px; flex-shrink:0; background:linear-gradient(135deg, rgba(201,168,76,0.2), rgba(123,32,48,0.28)); }
+
+/* ── Aliados: barras divergentes ────────────────────────── */
+.dv-row { display:grid; grid-template-columns:90px 1fr 52px; align-items:center; gap:8px; padding:5px 0; }
+.dv-name { font-size:12px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.dv-track { position:relative; height:18px; background:rgba(255,255,255,0.04); border-radius:9px; overflow:hidden; }
+.dv-center { position:absolute; left:50%; top:0; bottom:0; width:1px; background:rgba(255,255,255,0.18); }
+.dv-fill { position:absolute; top:2px; bottom:2px; border-radius:7px; width:0; transition:width .65s cubic-bezier(.22,1,.36,1); }
+.dv-fill.pos { left:50%; background:linear-gradient(90deg,#16a34a,#4ade80); box-shadow:0 0 10px rgba(74,222,128,0.5); }
+.dv-fill.neg { right:50%; background:linear-gradient(270deg,#dc2626,#f87171); box-shadow:0 0 10px rgba(248,113,113,0.45); }
+.dv-val { font-size:12px; font-weight:800; text-align:right; }
+
+/* ── Aliado card ────────────────────────────────────────── */
+.ali-card { border:1px solid var(--border); border-radius:14px; margin-bottom:8px; overflow:hidden; background:var(--bg2); transition:border-color .2s; }
+.ali-head { display:flex; align-items:center; justify-content:space-between; padding:12px 14px; cursor:pointer; gap:10px; }
+.ali-head:active { background:rgba(255,255,255,0.03); }
+.ali-badge { font-size:11px; font-weight:800; padding:3px 9px; border-radius:999px; white-space:nowrap; }
+.ali-detail { padding:0 14px 12px; animation:ali-open .25s ease; }
+@keyframes ali-open { from{opacity:0; transform:translateY(-6px);} to{opacity:1; transform:none;} }
+.ali-mov { display:flex; align-items:center; gap:8px; font-size:12px; padding:5px 0; border-top:1px dashed var(--border); }
+
+/* ── Stat tiles + reveal ────────────────────────────────── */
+.stat-tile { flex:1; text-align:center; padding:14px 6px; border-radius:16px; border:1px solid var(--border); background:var(--bg2); }
+.stat-big { font-size:25px; font-weight:900; line-height:1; margin:4px 0; }
+.reveal-pop { animation:reveal-pop .45s cubic-bezier(.22,1.4,.4,1); }
+@keyframes reveal-pop { 0%{transform:scale(0.6); opacity:0;} 100%{transform:scale(1); opacity:1;} }
 </style>
 <div id="psUpdateBanner" role="alert" aria-live="polite">
   <div class="ps-upd-inner">
@@ -4023,8 +4062,211 @@ const ViewHotel = {
   }
 };
 
+// ── Sonido (WebAudio, sin assets) ────────────────────────────
+let _audioCtx = null;
+function _ac() { try { _audioCtx = _audioCtx || new (window.AudioContext || window.webkitAudioContext)(); return _audioCtx; } catch(e){ return null; } }
+function playTone(freqs, opts) {
+  if (localStorage.getItem('ps_muted') === '1') return;
+  const o = opts || {}, dur = o.dur || 0.12, type = o.type || 'sine', gain = o.gain || 0.06;
+  const ac = _ac(); if (!ac) return;
+  if (ac.state === 'suspended') { try { ac.resume(); } catch(e){} }
+  let t = ac.currentTime;
+  (Array.isArray(freqs) ? freqs : [freqs]).forEach(f => {
+    const osc = ac.createOscillator(), g = ac.createGain();
+    osc.type = type; osc.frequency.value = f;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(gain, t + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.connect(g); g.connect(ac.destination);
+    osc.start(t); osc.stop(t + dur);
+    t += dur * 0.85;
+  });
+}
+function sndUp()   { playTone([523.25, 783.99], { type: 'triangle' }); }   // te deben (ascendente)
+function sndDown() { playTone([392.00, 261.63], { type: 'sine' }); }       // les debes (descendente)
+function sndTap()  { playTone(660, { dur: 0.05, gain: 0.04 }); }
+
+// ── Tween de contadores (easeOutCubic) ───────────────────────
+function useTween() {
+  const val = ref(0);
+  function to(target, ms) {
+    ms = ms || 650;
+    const start = val.value, t0 = Date.now(), d = target - start;
+    function step() {
+      const p = Math.min(1, (Date.now() - t0) / ms);
+      val.value = Math.round(start + d * (1 - Math.pow(1 - p, 3)));
+      if (p < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+  return { val, to };
+}
+
+// ── InsightAliados: balance de pases por aliado (PAX) ─────────
+const InsightAliados = {
+  name: 'InsightAliados',
+  emits: ['back'],
+  setup(props, { emit }) {
+    const data     = ref(null);
+    const loading  = ref(true);
+    const error    = ref('');
+    const preset   = ref('todo');
+    const expanded = ref({});
+    const muted    = ref(localStorage.getItem('ps_muted') === '1');
+    const tDeben   = useTween(), tDebes = useTween();
+
+    const today = () => new Date().toISOString().slice(0, 10);
+    function rango() {
+      const now = new Date();
+      if (preset.value === 'mes') {
+        return { desde: now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-01', hasta: today() };
+      }
+      if (preset.value === '30d' || preset.value === '7d') {
+        const n = preset.value === '30d' ? 30 : 7;
+        const dt = new Date(); dt.setDate(dt.getDate() - (n - 1));
+        return { desde: dt.toISOString().slice(0, 10), hasta: today() };
+      }
+      return { desde: '', hasta: '' };
+    }
+
+    async function load() {
+      loading.value = true; error.value = '';
+      try {
+        const r = await apiGet('balance_aliados', rango());
+        if (r.ok) {
+          data.value = r.data;
+          tDeben.to(r.data.totales.te_deben);
+          tDebes.to(r.data.totales.les_debes);
+          (r.data.totales.te_deben >= r.data.totales.les_debes) ? sndUp() : sndDown();
+        } else { error.value = r.error || 'Error al cargar'; }
+      } catch(e) { error.value = 'Conexión: ' + e.message; }
+      finally { loading.value = false; }
+    }
+
+    function setPreset(p) { if (preset.value === p) return; preset.value = p; sndTap(); load(); }
+    function toggle(id)   { expanded.value = { ...expanded.value, [id]: !expanded.value[id] }; sndTap(); }
+    function toggleMute()  { muted.value = !muted.value; localStorage.setItem('ps_muted', muted.value ? '1' : '0'); if (!muted.value) sndTap(); }
+
+    const maxAbs = computed(() => {
+      const l = (data.value && data.value.aliados) || [];
+      return Math.max(1, ...l.map(a => Math.abs(a.neto)));
+    });
+    function barW(neto) { return Math.round(Math.abs(neto) / maxAbs.value * 50) + '%'; }
+    function fmt(v) { return (parseFloat(v) || 0).toLocaleString('es-PE'); }
+    function netoLabel(a) { return a.neto > 0 ? 'te debe ' + a.neto : a.neto < 0 ? 'le debes ' + (-a.neto) : 'a mano'; }
+    function netoColor(a) { return a.neto > 0 ? '#4ade80' : a.neto < 0 ? '#f87171' : 'var(--text-muted)'; }
+
+    onMounted(load);
+    return { data, loading, error, preset, expanded, muted, tDeben: tDeben.val, tDebes: tDebes.val,
+             load, setPreset, toggle, toggleMute, barW, fmt, netoLabel, netoColor, emit };
+  },
+  template: `
+    <div>
+      <!-- header -->
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+        <button @click="$emit('back')" style="font-size:22px;color:var(--text-muted);padding:2px 6px;line-height:1;">‹</button>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:16px;font-weight:800;">🤝 Aliados</div>
+          <div style="font-size:11px;color:var(--text-muted);">Balance de pases · personas</div>
+        </div>
+        <button @click="toggleMute()" :title="muted ? 'Activar sonido' : 'Silenciar'" style="font-size:17px;padding:6px;">{{ muted ? '🔇' : '🔊' }}</button>
+      </div>
+
+      <!-- rango -->
+      <div style="display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;">
+        <button v-for="p in [['todo','Todo'],['mes','Este mes'],['30d','30 días'],['7d','7 días']]" :key="p[0]"
+          @click="setPreset(p[0])"
+          :style="{ padding:'6px 13px', borderRadius:'999px', fontSize:'12px', fontWeight:'700', whiteSpace:'nowrap', border:'1px solid var(--border)', background: preset===p[0] ? 'rgba(201,168,76,0.22)' : 'transparent', color: preset===p[0] ? 'var(--gold)' : 'var(--text-muted)' }">
+          {{ p[1] }}
+        </button>
+      </div>
+
+      <div v-if="loading" style="display:flex;justify-content:center;padding:50px 0;"><div class="spin"></div></div>
+
+      <div v-else-if="error" class="empty-state" style="border-color:rgba(239,68,68,0.3);">
+        <div class="empty-icon" style="font-size:30px;">⚠️</div>
+        <p style="color:#f87171;font-size:13px;">{{ error }}</p>
+        <button @click="load()" style="margin-top:8px;padding:8px 16px;background:rgba(123,32,48,0.3);border:1px solid var(--border);border-radius:8px;font-size:13px;">Reintentar</button>
+      </div>
+
+      <template v-else-if="data">
+        <!-- resumen -->
+        <div style="display:flex;gap:8px;margin-bottom:16px;">
+          <div class="stat-tile reveal-pop">
+            <div style="font-size:10px;color:var(--text-muted);font-weight:700;letter-spacing:.05em;">TE DEBEN</div>
+            <div class="stat-big" style="color:#4ade80;">▲ {{ fmt(tDeben) }}</div>
+            <div style="font-size:10px;color:var(--text-muted);">{{ data.totales.n_te_deben }} aliados · pax</div>
+          </div>
+          <div class="stat-tile reveal-pop">
+            <div style="font-size:10px;color:var(--text-muted);font-weight:700;letter-spacing:.05em;">A MANO</div>
+            <div class="stat-big" style="color:var(--text-muted);">{{ data.totales.n_a_mano }}</div>
+            <div style="font-size:10px;color:var(--text-muted);">en cero</div>
+          </div>
+          <div class="stat-tile reveal-pop">
+            <div style="font-size:10px;color:var(--text-muted);font-weight:700;letter-spacing:.05em;">LES DEBES</div>
+            <div class="stat-big" style="color:#f87171;">▼ {{ fmt(tDebes) }}</div>
+            <div style="font-size:10px;color:var(--text-muted);">{{ data.totales.n_les_debes }} aliados · pax</div>
+          </div>
+        </div>
+
+        <div v-if="!data.aliados.length" class="empty-state" style="padding:24px;">
+          <div class="empty-icon" style="font-size:30px;">🤝</div>
+          <p style="font-size:13px;">Sin pases de aliados en este rango</p>
+        </div>
+
+        <template v-else>
+          <!-- barras divergentes -->
+          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:12px;margin-bottom:14px;">
+            <div style="font-size:10px;font-weight:700;color:var(--text-muted);margin-bottom:8px;display:flex;justify-content:space-between;">
+              <span style="color:#f87171;">◄ les debes</span><span>neto (pax)</span><span style="color:#4ade80;">te deben ►</span>
+            </div>
+            <div v-for="a in data.aliados" :key="'bar-'+a.id" class="dv-row">
+              <div class="dv-name">{{ a.nombre }}</div>
+              <div class="dv-track">
+                <div class="dv-center"></div>
+                <div class="dv-fill" :class="a.neto>=0 ? 'pos' : 'neg'" :style="{ width: barW(a.neto) }"></div>
+              </div>
+              <div class="dv-val" :style="{ color: netoColor(a) }">{{ a.neto>0 ? '+' : '' }}{{ a.neto }}</div>
+            </div>
+          </div>
+
+          <!-- tarjetas -->
+          <div v-for="a in data.aliados" :key="a.id" class="ali-card" :style="{ borderColor: expanded[a.id] ? netoColor(a) : 'var(--border)' }">
+            <div class="ali-head" @click="toggle(a.id)">
+              <div style="min-width:0;">
+                <div style="font-weight:800;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ a.nombre }}</div>
+                <div style="font-size:11px;color:var(--text-muted);">{{ a.id }} · entró {{ a.pax_in }} / salió {{ a.pax_out }}</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+                <span class="ali-badge" :style="{ background: a.neto>0 ? 'rgba(74,222,128,0.16)' : a.neto<0 ? 'rgba(248,113,113,0.16)' : 'rgba(255,255,255,0.06)', color: netoColor(a) }">{{ netoLabel(a) }}</span>
+                <span style="color:var(--text-muted);font-size:14px;transition:transform .2s;" :style="{ transform: expanded[a.id] ? 'rotate(90deg)' : 'none' }">›</span>
+              </div>
+            </div>
+            <div v-if="expanded[a.id]" class="ali-detail">
+              <div v-for="(m,i) in a.movimientos" :key="a.id+'-m-'+i" class="ali-mov">
+                <span style="color:var(--text-muted);width:64px;flex-shrink:0;">{{ m.fecha }}</span>
+                <span :style="{ color: m.dir==='in' ? '#4ade80' : '#f87171', fontWeight:'700', flexShrink:0 }">{{ m.dir==='in' ? 'PaseIn +'+m.pax : 'PaseOut −'+m.pax }}</span>
+                <span style="font-size:10px;color:var(--text-muted);flex:1;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><template v-if="m.origen">origen: {{ m.origen }}</template></span>
+              </div>
+              <div v-if="a.ventas_count" style="margin-top:8px;padding:8px 10px;border-radius:10px;background:rgba(201,168,76,0.08);border:1px dashed rgba(201,168,76,0.35);">
+                <div style="font-size:11px;font-weight:800;color:var(--gold);">💵 {{ a.ventas_count }} pase(s) pagados en efectivo · S/ {{ fmt(a.ventas_monto) }}</div>
+                <div style="font-size:10px;color:var(--text-muted);margin-top:2px;">⚠ caso especial — no entra al balance de pax</div>
+                <div v-for="(v,i) in a.ventas" :key="a.id+'-v-'+i" style="font-size:11px;color:var(--text-muted);margin-top:3px;display:flex;justify-content:space-between;gap:8px;">
+                  <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ v.fecha }} · {{ v.origen }} {{ v.pax }}pax</span><span style="flex-shrink:0;">S/ {{ fmt(v.monto) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
+      </template>
+
+      <div style="height:24px;"></div>
+    </div>
+  `
+};
+
 const ViewFinanzas = {
   name: 'ViewFinanzas',
+  components: { InsightAliados },
   props: ['data', 'loading'],
   emits: ['action'],
   setup(props, { emit }) {
@@ -4084,6 +4326,12 @@ const ViewFinanzas = {
       if (fechas.value[ni-1]) loadFecha(fechas.value[ni-1]);
       if (fechas.value[ni+1]) loadFecha(fechas.value[ni+1]);
     }
+
+    // Sub-navegación del módulo: caja | insights
+    const tab         = ref('caja');
+    const openInsight = ref(null);
+    function goInsight(id) { openInsight.value = id; sndTap(); }
+    function backInsight() { openInsight.value = null; sndTap(); }
 
     const selectedCaja = ref(null);
 
@@ -4152,10 +4400,18 @@ const ViewFinanzas = {
 
     return { fechas, cache, currentFecha, fechaIdx, loadingFechas, fetchError,
              today, fmt, fmtFecha, navigate, loadFechas, allCaja, cajaKpis,
-             selectedCaja, isIngreso, metodoIcon, cajaRowStyle, openCajaModal };
+             selectedCaja, isIngreso, metodoIcon, cajaRowStyle, openCajaModal,
+             tab, openInsight, goInsight, backInsight };
   },
   template: `
     <div>
+      <div class="fin-tabs">
+        <button class="fin-tab" :class="{ active: tab==='caja' }" @click="tab='caja'">💵 Caja</button>
+        <button class="fin-tab" :class="{ active: tab==='insights' }" @click="tab='insights'">📊 Insights</button>
+      </div>
+
+      <!-- ══════ CAJA ══════ -->
+      <div v-show="tab==='caja'">
       <div v-if="loadingFechas" style="display:flex;justify-content:center;padding:60px 0;">
         <div class="spin"></div>
       </div>
@@ -4252,6 +4508,32 @@ const ViewFinanzas = {
           </template>
 
         </div>
+      </div>
+
+      </div><!-- /caja -->
+
+      <!-- ══════ INSIGHTS (Paracas Insights) ══════ -->
+      <div v-show="tab==='insights'">
+        <div v-if="!openInsight" style="display:flex;flex-direction:column;gap:10px;">
+          <div style="font-size:11px;color:var(--text-muted);font-weight:700;letter-spacing:.05em;margin:2px 2px 4px;">📊 PARACAS INSIGHTS · ANÁLISIS</div>
+          <div class="insight-card" @click="goInsight('aliados')">
+            <div class="insight-ic">🤝</div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-weight:800;font-size:15px;">Aliados</div>
+              <div style="font-size:12px;color:var(--text-muted);">Balance de pases entre empresas (pax)</div>
+            </div>
+            <span style="color:var(--text-muted);font-size:18px;">›</span>
+          </div>
+          <div class="insight-card locked">
+            <div class="insight-ic">💸</div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-weight:800;font-size:15px;">Deudas</div>
+              <div style="font-size:12px;color:var(--text-muted);">Comisionados y agencias (S/) · próximamente</div>
+            </div>
+            <span style="font-size:13px;color:var(--text-muted);">🔒</span>
+          </div>
+        </div>
+        <insight-aliados v-else-if="openInsight==='aliados'" @back="backInsight()" />
       </div>
 
       <!-- Caja Detail Modal -->
@@ -5148,7 +5430,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.5.1';
+const APP_VERSION = '1.6.0';
 (function() {
   let _reg = null, _waitingWorker = null;
 

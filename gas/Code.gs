@@ -45,6 +45,9 @@ function doGet(e) {
       case 'lanchas_dia':
         data = getLanchasDia(e.parameter.fecha || hoy());
         break;
+      case 'balance_aliados':
+        data = getBalanceAliados(e.parameter.desde || '', e.parameter.hasta || '');
+        break;
       case 'hotel_habitaciones':
         data = getHotelHabitaciones();
         break;

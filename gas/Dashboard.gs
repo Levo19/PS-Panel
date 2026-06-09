@@ -222,3 +222,107 @@ function getHistorico7dias() {
   }
   return result;
 }
+
+// ── ALIADOS: balance de pases (en PAX) ───────────────────────
+// Lee Movimientos (SS_OPERACIONES_ID) y netea pases por aliado.
+// Modelo confirmado con operación:
+//   · Aliado(PaseIn) / Aliado  → el aliado (col id_contacto) NOS mandó pax → él nos debe (+)
+//   · Aliado(PaseOut) con Id_contactoPase → le mandamos pax a ese aliado  → le debemos (−)
+//        id_contacto en PaseOut = ORIGEN (solo informativo / etiqueta)
+//   · Aliado(PaseOut) sin Id_contactoPase + monto_comprado>0 → venta convertida:
+//        NO cuenta en PAX; se anota como dinero pagado al comprador (id_agencia_comprada)
+//   · Cancelado → ignora.   CON-00 (Varios) → no es aliado (informativo).
+// Params opcionales desde/hasta (yyyy-MM-dd, inclusive). Vacío = todo el histórico.
+function getBalanceAliados(desde, hasta) {
+  const ss = SpreadsheetApp.openById(
+    PropertiesService.getScriptProperties().getProperty('SS_OPERACIONES_ID')
+  );
+
+  // Mapa contactos: id → nombre
+  const nombreContacto = {};
+  const shCon = ss.getSheetByName('Contactos');
+  if (shCon) {
+    const d = shCon.getDataRange().getValues();
+    for (let i = 1; i < d.length; i++) {
+      const id = String(d[i][0] || '').trim();
+      if (id) nombreContacto[id] = String(d[i][1] || id);
+    }
+  }
+  const esVarios = id => /^CON-00/i.test(String(id || ''));
+  const nombreDe = id => nombreContacto[String(id || '').trim()] || String(id || '');
+
+  const aliados = {};
+  function ali(id) {
+    const key = String(id).trim();
+    if (!aliados[key]) {
+      aliados[key] = { id: key, nombre: nombreDe(key), pax_in: 0, pax_out: 0,
+                       movimientos: [], ventas_count: 0, ventas_monto: 0, ventas: [] };
+    }
+    return aliados[key];
+  }
+
+  const shMov = ss.getSheetByName('Movimientos');
+  if (shMov) {
+    const m = shMov.getDataRange().getValues();
+    for (let i = 1; i < m.length; i++) {
+      const row  = m[i];
+      const tipo = String(row[2] || '');
+      if (tipo.indexOf('Aliado') === -1) continue;                 // solo pases
+
+      const estado = String(row[11] || '').toLowerCase();
+      if (estado.indexOf('cancel') !== -1) continue;               // sin cancelados
+
+      let fecha = '';
+      try { fecha = Utilities.formatDate(new Date(row[10]), 'America/Lima', 'yyyy-MM-dd'); } catch(e) {}
+      if (desde && fecha && fecha < desde) continue;
+      if (hasta && fecha && fecha > hasta) continue;
+
+      const idContacto = String(row[3]  || '').trim();
+      const pax        = parseFloat(row[5]) || 0;
+      const idPase     = String(row[12] || '').trim();             // col 12 Id_contactoPase
+      const idCompra   = String(row[13] || '').trim();             // col 13 id_agencia_comprada
+      const montoComp  = parseFloat(row[14]) || 0;                 // col 14 monto_comprado
+      const esPaseOut  = tipo.indexOf('PaseOut') !== -1;
+
+      if (!esPaseOut) {
+        if (esVarios(idContacto) || !idContacto) continue;         // Varios no es aliado
+        const a = ali(idContacto);
+        a.pax_in += pax;
+        a.movimientos.push({ fecha, dir: 'in', pax, origen: '', id_mov: String(row[0] || '') });
+      } else if (idPase) {
+        const a = ali(idPase);                                     // favor en pax: le debemos
+        a.pax_out += pax;
+        a.movimientos.push({ fecha, dir: 'out', pax, origen: nombreDe(idContacto), id_mov: String(row[0] || '') });
+      } else if (montoComp > 0 && idCompra) {
+        const a = ali(idCompra);                                   // venta convertida (dinero)
+        a.ventas_count += 1;
+        a.ventas_monto += montoComp;
+        a.ventas.push({ fecha, pax, monto: montoComp, origen: nombreDe(idContacto), id_mov: String(row[0] || '') });
+      }
+      // PaseOut huérfano (sin destino ni venta) → se ignora
+    }
+  }
+
+  const lista = Object.keys(aliados).map(k => {
+    const a = aliados[k];
+    a.neto = a.pax_in - a.pax_out;
+    a.movimientos.sort((x, y) => String(x.fecha).localeCompare(String(y.fecha)));
+    a.ventas.sort((x, y) => String(x.fecha).localeCompare(String(y.fecha)));
+    return a;
+  }).filter(a => a.pax_in || a.pax_out || a.ventas_count)
+    .sort((x, y) => Math.abs(y.neto) - Math.abs(x.neto));
+
+  let te_deben = 0, les_debes = 0;
+  lista.forEach(a => { if (a.neto > 0) te_deben += a.neto; else if (a.neto < 0) les_debes += -a.neto; });
+
+  return {
+    desde: desde || '', hasta: hasta || '',
+    aliados: lista,
+    totales: {
+      te_deben, les_debes, neto_global: te_deben - les_debes,
+      n_te_deben:  lista.filter(a => a.neto > 0).length,
+      n_les_debes: lista.filter(a => a.neto < 0).length,
+      n_a_mano:    lista.filter(a => a.neto === 0).length
+    }
+  };
+}
