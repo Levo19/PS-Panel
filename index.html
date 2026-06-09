@@ -4129,6 +4129,147 @@ async function _fetchInsAli(preset) {
 }
 function preloadInsAli(preset) { preset = preset || 'todo'; if (!_insAliCache[preset]) _fetchInsAli(preset).catch(() => {}); }
 
+// ── Exportador Excel (ExcelJS lazy-load por CDN) ─────────────
+function ensureExcelJS() {
+  return new Promise((resolve, reject) => {
+    if (window.ExcelJS) return resolve(window.ExcelJS);
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
+    s.onload = () => resolve(window.ExcelJS);
+    s.onerror = () => reject(new Error('No se pudo cargar la librería de Excel'));
+    document.head.appendChild(s);
+  });
+}
+
+// Construye el libro: portada RESUMEN + una pestaña por aliado. Formato Grupo PS.
+async function _buildAliadosXlsx(ExcelJS, data, periodo) {
+  const GUINDA='FF7B2030', HEADc='FF5A1722', GOLD='FFC9A84C', WHITE='FFFFFFFF',
+        DARK='FF3E0F17', GREEN='FF1F7A4D', RED='FFC02434', ZEBRA='FFF6EFEA';
+  const thin = { style:'thin', color:{argb:'FFD9C9A0'} };
+  const bd = { top:thin, left:thin, bottom:thin, right:thin };
+  const fill = argb => ({ type:'pattern', pattern:'solid', fgColor:{ argb } });
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'Grupo PS';
+
+  // tab names: ≤31, sin caracteres prohibidos, sin duplicados
+  const used = {};
+  function tabName(nombre, id) {
+    let n = String(nombre || id).replace(/[\\\/\?\*\[\]:]/g, ' ').trim().slice(0, 28) || id;
+    let key = n.toLowerCase();
+    if (used[key]) n = (n.slice(0, 24) + ' ' + id).slice(0, 31);
+    used[n.toLowerCase()] = true;
+    return n;
+  }
+  function banda(ws, span, txt, bg, fg, size, h) {
+    ws.mergeCells(span);
+    const c = ws.getCell(span.split(':')[0]);
+    c.value = txt; c.fill = fill(bg);
+    c.font = { bold:true, size, color:{ argb: fg } };
+    c.alignment = { horizontal:'center', vertical:'middle' };
+    ws.getRow(parseInt(span.match(/\d+/)[0])).height = h;
+  }
+
+  // ── RESUMEN ──
+  const rs = wb.addWorksheet('RESUMEN', { properties:{ tabColor:{ argb: GUINDA } }, views:[{ state:'frozen', ySplit:5 }] });
+  rs.columns = [{ width:5 }, { width:28 }, { width:12 }, { width:12 }, { width:22 }];
+  banda(rs, 'A1:E1', '⚓ GRUPO PS — TURISMO MARÍTIMO', GUINDA, GOLD, 16, 30);
+  banda(rs, 'A2:E2', 'ESTADO DE CUENTA DE PASES (PAX)', HEADc, WHITE, 12, 22);
+  banda(rs, 'A3:E3', 'Periodo: ' + periodo + '     ·     Generado: ' + new Date().toLocaleString('es-PE'), GUINDA, GOLD, 9, 18);
+  ['#','ALIADO','ENTRÓ ▲','SALIÓ ▼','BALANCE (pax)'].forEach((hh, i) => {
+    const c = rs.getCell(5, i + 1);
+    c.value = hh; c.fill = fill(GUINDA); c.border = bd;
+    c.font = { bold:true, color:{ argb: WHITE }, size:11 };
+    c.alignment = { horizontal: i === 1 ? 'left' : 'center', vertical:'middle' };
+  });
+  rs.getRow(5).height = 20;
+  let r = 6;
+  data.aliados.forEach((a, idx) => {
+    const bal = a.neto > 0 ? '+' + a.neto + '  te debe' : a.neto < 0 ? a.neto + '  le debes' : '0  a mano';
+    const row = rs.getRow(r);
+    row.getCell(1).value = idx + 1;
+    row.getCell(2).value = a.nombre + ' (' + a.id + ')';
+    row.getCell(3).value = a.pax_in;
+    row.getCell(4).value = a.pax_out;
+    row.getCell(5).value = bal;
+    for (let ci = 1; ci <= 5; ci++) {
+      const c = row.getCell(ci); c.border = bd;
+      c.alignment = { horizontal: ci === 2 ? 'left' : 'center', vertical:'middle' };
+      if (idx % 2) c.fill = fill(ZEBRA);
+    }
+    row.getCell(5).font = { bold:true, color:{ argb: a.neto > 0 ? GREEN : a.neto < 0 ? RED : DARK } };
+    r++;
+  });
+  const trs = rs.getRow(r);
+  trs.getCell(2).value = 'TOTALES';
+  trs.getCell(3).value = data.aliados.reduce((s, a) => s + a.pax_in, 0);
+  trs.getCell(4).value = data.aliados.reduce((s, a) => s + a.pax_out, 0);
+  trs.getCell(5).value = 'te deben ' + data.totales.te_deben + ' / les debes ' + data.totales.les_debes;
+  for (let ci = 1; ci <= 5; ci++) {
+    const c = trs.getCell(ci); c.border = bd; c.fill = fill(HEADc);
+    c.font = { bold:true, color:{ argb: WHITE } };
+    c.alignment = { horizontal: ci === 2 ? 'left' : 'center', vertical:'middle' };
+  }
+  rs.pageSetup = { fitToPage:true, fitToWidth:1, fitToHeight:0, orientation:'portrait', margins:{ left:0.4, right:0.4, top:0.5, bottom:0.5, header:0.2, footer:0.2 } };
+  rs.pageSetup.printTitlesRow = '1:5';
+
+  // ── una pestaña por aliado ──
+  data.aliados.forEach(a => {
+    const ws = wb.addWorksheet(tabName(a.nombre, a.id), { views:[{ state:'frozen', ySplit:5 }] });
+    ws.columns = [{ width:5 }, { width:13 }, { width:8 }, { width:9 }, { width:9 }, { width:9 }, { width:42 }];
+    banda(ws, 'A1:G1', '⚓ GRUPO PS     ·     ESTADO DE CUENTA', GUINDA, GOLD, 14, 26);
+    banda(ws, 'A2:G2', a.nombre + '   (' + a.id + ')', HEADc, WHITE, 12, 22);
+    const balTxt = a.neto > 0 ? ('BALANCE: +' + a.neto + ' pax · TE DEBE') : a.neto < 0 ? ('BALANCE: ' + a.neto + ' pax · LE DEBES') : 'BALANCE: 0 · A MANO';
+    banda(ws, 'A3:G3', 'Periodo: ' + periodo + '          ' + balTxt, GUINDA, a.neto > 0 ? GOLD : a.neto < 0 ? 'FFF2B8C0' : GOLD, 11, 20);
+    ['#','FECHA','HORA','ENTRÓ ▲','SALIÓ ▼','SALDO','OBSERVACIONES'].forEach((hh, i) => {
+      const c = ws.getCell(5, i + 1);
+      c.value = hh; c.fill = fill(GUINDA); c.border = bd;
+      c.font = { bold:true, color:{ argb: WHITE }, size:10 };
+      c.alignment = { horizontal: i === 6 ? 'left' : 'center', vertical:'middle' };
+    });
+    ws.getRow(5).height = 18;
+    const movs = (a.movimientos || []).slice().sort((x, y) => (x.fecha + (x.hora||'')).localeCompare(y.fecha + (y.hora||'')));
+    let saldo = 0, rr = 6;
+    movs.forEach((m, idx) => {
+      saldo += (m.dir === 'in' ? m.pax : -m.pax);
+      const obs = m.directo
+        ? ('🏃 Pase directo' + (m.origen ? (' · 📍 ' + m.origen) : ''))
+        : [ m.embarcacion ? ('⛵ ' + m.embarcacion) : '', m.capitan ? ('👨‍✈️ ' + m.capitan) : '', m.origen ? ('📍 ' + m.origen) : '' ].filter(Boolean).join('  ·  ');
+      const row = ws.getRow(rr);
+      row.getCell(1).value = idx + 1;
+      row.getCell(2).value = m.fecha;
+      row.getCell(3).value = m.hora || '—';
+      row.getCell(4).value = m.dir === 'in' ? m.pax : '';
+      row.getCell(5).value = m.dir === 'out' ? m.pax : '';
+      row.getCell(6).value = (saldo > 0 ? '+' : '') + saldo;
+      row.getCell(7).value = obs;
+      for (let ci = 1; ci <= 7; ci++) {
+        const c = row.getCell(ci); c.border = bd;
+        c.alignment = { horizontal: ci === 7 ? 'left' : 'center', vertical:'middle', wrapText: ci === 7 };
+        if (idx % 2) c.fill = fill(ZEBRA);
+      }
+      row.getCell(4).font = { bold:true, color:{ argb: GREEN } };
+      row.getCell(5).font = { bold:true, color:{ argb: RED } };
+      row.getCell(6).font = { bold:true, color:{ argb: saldo > 0 ? GREEN : saldo < 0 ? RED : DARK } };
+      rr++;
+    });
+    const tr = ws.getRow(rr);
+    ws.mergeCells(rr, 1, rr, 3); tr.getCell(1).value = 'TOTALES';
+    tr.getCell(4).value = a.pax_in; tr.getCell(5).value = a.pax_out;
+    ws.mergeCells(rr, 6, rr, 7);
+    tr.getCell(6).value = 'BALANCE FINAL: ' + (a.neto > 0 ? '+' : '') + a.neto + ' pax · ' + (a.neto > 0 ? 'TE DEBE' : a.neto < 0 ? 'LE DEBES' : 'A MANO');
+    for (let ci = 1; ci <= 7; ci++) {
+      const c = tr.getCell(ci); c.border = bd; c.fill = fill(HEADc);
+      c.font = { bold:true, color:{ argb: WHITE } };
+      c.alignment = { horizontal: ci === 1 ? 'left' : 'center', vertical:'middle' };
+    }
+    tr.getCell(6).font = { bold:true, size:11, color:{ argb: a.neto > 0 ? GOLD : a.neto < 0 ? 'FFF2B8C0' : GOLD } };
+    ws.pageSetup = { fitToPage:true, fitToWidth:1, fitToHeight:0, orientation:'portrait', margins:{ left:0.4, right:0.4, top:0.5, bottom:0.5, header:0.2, footer:0.2 } };
+    ws.pageSetup.printTitlesRow = '1:5';
+  });
+
+  return wb;
+}
+
 // ── InsightAliados: balance de pases por aliado (PAX) ─────────
 const InsightAliados = {
   name: 'InsightAliados',
@@ -4140,6 +4281,8 @@ const InsightAliados = {
     const error    = ref('');
     const expanded = ref({});
     const showVentas = ref(false);
+    const exporting  = ref(false);
+    const exportErr  = ref('');
     const tDeben   = useTween(), tDebes = useTween();
 
     // Carga; opts.silent = sin spinner ni sonido (refresco de fondo cada 60s, sin parpadeo)
@@ -4198,6 +4341,29 @@ const InsightAliados = {
       });
     }
 
+    async function exportarExcel() {
+      if (!data.value || !data.value.aliados || !data.value.aliados.length) return;
+      exporting.value = true; exportErr.value = ''; sndTap();
+      try {
+        const ExcelJS = await ensureExcelJS();
+        const PER = { todo:'Todo', mes:'Este mes', '30d':'Últimos 30 días', '7d':'Últimos 7 días' };
+        const wb = await _buildAliadosXlsx(ExcelJS, data.value, PER[preset.value] || 'Todo');
+        const buf = await wb.xlsx.writeBuffer();
+        const blob = new Blob([buf], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = URL.createObjectURL(blob);
+        const aTag = document.createElement('a');
+        aTag.href = url;
+        aTag.download = 'EstadoCuentaAliados_GrupoPS_' + new Date().toISOString().slice(0, 10) + '.xlsx';
+        document.body.appendChild(aTag); aTag.click(); aTag.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+        sndUp();
+        setTimeout(() => { exporting.value = false; }, 450);   // deja ver la ventana de carga
+      } catch (e) {
+        exportErr.value = e.message || 'Error al exportar';
+        sndDown();
+      }
+    }
+
     let _timer = null;
     onMounted(() => {
       load({ silent: !!data.value });                          // cache pintada al instante; si no hay, spinner una vez
@@ -4205,8 +4371,8 @@ const InsightAliados = {
     });
     onUnmounted(() => { if (_timer) clearInterval(_timer); _timer = null; });
 
-    return { data, loading, error, preset, expanded, showVentas, tDeben: tDeben.val, tDebes: tDebes.val,
-             load, setPreset, toggle, barW, fmt, netoLabel, netoColor, fmtDia, porDia, emit };
+    return { data, loading, error, preset, expanded, showVentas, exporting, exportErr, tDeben: tDeben.val, tDebes: tDebes.val,
+             load, setPreset, toggle, exportarExcel, barW, fmt, netoLabel, netoColor, fmtDia, porDia, emit };
   },
   template: `
     <div>
@@ -4217,7 +4383,7 @@ const InsightAliados = {
           <div style="font-size:16px;font-weight:800;">🤝 Aliados</div>
           <div style="font-size:11px;color:var(--text-muted);">Balance de pases · personas</div>
         </div>
-        <button @click="$emit('export')" title="Exportar a Excel" style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800;color:#1f7a4d;background:rgba(74,222,128,0.16);border:1px solid rgba(74,222,128,0.4);padding:7px 12px;border-radius:11px;">📊 Excel</button>
+        <button @click="exportarExcel()" :disabled="!data || !data.aliados.length" title="Exportar a Excel" style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800;color:#4ade80;background:rgba(74,222,128,0.16);border:1px solid rgba(74,222,128,0.4);padding:7px 12px;border-radius:11px;">📊 Excel</button>
       </div>
 
       <!-- rango -->
@@ -4338,6 +4504,25 @@ const InsightAliados = {
           </div>
         </div>
       </template>
+
+      <!-- Ventana de carga / error de exportación -->
+      <teleport to="body">
+        <div v-if="exporting" style="position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.72);display:flex;align-items:center;justify-content:center;padding:24px;" @click.self="exportErr ? (exporting=false) : null">
+          <div class="reveal-pop" style="background:var(--bg2);border:1px solid rgba(201,168,76,0.4);border-radius:18px;padding:28px 30px;display:flex;flex-direction:column;align-items:center;gap:14px;box-shadow:0 20px 60px rgba(0,0,0,0.7);max-width:300px;text-align:center;">
+            <template v-if="!exportErr">
+              <div class="spin" style="width:44px;height:44px;"></div>
+              <div style="font-weight:800;font-size:15px;color:var(--gold);">Generando Excel…</div>
+              <div style="font-size:11px;color:var(--text-muted);">⚓ Grupo PS · una pestaña por aliado</div>
+            </template>
+            <template v-else>
+              <div style="font-size:30px;">⚠️</div>
+              <div style="font-weight:800;font-size:14px;color:#f87171;">No se pudo exportar</div>
+              <div style="font-size:11px;color:var(--text-muted);">{{ exportErr }}</div>
+              <button @click="exporting=false" style="margin-top:4px;padding:8px 18px;background:rgba(123,32,48,0.4);border:1px solid var(--border);border-radius:10px;font-size:13px;color:#f0e6d3;">Cerrar</button>
+            </template>
+          </div>
+        </div>
+      </teleport>
 
       <div style="height:24px;"></div>
     </div>
@@ -5511,7 +5696,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.6.4';
+const APP_VERSION = '1.7.0';
 (function() {
   let _reg = null, _waitingWorker = null;
 

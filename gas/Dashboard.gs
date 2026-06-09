@@ -257,13 +257,13 @@ function getBalanceAliados(desde, hasta) {
   const esAliadoTipo = id => tipoContacto[String(id || '').trim()] === 'aliado';
 
   // Mapa operación → id_bote (Operaciones col 3) y id_bote → nombre (Embarcaciones col 1)
-  const opBote = {};
+  const opBote = {}, opCapitan = {};
   const shOps = ss.getSheetByName('Operaciones');
   if (shOps) {
     const d = shOps.getDataRange().getValues();
     for (let i = 1; i < d.length; i++) {
       const idOp = String(d[i][0] || '').trim();
-      if (idOp) opBote[idOp] = String(d[i][3] || '').trim();
+      if (idOp) { opBote[idOp] = String(d[i][3] || '').trim(); opCapitan[idOp] = String(d[i][4] || '').trim(); }
     }
   }
   const boteNombre = {};
@@ -273,6 +273,15 @@ function getBalanceAliados(desde, hasta) {
     for (let i = 1; i < d.length; i++) {
       const idB = String(d[i][0] || '').trim();
       if (idB) boteNombre[idB] = String(d[i][1] || idB);
+    }
+  }
+  const personalNombre = {};   // Personal: id_empleado(0) | nombre(1)
+  const shPer = ss.getSheetByName('Personal');
+  if (shPer) {
+    const d = shPer.getDataRange().getValues();
+    for (let i = 1; i < d.length; i++) {
+      const idP = String(d[i][0] || '').trim();
+      if (idP) personalNombre[idP] = String(d[i][1] || idP);
     }
   }
 
@@ -307,6 +316,7 @@ function getBalanceAliados(desde, hasta) {
 
       const idOp        = String(row[1] || '').trim();
       const embarcacion = boteNombre[opBote[idOp]] || '';
+      const capitan     = personalNombre[opCapitan[idOp]] || '';
       const directo     = (!idOp || idOp === 'PASE_DIRECTO');
       const idContacto = String(row[3]  || '').trim();
       const pax        = parseFloat(row[5]) || 0;
@@ -326,7 +336,7 @@ function getBalanceAliados(desde, hasta) {
           continue;
         }
         const a = ali(idContacto); a.pax_in += pax;
-        a.movimientos.push({ fecha, hora, embarcacion, directo, dir: 'in', pax, origen: '', id_mov: idMov });
+        a.movimientos.push({ fecha, hora, embarcacion, capitan, directo, dir: 'in', pax, origen: '', id_mov: idMov });
       } else if (idPase) {
         // PaseOut → el aliado es Id_contactoPase (col 12); id_contacto es solo el origen
         if (esVarios(idPase)) continue;
@@ -337,7 +347,7 @@ function getBalanceAliados(desde, hasta) {
           continue;
         }
         const a = ali(idPase); a.pax_out += pax;
-        a.movimientos.push({ fecha, hora, embarcacion, directo, dir: 'out', pax, origen: nombreDe(idContacto), id_mov: idMov });
+        a.movimientos.push({ fecha, hora, embarcacion, capitan, directo, dir: 'out', pax, origen: nombreDe(idContacto), id_mov: idMov });
       } else if (montoComp > 0 && idCompra) {
         // venta convertida → dinero a una agencia (comprador). NO es aliado → sección aparte.
         ventas.push({ fecha, hora, pax, monto: montoComp, origen: nombreDe(idContacto),
