@@ -4151,8 +4151,8 @@ async function _buildAliadosXlsx(ExcelJS, data, periodo) {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Grupo PS';
 
-  // tab names: ≤31, sin caracteres prohibidos, sin duplicados
-  const used = {};
+  // tab names: ≤31, sin caracteres prohibidos, sin duplicados (RESUMEN reservado para la portada)
+  const used = { resumen: true };
   function tabName(nombre, id) {
     let n = String(nombre || id).replace(/[\\\/\?\*\[\]:]/g, ' ').trim().slice(0, 28) || id;
     let key = n.toLowerCase();
@@ -4383,7 +4383,7 @@ const InsightAliados = {
           <div style="font-size:16px;font-weight:800;">🤝 Aliados</div>
           <div style="font-size:11px;color:var(--text-muted);">Balance de pases · personas</div>
         </div>
-        <button @click="exportarExcel()" :disabled="!data || !data.aliados.length" title="Exportar a Excel" style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800;color:#4ade80;background:rgba(74,222,128,0.16);border:1px solid rgba(74,222,128,0.4);padding:7px 12px;border-radius:11px;">📊 Excel</button>
+        <button @click="exportarExcel()" :disabled="!data || !data.aliados.length" :style="{ opacity: (!data || !data.aliados.length) ? 0.4 : 1 }" title="Exportar a Excel" style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800;color:#4ade80;background:rgba(74,222,128,0.16);border:1px solid rgba(74,222,128,0.4);padding:7px 12px;border-radius:11px;">📊 Excel</button>
       </div>
 
       <!-- rango -->
@@ -4507,7 +4507,7 @@ const InsightAliados = {
 
       <!-- Ventana de carga / error de exportación -->
       <teleport to="body">
-        <div v-if="exporting" style="position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.72);display:flex;align-items:center;justify-content:center;padding:24px;" @click.self="exportErr ? (exporting=false) : null">
+        <div v-if="exporting" style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:300;background:rgba(0,0,0,0.72);display:flex;align-items:center;justify-content:center;padding:24px;-webkit-overflow-scrolling:touch;" @click.self="exportErr ? (exporting=false) : null">
           <div class="reveal-pop" style="background:var(--bg2);border:1px solid rgba(201,168,76,0.4);border-radius:18px;padding:28px 30px;display:flex;flex-direction:column;align-items:center;gap:14px;box-shadow:0 20px 60px rgba(0,0,0,0.7);max-width:300px;text-align:center;">
             <template v-if="!exportErr">
               <div class="spin" style="width:44px;height:44px;"></div>
@@ -5696,7 +5696,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.7.0';
+const APP_VERSION = '1.7.1';
 (function() {
   let _reg = null, _waitingWorker = null;
 
