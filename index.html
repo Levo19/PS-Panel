@@ -4148,6 +4148,10 @@ async function _buildAliadosXlsx(ExcelJS, data, periodo) {
   const thin = { style:'thin', color:{argb:'FFD9C9A0'} };
   const bd = { top:thin, left:thin, bottom:thin, right:thin };
   const fill = argb => ({ type:'pattern', pattern:'solid', fgColor:{ argb } });
+  const DAYBG = 'FFEFE3C8';
+  const MESES_L = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const DIAS_C  = ['dom','lun','mar','mié','jue','vie','sáb'];
+  const fmtDiaCorto = f => { const p = f.split('-'); const dt = new Date(+p[0], +p[1] - 1, +p[2], 12); return DIAS_C[dt.getDay()] + ' ' + p[2]; };
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Grupo PS';
 
@@ -4212,57 +4216,88 @@ async function _buildAliadosXlsx(ExcelJS, data, periodo) {
   rs.pageSetup = { fitToPage:true, fitToWidth:1, fitToHeight:0, orientation:'portrait', margins:{ left:0.4, right:0.4, top:0.5, bottom:0.5, header:0.2, footer:0.2 } };
   rs.pageSetup.printTitlesRow = '1:5';
 
-  // ── una pestaña por aliado ──
+  // ── una pestaña por aliado (agrupada por MES → DÍA, colapsable) ──
   data.aliados.forEach(a => {
     const ws = wb.addWorksheet(tabName(a.nombre, a.id), { views:[{ state:'frozen', ySplit:5 }] });
-    ws.columns = [{ width:5 }, { width:13 }, { width:8 }, { width:9 }, { width:9 }, { width:9 }, { width:42 }];
-    banda(ws, 'A1:G1', '⚓ GRUPO PS     ·     ESTADO DE CUENTA', GUINDA, GOLD, 14, 26);
-    banda(ws, 'A2:G2', a.nombre + '   (' + a.id + ')', HEADc, WHITE, 12, 22);
+    try { ws.properties.outlineProperties = { summaryBelow:false, summaryRight:false }; } catch(e) {}
+    ws.columns = [{ width:15 }, { width:8 }, { width:9 }, { width:9 }, { width:9 }, { width:44 }];
+    banda(ws, 'A1:F1', '⚓ GRUPO PS     ·     ESTADO DE CUENTA', GUINDA, GOLD, 14, 26);
+    banda(ws, 'A2:F2', a.nombre + '   (' + a.id + ')', HEADc, WHITE, 12, 22);
     const balTxt = a.neto > 0 ? ('BALANCE: +' + a.neto + ' pax · TE DEBE') : a.neto < 0 ? ('BALANCE: ' + a.neto + ' pax · LE DEBES') : 'BALANCE: 0 · A MANO';
-    banda(ws, 'A3:G3', 'Periodo: ' + periodo + '          ' + balTxt, GUINDA, a.neto > 0 ? GOLD : a.neto < 0 ? 'FFF2B8C0' : GOLD, 11, 20);
-    ['#','FECHA','HORA','ENTRÓ ▲','SALIÓ ▼','SALDO','OBSERVACIONES'].forEach((hh, i) => {
-      const c = ws.getCell(5, i + 1);
+    banda(ws, 'A3:F3', 'Periodo: ' + periodo + '          ' + balTxt, GUINDA, a.neto > 0 ? GOLD : a.neto < 0 ? 'FFF2B8C0' : GOLD, 11, 20);
+    ['FECHA','HORA','ENTRÓ ▲','SALIÓ ▼','SALDO','OBSERVACIONES'].forEach((hh, i) => {
+      const c = ws.getRow(5).getCell(i + 1);
       c.value = hh; c.fill = fill(GUINDA); c.border = bd;
       c.font = { bold:true, color:{ argb: WHITE }, size:10 };
-      c.alignment = { horizontal: i === 6 ? 'left' : 'center', vertical:'middle' };
+      c.alignment = { horizontal: i === 5 ? 'left' : 'center', vertical:'middle' };
     });
     ws.getRow(5).height = 18;
+
+    // agrupar por mes → día con subtotales
     const movs = (a.movimientos || []).slice().sort((x, y) => (x.fecha + (x.hora||'')).localeCompare(y.fecha + (y.hora||'')));
-    let saldo = 0, rr = 6;
-    movs.forEach((m, idx) => {
-      saldo += (m.dir === 'in' ? m.pax : -m.pax);
-      const obs = m.directo
-        ? ('🏃 Pase directo' + (m.origen ? (' · 📍 ' + m.origen) : ''))
-        : [ m.embarcacion ? ('⛵ ' + m.embarcacion) : '', m.capitan ? ('👨‍✈️ ' + m.capitan) : '', m.origen ? ('📍 ' + m.origen) : '' ].filter(Boolean).join('  ·  ');
-      const row = ws.getRow(rr);
-      row.getCell(1).value = idx + 1;
-      row.getCell(2).value = m.fecha;
-      row.getCell(3).value = m.hora || '—';
-      row.getCell(4).value = m.dir === 'in' ? m.pax : '';
-      row.getCell(5).value = m.dir === 'out' ? m.pax : '';
-      row.getCell(6).value = (saldo > 0 ? '+' : '') + saldo;
-      row.getCell(7).value = obs;
-      for (let ci = 1; ci <= 7; ci++) {
-        const c = row.getCell(ci); c.border = bd;
-        c.alignment = { horizontal: ci === 7 ? 'left' : 'center', vertical:'middle', wrapText: ci === 7 };
-        if (idx % 2) c.fill = fill(ZEBRA);
-      }
-      row.getCell(4).font = { bold:true, color:{ argb: GREEN } };
-      row.getCell(5).font = { bold:true, color:{ argb: RED } };
-      row.getCell(6).font = { bold:true, color:{ argb: saldo > 0 ? GREEN : saldo < 0 ? RED : DARK } };
-      rr++;
+    const meses = {};
+    movs.forEach(m => {
+      const ym = (m.fecha || '').slice(0, 7);
+      (meses[ym] = meses[ym] || { dias:{}, in:0, out:0 });
+      meses[ym][m.dir === 'in' ? 'in' : 'out'] += m.pax;
+      (meses[ym].dias[m.fecha] = meses[ym].dias[m.fecha] || { items:[], in:0, out:0 });
+      meses[ym].dias[m.fecha][m.dir === 'in' ? 'in' : 'out'] += m.pax;
+      meses[ym].dias[m.fecha].items.push(m);
     });
-    const tr = ws.getRow(rr);
-    ws.mergeCells(rr, 1, rr, 3); tr.getCell(1).value = 'TOTALES';
-    tr.getCell(4).value = a.pax_in; tr.getCell(5).value = a.pax_out;
-    ws.mergeCells(rr, 6, rr, 7);
-    tr.getCell(6).value = 'BALANCE FINAL: ' + (a.neto > 0 ? '+' : '') + a.neto + ' pax · ' + (a.neto > 0 ? 'TE DEBE' : a.neto < 0 ? 'LE DEBES' : 'A MANO');
-    for (let ci = 1; ci <= 7; ci++) {
-      const c = tr.getCell(ci); c.border = bd; c.fill = fill(HEADc);
-      c.font = { bold:true, color:{ argb: WHITE } };
-      c.alignment = { horizontal: ci === 1 ? 'left' : 'center', vertical:'middle' };
-    }
-    tr.getCell(6).font = { bold:true, size:11, color:{ argb: a.neto > 0 ? GOLD : a.neto < 0 ? 'FFF2B8C0' : GOLD } };
+
+    let saldo = 0, rr = 6;
+    Object.keys(meses).sort().forEach(ym => {
+      const M = meses[ym], yy = ym.split('-')[0], mm = ym.split('-')[1];
+      // banda MES (nivel 0)
+      const mr = ws.getRow(rr); ws.mergeCells(rr, 1, rr, 2);
+      mr.getCell(1).value = '📅 ' + (MESES_L[+mm - 1] || mm) + ' ' + yy;
+      mr.getCell(3).value = M.in; mr.getCell(4).value = M.out;
+      mr.getCell(5).value = (M.in - M.out > 0 ? '+' : '') + (M.in - M.out);
+      mr.getCell(6).value = 'subtotal del mes';
+      for (let ci = 1; ci <= 6; ci++) { const c = mr.getCell(ci); c.fill = fill(HEADc); c.border = bd; c.font = { bold:true, color:{ argb: GOLD }, size:11 }; c.alignment = { horizontal: ci === 1 ? 'left' : (ci === 6 ? 'left' : 'center'), vertical:'middle' }; }
+      mr.outlineLevel = 0; mr.height = 18; rr++;
+      // días (nivel 1)
+      Object.keys(M.dias).sort().forEach(dia => {
+        const D = M.dias[dia];
+        const dr = ws.getRow(rr); ws.mergeCells(rr, 1, rr, 2);
+        dr.getCell(1).value = '   ' + fmtDiaCorto(dia);
+        dr.getCell(3).value = D.in; dr.getCell(4).value = D.out;
+        dr.getCell(5).value = (D.in - D.out > 0 ? '+' : '') + (D.in - D.out);
+        for (let ci = 1; ci <= 6; ci++) { const c = dr.getCell(ci); c.fill = fill(DAYBG); c.border = bd; c.font = { bold:true, color:{ argb: DARK }, size:10 }; c.alignment = { horizontal: ci === 1 ? 'left' : 'center', vertical:'middle' }; }
+        dr.outlineLevel = 1; rr++;
+        // movimientos (nivel 2)
+        D.items.forEach((m, idx) => {
+          saldo += (m.dir === 'in' ? m.pax : -m.pax);
+          const obs = m.directo
+            ? ('🏃 Pase directo' + (m.origen ? (' · 📍 ' + m.origen) : ''))
+            : [ m.embarcacion ? ('⛵ ' + m.embarcacion) : '', m.capitan ? ('👨‍✈️ ' + m.capitan) : '', m.origen ? ('📍 ' + m.origen) : '' ].filter(Boolean).join('  ·  ');
+          const row = ws.getRow(rr);
+          row.getCell(2).value = m.hora || '—';
+          row.getCell(3).value = m.dir === 'in' ? m.pax : '';
+          row.getCell(4).value = m.dir === 'out' ? m.pax : '';
+          row.getCell(5).value = (saldo > 0 ? '+' : '') + saldo;
+          row.getCell(6).value = obs;
+          for (let ci = 1; ci <= 6; ci++) {
+            const c = row.getCell(ci); c.border = bd;
+            c.alignment = { horizontal: ci === 6 ? 'left' : 'center', vertical:'middle', wrapText: ci === 6 };
+            if (idx % 2) c.fill = fill(ZEBRA);
+          }
+          row.getCell(3).font = { bold:true, color:{ argb: GREEN } };
+          row.getCell(4).font = { bold:true, color:{ argb: RED } };
+          row.getCell(5).font = { bold:true, color:{ argb: saldo > 0 ? GREEN : saldo < 0 ? RED : DARK } };
+          row.outlineLevel = 2; rr++;
+        });
+      });
+    });
+
+    // TOTALES
+    const tr = ws.getRow(rr); ws.mergeCells(rr, 1, rr, 2); tr.getCell(1).value = 'TOTALES';
+    tr.getCell(3).value = a.pax_in; tr.getCell(4).value = a.pax_out;
+    tr.getCell(5).value = (a.neto > 0 ? '+' : '') + a.neto;
+    tr.getCell(6).value = 'BALANCE FINAL · ' + (a.neto > 0 ? 'TE DEBE' : a.neto < 0 ? 'LE DEBES' : 'A MANO');
+    for (let ci = 1; ci <= 6; ci++) { const c = tr.getCell(ci); c.border = bd; c.fill = fill(HEADc); c.font = { bold:true, color:{ argb: WHITE } }; c.alignment = { horizontal: ci === 1 ? 'left' : (ci === 6 ? 'left' : 'center'), vertical:'middle' }; }
+    tr.getCell(5).font = { bold:true, size:12, color:{ argb: a.neto > 0 ? GOLD : a.neto < 0 ? 'FFF2B8C0' : GOLD } };
+    tr.getCell(6).font = { bold:true, color:{ argb: GOLD } };
     ws.pageSetup = { fitToPage:true, fitToWidth:1, fitToHeight:0, orientation:'portrait', margins:{ left:0.4, right:0.4, top:0.5, bottom:0.5, header:0.2, footer:0.2 } };
     ws.pageSetup.printTitlesRow = '1:5';
   });
@@ -5696,7 +5731,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.7.1';
+const APP_VERSION = '1.7.2';
 (function() {
   let _reg = null, _waitingWorker = null;
 
