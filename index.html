@@ -5795,23 +5795,116 @@ const ViewCatalogos = {
   `
 };
 
+// ── Control de Apps del ecosistema (estado + horario) ────────
+const AppsControl = {
+  name: 'AppsControl',
+  setup() {
+    const apps      = ref([]);
+    const cargando  = ref(true);
+    const needPin   = ref(false);
+    const pinReauth = ref('');
+    const reauthBusy= ref(false);
+    const guardando = ref('');
+    const toast     = ref({ show: false, msg: '', tipo: 'ok' });
+    let toastTimer  = null;
+    const DIAS = [{v:1,l:'L'},{v:2,l:'M'},{v:3,l:'X'},{v:4,l:'J'},{v:5,l:'V'},{v:6,l:'S'},{v:0,l:'D'}];
+    const _sess = () => { try { return JSON.parse(localStorage.getItem('ps_session') || '{}'); } catch(e){ return {}; } };
+    const _por  = () => (_sess().nombre || 'Admin');
+    function notify(msg, tipo='ok') { if (toastTimer) clearTimeout(toastTimer); toast.value = { show:true, msg, tipo }; toastTimer = setTimeout(()=>toast.value.show=false, 2800); }
+
+    async function cargar() {
+      cargando.value = true;
+      const { data: sess } = await sbClient.auth.getSession();
+      if (!sess || !sess.session) { cargando.value = false; needPin.value = true; return; }
+      const { data, error } = await sbClient.rpc('admin_listar_apps');
+      cargando.value = false;
+      if (error) { if (/NO_ADMIN|JWT|401|denied/i.test(error.message)) { needPin.value = true; return; } notify(error.message, 'err'); return; }
+      needPin.value = false;
+      apps.value = (data || []).map(a => ({
+        app_id: a.app_id, nombre: a.nombre, estado: a.estado,
+        hora_apertura: a.hora_apertura || '', hora_cierre: a.hora_cierre || '',
+        dias: Array.isArray(a.dias) ? a.dias.slice() : [0,1,2,3,4,5,6],
+        mensaje: a.mensaje || '', actualizado_por: a.actualizado_por || ''
+      }));
+    }
+    async function reconectar() {
+      const s = _sess();
+      if (!s.id) { notify('No encuentro tu sesión. Vuelve a entrar.', 'err'); return; }
+      if (!/^\d{4,8}$/.test(pinReauth.value)) { notify('PIN de 4 a 8 dígitos', 'err'); return; }
+      reauthBusy.value = true;
+      const { error } = await sbClient.auth.signInWithPassword({ email: String(s.id).toLowerCase()+'@paracas.local', password: pinReauth.value });
+      reauthBusy.value = false;
+      if (error) { notify('PIN incorrecto', 'err'); return; }
+      pinReauth.value = ''; needPin.value = false; cargar();
+    }
+    function toggleDia(a, v) { const i = a.dias.indexOf(v); if (i >= 0) a.dias.splice(i,1); else a.dias.push(v); }
+    async function guardar(a) {
+      guardando.value = a.app_id;
+      const { error } = await sbClient.rpc('admin_set_app_config', {
+        p_app: a.app_id, p_nombre: a.nombre, p_estado: a.estado,
+        p_apertura: a.hora_apertura || null, p_cierre: a.hora_cierre || null,
+        p_dias: a.dias.length ? a.dias : [0,1,2,3,4,5,6], p_mensaje: a.mensaje || null, p_por: _por()
+      });
+      guardando.value = '';
+      if (error) { notify(error.message.replace(/^[A-Z_]+:\s*/, '') || 'Error', 'err'); return; }
+      notify('✅ Guardado');
+    }
+    async function abrirCerrar(a, estado) { a.estado = estado; await guardar(a); }
+    onMounted(cargar);
+    return { apps, cargando, needPin, pinReauth, reauthBusy, guardando, toast, DIAS, cargar, reconectar, toggleDia, guardar, abrirCerrar };
+  },
+  template: `
+    <div class="section-card glass" style="margin-bottom:24px;">
+      <div class="section-title">Apps · estado y horario</div>
+      <p style="font-size:12px;color:var(--text-muted);margin:4px 0 14px;">Abre o cierra tus apps y define su horario. Esto controla el acceso en tiempo real.</p>
+      <div v-if="cargando" class="empty-state" style="padding:18px 0;"><p>Cargando…</p></div>
+      <div v-else-if="needPin">
+        <p style="font-size:12px;color:var(--text-muted);margin:0 0 8px;">Confirma tu PIN para gestionar las apps.</p>
+        <input v-model="pinReauth" class="config-input" type="tel" inputmode="numeric" maxlength="8" placeholder="••••" style="letter-spacing:.3em;text-align:center;" @keyup.enter="reconectar()">
+        <button class="btn-primary" style="width:100%;padding:11px;margin-top:8px;" :disabled="reauthBusy" @click="reconectar()">{{ reauthBusy ? '…' : 'Continuar' }}</button>
+      </div>
+      <template v-else>
+        <div v-for="a in apps" :key="a.app_id" style="border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:14px;margin-bottom:12px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+            <div style="font-weight:800;">{{ a.nombre }}</div>
+            <span :style="{padding:'3px 10px',borderRadius:'20px',fontSize:'11px',fontWeight:'800',color:'#fff',background: a.estado==='abierta' ? '#15803d' : a.estado==='mantenimiento' ? '#b45309' : '#b91c1c'}">{{ a.estado.toUpperCase() }}</span>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:12px;">
+            <button class="btn-primary" style="flex:1;padding:10px;" @click="abrirCerrar(a,'abierta')">Abrir</button>
+            <button class="btn-secondary" style="flex:1;padding:10px;" @click="abrirCerrar(a,'cerrada')">Cerrar</button>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:10px;">
+            <div style="flex:1;"><div class="config-label">Apertura</div><input v-model="a.hora_apertura" type="time" class="config-input"></div>
+            <div style="flex:1;"><div class="config-label">Cierre</div><input v-model="a.hora_cierre" type="time" class="config-input"></div>
+          </div>
+          <div class="config-label">Días operativos</div>
+          <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
+            <button v-for="d in DIAS" :key="d.v" @click="toggleDia(a,d.v)"
+              :style="{width:'36px',height:'36px',borderRadius:'10px',fontWeight:'800',fontSize:'12px',border:'1px solid rgba(255,255,255,.2)',cursor:'pointer',background: a.dias.includes(d.v) ? 'var(--gold)' : 'transparent', color: a.dias.includes(d.v) ? '#1a0d10' : '#fff'}">{{ d.l }}</button>
+          </div>
+          <div class="config-label">Mensaje cuando está cerrada</div>
+          <input v-model="a.mensaje" class="config-input" placeholder="Ej: Volvemos mañana 8am" style="margin-bottom:6px;">
+          <p v-if="a.actualizado_por" style="font-size:11px;color:var(--text-muted);margin:2px 0 10px;">Último cambio: {{ a.actualizado_por }}</p>
+          <button class="btn-primary" style="width:100%;padding:11px;" :disabled="guardando===a.app_id" @click="guardar(a)">{{ guardando===a.app_id ? '…' : 'Guardar horario' }}</button>
+        </div>
+        <div v-if="!apps.length" class="empty-state" style="padding:18px 0;"><p>Sin apps configuradas</p></div>
+      </template>
+      <transition name="fade">
+        <div v-if="toast.show" :style="{position:'fixed',bottom:'90px',left:'50%',transform:'translateX(-50%)',zIndex:10000,padding:'12px 20px',borderRadius:'14px',fontWeight:'700',fontSize:'13px',color:'#fff',background: toast.tipo==='err' ? '#b91c1c' : '#15803d',boxShadow:'0 8px 24px rgba(0,0,0,.4)'}">{{ toast.msg }}</div>
+      </transition>
+    </div>
+  `
+};
+
 const ViewConfig = {
   name: 'ViewConfig',
+  components: { AppsControl },
   props: ['data', 'loading'],
   emits: ['action'],
   template: `
     <div>
-      <!-- Conexión -->
-      <div class="section-card glass">
-        <div class="section-title">Servidor</div>
-        <div class="config-section">
-          <div class="config-label">URL del GAS (Web App)</div>
-          <input v-model="apiUrl" class="config-input" placeholder="https://script.google.com/macros/s/...">
-        </div>
-        <button class="btn-primary" style="width:100%;padding:12px;" @click="$emit('action',{type:'save_api_url',url:apiUrl})">
-          Guardar URL
-        </button>
-      </div>
+      <!-- Apps del ecosistema (estado + horario) -->
+      <apps-control />
 
       <!-- Personal Master -->
       <div class="section-card glass" style="margin-bottom:24px;">
@@ -6290,7 +6383,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.10.1';
+const APP_VERSION = '1.11.0';
 (function() {
   let _reg = null, _waitingWorker = null;
 
