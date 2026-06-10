@@ -5861,7 +5861,11 @@ const ViewEmpleados = {
     const toast    = ref({ show: false, msg: '', tipo: 'ok' });
     const modal    = ref(null);   // { id, nombre, rol, pin, esNuevo } | null
     const guardando= ref(false);
+    const needPin  = ref(false);  // sesión Supabase admin ausente → pedir PIN
+    const pinReauth= ref('');
+    const reauthBusy = ref(false);
     let toastTimer = null;
+    const _sess = () => { try { return JSON.parse(localStorage.getItem('ps_session') || '{}'); } catch(e){ return {}; } };
 
     function notify(msg, tipo = 'ok') {
       if (toastTimer) clearTimeout(toastTimer);
@@ -5872,10 +5876,27 @@ const ViewEmpleados = {
 
     async function cargar() {
       cargando.value = true; errMsg.value = '';
+      // si no hay sesión Supabase, pedir PIN para reconectar (sesión vieja restaurada o expirada)
+      const { data: sess } = await sbClient.auth.getSession();
+      if (!sess || !sess.session) { cargando.value = false; needPin.value = true; return; }
       const { data, error } = await sbClient.rpc('admin_listar_empleados');
       cargando.value = false;
-      if (error) { errMsg.value = /NO_ADMIN|JWT|session/i.test(error.message) ? 'Sesión de administrador no activa. Vuelve a iniciar sesión.' : error.message; lista.value = []; return; }
-      lista.value = data || [];
+      if (error) {
+        if (/NO_ADMIN|JWT|401|denied/i.test(error.message)) { needPin.value = true; return; }
+        errMsg.value = error.message; lista.value = []; return;
+      }
+      needPin.value = false; lista.value = data || [];
+    }
+
+    async function reconectar() {
+      const s = _sess();
+      if (!s.id) { notify('No encuentro tu sesión. Cierra y vuelve a entrar.', 'err'); return; }
+      if (!/^\d{4,8}$/.test(pinReauth.value)) { notify('PIN de 4 a 8 dígitos', 'err'); return; }
+      reauthBusy.value = true;
+      const { error } = await sbClient.auth.signInWithPassword({ email: String(s.id).toLowerCase() + '@paracas.local', password: pinReauth.value });
+      reauthBusy.value = false;
+      if (error) { notify('PIN incorrecto', 'err'); return; }
+      pinReauth.value = ''; needPin.value = false; cargar();
     }
 
     function nuevo()  { modal.value = { id: 'USR_' + Date.now(), nombre: '', rol: 'Operador', pin: '', esNuevo: true }; }
@@ -5902,7 +5923,7 @@ const ViewEmpleados = {
     }
 
     onMounted(cargar);
-    return { lista, cargando, errMsg, toast, modal, guardando, iniciales, cargar, nuevo, editar, cerrar, guardar, toggle };
+    return { lista, cargando, errMsg, toast, modal, guardando, needPin, pinReauth, reauthBusy, iniciales, cargar, reconectar, nuevo, editar, cerrar, guardar, toggle };
   },
   template: `
     <div>
@@ -5915,6 +5936,12 @@ const ViewEmpleados = {
       </div>
 
       <div v-if="cargando" class="empty-state" style="padding:30px 0;"><p>Cargando…</p></div>
+      <div v-else-if="needPin" class="section-card glass">
+        <div class="section-title">Confirma tu PIN</div>
+        <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;">Para gestionar empleados necesitamos reabrir tu sesión segura.</p>
+        <input v-model="pinReauth" class="config-input" type="tel" inputmode="numeric" maxlength="8" placeholder="••••" style="letter-spacing:.3em;text-align:center;" @keyup.enter="reconectar()">
+        <button class="btn-primary" style="width:100%;padding:12px;margin-top:10px;" :disabled="reauthBusy" @click="reconectar()">{{ reauthBusy ? '…' : 'Continuar' }}</button>
+      </div>
       <div v-else-if="errMsg" class="section-card glass" style="border-color:rgba(248,113,113,.4);">
         <p style="color:#f87171;font-size:13px;">{{ errMsg }}</p>
         <button class="btn-secondary" style="width:100%;padding:10px;margin-top:10px;" @click="cargar()">Reintentar</button>
@@ -6263,7 +6290,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.10.0';
+const APP_VERSION = '1.10.1';
 (function() {
   let _reg = null, _waitingWorker = null;
 
