@@ -9,6 +9,7 @@
 <link rel="manifest" href="./manifest.json">
 <script src="https://unpkg.com/vue@3.4.21/dist/vue.global.prod.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 /* ── Variables ──────────────────────────────────────────── */
@@ -1429,6 +1430,9 @@ select.config-input option { background: #1e0a10; color: var(--text); }
             <button v-if="isAdminRoot" class="user-menu-item" @click="goModule('catalogos'); showUserMenu=false">
               <span class="mi-icon">📚</span> Catálogos
             </button>
+            <button v-if="session.rol === 'Administrador'" class="user-menu-item" @click="goModule('empleados'); showUserMenu=false">
+              <span class="mi-icon">🧑‍✈️</span> Empleados
+            </button>
             <button class="user-menu-item" @click="goModule('config'); showUserMenu=false">
               <span class="mi-icon">⚙️</span> Configuración
             </button>
@@ -1647,6 +1651,18 @@ async function apiPost(body) {
     body: JSON.stringify(body)
   });
   return r.json();
+}
+
+// ── Supabase (gestión de empleados/PINs de OperacionesPS) ────
+const SUPA_URL  = 'https://lintmcxqxnrholslatul.supabase.co';
+const SUPA_ANON = 'sb_publishable_9dpGbh-aKwTxC8gvOk8Muw_aSpMby0G';
+const sbClient  = window.supabase.createClient(SUPA_URL, SUPA_ANON, {
+  auth: { persistSession: true, autoRefreshToken: true, storageKey: 'ps_supa_auth' }
+});
+// Patricia (Administrador) entra a Supabase con su mismo id/PIN para poder gestionar empleados.
+async function supaLoginAdmin(id, pin) {
+  try { const { error } = await sbClient.auth.signInWithPassword({ email: String(id).toLowerCase() + '@paracas.local', password: String(pin) });
+        return !error; } catch (e) { return false; }
 }
 
 // ── Catálogos: cache global precargado al login ──────────────
@@ -5833,9 +5849,130 @@ const ViewConfig = {
   methods: { iniciales(n) { if (!n) return '?'; return n.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase(); } }
 };
 
+// ── Empleados (gestión de operadores/PINs en Supabase) ───────
+const ViewEmpleados = {
+  name: 'ViewEmpleados',
+  props: ['data', 'loading'],
+  emits: ['action'],
+  setup() {
+    const lista    = ref([]);
+    const cargando = ref(true);
+    const errMsg   = ref('');
+    const toast    = ref({ show: false, msg: '', tipo: 'ok' });
+    const modal    = ref(null);   // { id, nombre, rol, pin, esNuevo } | null
+    const guardando= ref(false);
+    let toastTimer = null;
+
+    function notify(msg, tipo = 'ok') {
+      if (toastTimer) clearTimeout(toastTimer);
+      toast.value = { show: true, msg, tipo };
+      toastTimer = setTimeout(() => { toast.value.show = false; }, 2800);
+    }
+    function iniciales(n) { return (n || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase(); }
+
+    async function cargar() {
+      cargando.value = true; errMsg.value = '';
+      const { data, error } = await sbClient.rpc('admin_listar_empleados');
+      cargando.value = false;
+      if (error) { errMsg.value = /NO_ADMIN|JWT|session/i.test(error.message) ? 'Sesión de administrador no activa. Vuelve a iniciar sesión.' : error.message; lista.value = []; return; }
+      lista.value = data || [];
+    }
+
+    function nuevo()  { modal.value = { id: 'USR_' + Date.now(), nombre: '', rol: 'Operador', pin: '', esNuevo: true }; }
+    function editar(e){ modal.value = { id: e.id, nombre: e.nombre, rol: e.rol, pin: '', esNuevo: false }; }
+    function cerrar() { modal.value = null; }
+
+    async function guardar() {
+      const m = modal.value; if (!m) return;
+      if (!m.nombre.trim()) { notify('Falta el nombre', 'err'); return; }
+      if (!/^\d{4,8}$/.test(m.pin)) { notify('PIN de 4 a 8 dígitos', 'err'); return; }
+      guardando.value = true;
+      const { error } = await sbClient.rpc('admin_set_pin', { p_id: m.id, p_nombre: m.nombre.trim(), p_rol: m.rol, p_pin: m.pin });
+      guardando.value = false;
+      if (error) { notify(error.message.replace(/^[A-Z_]+:\s*/, '') || 'Error', 'err'); return; }
+      cerrar(); notify(m.esNuevo ? '✅ Empleado creado' : '✅ PIN actualizado'); cargar();
+    }
+
+    async function toggle(e) {
+      const nuevoEstado = !e.activo;
+      e.activo = nuevoEstado;   // optimista
+      const { error } = await sbClient.rpc('admin_toggle_activo', { p_id: e.id, p_activo: nuevoEstado });
+      if (error) { e.activo = !nuevoEstado; notify('No se pudo cambiar', 'err'); return; }
+      notify(nuevoEstado ? '✅ Activado' : '🚫 Desactivado');
+    }
+
+    onMounted(cargar);
+    return { lista, cargando, errMsg, toast, modal, guardando, iniciales, cargar, nuevo, editar, cerrar, guardar, toggle };
+  },
+  template: `
+    <div>
+      <div class="section-card glass" style="margin-bottom:16px;">
+        <div class="section-title" style="justify-content:space-between;">
+          <span>Empleados · Operaciones</span>
+          <button class="btn-icon" @click="nuevo()" style="width:auto;padding:4px 12px;font-size:12px;font-weight:700;color:var(--gold);">+ Nuevo</button>
+        </div>
+        <p style="font-size:12px;color:var(--text-muted);margin:4px 0 0;">Operadores que entran a OperacionesPS. El PIN se guarda cifrado en Supabase.</p>
+      </div>
+
+      <div v-if="cargando" class="empty-state" style="padding:30px 0;"><p>Cargando…</p></div>
+      <div v-else-if="errMsg" class="section-card glass" style="border-color:rgba(248,113,113,.4);">
+        <p style="color:#f87171;font-size:13px;">{{ errMsg }}</p>
+        <button class="btn-secondary" style="width:100%;padding:10px;margin-top:10px;" @click="cargar()">Reintentar</button>
+      </div>
+      <template v-else>
+        <div v-for="e in lista" :key="e.id" class="pm-card glass" :style="{marginBottom:'8px', opacity: e.activo ? 1 : .5}">
+          <div class="pm-avatar">{{ iniciales(e.nombre) }}</div>
+          <div class="pm-info">
+            <div class="pm-name">{{ e.nombre }}</div>
+            <div class="pm-rol">{{ e.rol }}<span v-if="!e.activo"> · inactivo</span></div>
+          </div>
+          <div class="pm-actions">
+            <button class="btn-icon" title="Resetear PIN / editar" @click="editar(e)">🔑</button>
+            <button class="btn-icon" :title="e.activo ? 'Desactivar' : 'Activar'" @click="toggle(e)">{{ e.activo ? '🚫' : '✅' }}</button>
+          </div>
+        </div>
+        <div v-if="!lista.length" class="empty-state" style="padding:20px 0;"><p>Sin empleados</p></div>
+      </template>
+
+      <!-- Modal alta / reset PIN -->
+      <transition name="fade">
+        <div v-if="modal" style="position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:9999;padding:18px;" @click.self="cerrar()">
+          <div class="section-card glass" style="width:min(94vw,380px);">
+            <div class="section-title">{{ modal.esNuevo ? 'Nuevo empleado' : 'Editar · ' + modal.nombre }}</div>
+            <div class="config-section">
+              <div class="config-label">Nombre</div>
+              <input v-model="modal.nombre" class="config-input" :disabled="!modal.esNuevo" placeholder="Nombre y apellido">
+            </div>
+            <div class="config-section">
+              <div class="config-label">Rol</div>
+              <select v-model="modal.rol" class="config-input">
+                <option value="Operador">Operador (OperacionesPS)</option>
+                <option value="Administrador">Administrador (PS)</option>
+              </select>
+            </div>
+            <div class="config-section">
+              <div class="config-label">{{ modal.esNuevo ? 'PIN' : 'Nuevo PIN' }} (4 a 8 dígitos)</div>
+              <input v-model="modal.pin" class="config-input" type="tel" inputmode="numeric" maxlength="8" placeholder="••••" style="letter-spacing:.3em;">
+            </div>
+            <div style="display:flex;gap:8px;margin-top:12px;">
+              <button class="btn-secondary" style="flex:1;padding:12px;" @click="cerrar()">Cancelar</button>
+              <button class="btn-primary" style="flex:2;padding:12px;" :disabled="guardando" @click="guardar()">{{ guardando ? '…' : 'Guardar' }}</button>
+            </div>
+          </div>
+        </div>
+      </transition>
+
+      <!-- Toast local -->
+      <transition name="fade">
+        <div v-if="toast.show" :style="{position:'fixed',bottom:'90px',left:'50%',transform:'translateX(-50%)',zIndex:10000,padding:'12px 20px',borderRadius:'14px',fontWeight:'700',fontSize:'13px',color:'#fff',background: toast.tipo==='err' ? '#b91c1c' : '#15803d',boxShadow:'0 8px 24px rgba(0,0,0,.4)'}">{{ toast.msg }}</div>
+      </transition>
+    </div>
+  `
+};
+
 // ── Main app ─────────────────────────────────────────────────
 createApp({
-  components: { ViewDashboard, ViewLanchas, ViewHotel, ViewFinanzas, ViewConfig, ViewCatalogos },
+  components: { ViewDashboard, ViewLanchas, ViewHotel, ViewFinanzas, ViewConfig, ViewCatalogos, ViewEmpleados },
 
   setup() {
     const session        = ref(JSON.parse(localStorage.getItem('ps_session') || 'null'));
@@ -5899,7 +6036,7 @@ createApp({
     function navIcon(id) { return NAV_ICONS[id] || ''; }
 
     const currentView = computed(() => {
-      const map = { dashboard: 'ViewDashboard', lanchas: 'ViewLanchas', hotel: 'ViewHotel', finanzas: 'ViewFinanzas', config: 'ViewConfig', catalogos: 'ViewCatalogos' };
+      const map = { dashboard: 'ViewDashboard', lanchas: 'ViewLanchas', hotel: 'ViewHotel', finanzas: 'ViewFinanzas', config: 'ViewConfig', catalogos: 'ViewCatalogos', empleados: 'ViewEmpleados' };
       return map[currentModule.value] || 'ViewDashboard';
     });
 
@@ -5944,6 +6081,8 @@ createApp({
         if (r.ok && r.data.ok) {
           session.value = { ...r.data, loginAt: Date.now() };
           localStorage.setItem('ps_session', JSON.stringify(session.value));
+          // Administrador: abrir también sesión Supabase para gestionar empleados/PINs
+          if ((r.data.rol || '') === 'Administrador' && r.data.id) supaLoginAdmin(r.data.id, loginPin.value);
           preloadCatalogos();
           await loadModuleData('dashboard');
         } else {
@@ -6043,6 +6182,7 @@ createApp({
         case 'toast': showToast(ev.msg, ev.dur || 2500); break;
 
         case 'logout':
+          try { sbClient.auth.signOut(); } catch(e) {}
           session.value = null;
           localStorage.removeItem('ps_session');
           loginStep.value = 'select'; loginPin.value = ''; loginSelected.value = null;
@@ -6123,7 +6263,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.9.2';
+const APP_VERSION = '1.10.0';
 (function() {
   let _reg = null, _waitingWorker = null;
 
