@@ -5831,7 +5831,7 @@ const AppsControl = {
     async function reconectar() {
       const s = _sess();
       if (!s.id) { notify('No encuentro tu sesión. Vuelve a entrar.', 'err'); return; }
-      if (!/^\d{4,8}$/.test(pinReauth.value)) { notify('PIN de 4 a 8 dígitos', 'err'); return; }
+      if (!/^\d{4}$/.test(pinReauth.value)) { notify('PIN de 4 dígitos', 'err'); return; }
       reauthBusy.value = true;
       const { error } = await sbClient.auth.signInWithPassword({ email: String(s.id).toLowerCase()+'@paracas.local', password: pinReauth.value });
       reauthBusy.value = false;
@@ -5861,7 +5861,7 @@ const AppsControl = {
       <div v-if="cargando" class="empty-state" style="padding:18px 0;"><p>Cargando…</p></div>
       <div v-else-if="needPin">
         <p style="font-size:12px;color:var(--text-muted);margin:0 0 8px;">Confirma tu PIN para gestionar las apps.</p>
-        <input v-model="pinReauth" class="config-input" type="tel" inputmode="numeric" maxlength="8" placeholder="••••" style="letter-spacing:.3em;text-align:center;" @keyup.enter="reconectar()">
+        <input v-model="pinReauth" class="config-input" type="tel" inputmode="numeric" maxlength="4" placeholder="••••" style="letter-spacing:.3em;text-align:center;" @keyup.enter="reconectar()">
         <button class="btn-primary" style="width:100%;padding:11px;margin-top:8px;" :disabled="reauthBusy" @click="reconectar()">{{ reauthBusy ? '…' : 'Continuar' }}</button>
       </div>
       <template v-else>
@@ -5985,7 +5985,7 @@ const ViewEmpleados = {
     async function reconectar() {
       const s = _sess();
       if (!s.id) { notify('No encuentro tu sesión. Cierra y vuelve a entrar.', 'err'); return; }
-      if (!/^\d{4,8}$/.test(pinReauth.value)) { notify('PIN de 4 a 8 dígitos', 'err'); return; }
+      if (!/^\d{4}$/.test(pinReauth.value)) { notify('PIN de 4 dígitos', 'err'); return; }
       reauthBusy.value = true;
       const { error } = await sbClient.auth.signInWithPassword({ email: String(s.id).toLowerCase() + '@paracas.local', password: pinReauth.value });
       reauthBusy.value = false;
@@ -6000,7 +6000,7 @@ const ViewEmpleados = {
     async function guardar() {
       const m = modal.value; if (!m) return;
       if (!m.nombre.trim()) { notify('Falta el nombre', 'err'); return; }
-      if (!/^\d{4,8}$/.test(m.pin)) { notify('PIN de 4 a 8 dígitos', 'err'); return; }
+      if (!/^\d{4}$/.test(m.pin)) { notify('PIN de 4 dígitos', 'err'); return; }
       guardando.value = true;
       const { error } = await sbClient.rpc('admin_set_pin', { p_id: m.id, p_nombre: m.nombre.trim(), p_rol: m.rol, p_pin: m.pin });
       guardando.value = false;
@@ -6035,7 +6035,7 @@ const ViewEmpleados = {
       <div v-else-if="needPin" class="section-card glass">
         <div class="section-title">Confirma tu PIN</div>
         <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;">Para gestionar empleados necesitamos reabrir tu sesión segura.</p>
-        <input v-model="pinReauth" class="config-input" type="tel" inputmode="numeric" maxlength="8" placeholder="••••" style="letter-spacing:.3em;text-align:center;" @keyup.enter="reconectar()">
+        <input v-model="pinReauth" class="config-input" type="tel" inputmode="numeric" maxlength="4" placeholder="••••" style="letter-spacing:.3em;text-align:center;" @keyup.enter="reconectar()">
         <button class="btn-primary" style="width:100%;padding:12px;margin-top:10px;" :disabled="reauthBusy" @click="reconectar()">{{ reauthBusy ? '…' : 'Continuar' }}</button>
       </div>
       <div v-else-if="errMsg" class="section-card glass" style="border-color:rgba(248,113,113,.4);">
@@ -6079,8 +6079,8 @@ const ViewEmpleados = {
               </select>
             </div>
             <div class="config-section">
-              <div class="config-label">{{ modal.esNuevo ? 'PIN' : 'Nuevo PIN' }} (4 a 8 dígitos)</div>
-              <input v-model="modal.pin" class="config-input" type="tel" inputmode="numeric" maxlength="8" placeholder="••••" style="letter-spacing:.3em;">
+              <div class="config-label">{{ modal.esNuevo ? 'PIN' : 'Nuevo PIN' }} (4 dígitos)</div>
+              <input v-model="modal.pin" class="config-input" type="tel" inputmode="numeric" maxlength="4" placeholder="••••" style="letter-spacing:.3em;">
             </div>
             <div style="display:flex;gap:8px;margin-top:12px;">
               <button class="btn-secondary" style="flex:1;padding:12px;" @click="cerrar()">Cancelar</button>
@@ -6391,7 +6391,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.12.0';
+const APP_VERSION = '1.12.1';
 (function() {
   let _reg = null, _waitingWorker = null;
 
