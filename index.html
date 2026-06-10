@@ -1657,7 +1657,8 @@ async function apiPost(body) {
 const SUPA_URL  = 'https://lintmcxqxnrholslatul.supabase.co';
 const SUPA_ANON = 'sb_publishable_9dpGbh-aKwTxC8gvOk8Muw_aSpMby0G';
 const sbClient  = window.supabase.createClient(SUPA_URL, SUPA_ANON, {
-  auth: { persistSession: true, autoRefreshToken: true, storageKey: 'ps_supa_auth' }
+  auth: { persistSession: true, autoRefreshToken: true, storageKey: 'ps_supa_auth',
+          lock: (name, acquireTimeout, fn) => fn() }   // evita cuelgue de supabase-js (navigator.locks)
 });
 // Patricia (Administrador) entra a Supabase con su mismo id/PIN para poder gestionar empleados.
 async function supaLoginAdmin(id, pin) {
@@ -6015,8 +6016,10 @@ const ViewEmpleados = {
       notify(nuevoEstado ? '✅ Activado' : '🚫 Desactivado');
     }
 
+    const revelado = ref({});
+    function toggleVer(id) { revelado.value = Object.assign({}, revelado.value, { [id]: !revelado.value[id] }); }
     onMounted(cargar);
-    return { lista, cargando, errMsg, toast, modal, guardando, needPin, pinReauth, reauthBusy, iniciales, cargar, reconectar, nuevo, editar, cerrar, guardar, toggle };
+    return { lista, cargando, errMsg, toast, modal, guardando, needPin, pinReauth, reauthBusy, revelado, toggleVer, iniciales, cargar, reconectar, nuevo, editar, cerrar, guardar, toggle };
   },
   template: `
     <div>
@@ -6045,6 +6048,11 @@ const ViewEmpleados = {
           <div class="pm-info">
             <div class="pm-name">{{ e.nombre }}</div>
             <div class="pm-rol">{{ e.rol }}<span v-if="!e.activo"> · inactivo</span></div>
+            <div style="display:flex;align-items:center;gap:6px;margin-top:3px;">
+              <span style="font-size:11px;color:var(--text-muted);">PIN</span>
+              <span style="font-family:monospace;letter-spacing:.18em;font-weight:700;font-size:13px;">{{ revelado[e.id] ? (e.pin || '—') : '••••' }}</span>
+              <button class="btn-icon" style="width:auto;padding:0 4px;font-size:13px;" :title="revelado[e.id] ? 'Ocultar' : 'Ver PIN'" @click="toggleVer(e.id)">{{ revelado[e.id] ? '🙈' : '👁️' }}</button>
+            </div>
           </div>
           <div class="pm-actions">
             <button class="btn-icon" title="Resetear PIN / editar" @click="editar(e)">🔑</button>
@@ -6383,7 +6391,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.11.0';
+const APP_VERSION = '1.12.0';
 (function() {
   let _reg = null, _waitingWorker = null;
 
