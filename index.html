@@ -1637,14 +1637,14 @@ function fetchWithTimeout(resource, options = {}, ms = 20000) {
   return fetch(resource, { ...options, signal: ctrl.signal }).finally(() => clearTimeout(id));
 }
 
-async function apiGet(accion, params = {}) {
+async function _gasGet(accion, params = {}) {
   const url = new URL(API_URL);
   url.searchParams.set('accion', accion);
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
   const r = await fetchWithTimeout(url.toString());
   return r.json();
 }
-async function apiPost(body) {
+async function _gasPost(body) {
   const r = await fetchWithTimeout(API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain' },
@@ -1664,6 +1664,81 @@ const sbClient  = window.supabase.createClient(SUPA_URL, SUPA_ANON, {
 async function supaLoginAdmin(id, pin) {
   try { const { error } = await sbClient.auth.signInWithPassword({ email: String(id).toLowerCase() + '@paracas.local', password: String(pin) });
         return !error; } catch (e) { return false; }
+}
+
+// ── Routing operaciones → Supabase (cierra la fuente partida) ────────────────
+const USE_SUPABASE_PS = true;   // operaciones (lanchas/finanzas/pagos/catálogo) van a Supabase
+async function _psToken() { try { const { data } = await sbClient.auth.getSession(); return data && data.session && data.session.access_token; } catch (e) { return null; } }
+async function _psRpc(fn, body) {
+  const tok = await _psToken();
+  const h = { apikey: SUPA_ANON, 'Content-Type': 'application/json' }; if (tok) h.Authorization = 'Bearer ' + tok;
+  const ctrl = new AbortController(); const tid = setTimeout(() => ctrl.abort(), 20000);
+  try {
+    const r = await fetch(SUPA_URL + '/rest/v1/rpc/' + fn, { method: 'POST', headers: h, body: JSON.stringify(body || {}), signal: ctrl.signal });
+    if (!r.ok) { let m = 'Error'; try { m = (await r.json()).message || m; } catch (e) {} throw new Error(m); }
+    const t = await r.text(); return t ? JSON.parse(t) : null;
+  } finally { clearTimeout(tid); }
+}
+async function _psSel(path) {
+  const tok = await _psToken();
+  const h = { apikey: SUPA_ANON }; if (tok) h.Authorization = 'Bearer ' + tok;
+  const r = await fetch(SUPA_URL + '/rest/v1/' + path, { headers: h });
+  if (!r.ok) throw new Error('select ' + r.status); return r.json();
+}
+const _cap = s => s ? (s.charAt(0).toUpperCase() + s.slice(1)) : s;
+const _adicObj = s => { const o = {}; if (!s) return o; String(s).split(',').forEach(p => { const i = p.indexOf(':'); if (i > 0) { const k = p.slice(0, i).trim().toLowerCase(); const v = parseFloat(p.slice(i + 1)); if (k && !isNaN(v)) o[k] = v; } }); return o; };
+
+const PS_GET = {
+  balance_agencias: p => _psRpc('get_balance_agencias', { p_desde: p.desde || null, p_hasta: p.hasta || null }),
+  balance_aliados:  p => _psRpc('get_balance_aliados',  { p_desde: p.desde || null, p_hasta: p.hasta || null }),
+  caja_feed:        p => _psRpc('get_caja_feed',        { p_desde: p.desde || null, p_hasta: p.hasta || null }),
+  lanchas_dia:      p => _psRpc('get_lanchas_dia',      { p_fecha: p.fecha }),
+  lanchas_fechas:   () => _psRpc('get_lanchas_fechas'),
+  historico:        async () => ((await _psRpc('get_historico')) || []).map(d => Object.assign({}, d, { ingresos_hotel: 0 })),
+  dashboard:        async p => { const k = await _psRpc('get_kpis_ops', { p_fecha: p.fecha }); return { fecha: p.fecha, lanchas: k, hotel: { ingresos_total: 0, ocupacion_pct: 0, habitaciones_ocupadas: 0, total_habitaciones: 0, ingresos_consumos: 0, ingresos_alojamiento: 0 }, total_ingresos: (k.ingresos_operador || 0), total_deudas: (k.deuda_comisionados || 0) + (k.pendiente_aliados || 0) }; },
+  listar_contactos_ops: async () => (await _psSel('contactos?select=id,nombre,tipo,precio_defecto&order=nombre')).map(r => ({ id: r.id, nombre: r.nombre, tipo: _cap(r.tipo), precio: r.precio_defecto || 0 })),
+  listar_embarcaciones: async () => (await _psSel('embarcaciones?select=id,nombre&order=nombre')).map(r => ({ id: r.id, nombre: r.nombre })),
+  listar_embarcaciones_catalogo: async () => (await _psSel('embarcaciones?select=id,nombre,capacidad_pax,matricula&order=nombre')).map(r => ({ id: r.id, nombre: r.nombre, capacidad_pax: r.capacidad_pax || 0, matricula: r.matricula || '' })),
+  listar_personal_ops: async () => (await _psSel('personal?select=id,nombre,rol,estado&order=nombre')).filter(r => !['inactivo', 'baja'].includes((r.estado || '').toLowerCase())).map(r => ({ id: r.id, nombre: r.nombre, rol: r.rol || '' })),
+  listar_personal_catalogo: async () => (await _psSel('personal?select=id,nombre,rol,tarifa_fija,estado&order=nombre')).map(r => ({ id: r.id, nombre: r.nombre, rol: r.rol || '', tarifa_fija: r.tarifa_fija || 0, estado: r.estado || 'activo' })),
+  listar_impuestos: async () => (await _psSel('impuestos?select=id,nombre,monto&order=nombre')).map(r => ({ id: r.id, nombre: r.nombre, monto: r.monto || 0 }))
+};
+const PS_POST = {
+  registrar_pago: b => _psRpc('registrar_transaccion', { p_op: b.id_operacion || null, p_contacto: b.id_contacto || null, p_categoria: b.categoria || 'Cobro', p_monto: parseFloat(b.monto) || 0, p_metodo: b.metodo_pago || 'Efectivo', p_comentarios: b.comentarios || null, p_foto_url: null, p_operador: b.operador || 'PS', p_mov: b.id_movimiento || null }).then(id => ({ id })),
+  anular_operacion: b => _psRpc('anular_operacion', { p_op: b.id }),
+  cancelar_movimiento: b => _psRpc('eliminar_movimiento', { p_mov: b.id }),
+  actualizar_adicionales: b => _psRpc('actualizar_adicionales', { p_mov: b.id_mov || b.id, p_adic: _adicObj(b.adicionales) }),
+  derivar_pase_ps: b => _psRpc('derivar_pase', { p_mov: b.id_mov, p_aliado: b.aliado_id || b.aliado, p_operador: b.operador || 'PS' }),
+  anular_pase_ps: b => _psRpc('anular_pase', { p_mov: b.id_mov, p_op_nueva: b.id_operacion_nueva }).then(t => ({ tipo: t })),
+  convertir_pase_compra: b => _psRpc('convertir_pase_compra', { p_mov: b.id_mov, p_agencia: b.id_agencia, p_monto: parseFloat(b.monto) || 0 }),
+  crear_operacion: b => _psRpc('abrir_operacion', { p_bote: b.id_bote, p_capitan: b.id_capitan || null, p_guia: b.id_guia || null, p_hora: b.hora_salida || null, p_destino: b.destino || null, p_creador: b.creador || 'PS' }).then(id => ({ id })),
+  actualizar_operacion: b => _psRpc('editar_operacion', { p_op: b.id_operacion || b.id, p_capitan: b.id_capitan == null ? null : b.id_capitan, p_guia: b.id_guia == null ? null : b.id_guia, p_hora: b.hora_salida == null ? null : b.hora_salida }),
+  crear_movimiento: b => _psRpc('registrar_movimiento', { p_op: b.id_operacion, p_tipo: b.tipo, p_contacto: b.id_contacto || null, p_nombre: b.nombre_contacto || b.id_contacto || null, p_pax: parseInt(b.cant_pax) || 0, p_precio: parseFloat(b.precio_aplicado || b.precio_unitario) || 0, p_monto: parseFloat(b.monto_total) || 0, p_operador: b.operador || 'PS' }).then(id => ({ id_mov: id })),
+  editar_movimiento: b => _psRpc('editar_movimiento', { p_id: b.id_mov, p_op: b.id_operacion, p_tipo: b.tipo, p_contacto: b.id_contacto || null, p_nombre: b.nombre_contacto || null, p_pax: parseInt(b.cant_pax) || 0, p_precio: parseFloat(b.precio_aplicado || b.precio_unitario) || 0, p_monto: parseFloat(b.monto_total) || 0 }),
+  crear_embarcacion: b => _psRpc('admin_crear_embarcacion', { p_nombre: b.nombre, p_cap: parseInt(b.capacidad_pax) || 0, p_matricula: b.matricula || null }).then(id => ({ id })),
+  actualizar_embarcacion: b => _psRpc('admin_editar_embarcacion', { p_id: b.id, p_nombre: b.nombre == null ? null : b.nombre, p_cap: b.capacidad_pax == null ? null : parseInt(b.capacidad_pax), p_matricula: b.matricula == null ? null : b.matricula }),
+  crear_personal_ops: b => _psRpc('admin_crear_personal_ops', { p_nombre: b.nombre, p_rol: b.rol || null, p_tarifa: parseFloat(b.tarifa_fija) || 0, p_estado: b.estado || 'activo' }).then(id => ({ id })),
+  actualizar_personal_ops: b => _psRpc('admin_editar_personal_ops', { p_id: b.id, p_nombre: b.nombre == null ? null : b.nombre, p_rol: b.rol == null ? null : b.rol, p_tarifa: b.tarifa_fija == null ? null : parseFloat(b.tarifa_fija), p_estado: b.estado == null ? null : b.estado }),
+  crear_contacto: b => _psRpc('admin_crear_contacto', { p_nombre: b.nombre, p_tipo: b.tipo || 'Libre', p_precio: parseFloat(b.precio) || 0 }).then(id => ({ id })),
+  actualizar_contacto: b => _psRpc('admin_editar_contacto', { p_id: b.id, p_nombre: b.nombre == null ? null : b.nombre, p_tipo: b.tipo == null ? null : b.tipo, p_precio: b.precio == null ? null : parseFloat(b.precio) }),
+  crear_impuesto: b => _psRpc('admin_crear_impuesto', { p_nombre: b.nombre, p_monto: parseFloat(b.monto) || 0 }).then(id => ({ id })),
+  actualizar_impuesto: b => _psRpc('admin_editar_impuesto', { p_id: b.id, p_nombre: b.nombre == null ? null : b.nombre, p_monto: b.monto == null ? null : parseFloat(b.monto) })
+};
+
+async function apiGet(accion, params = {}) {
+  if (USE_SUPABASE_PS && PS_GET[accion]) {
+    try { return { ok: true, data: await PS_GET[accion](params) }; }
+    catch (e) { return { ok: false, error: (e && e.message) || 'Error' }; }
+  }
+  return _gasGet(accion, params);
+}
+async function apiPost(body) {
+  const acc = body && (body.accion || body.action);
+  if (USE_SUPABASE_PS && acc && PS_POST[acc]) {
+    try { const d = await PS_POST[acc](body); return { ok: true, data: Object.assign({ ok: true }, d || {}) }; }
+    catch (e) { return { ok: false, error: (e && e.message) || 'Error' }; }
+  }
+  return _gasPost(body);
 }
 
 // ── Catálogos: cache global precargado al login ──────────────
@@ -6209,8 +6284,8 @@ createApp({
         if (r.ok && r.data.ok) {
           session.value = { ...r.data, loginAt: Date.now() };
           localStorage.setItem('ps_session', JSON.stringify(session.value));
-          // Administrador: abrir también sesión Supabase para gestionar empleados/PINs
-          if ((r.data.rol || '') === 'Administrador' && r.data.id) supaLoginAdmin(r.data.id, loginPin.value);
+          // Administrador: abrir sesión Supabase ANTES de cargar (las lecturas la necesitan)
+          if ((r.data.rol || '') === 'Administrador' && r.data.id) await supaLoginAdmin(r.data.id, loginPin.value);
           preloadCatalogos();
           await loadModuleData('dashboard');
         } else {
@@ -6356,8 +6431,14 @@ createApp({
       } catch(e) { showToast('Error de conexión'); }
     }
 
-    onMounted(() => {
+    onMounted(async () => {
       if (!session.value) cargarPersonal();
+      else if (USE_SUPABASE_PS && session.value.rol === 'Administrador') {
+        // si la sesión Supabase no sobrevivió al reload, re-login (las lecturas la necesitan)
+        let s = null; try { s = (await sbClient.auth.getSession()).data.session; } catch (e) {}
+        if (!s) { session.value = null; localStorage.removeItem('ps_session'); loginStep.value = 'select'; cargarPersonal(); }
+        else { loadModuleData('dashboard'); preloadCatalogos(); }
+      }
       else { loadModuleData('dashboard'); preloadCatalogos(); }
       window.addEventListener('online',  () => isOnline.value = true);
       window.addEventListener('offline', () => isOnline.value = false);
@@ -6391,7 +6472,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.12.1';
+const APP_VERSION = '1.13.0';
 (function() {
   let _reg = null, _waitingWorker = null;
 
