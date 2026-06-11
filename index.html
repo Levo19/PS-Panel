@@ -1720,16 +1720,16 @@ const PS_GET = {
   listar_impuestos: async () => (await _psSel('impuestos?select=id,nombre,monto&order=nombre')).map(r => ({ id: r.id, nombre: r.nombre, monto: r.monto || 0 }))
 };
 const PS_POST = {
-  registrar_pago: b => _psRpc('registrar_transaccion', { p_op: b.id_operacion || null, p_contacto: b.id_contacto || null, p_categoria: b.categoria || 'Cobro', p_monto: parseFloat(b.monto) || 0, p_metodo: b.metodo_pago || 'Efectivo', p_comentarios: b.comentarios || null, p_foto_url: null, p_operador: b.operador || 'PS', p_mov: b.id_movimiento || null }).then(id => ({ id })),
+  registrar_pago: b => _psRpc('registrar_transaccion', { p_op: b.id_operacion || null, p_contacto: b.id_contacto || null, p_categoria: b.categoria || 'Cobro', p_monto: parseFloat(b.monto) || 0, p_metodo: b.metodo_pago || 'Efectivo', p_comentarios: b.comentarios || null, p_foto_url: null, p_operador: b.operador || 'PS', p_mov: b.id_movimiento || null, p_local_id: b.localId || null }).then(id => ({ id })),
   anular_operacion: b => _psRpc('anular_operacion', { p_op: b.id }),
   cancelar_movimiento: b => _psRpc('eliminar_movimiento', { p_mov: b.id }),
   actualizar_adicionales: b => _psRpc('actualizar_adicionales', { p_mov: b.id_mov || b.id, p_adic: _adicObj(b.adicionales) }),
   derivar_pase_ps: b => _psRpc('derivar_pase', { p_mov: b.id_mov, p_aliado: b.aliado_id || b.aliado, p_operador: b.operador || 'PS' }),
   anular_pase_ps: b => _psRpc('anular_pase', { p_mov: b.id_mov, p_op_nueva: b.id_operacion_nueva }).then(t => ({ tipo: t })),
   convertir_pase_compra: b => _psRpc('convertir_pase_compra', { p_mov: b.id_mov, p_agencia: b.id_agencia, p_monto: parseFloat(b.monto) || 0 }),
-  crear_operacion: b => _psRpc('abrir_operacion', { p_bote: b.id_bote, p_capitan: b.id_capitan || null, p_guia: b.id_guia || null, p_hora: b.hora_salida || null, p_destino: b.destino || null, p_creador: b.creador || 'PS' }).then(id => ({ id })),
+  crear_operacion: b => _psRpc('abrir_operacion', { p_bote: b.id_bote, p_capitan: b.id_capitan || null, p_guia: b.id_guia || null, p_hora: b.hora_salida || null, p_destino: b.destino || null, p_creador: b.creador || 'PS', p_local_id: b.localId || null }).then(id => ({ id })),
   actualizar_operacion: b => _psRpc('editar_operacion', { p_op: b.id_operacion || b.id, p_capitan: b.id_capitan == null ? null : b.id_capitan, p_guia: b.id_guia == null ? null : b.id_guia, p_hora: b.hora_salida == null ? null : b.hora_salida }),
-  crear_movimiento: b => _psRpc('registrar_movimiento', { p_op: b.id_operacion, p_tipo: b.tipo, p_contacto: b.id_contacto || null, p_nombre: b.nombre_contacto || b.id_contacto || null, p_pax: parseInt(b.cant_pax) || 0, p_precio: parseFloat(b.precio_aplicado || b.precio_unitario) || 0, p_monto: parseFloat(b.monto_total) || 0, p_operador: b.operador || 'PS' }).then(id => ({ id_mov: id })),
+  crear_movimiento: b => _psRpc('registrar_movimiento', { p_op: b.id_operacion, p_tipo: b.tipo, p_contacto: b.id_contacto || null, p_nombre: b.nombre_contacto || b.id_contacto || null, p_pax: parseInt(b.cant_pax) || 0, p_precio: parseFloat(b.precio_aplicado || b.precio_unitario) || 0, p_monto: parseFloat(b.monto_total) || 0, p_operador: b.operador || 'PS', p_local_id: b.localId || null }).then(id => ({ id_mov: id })),
   editar_movimiento: b => _psRpc('editar_movimiento', { p_id: b.id_mov, p_op: b.id_operacion, p_tipo: b.tipo, p_contacto: b.id_contacto || null, p_nombre: b.nombre_contacto || null, p_pax: parseInt(b.cant_pax) || 0, p_precio: parseFloat(b.precio_aplicado || b.precio_unitario) || 0, p_monto: parseFloat(b.monto_total) || 0 }),
   crear_embarcacion: b => _psRpc('admin_crear_embarcacion', { p_nombre: b.nombre, p_cap: parseInt(b.capacidad_pax) || 0, p_matricula: b.matricula || null }).then(id => ({ id })),
   actualizar_embarcacion: b => _psRpc('admin_editar_embarcacion', { p_id: b.id, p_nombre: b.nombre == null ? null : b.nombre, p_cap: b.capacidad_pax == null ? null : parseInt(b.capacidad_pax), p_matricula: b.matricula == null ? null : b.matricula }),
@@ -2511,6 +2511,7 @@ const ViewLanchas = {
         body.id_bote    = m.id_bote;
         body.estado     = 'Abierta';
         body.creado_por = session.nombre || 'PS';
+        body.localId    = 'ps-op-' + Date.now() + '-' + Math.random().toString(36).slice(2,8);  // idempotencia
       } else {
         body.id = m.id;
         if (admin) { body.fecha = m.fecha; body.estado = m.estado; }
@@ -2680,6 +2681,7 @@ const ViewLanchas = {
         operador: session.nombre || 'PS'
       };
       if (m.mode === 'editar') body.id_mov = m.id_mov;
+      if (m.mode === 'crear')  body.localId = 'ps-mov-' + Date.now() + '-' + Math.random().toString(36).slice(2,8);  // idempotencia
 
       // ── Editar: optimistic ────────────────────────────────────
       if (m.mode === 'editar') {
@@ -2779,7 +2781,8 @@ const ViewLanchas = {
           monto:         parseFloat(p.monto),
           metodo_pago:   p.metodo_pago,
           comentarios:   p.comentarios,
-          operador:      session.nombre || 'PS'
+          operador:      session.nombre || 'PS',
+          localId:       'ps-pago-' + Date.now() + '-' + Math.random().toString(36).slice(2,8)
         });
         if (!r.ok) throw new Error(r.error || 'Error');
         pagoModal.value.show = false;
@@ -4962,7 +4965,7 @@ const InsightAgencias = {
       if (!p.ag || monto <= 0) { p.err = 'Ingresa un monto válido.'; sndDown(); return; }
       p.sending = true; sndTap();
       try {
-        const resp = await apiPost({ accion:'registrar_pago', categoria:'Cobro', id_contacto: p.ag.id, monto, metodo_pago: p.metodo, comentarios: p.nota||'', operador: operadorPS, id_movimiento:'', id_operacion:'' });
+        const resp = await apiPost({ accion:'registrar_pago', categoria:'Cobro', id_contacto: p.ag.id, monto, metodo_pago: p.metodo, comentarios: p.nota||'', operador: operadorPS, id_movimiento:'', id_operacion:'', localId: 'ps-pago-' + Date.now() + '-' + Math.random().toString(36).slice(2,8) });
         if (!resp || !resp.ok) throw new Error((resp && resp.error) || 'No se pudo registrar');
         sndUp(); pago.value.show = false;
         for (const k in _insAgCache) delete _insAgCache[k];   // invalida cache → recarga con el abono
@@ -5221,7 +5224,7 @@ const ViewFinanzas = {
       r.sending = true; sndTap();
       const coment = (cat.salida ? '[S] ' : '') + (r.nota||'');
       try {
-        const resp = await apiPost({ accion:'registrar_pago', categoria: cat.v, id_contacto: r.id_contacto, monto, metodo_pago: r.metodo, comentarios: coment, operador, id_movimiento:'', id_operacion:'' });
+        const resp = await apiPost({ accion:'registrar_pago', categoria: cat.v, id_contacto: r.id_contacto, monto, metodo_pago: r.metodo, comentarios: coment, operador, id_movimiento:'', id_operacion:'', localId: 'ps-pago-' + Date.now() + '-' + Math.random().toString(36).slice(2,8) });
         if (!resp || !resp.ok) throw new Error((resp && resp.error) || 'No se pudo registrar');
         sndUp(); reg.value.show = false;
         loadFeed({ silent:true });
@@ -6488,7 +6491,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.13.2';
+const APP_VERSION = '1.13.3';
 (function() {
   let _reg = null, _waitingWorker = null;
 
