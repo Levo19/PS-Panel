@@ -54,6 +54,9 @@ function doGet(e) {
       case 'caja_feed':
         data = getCajaFeed(e.parameter.desde || '', e.parameter.hasta || '');
         break;
+      case 'dump_operaciones':
+        data = getDumpOperaciones();
+        break;
       case 'hotel_habitaciones':
         data = getHotelHabitaciones();
         break;
@@ -112,6 +115,27 @@ function hoy() {
   return Utilities.formatDate(new Date(), 'America/Lima', 'yyyy-MM-dd');
 }
 
+// Convierte la fecha de una celda a 'yyyy-MM-dd' (zona Lima) de forma robusta.
+// Tolera: Date real (escrito por el panel PS), texto "dd/mm/yyyy" (escrito por
+// OperacionesPS con toLocaleDateString('en-GB')) y texto "yyyy-mm-dd".
+// NO usar new Date(texto) directo: V8 interpreta "10/06/2026" como MM/DD (gringo).
+function _fechaISO(v) {
+  if (v instanceof Date) {
+    return isNaN(v.getTime()) ? '' : Utilities.formatDate(v, 'America/Lima', 'yyyy-MM-dd');
+  }
+  var s = String(v == null ? '' : v).trim();
+  if (!s) return '';
+  // yyyy-mm-dd o yyyy/mm/dd
+  var m = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+  if (m) return m[1] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[3]).slice(-2);
+  // dd/mm/yyyy o dd-mm-yyyy (formato que escribe OperacionesPS)
+  m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+  if (m) return m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2);
+  // último recurso: intentar parsear como Date (ISO con hora, etc.)
+  var d = new Date(s);
+  return isNaN(d.getTime()) ? '' : Utilities.formatDate(d, 'America/Lima', 'yyyy-MM-dd');
+}
+
 function jsonResponse(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
@@ -129,8 +153,8 @@ function getLanchasFechas() {
     const data = shOps.getDataRange().getValues();
     for (let i = 1; i < data.length; i++) {
       try {
-        const f = Utilities.formatDate(new Date(data[i][1]), 'America/Lima', 'yyyy-MM-dd');
-        fechasSet.add(f);
+        const f = _fechaISO(data[i][1]);
+        if (f) fechasSet.add(f);
       } catch(e) {}
     }
   }
@@ -199,7 +223,7 @@ function getLanchasDia(fecha) {
     const d = shOps.getDataRange().getValues();
     for (let i = 1; i < d.length; i++) {
       try {
-        const f = Utilities.formatDate(new Date(d[i][1]), 'America/Lima', 'yyyy-MM-dd');
+        const f = _fechaISO(d[i][1]);
         if (f !== fecha) continue;
         const id    = String(d[i][0]);
         const idBot = String(d[i][3]);
@@ -396,7 +420,7 @@ function getHotelReservas(fecha) {
   const fechaBuscar = fecha || hoy();
   for (let i = 1; i < data.length; i++) {
     try {
-      const f = Utilities.formatDate(new Date(data[i][1]), 'America/Lima', 'yyyy-MM-dd');
+      const f = _fechaISO(data[i][1]);
       if (f === fechaBuscar) {
         const row = data[i];
         result.push({ id: row[0], fecha: row[1], huesped: row[2], habitacion: row[3], noches: row[4], total: row[5], estado: row[6] });

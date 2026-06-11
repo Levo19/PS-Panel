@@ -1668,7 +1668,23 @@ async function supaLoginAdmin(id, pin) {
 
 // ── Routing operaciones → Supabase (cierra la fuente partida) ────────────────
 const USE_SUPABASE_PS = true;   // operaciones (lanchas/finanzas/pagos/catálogo) van a Supabase
-async function _psToken() { try { const { data } = await sbClient.auth.getSession(); return data && data.session && data.session.access_token; } catch (e) { return null; } }
+// getSession() de supabase-js puede COLGARSE indefinidamente al leer una sesión
+// vieja/expirada tras un hard reload (refresh de token sin timeout interno). Sin
+// guardia, congela el arranque y toda lectura → "Cargando" infinito. Esta carrera
+// la corta en 4s y, si se colgó, borra el token envenenado para no recaer.
+async function _sbSessionSafe(ms) {
+  try {
+    const r = await Promise.race([
+      sbClient.auth.getSession(),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('SESSION_TIMEOUT')), ms || 4000))
+    ]);
+    return (r && r.data && r.data.session) || null;
+  } catch (e) {
+    try { localStorage.removeItem('ps_supa_auth'); } catch (_) {}
+    return null;
+  }
+}
+async function _psToken() { const s = await _sbSessionSafe(4000); return s && s.access_token; }
 async function _psRpc(fn, body) {
   const tok = await _psToken();
   const h = { apikey: SUPA_ANON, 'Content-Type': 'application/json' }; if (tok) h.Authorization = 'Bearer ' + tok;
@@ -6434,8 +6450,8 @@ createApp({
     onMounted(async () => {
       if (!session.value) cargarPersonal();
       else if (USE_SUPABASE_PS && session.value.rol === 'Administrador') {
-        // si la sesión Supabase no sobrevivió al reload, re-login (las lecturas la necesitan)
-        let s = null; try { s = (await sbClient.auth.getSession()).data.session; } catch (e) {}
+        // si la sesión Supabase no sobrevivió al reload (o getSession se colgó), re-login
+        let s = await _sbSessionSafe(4000);
         if (!s) { session.value = null; localStorage.removeItem('ps_session'); loginStep.value = 'select'; cargarPersonal(); }
         else { loadModuleData('dashboard'); preloadCatalogos(); }
       }
@@ -6472,7 +6488,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.13.0';
+const APP_VERSION = '1.13.1';
 (function() {
   let _reg = null, _waitingWorker = null;
 

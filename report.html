@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Reporte Lanchas · PS</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root {
   --guinda:#7B2030; --guinda-dark:#5a1722; --guinda-light:#9d2a3e;
@@ -209,6 +210,26 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
   .sec-hdr,.kpi-label,.chart-title,.q4-label,.flujo-title{color:#555!important;}
   .charts-grid{grid-template-columns:repeat(2,1fr);}
 }
+/* ── Login PIN del reporte ── */
+.rl-wrap{max-width:430px;margin:0 auto;padding:44px 20px;text-align:center;position:relative;animation:rlpop .4s ease;}
+.rl-logo{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--gold);font-weight:800;margin-bottom:14px;}
+.rl-h{font-size:22px;font-weight:900;margin:0 0 4px;color:var(--text);}
+.rl-sub{font-size:13px;color:var(--text-muted);margin-bottom:24px;}
+.rl-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+.rl-card{display:flex;flex-direction:column;align-items:center;gap:7px;padding:15px 6px;border-radius:16px;background:var(--surface);border:1px solid var(--border);cursor:pointer;color:var(--text);transition:transform .12s,border-color .2s;}
+.rl-card:active{transform:scale(.93);border-color:var(--gold);}
+.rl-av{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;background:linear-gradient(135deg,var(--guinda-light),var(--guinda-dark));color:#fff;}
+.rl-av.rl-big{width:80px;height:80px;font-size:28px;margin:0 auto 14px;}
+.rl-nm{font-size:12px;font-weight:700;line-height:1.2;}
+.rl-dots{display:flex;gap:14px;justify-content:center;margin:18px 0 24px;}
+.rl-dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--border);transition:all .15s;}
+.rl-dot.on{background:var(--gold);border-color:var(--gold);transform:scale(1.12);}
+.rl-keys{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;max-width:300px;margin:0 auto;}
+.rl-key{aspect-ratio:1;max-width:72px;width:100%;margin:0 auto;border-radius:50%;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:23px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.rl-key:active{transform:scale(.9);background:rgba(201,168,76,.2);}
+.rl-back{position:absolute;top:6px;left:8px;background:none;border:none;color:var(--text);font-size:24px;cursor:pointer;opacity:.7;padding:6px;}
+.rl-err{color:#fca5a5;font-size:13px;height:18px;margin-top:14px;font-weight:600;}
+@keyframes rlpop{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 </style>
 </head>
 <body>
@@ -226,6 +247,85 @@ const API_URL = params.get('api') || localStorage.getItem('ps_api_url') || PS_GA
 const REFRESH = 60;
 const TIPOS_SIN_COBRO = ['Aliado(PaseIn)','Pase_Recibido','Aliado'];
 let countdown = REFRESH, timer = null, charts = {};
+
+// ════════════════════════════════════════════════════════════════
+//  SUPABASE — el muelle migró a Supabase (cutover jun-2026); este
+//  reporte lee de ahí vía RPC get_lanchas_dia. Requiere login PIN.
+// ════════════════════════════════════════════════════════════════
+const SB_URL  = 'https://lintmcxqxnrholslatul.supabase.co';
+const SB_ANON = 'sb_publishable_9dpGbh-aKwTxC8gvOk8Muw_aSpMby0G';
+const sb = window.supabase.createClient(SB_URL, SB_ANON, {
+  auth: { persistSession:true, autoRefreshToken:true, storageKey:'ps_report_auth', lock:(n,t,fn)=>fn() }
+});
+async function sbAnon(fn, body){
+  const r = await fetch(SB_URL+'/rest/v1/rpc/'+fn,{method:'POST',headers:{apikey:SB_ANON,'Content-Type':'application/json'},body:JSON.stringify(body||{})});
+  const t = await r.text(); if(!r.ok){ let m='Error'; try{ m=JSON.parse(t).message||m; }catch(e){} throw new Error(m); }
+  return t ? JSON.parse(t) : null;
+}
+// getSession() puede colgarse leyendo una sesión vieja tras un hard reload → cap 4s + limpia token envenenado
+async function _sbToken(){
+  try{
+    const r = await Promise.race([ sb.auth.getSession(), new Promise((_,rej)=>setTimeout(()=>rej(new Error('SESSION_TIMEOUT')),4000)) ]);
+    return (r && r.data && r.data.session && r.data.session.access_token) || null;
+  }catch(e){ try{ localStorage.removeItem('ps_report_auth'); }catch(_){} return null; }
+}
+async function sbRpc(fn, body){
+  const token = await _sbToken();
+  const headers = { apikey:SB_ANON, 'Content-Type':'application/json' }; if(token) headers.Authorization='Bearer '+token;
+  const ctrl = new AbortController(); const tid = setTimeout(()=>ctrl.abort(),15000);
+  try{
+    const r = await fetch(SB_URL+'/rest/v1/rpc/'+fn,{method:'POST',headers,body:JSON.stringify(body||{}),signal:ctrl.signal});
+    const t = await r.text(); if(!r.ok){ let m='Error'; try{ m=JSON.parse(t).message||m; }catch(e){} throw new Error(m); }
+    return t ? JSON.parse(t) : null;
+  } finally { clearTimeout(tid); }
+}
+
+// ── Login PIN (selección de operador + teclado) ─────────────────
+let _ops = [], _sel = null, _pin = '', _busy = false;
+const _ini = n => (n||'?').split(' ').filter(Boolean).map(w=>w[0]).join('').slice(0,2).toUpperCase();
+async function showLogin(){
+  if(!_ops.length){ try{ _ops = (await sbAnon('listar_operadores')) || []; }catch(e){ _ops = []; } }
+  _renderPick();
+}
+function _renderPick(){
+  _sel = null; _pin = '';
+  $('root').innerHTML =
+    '<div class="rl-wrap"><div class="rl-logo">Reporte Lanchas · PS</div>'+
+    '<div class="rl-h">¿Quién eres?</div><div class="rl-sub">Toca tu usuario para ver el reporte</div>'+
+    '<div class="rl-grid">'+ (_ops.length
+      ? _ops.map(o=>'<button class="rl-card" data-id="'+o.id+'"><span class="rl-av">'+_ini(o.nombre)+'</span><span class="rl-nm">'+o.nombre+'</span></button>').join('')
+      : '<p style="grid-column:1/-1;color:var(--text-muted)">No se pudo cargar la lista. <button onclick="showLogin()" style="color:var(--gold);background:none;border:none;cursor:pointer;text-decoration:underline">Reintentar</button></p>')+
+    '</div></div>';
+  document.querySelectorAll('.rl-card').forEach(el=>el.onclick=()=>{ _sel=_ops.find(o=>String(o.id)===el.dataset.id); _pin=''; _renderPin(); });
+}
+function _renderPin(){
+  $('root').innerHTML =
+    '<div class="rl-wrap"><button class="rl-back" type="button">←</button>'+
+    '<div class="rl-av rl-big">'+_ini(_sel.nombre)+'</div>'+
+    '<div class="rl-h">'+_sel.nombre+'</div><div class="rl-sub">Ingresa tu PIN</div>'+
+    '<div class="rl-dots" id="rl-dots">'+[0,1,2,3].map(()=>'<span class="rl-dot"></span>').join('')+'</div>'+
+    '<div class="rl-keys">'+['1','2','3','4','5','6','7','8','9'].map(d=>'<button class="rl-key" data-k="'+d+'">'+d+'</button>').join('')+
+    '<span></span><button class="rl-key" data-k="0">0</button><button class="rl-key" data-k="del">⌫</button></div>'+
+    '<div class="rl-err" id="rl-err"></div></div>';
+  document.querySelector('.rl-back').onclick = _renderPick;
+  document.querySelectorAll('.rl-key').forEach(b=>b.onclick=()=>_key(b.dataset.k));
+}
+function _paintDots(){ document.querySelectorAll('#rl-dots .rl-dot').forEach((d,i)=>d.classList.toggle('on', i<_pin.length)); }
+async function _key(k){
+  if(_busy) return;
+  if(k==='del'){ _pin=_pin.slice(0,-1); _paintDots(); return; }
+  if(_pin.length>=4) return;
+  _pin+=k; _paintDots();
+  if(_pin.length===4){ _busy=true; try{ await _submitPin(); } finally { _busy=false; } }
+}
+async function _submitPin(){
+  const email = String(_sel.id).toLowerCase()+'@paracas.local';
+  const { error } = await sb.auth.signInWithPassword({ email, password:String(_pin) });
+  const errEl = $('rl-err');
+  if(error){ if(errEl) errEl.textContent='PIN incorrecto'; _pin=''; _paintDots(); return; }
+  $('root').innerHTML = '<div class="loading"><div class="spin"></div><p style="color:var(--text-muted);font-size:13px;">Cargando reporte…</p></div>';
+  loadData();
+}
 
 // ── Utils ──────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
@@ -297,14 +397,16 @@ function pagadoMov(allCaja, movId) {
 // ── Fetch ──────────────────────────────────────────────────────
 async function loadData() {
   try {
-    const url = new URL(API_URL);
-    url.searchParams.set('accion','lanchas_dia');
-    url.searchParams.set('fecha', fecha);
-    const r = await fetch(url.toString(), { cache:'no-store' });
-    const json = await r.json();
-    if (json.ok) render(json.data);
-    else renderError('Error del servidor: ' + json.error);
-  } catch(e) { renderError('Sin conexión: ' + e.message); }
+    const token = await _sbToken();
+    if (!token) { await showLogin(); return; }
+    const data = await sbRpc('get_lanchas_dia', { p_fecha: fecha });
+    if (!data) { renderError('Sin datos para esta fecha.'); return; }
+    render(data);
+  } catch(e) {
+    const msg = String((e && e.message) || e);
+    if (/NO_AUTH|jwt|autoriz/i.test(msg)) { await showLogin(); return; }
+    renderError('Error: ' + msg);
+  }
 }
 
 function startCountdown() {
@@ -1271,11 +1373,7 @@ function renderError(msg) {
   </div>`;
 }
 
-if (!API_URL) {
-  renderError('No se encontró la URL del servidor. Abre el reporte desde el panel PS.');
-} else {
-  loadData();
-}
+loadData();   // gatea login PIN (Supabase) si no hay sesión; luego carga el reporte
 </script>
 </body>
 </html>

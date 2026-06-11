@@ -46,7 +46,7 @@ function getLanchasKPIs(ssId, fecha) {
     const opsData = shOps.getDataRange().getValues();
     // Cols: id(0), fecha(1), hora_salida(2), id_bote(3), id_capitan(4), id_guia(5), estado(6), ...
     for (let i = 1; i < opsData.length; i++) {
-      const fechaOp = Utilities.formatDate(new Date(opsData[i][1]), 'America/Lima', 'yyyy-MM-dd');
+      const fechaOp = _fechaISO(opsData[i][1]);
       if (fechaOp === fecha) opsHoy.push(opsData[i][0]);
     }
   }
@@ -170,7 +170,7 @@ function getHotelKPIs(ssId, fecha) {
   if (shRes) {
     const resData = shRes.getDataRange().getValues();
     for (let i = 1; i < resData.length; i++) {
-      const fechaRes = Utilities.formatDate(new Date(resData[i][1]), 'America/Lima', 'yyyy-MM-dd');
+      const fechaRes = _fechaISO(resData[i][1]);
       if (fechaRes === fecha) {
         const estado = String(resData[i][6]).toLowerCase();
         if (estado !== 'cancelada') ingresos_alojamiento += parseFloat(resData[i][5]) || 0;
@@ -182,7 +182,7 @@ function getHotelKPIs(ssId, fecha) {
   if (shCons) {
     const consData = shCons.getDataRange().getValues();
     for (let i = 1; i < consData.length; i++) {
-      const fechaCons = Utilities.formatDate(new Date(consData[i][1]), 'America/Lima', 'yyyy-MM-dd');
+      const fechaCons = _fechaISO(consData[i][1]);
       if (fechaCons === fecha) {
         const estado = String(consData[i][7]).toLowerCase();
         if (estado !== 'cancelado') ingresos_consumos += parseFloat(consData[i][4]) || 0;
@@ -513,6 +513,17 @@ function getBalanceAgencias(desde, hasta) {
       n_le_debo:  lista.filter(a => a.le_debo > 0.005).length
     }
   };
+}
+
+// ── DUMP: volcado crudo de todas las tablas (para backfill a Supabase) ──
+function getDumpOperaciones() {
+  const ss = SpreadsheetApp.openById(PropertiesService.getScriptProperties().getProperty('SS_OPERACIONES_ID'));
+  const out = {};
+  ['Contactos','Personal','Embarcaciones','Operaciones','Movimientos','Caja_Operador','Reservas_CRM','Impuestos'].forEach(function(name){
+    const sh = ss.getSheetByName(name);
+    out[name] = sh ? sh.getDataRange().getValues() : [];
+  });
+  return out;
 }
 
 // ── CAJA: feed por día (todo tipo de pago/cobro) ─────────────
