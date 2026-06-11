@@ -849,6 +849,11 @@ input  { outline: none; border: none; background: none; color: inherit; font: in
 }
 .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 20px; }
 .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+.si-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 12px; cursor:pointer; border-bottom:1px solid var(--border); transition:background .15s; }
+.si-row:last-child { border-bottom:none; }
+.si-row:active { background:rgba(201,168,76,0.12); }
+@keyframes siShake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-9px)} 40%{transform:translateX(9px)} 60%{transform:translateX(-6px)} 80%{transform:translateX(6px)} }
+.si-shake { animation: siShake .42s; }
 .btn-primary {
   flex: 1; padding: 13px;
   background: linear-gradient(135deg, var(--guinda-light), var(--guinda-dark));
@@ -1717,10 +1722,13 @@ const PS_GET = {
   listar_embarcaciones_catalogo: async () => (await _psSel('embarcaciones?select=id,nombre,capacidad_pax,matricula&order=nombre')).map(r => ({ id: r.id, nombre: r.nombre, capacidad_pax: r.capacidad_pax || 0, matricula: r.matricula || '' })),
   listar_personal_ops: async () => (await _psSel('personal?select=id,nombre,rol,estado&order=nombre')).filter(r => !['inactivo', 'baja'].includes((r.estado || '').toLowerCase())).map(r => ({ id: r.id, nombre: r.nombre, rol: r.rol || '' })),
   listar_personal_catalogo: async () => (await _psSel('personal?select=id,nombre,rol,tarifa_fija,estado&order=nombre')).map(r => ({ id: r.id, nombre: r.nombre, rol: r.rol || '', tarifa_fija: r.tarifa_fija || 0, estado: r.estado || 'activo' })),
-  listar_impuestos: async () => (await _psSel('impuestos?select=id,nombre,monto&order=nombre')).map(r => ({ id: r.id, nombre: r.nombre, monto: r.monto || 0 }))
+  listar_impuestos: async () => (await _psSel('impuestos?select=id,nombre,monto&order=nombre')).map(r => ({ id: r.id, nombre: r.nombre, monto: r.monto || 0 })),
+  listar_saldos_iniciales: () => _psRpc('admin_list_saldos_iniciales')
 };
 const PS_POST = {
   registrar_pago: b => _psRpc('registrar_transaccion', { p_op: b.id_operacion || null, p_contacto: b.id_contacto || null, p_categoria: b.categoria || 'Cobro', p_monto: parseFloat(b.monto) || 0, p_metodo: b.metodo_pago || 'Efectivo', p_comentarios: b.comentarios || null, p_foto_url: null, p_operador: b.operador || 'PS', p_mov: b.id_movimiento || null, p_local_id: b.localId || null }).then(id => ({ id })),
+  set_saldo_inicial: b => _psRpc('admin_set_saldo_inicial', { p_contacto: b.id_contacto, p_monto: parseFloat(b.monto) || 0, p_fecha: b.fecha || '2026-04-30', p_nota: b.nota || null, p_operador: b.operador || 'PS' }).then(() => ({ ok: true })),
+  eliminar_saldo_inicial: b => _psRpc('admin_eliminar_saldo_inicial', { p_contacto: b.id_contacto }).then(() => ({ ok: true })),
   anular_operacion: b => _psRpc('anular_operacion', { p_op: b.id }),
   cancelar_movimiento: b => _psRpc('eliminar_movimiento', { p_mov: b.id }),
   actualizar_adicionales: b => _psRpc('actualizar_adicionales', { p_mov: b.id_mov || b.id, p_adic: _adicObj(b.adicionales) }),
@@ -4230,6 +4238,114 @@ function playTone(freqs, opts) {
 function sndUp()   { playTone([523.25, 783.99], { type: 'triangle' }); }   // te deben (ascendente)
 function sndDown() { playTone([392.00, 261.63], { type: 'sine' }); }       // les debes (descendente)
 function sndTap()  { playTone(660, { dur: 0.05, gain: 0.04 }); }
+function sndOk()   { playTone([523.25, 783.99, 1046.5], { type: 'triangle', dur: 0.11 }); }
+function sndErr()  { playTone([220, 165], { type: 'square', dur: 0.16, gain: 0.05 }); }
+// Háptico — Android vibra; iOS Safari no soporta vibrate → no-op silencioso (guardado)
+function haptic(p){ try { if (navigator.vibrate) navigator.vibrate(p); } catch(e){} }
+
+// ════════════════ MODAL · SALDO INICIAL (arrastre pre-arranque · solo admin) ════════════════
+let _siState = null;
+window.abrirSaldoInicial = async function (tipoPref) {
+  const ses = JSON.parse(localStorage.getItem('ps_session') || '{}');
+  if (ses.rol !== 'Administrador') return;   // saldo inicial = ajuste contable sensible (igual que _req_admin)
+  sndTap(); haptic(10);
+  let ov = document.getElementById('si-ov');
+  if (!ov) { ov = document.createElement('div'); ov.id = 'si-ov'; ov.className = 'modal-overlay'; document.body.appendChild(ov); ov.addEventListener('click', e => { if (e.target === ov) cerrarSaldoInicial(); }); }
+  ov.style.display = 'flex';
+  ov.innerHTML = '<div class="modal-box glass-strong" style="max-width:470px;width:92vw"><div style="text-align:center;padding:36px;color:var(--text-muted)"><div class="spin" style="margin:0 auto 12px"></div>Cargando…</div></div>';
+  let contactos = [], saldos = [];
+  try {
+    const [cR, sR] = await Promise.all([apiGet('listar_contactos_ops'), apiGet('listar_saldos_iniciales')]);
+    contactos = ((cR.ok && cR.data) || []).filter(c => /agencia|aliado/i.test(c.tipo || ''));
+    saldos = (sR.ok && sR.data) || [];
+  } catch (e) {}
+  _siState = { contactos, saldos, ses, dir: '+', sel: '', monto: '', fecha: '2026-04-30', nota: '', editNombre: '', shake: false };
+  _renderSI();
+};
+window.cerrarSaldoInicial = function () { const ov = document.getElementById('si-ov'); if (ov) ov.style.display = 'none'; haptic(8); };
+function _siUnidad(cid) { const c = (_siState.contactos || []).find(x => x.id === cid); return /agencia/i.test((c && c.tipo) || '') ? 'S/' : 'PAX'; }
+function _siErr(msg) { sndErr(); haptic([60, 30, 60]); if (_siState) { _siState.shake = true; _renderSI(); setTimeout(() => { if (_siState) { _siState.shake = false; _renderSI(); } }, 450); } }
+function _renderSI() {
+  const ov = document.getElementById('si-ov'); if (!ov || !_siState) return;
+  const S = _siState, unidad = S.sel ? _siUnidad(S.sel) : '';
+  const lista = (S.saldos || []).map(s => {
+    const favor = Number(s.monto) >= 0;
+    return `<div class="si-row" data-edit="${s.contacto_id}">
+        <div style="min-width:0">
+          <div style="font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.nombre}</div>
+          <div style="font-size:10px;color:var(--text-muted)">corte ${s.fecha_corte}${s.nota ? ' · ' + s.nota : ''}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+          <span style="font-weight:800;font-size:13px;color:${favor ? '#4ade80' : '#f87171'}">${favor ? '+' : ''}${s.monto} ${s.unidad}</span>
+          <button data-del="${s.contacto_id}" title="Eliminar" style="color:#f87171;font-size:15px;background:none;border:none;padding:4px">🗑</button>
+        </div>
+      </div>`;
+  }).join('') || '<div style="text-align:center;color:var(--text-muted);font-size:12px;padding:14px 0">Aún no hay saldos iniciales cargados.</div>';
+  ov.innerHTML = `
+  <div class="modal-box glass-strong${S.shake ? ' si-shake' : ''}" style="max-width:470px;width:92vw;max-height:88vh;overflow-y:auto">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+      <div style="font-size:26px">📌</div>
+      <div style="flex:1"><div class="modal-title" style="margin:0">Saldo inicial</div>
+        <div style="font-size:11px;color:var(--text-muted)">Deuda previa al arranque (a favor o en contra)</div></div>
+      <button onclick="cerrarSaldoInicial()" style="font-size:24px;color:var(--text-muted);background:none;border:none;padding:2px 8px">×</button>
+    </div>
+    <div style="margin:14px 0 6px;font-size:11px;font-weight:800;color:var(--gold);letter-spacing:.05em">CARGADOS</div>
+    <div style="border:1px solid var(--border);border-radius:12px;overflow:hidden">${lista}</div>
+    <div style="margin:18px 0 8px;font-size:11px;font-weight:800;color:var(--gold);letter-spacing:.05em">${S.editNombre ? '✏️ EDITANDO · ' + S.editNombre : 'AGREGAR'}</div>
+    <label style="font-size:11px;color:var(--text-muted)">Contacto (agencia o aliado)</label>
+    <select id="si-sel" class="config-input" style="margin:4px 0 12px">
+      <option value="">— elegir —</option>
+      ${(S.contactos || []).map(c => `<option value="${c.id}"${S.sel === c.id ? ' selected' : ''}>${c.nombre} · ${c.tipo}</option>`).join('')}
+    </select>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <button data-dir="+" style="flex:1;padding:11px;border-radius:11px;font-weight:800;font-size:13px;cursor:pointer;border:1px solid ${S.dir === '+' ? '#4ade80' : 'var(--border)'};background:${S.dir === '+' ? 'rgba(74,222,128,0.16)' : 'transparent'};color:${S.dir === '+' ? '#4ade80' : 'var(--text-muted)'}">▲ Me deben</button>
+      <button data-dir="-" style="flex:1;padding:11px;border-radius:11px;font-weight:800;font-size:13px;cursor:pointer;border:1px solid ${S.dir === '-' ? '#f87171' : 'var(--border)'};background:${S.dir === '-' ? 'rgba(248,113,113,0.16)' : 'transparent'};color:${S.dir === '-' ? '#f87171' : 'var(--text-muted)'}">▼ Les debo</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <div style="flex:1"><label style="font-size:11px;color:var(--text-muted)">Monto ${unidad ? '(' + unidad + ')' : ''}</label>
+        <input id="si-monto" type="number" inputmode="decimal" class="config-input" style="margin-top:4px" placeholder="0" value="${S.monto}"></div>
+      <div style="flex:1"><label style="font-size:11px;color:var(--text-muted)">Fecha corte</label>
+        <input id="si-fecha" type="date" class="config-input" style="margin-top:4px" value="${S.fecha}"></div>
+    </div>
+    <label style="font-size:11px;color:var(--text-muted)">Nota (opcional)</label>
+    <input id="si-nota" class="config-input" style="margin:4px 0 16px" placeholder="ej. deuda arrastrada abril" value="${S.nota}">
+    <button id="si-save" class="btn-primary" style="width:100%;padding:13px;font-size:14px;font-weight:800">💾 Guardar saldo inicial</button>
+  </div>`;
+  ov.querySelectorAll('[data-dir]').forEach(b => b.onclick = () => { sndTap(); haptic(8); _siState.dir = b.getAttribute('data-dir'); _renderSI(); });
+  ov.querySelector('#si-sel').onchange = e => { _siState.sel = e.target.value; _renderSI(); };
+  const mEl = ov.querySelector('#si-monto'); if (mEl) mEl.oninput = e => _siState.monto = e.target.value;
+  const fEl = ov.querySelector('#si-fecha'); if (fEl) fEl.oninput = e => _siState.fecha = e.target.value;
+  const nEl = ov.querySelector('#si-nota');  if (nEl) nEl.oninput = e => _siState.nota = e.target.value;
+  ov.querySelectorAll('[data-edit]').forEach(r => r.onclick = (e) => {
+    if (e.target.closest('[data-del]')) return;
+    const s = (S.saldos || []).find(x => x.contacto_id === r.getAttribute('data-edit'));
+    if (s) { sndTap(); haptic(8); _siState.sel = s.contacto_id; _siState.dir = Number(s.monto) >= 0 ? '+' : '-'; _siState.monto = String(Math.abs(Number(s.monto))); _siState.fecha = s.fecha_corte; _siState.nota = s.nota || ''; _siState.editNombre = s.nombre; _renderSI(); }
+  });
+  ov.querySelectorAll('[data-del]').forEach(b => b.onclick = () => _siEliminar(b.getAttribute('data-del')));
+  ov.querySelector('#si-save').onclick = _siGuardar;
+}
+async function _siGuardar() {
+  const S = _siState; if (!S) return;
+  if (!S.sel) { _siErr('Elige un contacto'); return; }
+  const montoAbs = Math.abs(parseFloat(S.monto) || 0);
+  if (!montoAbs) { _siErr('Ingresa un monto'); return; }
+  const signed = S.dir === '-' ? -montoAbs : montoAbs;
+  const btn = document.querySelector('#si-save'); if (btn) { btn.disabled = true; btn.textContent = 'Guardando…'; }
+  const r = await apiPost({ accion: 'set_saldo_inicial', id_contacto: S.sel, monto: signed, fecha: S.fecha || '2026-04-30', nota: S.nota || '', operador: (S.ses && S.ses.nombre) || 'PS' });
+  if (r.ok) {
+    sndOk(); haptic([15, 40, 15]);
+    try { const sR = await apiGet('listar_saldos_iniciales'); _siState.saldos = (sR.ok && sR.data) || _siState.saldos; } catch (e) {}
+    _siState.sel = ''; _siState.monto = ''; _siState.nota = ''; _siState.editNombre = ''; _siState.dir = '+';
+    _renderSI();
+    window.dispatchEvent(new CustomEvent('ps-saldos-changed'));
+  } else { _siErr(r.error || 'No se pudo guardar'); if (btn) { btn.disabled = false; btn.textContent = '💾 Guardar saldo inicial'; } }
+}
+async function _siEliminar(cid) {
+  sndTap(); haptic(10);
+  const r = await apiPost({ accion: 'eliminar_saldo_inicial', id_contacto: cid });
+  if (r.ok) { try { const sR = await apiGet('listar_saldos_iniciales'); _siState.saldos = (sR.ok && sR.data) || []; } catch (e) {} sndDown(); _renderSI(); window.dispatchEvent(new CustomEvent('ps-saldos-changed')); }
+  else _siErr(r.error || 'No se pudo eliminar');
+}
 
 // ── Tween de contadores (easeOutCubic) ───────────────────────
 function useTween() {
@@ -4702,14 +4818,17 @@ const InsightAliados = {
     }
 
     let _timer = null;
+    const _onSaldos = () => load({ silent: true });
     onMounted(() => {
       load({ silent: !!data.value });                          // cache pintada al instante; si no hay, spinner una vez
       _timer = setInterval(() => load({ silent: true }), 60000); // refresco silencioso 60s
+      window.addEventListener('ps-saldos-changed', _onSaldos);  // refresca al guardar un saldo inicial
     });
-    onUnmounted(() => { if (_timer) clearInterval(_timer); _timer = null; });
+    onUnmounted(() => { if (_timer) clearInterval(_timer); _timer = null; window.removeEventListener('ps-saldos-changed', _onSaldos); });
 
     return { data, loading, error, preset, expanded, showVentas, exporting, exportErr, tDeben: tDeben.val, tDebes: tDebes.val,
-             load, setPreset, toggle, exportarExcel, barW, fmt, netoLabel, netoColor, fmtDia, porDia, porMes, emit };
+             load, setPreset, toggle, exportarExcel, barW, fmt, netoLabel, netoColor, fmtDia, porDia, porMes, emit,
+             abrirSI: t => window.abrirSaldoInicial(t) };
   },
   template: `
     <div>
@@ -4720,6 +4839,7 @@ const InsightAliados = {
           <div style="font-size:16px;font-weight:800;">🤝 Aliados</div>
           <div style="font-size:11px;color:var(--text-muted);">Balance de pases · personas</div>
         </div>
+        <button v-if="$root.session && $root.session.rol === 'Administrador'" @click="abrirSI('aliado')" title="Saldo inicial" style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:800;color:var(--gold);background:rgba(201,168,76,0.16);border:1px solid rgba(201,168,76,0.4);padding:7px 11px;border-radius:11px;">📌 Saldo ini.</button>
         <button @click="exportarExcel()" :disabled="!data || !data.aliados.length" :style="{ opacity: (!data || !data.aliados.length) ? 0.4 : 1 }" title="Exportar a Excel" style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800;color:#4ade80;background:rgba(74,222,128,0.16);border:1px solid rgba(74,222,128,0.4);padding:7px 12px;border-radius:11px;">📊 Excel</button>
       </div>
 
@@ -4797,6 +4917,7 @@ const InsightAliados = {
               <div style="min-width:0;">
                 <div style="font-weight:800;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ a.nombre }}</div>
                 <div style="font-size:11px;color:var(--text-muted);">{{ a.id }} · entró {{ a.pax_in }} / salió {{ a.pax_out }}</div>
+                <div v-if="a.saldo_inicial" style="font-size:10px;color:var(--gold);font-weight:700;margin-top:2px;">📌 saldo inicial: {{ a.saldo_inicial>0?'+':'' }}{{ a.saldo_inicial }} pax</div>
               </div>
               <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
                 <span class="ali-badge" :style="{ background: a.neto>0 ? 'rgba(74,222,128,0.16)' : a.neto<0 ? 'rgba(248,113,113,0.16)' : 'rgba(255,255,255,0.06)', color: netoColor(a) }">{{ netoLabel(a) }}</span>
@@ -4974,12 +5095,13 @@ const InsightAgencias = {
     }
 
     let _timer = null;
-    onMounted(() => { load({ silent: !!data.value }); _timer = setInterval(() => load({ silent: true }), 60000); });
-    onUnmounted(() => { if (_timer) clearInterval(_timer); _timer = null; });
+    const _onSaldos = () => load({ silent: true });
+    onMounted(() => { load({ silent: !!data.value }); _timer = setInterval(() => load({ silent: true }), 60000); window.addEventListener('ps-saldos-changed', _onSaldos); });
+    onUnmounted(() => { if (_timer) clearInterval(_timer); _timer = null; window.removeEventListener('ps-saldos-changed', _onSaldos); });
 
     return { data, loading, error, preset, expanded, exporting, exportErr, tDebe: tDebe.val, tDebo: tDebo.val,
              load, setPreset, toggle, exportarExcel, fmt, pct, saldoColor, saldoLabel, movEstado, fmtMes, fmtDia, porMesAg,
-             pago, abrirPago, enviarPago, METODOS_PG, emit };
+             pago, abrirPago, enviarPago, METODOS_PG, emit, Math, abrirSI: t => window.abrirSaldoInicial(t) };
   },
   template: `
     <div>
@@ -4989,6 +5111,7 @@ const InsightAgencias = {
           <div style="font-size:16px;font-weight:800;">🏢 Agencias</div>
           <div style="font-size:11px;color:var(--text-muted);">Cuenta corriente · soles</div>
         </div>
+        <button v-if="$root.session && $root.session.rol === 'Administrador'" @click="abrirSI('agencia')" title="Saldo inicial" style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:800;color:var(--gold);background:rgba(201,168,76,0.16);border:1px solid rgba(201,168,76,0.4);padding:7px 11px;border-radius:11px;">📌 Saldo ini.</button>
         <button @click="exportarExcel()" :disabled="!data || !data.agencias.length" :style="{ opacity: (!data || !data.agencias.length) ? 0.4 : 1 }" title="Exportar a Excel" style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800;color:#4ade80;background:rgba(74,222,128,0.16);border:1px solid rgba(74,222,128,0.4);padding:7px 12px;border-radius:11px;">📊 Excel</button>
       </div>
 
@@ -5035,6 +5158,7 @@ const InsightAgencias = {
             <div style="min-width:0;flex:1;">
               <div style="font-weight:800;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ a.nombre }}</div>
               <div style="font-size:11px;color:var(--text-muted);">{{ a.id }} · fact {{ fmt(a.facturado) }} · cobr {{ fmt(a.cobrado) }}</div>
+              <div v-if="a.saldo_inicial" style="font-size:10px;color:var(--gold);font-weight:700;margin-top:2px;">📌 saldo inicial: {{ a.saldo_inicial>0?'+':'' }}S/ {{ fmt(Math.abs(a.saldo_inicial)) }} ({{ a.saldo_inicial>0?'a favor':'les debes' }})</div>
               <div style="height:6px;border-radius:4px;background:rgba(255,255,255,0.06);margin-top:5px;overflow:hidden;">
                 <div :style="{ width: pct(a)+'%', height:'100%', background:'linear-gradient(90deg,#16a34a,#4ade80)', transition:'width .6s cubic-bezier(.22,1,.36,1)' }"></div>
               </div>
@@ -6491,7 +6615,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.13.3';
+const APP_VERSION = '1.13.4';
 (function() {
   let _reg = null, _waitingWorker = null;
 
