@@ -160,11 +160,34 @@ var SB_ANON = 'sb_publishable_9dpGbh-aKwTxC8gvOk8Muw_aSpMby0G';
   await probe('get_balance_agencias', {});               // Finanzas
   await probe('get_balance_aliados',  {});               // Finanzas
 
-  L('step', '6. ✅ Diagnóstico completo.');
-  if (slow.length) {
-    verdict('fail', '★ CULPABLE(S): estas consultas se cuelgan o tardan demasiado → ' + slow.join(' · ') + '. Por eso el contenido de los módulos queda en "Cargando".');
+  L('step', '6. Consultas del reporte/panel OK.');
+
+  // ── 7. RÉPLICA EXACTA DEL MUELLE (OperacionesPS) — su token ops_ps_auth ──
+  // El muelle usa su PROPIO cliente con storageKey 'ops_ps_auth'. Si ESE token
+  // está viejo, su getSession() se cuelga (lo que el reporte no sufre).
+  L('step', '7. Probando el MUELLE con SU token (ops_ps_auth)...');
+  var muelleColgado = false;
+  try {
+    var sbM = window.supabase.createClient(SB_URL, SB_ANON, {
+      auth: { persistSession:true, autoRefreshToken:true, storageKey:'ops_ps_auth', lock:function(n,t,fn){ return fn(); } }
+    });
+    var sm = await timed('7a. getSession() del MUELLE', sbM.auth.getSession(), 8000);
+    var mtok = sm && sm.data && sm.data.session && sm.data.session.access_token;
+    L('dim', '   sesión muelle: ' + (mtok ? 'SÍ' : 'NO'));
+    var hM = { apikey:SB_ANON, 'Content-Type':'application/json' }; if (mtok) hM.Authorization = 'Bearer ' + mtok;
+    await timed('7b. RPC get_dashboard (muelle)', fetch(SB_URL+'/rest/v1/rpc/get_dashboard', { method:'POST', headers:hM, body:'{}' }).then(function(r){ return r.text(); }), 25000);
+  } catch(e){
+    muelleColgado = true;
+    L('fail', '   ✗ el cliente del MUELLE se atascó en: ' + e.message);
+  }
+
+  L('step', '8. ✅ Diagnóstico completo.');
+  if (muelleColgado) {
+    verdict('fail', '★ CONFIRMADO: el cliente del MUELLE (token ops_ps_auth) se COLGÓ. Ese token viejo congela el muelle al refrescar. Fix: guardia de timeout + limpiar ops_ps_auth en OperacionesPS/supabase-data.js.');
+  } else if (slow.length) {
+    verdict('fail', '★ CULPABLE(S): ' + slow.join(' · '));
   } else {
-    verdict('ok', '✅ Todas las consultas respondieron rápido. Si igual ves "Cargando" en los módulos, el problema NO es la red de datos — pásame una captura del panel colgado.');
+    verdict('ok', '✅ Todo respondió rápido, INCLUSO el muelle. Si el muelle real igual cuelga, el problema está en el shim/app.js del muelle (no en Supabase) — pásame captura.');
   }
 })();
 </script>
