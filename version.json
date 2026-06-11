@@ -1,1 +1,1 @@
-{ "version": "1.13.1", "build": "20260610-fix-getsession-hang" }
+{ "version": "1.13.2", "build": "20260610-ticket-supabase" }
