@@ -127,22 +127,45 @@ var SB_ANON = 'sb_publishable_9dpGbh-aKwTxC8gvOk8Muw_aSpMby0G';
     // seguimos para medir el resto igual
   }
 
-  // 5. RPC anónimo (red a Supabase sin auth)
-  try {
-    await timed('5. fetch anon listar_operadores', fetch(SB_URL+'/rest/v1/rpc/listar_operadores', {
-      method:'POST', headers:{ apikey:SB_ANON, 'Content-Type':'application/json' }, body:'{}'
-    }).then(function(r){ return r.text(); }), 10000);
-  } catch(e){
-    L('fail','   la red a Supabase falló/colgó');
+  // ── token de sesión para las consultas reales de los módulos ──
+  var TOKEN = null;
+  try { var ss = await sb.auth.getSession(); TOKEN = ss && ss.data && ss.data.session && ss.data.session.access_token; } catch(e){}
+  L('dim', '   token presente para RPCs: ' + (TOKEN ? 'SÍ' : 'NO'));
+
+  function rpc(fn, body, ms){
+    var headers = { apikey:SB_ANON, 'Content-Type':'application/json' };
+    if (TOKEN) headers.Authorization = 'Bearer ' + TOKEN;
+    return timed('RPC ' + fn, fetch(SB_URL+'/rest/v1/rpc/'+fn, {
+      method:'POST', headers:headers, body:JSON.stringify(body||{})
+    }).then(function(r){ return r.text().then(function(t){
+      if (!r.ok) throw new Error('HTTP '+r.status+' '+t.slice(0,80));
+      return t;
+    }); }), ms||25000);
+  }
+  var hoy = new Date().toISOString().slice(0,10);
+  L('step', '5. Probando las CONSULTAS REALES de cada módulo (con tu login)...');
+
+  var slow = [];
+  async function probe(fn, body){
+    var t = now();
+    try { await rpc(fn, body); } catch(e){ slow.push(fn + ' (FALLÓ/COLGÓ: ' + e.message + ')'); return; }
+    var ms = now() - t; if (ms > 4000) slow.push(fn + ' = ' + ms + 'ms (LENTO)');
   }
 
-  // 6. getSession DE NUEVO (por si el primer await dejó algo trabado)
-  try {
-    await timed('6. getSession() 2da vez', sb.auth.getSession(), 8000);
-  } catch(e){}
+  await probe('get_lanchas_fechas', {});                 // ViewLanchas: lista de fechas
+  await probe('get_kpis_ops',     { p_fecha: hoy });     // Dashboard / Finanzas
+  await probe('get_historico',    {});                   // Dashboard: bucle 7 días (sospechoso de lento)
+  await probe('get_lanchas_dia',  { p_fecha: hoy });     // ViewLanchas / Reporte: el día completo
+  await probe('get_caja_feed',    {});                   // Finanzas: caja
+  await probe('get_balance_agencias', {});               // Finanzas
+  await probe('get_balance_aliados',  {});               // Finanzas
 
-  L('step', '7. ✅ Diagnóstico completo. Si llegaste hasta acá sin colgarte, el arranque está sano.');
-  verdict('ok', '✅ El diagnóstico terminó sin colgarse. Si el reporte real SÍ se cuelga pero esto no, compará: la diferencia clave es el <script src=supabase> bloqueante del reporte vs la carga dinámica de acá.');
+  L('step', '6. ✅ Diagnóstico completo.');
+  if (slow.length) {
+    verdict('fail', '★ CULPABLE(S): estas consultas se cuelgan o tardan demasiado → ' + slow.join(' · ') + '. Por eso el contenido de los módulos queda en "Cargando".');
+  } else {
+    verdict('ok', '✅ Todas las consultas respondieron rápido. Si igual ves "Cargando" en los módulos, el problema NO es la red de datos — pásame una captura del panel colgado.');
+  }
 })();
 </script>
 </body>
