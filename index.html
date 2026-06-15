@@ -1735,7 +1735,7 @@ const PS_POST = {
   derivar_pase_ps: b => _psRpc('derivar_pase', { p_mov: b.id_mov, p_aliado: b.aliado_id || b.aliado, p_operador: b.operador || 'PS' }),
   anular_pase_ps: b => _psRpc('anular_pase', { p_mov: b.id_mov, p_op_nueva: b.id_operacion_nueva }).then(t => ({ tipo: t })),
   convertir_pase_compra: b => _psRpc('convertir_pase_compra', { p_mov: b.id_mov, p_agencia: b.id_agencia, p_monto: parseFloat(b.monto) || 0 }),
-  crear_operacion: b => _psRpc('abrir_operacion', { p_bote: b.id_bote, p_capitan: b.id_capitan || null, p_guia: b.id_guia || null, p_hora: b.hora_salida || null, p_destino: b.destino || null, p_creador: b.creador || 'PS', p_local_id: b.localId || null }).then(id => ({ id })),
+  crear_operacion: b => _psRpc('abrir_operacion', { p_bote: b.id_bote, p_capitan: b.id_capitan || null, p_guia: b.id_guia || null, p_hora: b.hora_salida || null, p_destino: b.destino || null, p_creador: b.creador || 'PS', p_local_id: b.localId || null, p_fecha: b.fecha || null }).then(id => ({ id })),
   actualizar_operacion: b => _psRpc('editar_operacion', { p_op: b.id_operacion || b.id, p_capitan: b.id_capitan == null ? null : b.id_capitan, p_guia: b.id_guia == null ? null : b.id_guia, p_hora: b.hora_salida == null ? null : b.hora_salida }),
   crear_movimiento: b => _psRpc('registrar_movimiento', { p_op: b.id_operacion, p_tipo: b.tipo, p_contacto: b.id_contacto || null, p_nombre: b.nombre_contacto || b.id_contacto || null, p_pax: parseInt(b.cant_pax) || 0, p_precio: parseFloat(b.precio_aplicado || b.precio_unitario) || 0, p_monto: parseFloat(b.monto_total) || 0, p_operador: b.operador || 'PS', p_local_id: b.localId || null }).then(id => ({ id_mov: id })),
   editar_movimiento: b => _psRpc('editar_movimiento', { p_id: b.id_mov, p_op: b.id_operacion, p_tipo: b.tipo, p_contacto: b.id_contacto || null, p_nombre: b.nombre_contacto || null, p_pax: parseInt(b.cant_pax) || 0, p_precio: parseFloat(b.precio_aplicado || b.precio_unitario) || 0, p_monto: parseFloat(b.monto_total) || 0 }),
@@ -1961,7 +1961,7 @@ const ViewLanchas = {
     const dateTab       = ref('operaciones');
     const loadingFechas = ref(true);
     const fetchError    = ref('');
-    const today         = new Date().toISOString().slice(0, 10);
+    const today         = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);  // fecha LOCAL (no UTC → evita off-by-one de noche)
 
     const fechaIdx = computed(() => fechas.value.indexOf(currentFecha.value));
 
@@ -1971,11 +1971,10 @@ const ViewLanchas = {
       try {
         const r = await apiGet('lanchas_fechas');
         if (r.ok && Array.isArray(r.data)) {
-          fechas.value = r.data;
-          const si = r.data.includes(today) ? r.data.indexOf(today) : 0;
-          currentFecha.value = r.data[si] || '';
-          // Preload current + both neighbors
-          [si - 1, si, si + 1].forEach(i => { if (r.data[i]) loadFecha(r.data[i]); });
+          fechas.value = r.data;                 // días CON actividad (para marcar con ●)
+          currentFecha.value = today;            // aterriza en HOY; se navega por calendario libre
+          loadFecha(today);
+          [-1, 1].forEach(o => { const n = new Date(today + 'T12:00:00'); n.setDate(n.getDate() + o); loadFecha(n.toISOString().slice(0, 10)); });
         } else {
           fetchError.value = r.error || 'GAS no reconoce lanchas_fechas — actualiza Code.gs';
         }
@@ -2001,15 +2000,21 @@ const ViewLanchas = {
     }
 
     function navigate(dir) {
-      const ni = fechaIdx.value + dir;
-      const target = fechas.value[ni];
-      if (!target) return;
+      if (!currentFecha.value) return;
+      const d = new Date(currentFecha.value + 'T12:00:00');   // mediodía: evita borde TZ
+      d.setDate(d.getDate() + dir);
+      const target = d.toISOString().slice(0, 10);
       currentFecha.value = target;
       dateTab.value = 'operaciones';
       loadFecha(target);
-      // Preload both neighbors of new target
-      if (fechas.value[ni - 1]) loadFecha(fechas.value[ni - 1]);
-      if (fechas.value[ni + 1]) loadFecha(fechas.value[ni + 1]);
+      [-1, 1].forEach(o => { const n = new Date(target + 'T12:00:00'); n.setDate(n.getDate() + o); loadFecha(n.toISOString().slice(0, 10)); });
+      try { sndTap(); haptic(8); } catch (e) {}
+    }
+    const hasOps = (f) => fechas.value.includes(f);   // ¿ese día tiene operaciones?
+    function jumpToFecha(f) {   // desde el date-picker: saltar a cualquier fecha
+      if (!f) return;
+      currentFecha.value = f; dateTab.value = 'operaciones'; loadFecha(f);
+      try { sndTap(); haptic(8); } catch (e) {}
     }
 
     function toggleOp(id) {
@@ -2483,6 +2488,7 @@ const ViewLanchas = {
     }
 
     function openOpModal(op = null) {
+      try { sndTap(); haptic(10); } catch (e) {}
       loadCatalogos();
       if (op) {
         opModal.value = { show: true, mode: 'editar', saving: false, error: '',
@@ -2582,6 +2588,7 @@ const ViewLanchas = {
         loadFecha(fecha);
         currentFecha.value = fecha;
         refreshFechasList();
+        try { sndOk(); haptic([15, 40, 15]); } catch (e) {}
         showToast('✅ Operación creada');
       } catch(e) {
         m.error = e.message;
@@ -2962,7 +2969,8 @@ const ViewLanchas = {
              openMovFormModal, guardarMov, confirmarCancelarMov,
              openPagoModal, openPagoModalPase, guardarPago,
              openDerivarModal, openConvertirModal, guardarDerivarConvertir,
-             confirmarAnularPaseMov };
+             confirmarAnularPaseMov,
+             hasOps, jumpToFecha, today };
   },
   template: `
     <div>
@@ -2980,20 +2988,16 @@ const ViewLanchas = {
           Reintentar
         </button>
       </div>
-      <div v-else-if="!fechas.length" class="empty-state">
-        <div class="empty-icon">⛵</div>
-        <p>Sin operaciones registradas</p>
-      </div>
-
-      <!-- ── Vista carousel ── -->
+      <!-- ── Vista carousel (navegación por calendario libre) ── -->
       <div v-else class="date-view-frame">
 
         <!-- Navegación + KPIs en cabecera -->
         <div class="date-view-nav">
-          <button class="date-nav-arrow" :disabled="fechaIdx >= fechas.length - 1" @click="navigate(1)">‹</button>
+          <button class="date-nav-arrow" @click="navigate(1)">‹</button>
           <div class="date-view-center">
-            <div class="date-view-label" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;" @click="showDatePicker=true">
-              {{ fmtFecha(currentFecha) }}
+            <div class="date-view-label" style="display:inline-flex;align-items:center;gap:7px;cursor:pointer;" @click="showDatePicker=true">
+              <span :title="hasOps(currentFecha) ? 'Con operaciones' : 'Sin operaciones'" :style="{ width:'8px', height:'8px', borderRadius:'50%', flexShrink:0, background: hasOps(currentFecha) ? '#4ade80' : 'rgba(255,255,255,0.22)', boxShadow: hasOps(currentFecha) ? '0 0 6px #4ade80' : 'none', transition:'all .2s' }"></span>
+              <span :style="{ color: currentFecha===today ? 'var(--gold)' : 'inherit' }">{{ fmtFecha(currentFecha) }}{{ currentFecha===today ? ' · hoy' : '' }}</span>
               <span style="font-size:11px;opacity:0.7;">▼</span>
             </div>
             <template v-if="cache[currentFecha]?.loaded">
@@ -3020,7 +3024,7 @@ const ViewLanchas = {
             </template>
             <div v-else-if="cache[currentFecha]?.loading" style="margin-top:6px;"><div class="spin" style="width:14px;height:14px;display:inline-block;"></div></div>
           </div>
-          <button class="date-nav-arrow" :disabled="fechaIdx <= 0" @click="navigate(-1)">›</button>
+          <button class="date-nav-arrow" @click="navigate(-1)">›</button>
         </div>
 
         <!-- Cuerpo -->
@@ -3187,8 +3191,10 @@ const ViewLanchas = {
 
             <!-- TAB OPERACIONES -->
             <div v-if="dateTab==='operaciones'">
-              <div v-if="!(cache[currentFecha].operaciones||[]).length" class="empty-state" style="padding:20px;">
-                <div class="empty-icon" style="font-size:28px;">⛵</div><p style="font-size:13px;">Sin operaciones este día</p>
+              <div v-if="!(cache[currentFecha].operaciones||[]).length" class="empty-state" style="padding:22px 16px;">
+                <div class="empty-icon" style="font-size:30px;">⛵</div>
+                <p style="font-size:13px;margin-bottom:14px;">Sin operaciones {{ currentFecha===today ? 'hoy' : 'este día' }}</p>
+                <button v-if="isAdmin" @click="openOpModal(null)" style="display:inline-flex;align-items:center;gap:7px;padding:11px 22px;border-radius:12px;font-size:14px;font-weight:800;cursor:pointer;color:#1e1c18;background:linear-gradient(135deg,var(--gold),#8a6a10);border:none;box-shadow:0 4px 14px rgba(201,168,76,0.35);">＋ Crear operación</button>
               </div>
               <div v-for="op in (cache[currentFecha].operaciones||[])" :key="op.id" class="boat-card" :class="boatBorderClass(op.estado)">
                 <div class="boat-header" @click="toggleOp(op.id)">
@@ -4112,7 +4118,13 @@ const ViewLanchas = {
               <span>📅 Seleccionar fecha</span>
               <button @click="showDatePicker=false" style="font-size:18px;color:var(--text-muted);">✕</button>
             </div>
+            <div style="padding:11px 12px;border-bottom:1px solid var(--border);">
+              <label style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em;">Ir a cualquier fecha</label>
+              <input type="date" :value="currentFecha" @change="jumpToFecha($event.target.value); showDatePicker=false"
+                style="width:100%;margin-top:6px;padding:10px;border-radius:10px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text);font-size:14px;font-weight:700;">
+            </div>
             <div class="date-picker-list">
+              <div v-if="Object.keys(datesByMonth).length" style="font-size:10px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:8px 10px 2px;">● Días con operaciones</div>
               <template v-for="(datesInMonth, monthKey) in datesByMonth" :key="monthKey">
                 <div class="date-picker-month">{{ fmtMes(monthKey) }}</div>
                 <div v-for="f in datesInMonth" :key="f"
@@ -6615,7 +6627,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.13.4';
+const APP_VERSION = '1.13.5';
 (function() {
   let _reg = null, _waitingWorker = null;
 
