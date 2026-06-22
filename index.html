@@ -1752,6 +1752,7 @@ const PS_POST = {
   set_facturacion_config: b => _psRpc('admin_set_facturacion_config', { p_ruta: b.ruta || '', p_token: b.token || '', p_lookup_url: b.lookup_url || '', p_lookup_token: b.lookup_token || '', p_modo: b.modo || '', p_activo: typeof b.activo === 'boolean' ? b.activo : null }).then(() => ({ ok: true })),
   anular_comprobante: b => _psRpc('anular_comprobante', { p_id: b.id, p_motivo: b.motivo || 'Anulación' }),
   alinear_correlativo: b => _psRpc('admin_alinear_correlativo', { p_serie: b.serie, p_numero: parseInt(b.numero) || 0 }).then(n => ({ correlativo: n })),
+  set_series: b => _psRpc('admin_set_series', { p_boleta: b.boleta, p_factura: b.factura }),
   anular_operacion: b => _psRpc('anular_operacion', { p_op: b.id }),
   cancelar_movimiento: b => _psRpc('eliminar_movimiento', { p_mov: b.id }),
   actualizar_adicionales: b => _psRpc('actualizar_adicionales', { p_mov: b.id_mov || b.id, p_adic: _adicObj(b.adicionales) }),
@@ -4386,7 +4387,7 @@ async function _siEliminar(cid) {
 let _facState = null;
 const _FAC_DOCS = [['1', 'DNI'], ['6', 'RUC'], ['4', 'CE'], ['7', 'Pasaporte'], ['0', 'Varios']];
 const _facEsc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-function _facSerie() { return _facState.tipo === 1 ? 'F001' : 'B001'; }
+function _facSerie() { const c = _facState.facCfg || {}; return _facState.tipo === 1 ? (c.serie_factura || 'F002') : (c.serie_boleta || 'B002'); }
 function _facTotales() {
   const S = _facState;
   const total = S.items.reduce((s, i) => s + (parseFloat(i.cantidad) || 0) * (parseFloat(i.precio) || 0), 0);
@@ -4501,6 +4502,15 @@ async function _facGuardarConfig() {
   if (r.ok) { sndOk(); haptic([15, 40, 15]); try { const cR = await apiGet('get_facturacion_config'); S.facCfg = (cR.ok && cR.data) || S.facCfg; } catch (e) {} S.cfgEdit = {}; _facRender(); if (typeof showToast === 'function') showToast('✓ Conexión guardada'); }
   else _facErr((r.error || 'No se pudo guardar').replace(/^.*?:\s*/, ''));
 }
+async function _facSetSeries() {
+  const S = _facState, e = S.serieEdit || {};
+  const b = (e.boleta != null ? e.boleta : (S.facCfg && S.facCfg.serie_boleta) || 'B002');
+  const f = (e.factura != null ? e.factura : (S.facCfg && S.facCfg.serie_factura) || 'F002');
+  sndTap(); haptic(10);
+  const r = await apiPost({ accion: 'set_series', boleta: b, factura: f });
+  if (r.ok) { sndOk(); haptic([15, 40, 15]); try { const cR = await apiGet('get_facturacion_config'); S.facCfg = (cR.ok && cR.data) || S.facCfg; } catch (x) {} S.serieEdit = {}; _facRender(); if (typeof showToast === 'function') showToast('✓ Series: ' + b + ' / ' + f); }
+  else _facErr((r.error || 'No se pudo cambiar la serie').replace(/^.*?:\s*/, ''));
+}
 async function _facAlinear(serie) {
   const S = _facState, v = S.corrEdit && S.corrEdit[serie];
   if (v == null || v === '') return _facErr('Pon el último número emitido (o 0 si es serie nueva)');
@@ -4539,8 +4549,8 @@ function _facRender() {
     } else {
       body = `
       <div style="display:flex;gap:8px;margin-bottom:12px">
-        <button onclick="_facSetTipo(2)" style="flex:1;padding:10px;border-radius:10px;font-weight:800;font-size:13px;cursor:pointer;border:1px solid ${S.tipo===2?'var(--gold)':'var(--border)'};background:${S.tipo===2?'rgba(201,168,76,0.16)':'transparent'};color:${S.tipo===2?'var(--gold)':'var(--text-muted)'}">Boleta · B001</button>
-        <button onclick="_facSetTipo(1)" style="flex:1;padding:10px;border-radius:10px;font-weight:800;font-size:13px;cursor:pointer;border:1px solid ${S.tipo===1?'var(--gold)':'var(--border)'};background:${S.tipo===1?'rgba(201,168,76,0.16)':'transparent'};color:${S.tipo===1?'var(--gold)':'var(--text-muted)'}">Factura · F001</button>
+        <button onclick="_facSetTipo(2)" style="flex:1;padding:10px;border-radius:10px;font-weight:800;font-size:13px;cursor:pointer;border:1px solid ${S.tipo===2?'var(--gold)':'var(--border)'};background:${S.tipo===2?'rgba(201,168,76,0.16)':'transparent'};color:${S.tipo===2?'var(--gold)':'var(--text-muted)'}">Boleta · ${(S.facCfg&&S.facCfg.serie_boleta)||'B002'}</button>
+        <button onclick="_facSetTipo(1)" style="flex:1;padding:10px;border-radius:10px;font-weight:800;font-size:13px;cursor:pointer;border:1px solid ${S.tipo===1?'var(--gold)':'var(--border)'};background:${S.tipo===1?'rgba(201,168,76,0.16)':'transparent'};color:${S.tipo===1?'var(--gold)':'var(--text-muted)'}">Factura · ${(S.facCfg&&S.facCfg.serie_factura)||'F002'}</button>
       </div>
       <div style="display:flex;gap:8px;margin-bottom:8px">
         <select id="fac-doctipo" class="config-input" style="flex:0 0 110px">${_FAC_DOCS.map(d=>`<option value="${d[0]}"${S.docTipo===d[0]?' selected':''}>${d[1]}</option>`).join('')}</select>
@@ -4612,8 +4622,15 @@ function _facRender() {
           <span style="position:absolute;top:3px;left:${_facCfgActivo()?'25px':'3px'};width:22px;height:22px;border-radius:50%;background:#fff;transition:left .2s"></span></button>
       </div>
       <button onclick="_facGuardarConfig()" class="btn-primary" style="width:100%;padding:12px;font-weight:800">💾 Guardar conexión</button>
-      <div style="font-size:11px;font-weight:800;color:var(--gold);margin:18px 0 6px">NUMERACIÓN (CORRELATIVOS)</div>
-      <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;line-height:1.5">Al dejar el sistema viejo: pon el <b>último número que ya emitió</b> esa serie (el próximo será +1), o <b>0 si es una serie nueva</b> en SUNAT. Debe coincidir con lo que configures en NubeFact — NubeFact es quien manda el número oficial.</div>
+      <div style="font-size:11px;font-weight:800;color:var(--gold);margin:18px 0 6px">SERIE ACTIVA</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;line-height:1.5">PS arranca limpio con series nuevas (el sistema viejo usaba otras). Debe coincidir con lo que crees en NubeFact.</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px">
+        <div style="flex:1"><div style="font-size:10px;color:var(--text-muted);font-weight:700;margin-bottom:2px">Boleta</div><input id="serie-b" class="config-input" style="padding:7px" value="${_facEsc((cf.serie_boleta)||'B002')}"></div>
+        <div style="flex:1"><div style="font-size:10px;color:var(--text-muted);font-weight:700;margin-bottom:2px">Factura</div><input id="serie-f" class="config-input" style="padding:7px" value="${_facEsc((cf.serie_factura)||'F002')}"></div>
+        <button onclick="_facSetSeries()" style="flex:0 0 auto;align-self:flex-end;padding:8px 12px;border-radius:9px;border:1px solid var(--gold);background:rgba(201,168,76,0.14);color:var(--gold);font-weight:800;font-size:12px;cursor:pointer">Guardar</button>
+      </div>
+      <div style="font-size:11px;font-weight:800;color:var(--gold);margin:4px 0 6px">CORRELATIVOS</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;line-height:1.5">Serie nueva = déjalo en <b>0</b> (próximo será 1). Solo cambia esto si continuaras una serie vieja. NubeFact es quien manda el número oficial.</div>
       ${Object.keys(cf.series || {}).sort().map(s => `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
         <div style="flex:0 0 56px;font-weight:800;font-size:13px">${s}</div>
         <div style="flex:1;font-size:11px;color:var(--text-muted)">actual: <b>${cf.series[s]}</b> · próx: <b>${(Number(cf.series[s])||0)+1}</b></div>
@@ -4656,6 +4673,8 @@ function _facRender() {
   const cfgBind = (id, key) => { const el = ov.querySelector('#' + id); if (el) el.oninput = e => { _facState.cfgEdit[key] = e.target.value; }; };
   cfgBind('cfg-ruta', 'ruta'); cfgBind('cfg-token', 'token'); cfgBind('cfg-lkurl', 'lkurl'); cfgBind('cfg-lktoken', 'lktoken');
   Object.keys((_facState.facCfg && _facState.facCfg.series) || {}).forEach(s => { const el = ov.querySelector('#corr-' + s); if (el) el.oninput = e => { _facState.corrEdit = _facState.corrEdit || {}; _facState.corrEdit[s] = e.target.value; }; });
+  const sb = ov.querySelector('#serie-b'); if (sb) sb.oninput = e => { _facState.serieEdit = Object.assign({}, _facState.serieEdit, { boleta: e.target.value }); };
+  const sf = ov.querySelector('#serie-f'); if (sf) sf.oninput = e => { _facState.serieEdit = Object.assign({}, _facState.serieEdit, { factura: e.target.value }); };
 }
 
 // ── Tween de contadores (easeOutCubic) ───────────────────────
@@ -6927,7 +6946,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.14.2';
+const APP_VERSION = '1.14.3';
 (function() {
   let _reg = null, _waitingWorker = null;
 
