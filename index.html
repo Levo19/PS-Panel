@@ -1751,6 +1751,7 @@ const PS_POST = {
   set_facturacion_muelle: b => _psRpc('admin_set_facturacion_muelle', { p_on: !!b.on }).then(v => ({ on: v })),
   set_facturacion_config: b => _psRpc('admin_set_facturacion_config', { p_ruta: b.ruta || '', p_token: b.token || '', p_lookup_url: b.lookup_url || '', p_lookup_token: b.lookup_token || '', p_modo: b.modo || '', p_activo: typeof b.activo === 'boolean' ? b.activo : null }).then(() => ({ ok: true })),
   anular_comprobante: b => _psRpc('anular_comprobante', { p_id: b.id, p_motivo: b.motivo || 'Anulación' }),
+  alinear_correlativo: b => _psRpc('admin_alinear_correlativo', { p_serie: b.serie, p_numero: parseInt(b.numero) || 0 }).then(n => ({ correlativo: n })),
   anular_operacion: b => _psRpc('anular_operacion', { p_op: b.id }),
   cancelar_movimiento: b => _psRpc('eliminar_movimiento', { p_mov: b.id }),
   actualizar_adicionales: b => _psRpc('actualizar_adicionales', { p_mov: b.id_mov || b.id, p_adic: _adicObj(b.adicionales) }),
@@ -4500,6 +4501,14 @@ async function _facGuardarConfig() {
   if (r.ok) { sndOk(); haptic([15, 40, 15]); try { const cR = await apiGet('get_facturacion_config'); S.facCfg = (cR.ok && cR.data) || S.facCfg; } catch (e) {} S.cfgEdit = {}; _facRender(); if (typeof showToast === 'function') showToast('✓ Conexión guardada'); }
   else _facErr((r.error || 'No se pudo guardar').replace(/^.*?:\s*/, ''));
 }
+async function _facAlinear(serie) {
+  const S = _facState, v = S.corrEdit && S.corrEdit[serie];
+  if (v == null || v === '') return _facErr('Pon el último número emitido (o 0 si es serie nueva)');
+  sndTap(); haptic(10);
+  const r = await apiPost({ accion: 'alinear_correlativo', serie, numero: v });
+  if (r.ok) { sndOk(); haptic([15, 40, 15]); try { const cR = await apiGet('get_facturacion_config'); S.facCfg = (cR.ok && cR.data) || S.facCfg; } catch (e) {} if (S.corrEdit) delete S.corrEdit[serie]; _facRender(); if (typeof showToast === 'function') showToast('✓ ' + serie + ' → próximo ' + (((r.data && r.data.correlativo) || 0) + 1)); }
+  else _facErr((r.error || 'No se pudo alinear').replace(/^.*?:\s*/, ''));
+}
 function _facRender() {
   const ov = document.getElementById('fac-ov'); if (!ov || !_facState) return;
   const S = _facState, tot = _facTotales();
@@ -4602,7 +4611,15 @@ function _facRender() {
         <button onclick="_facState.cfgEdit.activo=!_facCfgActivo();_facRender()" style="width:50px;height:28px;border-radius:999px;border:none;cursor:pointer;position:relative;background:${_facCfgActivo()?'#4ade80':'var(--border)'}">
           <span style="position:absolute;top:3px;left:${_facCfgActivo()?'25px':'3px'};width:22px;height:22px;border-radius:50%;background:#fff;transition:left .2s"></span></button>
       </div>
-      <button onclick="_facGuardarConfig()" class="btn-primary" style="width:100%;padding:12px;font-weight:800">💾 Guardar conexión</button>`;
+      <button onclick="_facGuardarConfig()" class="btn-primary" style="width:100%;padding:12px;font-weight:800">💾 Guardar conexión</button>
+      <div style="font-size:11px;font-weight:800;color:var(--gold);margin:18px 0 6px">NUMERACIÓN (CORRELATIVOS)</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;line-height:1.5">Al dejar el sistema viejo: pon el <b>último número que ya emitió</b> esa serie (el próximo será +1), o <b>0 si es una serie nueva</b> en SUNAT. Debe coincidir con lo que configures en NubeFact — NubeFact es quien manda el número oficial.</div>
+      ${Object.keys(cf.series || {}).sort().map(s => `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <div style="flex:0 0 56px;font-weight:800;font-size:13px">${s}</div>
+        <div style="flex:1;font-size:11px;color:var(--text-muted)">actual: <b>${cf.series[s]}</b> · próx: <b>${(Number(cf.series[s])||0)+1}</b></div>
+        <input id="corr-${s}" type="number" inputmode="numeric" class="config-input" style="flex:0 0 110px;padding:7px" placeholder="último #">
+        <button onclick="_facAlinear('${s}')" style="flex:0 0 auto;padding:7px 12px;border-radius:9px;border:1px solid var(--gold);background:rgba(201,168,76,0.14);color:var(--gold);font-weight:800;font-size:12px;cursor:pointer">Fijar</button>
+      </div>`).join('') || '<div style="font-size:11px;color:var(--text-muted)">Sin series.</div>'}`;
   } else if (S.tab === 'historial') {
     body = `<div style="font-size:11px;font-weight:800;color:var(--gold);margin-bottom:8px">COMPROBANTES EMITIDOS</div>` +
       (S.cargandoHist ? '<div style="text-align:center;padding:24px"><div class="spin" style="display:inline-block"></div></div>' :
@@ -4638,6 +4655,7 @@ function _facRender() {
   const sp = ov.querySelector('#svc-precio'); if (sp) sp.oninput = e => { _facState.svcEdit = Object.assign({}, _facState.svcEdit, { precio: e.target.value }); };
   const cfgBind = (id, key) => { const el = ov.querySelector('#' + id); if (el) el.oninput = e => { _facState.cfgEdit[key] = e.target.value; }; };
   cfgBind('cfg-ruta', 'ruta'); cfgBind('cfg-token', 'token'); cfgBind('cfg-lkurl', 'lkurl'); cfgBind('cfg-lktoken', 'lktoken');
+  Object.keys((_facState.facCfg && _facState.facCfg.series) || {}).forEach(s => { const el = ov.querySelector('#corr-' + s); if (el) el.oninput = e => { _facState.corrEdit = _facState.corrEdit || {}; _facState.corrEdit[s] = e.target.value; }; });
 }
 
 // ── Tween de contadores (easeOutCubic) ───────────────────────
@@ -6909,7 +6927,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.14.1';
+const APP_VERSION = '1.14.2';
 (function() {
   let _reg = null, _waitingWorker = null;
 
