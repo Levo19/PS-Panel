@@ -1731,7 +1731,9 @@ const PS_GET = {
   listar_servicios:       () => _psRpc('listar_servicios'),
   get_facturacion_muelle: () => _psRpc('get_facturacion_muelle'),
   listar_comprobantes:    p => _psRpc('listar_comprobantes', { p_desde: p.desde || null, p_hasta: p.hasta || null }),
-  buscar_cliente:         p => _psRpc('buscar_cliente', { p_doc_tipo: p.doc_tipo, p_doc: p.doc })
+  buscar_cliente:         p => _psRpc('buscar_cliente', { p_doc_tipo: p.doc_tipo, p_doc: p.doc }),
+  get_facturacion_config: () => _psRpc('get_facturacion_config'),
+  consultar_documento:    p => _psRpc('consultar_documento', { p_tipo: p.tipo, p_numero: p.numero })
 };
 const PS_POST = {
   registrar_pago: b => _psRpc('registrar_transaccion', { p_op: b.id_operacion || null, p_contacto: b.id_contacto || null, p_categoria: b.categoria || 'Cobro', p_monto: parseFloat(b.monto) || 0, p_metodo: b.metodo_pago || 'Efectivo', p_comentarios: b.comentarios || null, p_foto_url: null, p_operador: b.operador || 'PS', p_mov: b.id_movimiento || null, p_local_id: b.localId || null }).then(id => ({ id })),
@@ -1747,6 +1749,8 @@ const PS_POST = {
   set_servicio: b => _psRpc('admin_set_servicio', { p_id: b.id || '', p_nombre: b.nombre, p_desc: b.descripcion || null, p_precio: parseFloat(b.precio) || 0, p_unidad: b.unidad || 'NIU', p_activo: b.activo !== false }).then(id => ({ id })),
   eliminar_servicio: b => _psRpc('admin_eliminar_servicio', { p_id: b.id }).then(() => ({ ok: true })),
   set_facturacion_muelle: b => _psRpc('admin_set_facturacion_muelle', { p_on: !!b.on }).then(v => ({ on: v })),
+  set_facturacion_config: b => _psRpc('admin_set_facturacion_config', { p_ruta: b.ruta || '', p_token: b.token || '', p_lookup_url: b.lookup_url || '', p_lookup_token: b.lookup_token || '', p_modo: b.modo || '', p_activo: typeof b.activo === 'boolean' ? b.activo : null }).then(() => ({ ok: true })),
+  anular_comprobante: b => _psRpc('anular_comprobante', { p_id: b.id, p_motivo: b.motivo || 'Anulación' }),
   anular_operacion: b => _psRpc('anular_operacion', { p_op: b.id }),
   cancelar_movimiento: b => _psRpc('eliminar_movimiento', { p_mov: b.id }),
   actualizar_adicionales: b => _psRpc('actualizar_adicionales', { p_mov: b.id_mov || b.id, p_adic: _adicObj(b.adicionales) }),
@@ -4400,12 +4404,12 @@ window.abrirFacturacion = async function () {
   if (!ov) { ov = document.createElement('div'); ov.id = 'fac-ov'; ov.className = 'modal-overlay'; document.body.appendChild(ov); ov.addEventListener('click', e => { if (e.target === ov) cerrarFacturacion(); }); }
   ov.style.display = 'flex';
   ov.innerHTML = '<div class="modal-box glass-strong" style="max-width:560px;width:94vw"><div style="text-align:center;padding:36px;color:var(--text-muted)"><div class="spin" style="margin:0 auto 12px"></div>Cargando…</div></div>';
-  let servicios = [], muelleOn = false;
+  let servicios = [], muelleOn = false, facCfg = {};
   try {
-    const [sR, mR] = await Promise.all([apiGet('listar_servicios'), apiGet('get_facturacion_muelle')]);
-    servicios = (sR.ok && sR.data) || []; muelleOn = !!(mR.ok && mR.data);
+    const [sR, mR, cR] = await Promise.all([apiGet('listar_servicios'), apiGet('get_facturacion_muelle'), apiGet('get_facturacion_config')]);
+    servicios = (sR.ok && sR.data) || []; muelleOn = !!(mR.ok && mR.data); facCfg = (cR.ok && cR.data) || {};
   } catch (e) {}
-  _facState = { tab: 'emitir', ses, servicios, muelleOn, comprobantes: [], cargandoHist: false,
+  _facState = { tab: 'emitir', ses, servicios, muelleOn, facCfg, cfgEdit: {}, comprobantes: [], cargandoHist: false,
     tipo: 2, docTipo: '1', doc: '', nombre: '', email: '', tel: '', dir: '', exonerado: false, esExtranjero: false,
     items: [], resultado: null, shake: false, svcEdit: null };
   _facRender();
@@ -4421,10 +4425,26 @@ function _facDelItem(i) { sndTap(); haptic(8); _facState.items.splice(i, 1); _fa
 async function _facBuscar() {
   const S = _facState; if (!S.doc) return;
   sndTap(); haptic(8);
+  const toast = m => { if (typeof showToast === 'function') showToast(m); };
   try { const r = await apiGet('buscar_cliente', { doc_tipo: S.docTipo, doc: S.doc });
-    if (r.ok && r.data && r.data.nombre) { S.nombre = r.data.nombre; S.email = r.data.email || ''; S.tel = r.data.telefono || ''; S.dir = r.data.direccion || ''; sndOk(); _facRender(); if (typeof showToast === 'function') showToast('✓ Cliente encontrado'); }
-    else if (typeof showToast === 'function') showToast('Sin registro — escribe el nombre (lookup RUC/DNI llega en fase 1)');
+    if (r.ok && r.data && r.data.nombre) { S.nombre = r.data.nombre; S.email = r.data.email || ''; S.tel = r.data.telefono || ''; S.dir = r.data.direccion || ''; sndOk(); _facRender(); toast('✓ Cliente frecuente'); return; }
   } catch (e) {}
+  // no estaba guardado → lookup externo RUC/DNI (si hay token configurado)
+  try {
+    const d = await apiGet('consultar_documento', { tipo: S.docTipo, numero: S.doc });
+    const j = d.ok && d.data;
+    if (j && j.ok && j.nombre) { S.nombre = j.nombre; if (j.direccion) S.dir = j.direccion; sndOk(); _facRender(); toast('✓ ' + j.nombre); }
+    else if (j && j.motivo === 'tipo_manual') toast('CE/Pasaporte: escribe el nombre a mano');
+    else if (j && j.motivo === 'sin_config') toast('Escribe el nombre (lookup RUC/DNI sin token aún)');
+    else toast('Sin datos — escribe el nombre');
+  } catch (e) { toast('Escribe el nombre a mano'); }
+}
+async function _facAnular(id) {
+  if (!confirm('¿Anular este comprobante? Si ya fue aceptado por SUNAT se generará la nota de baja.')) return;
+  sndTap(); haptic(12);
+  const r = await apiPost({ accion: 'anular_comprobante', id, motivo: 'Anulación desde panel' });
+  if (r.ok) { sndDown(); if (typeof showToast === 'function') showToast('Comprobante anulado'); _facLoadHist(); }
+  else _facErr((r.error || 'No se pudo anular').replace(/^.*?:\s*/, ''));
 }
 async function _facEmitir() {
   const S = _facState; const tot = _facTotales();
@@ -4441,7 +4461,7 @@ async function _facEmitir() {
     localId: 'fac-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) });
   if (r.ok && r.data) {
     sndOk(); haptic([15, 40, 15]);
-    S.resultado = r.data;
+    S.resultado = Object.assign({}, r.data, { _tel: S.tel.trim(), _email: S.email.trim(), _nombre: S.nombre.trim() });
     S.items = []; S.doc = ''; S.nombre = ''; S.email = ''; S.tel = ''; S.dir = ''; S.exonerado = false; S.esExtranjero = false;
     _facRender();
   } else { _facErr((r.error || 'No se pudo emitir').replace(/^.*?:\s*/, '')); if (btn) { btn.disabled = false; btn.textContent = '🧾 Emitir comprobante'; } }
@@ -4470,6 +4490,15 @@ async function _facToggleMuelle() {
   if (r.ok) { _facState.muelleOn = !!(r.data && r.data.on); (nuevo ? sndUp : sndDown)(); _facRender(); }
   else _facErr(r.error || 'No se pudo cambiar');
 }
+function _facCfgActivo() { const S = _facState; return typeof S.cfgEdit.activo === 'boolean' ? S.cfgEdit.activo : !!(S.facCfg && S.facCfg.activo); }
+async function _facGuardarConfig() {
+  const S = _facState, c = S.cfgEdit;
+  if (_facCfgActivo() && !(S.facCfg.tiene_nubefact || c.ruta || c.token)) return _facErr('Para emitir de verdad primero pega la RUTA y el TOKEN de NubeFact');
+  sndTap(); haptic(10);
+  const r = await apiPost({ accion: 'set_facturacion_config', ruta: c.ruta || '', token: c.token || '', lookup_url: c.lkurl || '', lookup_token: c.lktoken || '', modo: _facCfgActivo() ? (c.modo || 'produccion') : 'demo', activo: _facCfgActivo() });
+  if (r.ok) { sndOk(); haptic([15, 40, 15]); try { const cR = await apiGet('get_facturacion_config'); S.facCfg = (cR.ok && cR.data) || S.facCfg; } catch (e) {} S.cfgEdit = {}; _facRender(); if (typeof showToast === 'function') showToast('✓ Conexión guardada'); }
+  else _facErr((r.error || 'No se pudo guardar').replace(/^.*?:\s*/, ''));
+}
 function _facRender() {
   const ov = document.getElementById('fac-ov'); if (!ov || !_facState) return;
   const S = _facState, tot = _facTotales();
@@ -4478,11 +4507,23 @@ function _facRender() {
   if (S.tab === 'emitir') {
     if (S.resultado) {
       const R = S.resultado;
+      const pdfUrl = String(R.pdf || ''); const realPdf = /^https?:\/\//.test(pdfUrl);
+      const tel = String(R._tel || '').replace(/\D/g, '');
+      const waMsg = encodeURIComponent('Hola ' + (R._nombre || '') + ', tu comprobante ' + R.serie + '-' + String(R.numero).padStart(6, '0') + (realPdf ? ': ' + pdfUrl : ' por S/ ' + (R.total || 0).toFixed(2)));
+      const waHref = tel ? 'https://wa.me/' + (tel.length === 9 ? '51' + tel : tel) + '?text=' + waMsg : '';
+      const rechazada = (R.estado === 'rechazada' || R.estado === 'pendiente');
       body = `<div style="text-align:center;padding:18px 6px">
-        <div style="font-size:40px">🧾</div>
-        <div style="font-weight:900;font-size:18px;color:#4ade80;margin:6px 0">Comprobante ${R.serie}-${String(R.numero).padStart(6,'0')}</div>
+        <div style="font-size:40px">${rechazada ? '⚠️' : '🧾'}</div>
+        <div style="font-weight:900;font-size:18px;color:${rechazada ? '#fbbf24' : '#4ade80'};margin:6px 0">Comprobante ${R.serie}-${String(R.numero).padStart(6,'0')}</div>
         <div style="font-size:12px;color:var(--text-muted)">Total S/ ${(R.total||0).toFixed(2)} · estado: ${R.estado}</div>
-        <div style="margin:14px 0;padding:10px;border-radius:10px;background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.25);font-size:11px;color:var(--text-muted)">📄 ${_facEsc(R.pdf||'')}<br>(en fase 1 será el PDF real de NubeFact + envío por correo/WhatsApp)</div>
+        ${R.errores ? `<div style="margin:10px 0;font-size:11px;color:#fbbf24">${_facEsc(R.errores)}</div>` : ''}
+        ${realPdf
+          ? `<a href="${_facEsc(pdfUrl)}" target="_blank" rel="noopener" onclick="sndTap()" style="display:block;margin:14px 0;padding:11px;border-radius:10px;background:rgba(74,222,128,0.12);border:1px solid rgba(74,222,128,0.35);color:#4ade80;font-weight:800;text-decoration:none">📄 Ver / descargar PDF</a>`
+          : `<div style="margin:14px 0;padding:10px;border-radius:10px;background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.25);font-size:11px;color:var(--text-muted)">📄 ${_facEsc(pdfUrl)}<br>(PDF real de NubeFact cuando se activen los tokens)</div>`}
+        <div style="display:flex;gap:8px;justify-content:center;margin-bottom:14px">
+          ${waHref ? `<a href="${waHref}" target="_blank" rel="noopener" onclick="sndOk()" style="flex:1;padding:10px;border-radius:10px;background:#25D366;color:#fff;font-weight:800;text-decoration:none">💬 WhatsApp</a>` : ''}
+          ${R._email ? `<span style="flex:1;padding:10px;border-radius:10px;background:rgba(255,255,255,0.05);border:1px solid var(--border);font-size:11px;color:var(--text-muted);display:flex;align-items:center;justify-content:center">✉ ${realPdf ? 'Enviado a' : 'Irá a'} ${_facEsc(R._email)}</span>` : ''}
+        </div>
         <button onclick="_facState.resultado=null;_facRender()" class="btn-primary" style="padding:10px 22px;font-weight:800">Emitir otro</button>
       </div>`;
     } else {
@@ -4540,18 +4581,35 @@ function _facRender() {
       <div style="display:flex;gap:8px"><input id="svc-precio" type="number" inputmode="decimal" class="config-input" style="flex:1" placeholder="Precio S/" value="${e?(e.precio||''):''}">
       <button onclick="_facGuardarServicio()" class="btn-primary" style="flex:0 0 auto;padding:0 20px;font-weight:800">${e&&e.id?'Guardar':'Agregar'}</button></div>`;
   } else if (S.tab === 'ajustes') {
+    const cf = S.facCfg || {};
+    const chip = (ok, txt) => `<span style="font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px;background:${ok?'rgba(74,222,128,0.15)':'rgba(248,113,113,0.12)'};color:${ok?'#4ade80':'#f87171'}">${ok?'✓ ':'○ '}${txt}</span>`;
     body = `<div style="font-size:11px;font-weight:800;color:var(--gold);margin-bottom:10px">FACTURACIÓN EN EL MUELLE</div>
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px;border:1px solid var(--border);border-radius:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px;border:1px solid var(--border);border-radius:12px;margin-bottom:18px">
         <div style="flex:1;padding-right:10px"><div style="font-weight:700;font-size:14px">Permitir boletas rápidas en el muelle</div><div style="font-size:11px;color:var(--text-muted);margin-top:3px">Si está ON, los operadores pueden emitir desde OperacionesPS.</div></div>
         <button onclick="_facToggleMuelle()" style="flex:0 0 auto;width:54px;height:30px;border-radius:999px;border:none;cursor:pointer;position:relative;background:${S.muelleOn?'#4ade80':'var(--border)'};transition:background .2s">
           <span style="position:absolute;top:3px;left:${S.muelleOn?'27px':'3px'};width:24px;height:24px;border-radius:50%;background:#fff;transition:left .2s"></span></button>
-      </div>`;
+      </div>
+      <div style="font-size:11px;font-weight:800;color:var(--gold);margin-bottom:6px">CONEXIÓN NUBEFACT (SUNAT)</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">${chip(cf.tiene_nubefact,'NubeFact')}${chip(cf.tiene_lookup,'API RUC/DNI')}${chip(cf.activo,cf.activo?('REAL · '+(cf.modo||'demo')):'modo demo (stub)')}</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;line-height:1.5">Pega aquí los datos que te dé NubeFact y el API de consulta. Mientras esté en <b>demo</b>, los comprobantes son de prueba (no van a SUNAT). Los tokens se guardan cifrados en la base, nunca en el navegador.</div>
+      <input id="cfg-ruta" class="config-input" style="margin-bottom:8px" placeholder="NubeFact · RUTA (URL del API)" value="">
+      <input id="cfg-token" class="config-input" style="margin-bottom:8px" type="password" placeholder="NubeFact · TOKEN ${cf.tiene_nubefact?'(ya guardado · deja vacío para mantener)':''}" value="">
+      <input id="cfg-lkurl" class="config-input" style="margin-bottom:8px" placeholder="API RUC/DNI · URL base (ej. https://api.apis.net.pe/v2/sunat/ruc?numero=)" value="">
+      <input id="cfg-lktoken" class="config-input" style="margin-bottom:8px" type="password" placeholder="API RUC/DNI · TOKEN ${cf.tiene_lookup?'(ya guardado · deja vacío para mantener)':''}" value="">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 12px;border:1px solid var(--border);border-radius:10px;margin-bottom:12px">
+        <div style="font-size:12px;font-weight:700">Emitir de verdad (enviar a SUNAT)</div>
+        <button onclick="_facState.cfgEdit.activo=!_facCfgActivo();_facRender()" style="width:50px;height:28px;border-radius:999px;border:none;cursor:pointer;position:relative;background:${_facCfgActivo()?'#4ade80':'var(--border)'}">
+          <span style="position:absolute;top:3px;left:${_facCfgActivo()?'25px':'3px'};width:22px;height:22px;border-radius:50%;background:#fff;transition:left .2s"></span></button>
+      </div>
+      <button onclick="_facGuardarConfig()" class="btn-primary" style="width:100%;padding:12px;font-weight:800">💾 Guardar conexión</button>`;
   } else if (S.tab === 'historial') {
     body = `<div style="font-size:11px;font-weight:800;color:var(--gold);margin-bottom:8px">COMPROBANTES EMITIDOS</div>` +
       (S.cargandoHist ? '<div style="text-align:center;padding:24px"><div class="spin" style="display:inline-block"></div></div>' :
-       (S.comprobantes.length ? `<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">${S.comprobantes.map(c=>`<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 10px;border-bottom:1px solid var(--border)">
-          <div style="min-width:0"><div style="font-weight:700;font-size:12px">${c.serie}-${String(c.numero).padStart(6,'0')} · ${_facEsc(c.cliente_nombre||'')}</div><div style="font-size:10px;color:var(--text-muted)">${c.creado} · ${c.estado}</div></div>
-          <span style="font-weight:800;font-size:12px;color:var(--gold)">S/ ${(c.total||0)}</span></div>`).join('')}</div>` :
+       (S.comprobantes.length ? `<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">${S.comprobantes.map(c=>{const real=/^https?:\/\//.test(String(c.enlace_pdf||''));const anu=c.estado==='anulada';return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 10px;border-bottom:1px solid var(--border);${anu?'opacity:.55':''}">
+          <div style="min-width:0;flex:1"><div style="font-weight:700;font-size:12px;${anu?'text-decoration:line-through':''}">${c.serie}-${String(c.numero).padStart(6,'0')} · ${_facEsc(c.cliente_nombre||'')}</div><div style="font-size:10px;color:var(--text-muted)">${c.creado} · ${c.estado}</div></div>
+          <span style="font-weight:800;font-size:12px;color:var(--gold)">S/ ${(c.total||0)}</span>
+          ${real?`<a href="${_facEsc(c.enlace_pdf)}" target="_blank" rel="noopener" onclick="sndTap()" title="PDF" style="text-decoration:none;font-size:14px">📄</a>`:''}
+          ${anu?'':`<button onclick="_facAnular('${c.id}')" title="Anular" style="color:#f87171;background:none;border:none;font-size:13px;cursor:pointer">⊘</button>`}</div>`}).join('')}</div>` :
         '<div style="padding:18px;text-align:center;color:var(--text-muted);font-size:12px">Aún no hay comprobantes.</div>'));
   }
   ov.innerHTML = `<div class="modal-box glass-strong${S.shake?' si-shake':''}" style="max-width:560px;width:94vw;max-height:90vh;overflow-y:auto">
@@ -4577,6 +4635,8 @@ function _facRender() {
   });
   const sn = ov.querySelector('#svc-nombre'); if (sn) sn.oninput = e => { _facState.svcEdit = Object.assign({}, _facState.svcEdit, { nombre: e.target.value }); };
   const sp = ov.querySelector('#svc-precio'); if (sp) sp.oninput = e => { _facState.svcEdit = Object.assign({}, _facState.svcEdit, { precio: e.target.value }); };
+  const cfgBind = (id, key) => { const el = ov.querySelector('#' + id); if (el) el.oninput = e => { _facState.cfgEdit[key] = e.target.value; }; };
+  cfgBind('cfg-ruta', 'ruta'); cfgBind('cfg-token', 'token'); cfgBind('cfg-lkurl', 'lkurl'); cfgBind('cfg-lktoken', 'lktoken');
 }
 
 // ── Tween de contadores (easeOutCubic) ───────────────────────
@@ -6848,7 +6908,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.13.6';
+const APP_VERSION = '1.14.0';
 (function() {
   let _reg = null, _waitingWorker = null;
 
