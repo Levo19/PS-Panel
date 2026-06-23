@@ -1733,7 +1733,8 @@ const PS_GET = {
   listar_comprobantes:    p => _psRpc('listar_comprobantes', { p_desde: p.desde || null, p_hasta: p.hasta || null }),
   buscar_cliente:         p => _psRpc('buscar_cliente', { p_doc_tipo: p.doc_tipo, p_doc: p.doc }),
   get_facturacion_config: () => _psRpc('get_facturacion_config'),
-  consultar_documento:    p => _psRpc('consultar_documento', { p_tipo: p.tipo, p_numero: p.numero })
+  consultar_documento:    p => _psRpc('consultar_documento', { p_numero: p.numero, p_tipo: p.tipo || null }),
+  solicitudes_anulacion:  () => _psRpc('listar_solicitudes_anulacion')
 };
 const PS_POST = {
   registrar_pago: b => _psRpc('registrar_transaccion', { p_op: b.id_operacion || null, p_contacto: b.id_contacto || null, p_categoria: b.categoria || 'Cobro', p_monto: parseFloat(b.monto) || 0, p_metodo: b.metodo_pago || 'Efectivo', p_comentarios: b.comentarios || null, p_foto_url: null, p_operador: b.operador || 'PS', p_mov: b.id_movimiento || null, p_local_id: b.localId || null }).then(id => ({ id })),
@@ -1751,6 +1752,7 @@ const PS_POST = {
   set_facturacion_muelle: b => _psRpc('admin_set_facturacion_muelle', { p_on: !!b.on }).then(v => ({ on: v })),
   set_facturacion_config: b => _psRpc('admin_set_facturacion_config', { p_ruta: b.ruta || '', p_token: b.token || '', p_lookup_url: b.lookup_url || '', p_lookup_token: b.lookup_token || '', p_modo: b.modo || '', p_activo: typeof b.activo === 'boolean' ? b.activo : null }).then(() => ({ ok: true })),
   anular_comprobante: b => _psRpc('anular_comprobante', { p_id: b.id, p_motivo: b.motivo || 'Anulación' }),
+  resolver_anulacion: b => _psRpc('resolver_anulacion', { p_id: b.id, p_aprobar: !!b.aprobar, p_nota: b.nota || null }),
   alinear_correlativo: b => _psRpc('admin_alinear_correlativo', { p_serie: b.serie, p_numero: parseInt(b.numero) || 0 }).then(n => ({ correlativo: n })),
   set_series: b => _psRpc('admin_set_series', { p_boleta: b.boleta, p_factura: b.factura }),
   anular_operacion: b => _psRpc('anular_operacion', { p_op: b.id }),
@@ -4413,10 +4415,22 @@ window.abrirFacturacion = async function () {
   } catch (e) {}
   _facState = { tab: 'emitir', ses, servicios, muelleOn, facCfg, cfgEdit: {}, comprobantes: [], cargandoHist: false,
     tipo: 2, docTipo: '1', doc: '', nombre: '', email: '', tel: '', dir: '', exonerado: false, esExtranjero: false,
-    items: [], resultado: null, shake: false, svcEdit: null };
+    items: [], resultado: null, shake: false, svcEdit: null, solicitudes: [], cargandoAnul: false };
   _facRender();
+  _facLoadAnul();   // precarga el badge de solicitudes pendientes
 };
-function _facTab(t) { sndTap(); haptic(8); _facState.tab = t; _facState.resultado = null; _facRender(); if (t === 'historial') _facLoadHist(); }
+function _facTab(t) { sndTap(); haptic(8); _facState.tab = t; _facState.resultado = null; _facRender(); if (t === 'historial') _facLoadHist(); if (t === 'anulaciones') _facLoadAnul(); }
+async function _facLoadAnul() {
+  if (_facState.tab === 'anulaciones') { _facState.cargandoAnul = true; _facRender(); }
+  try { const r = await apiGet('solicitudes_anulacion'); _facState.solicitudes = (r.ok && r.data) || []; } catch (e) {}
+  _facState.cargandoAnul = false; _facRender();
+}
+async function _facResolverAnul(id, aprobar) {
+  sndTap(); haptic(aprobar ? 12 : 8);
+  const r = await apiPost({ accion: 'resolver_anulacion', id, aprobar });
+  if (r.ok) { (aprobar ? sndOk : sndDown)(); if (typeof showToast === 'function') showToast(aprobar ? '✓ Comprobante anulado' : 'Solicitud rechazada'); _facLoadAnul(); }
+  else _facErr((r.error || 'No se pudo resolver').replace(/^.*?:\s*/, ''));
+}
 function _facSetTipo(n) { sndTap(); haptic(8); _facState.tipo = n; if (n === 1 && _facState.docTipo === '1') _facState.docTipo = '6'; _facRender(); }
 function _facAddServicio(id) {
   const sv = _facState.servicios.find(s => s.id === id); if (!sv) return;
@@ -4646,13 +4660,29 @@ function _facRender() {
           ${real?`<a href="${_facEsc(c.enlace_pdf)}" target="_blank" rel="noopener" onclick="sndTap()" title="PDF" style="text-decoration:none;font-size:14px">📄</a>`:''}
           ${anu?'':`<button onclick="_facAnular('${c.id}')" title="Anular" style="cursor:pointer;${S.anularId===c.id?'color:#fff;background:#f87171;border:none;border-radius:7px;padding:3px 8px;font-size:10px;font-weight:800':'color:#f87171;background:none;border:none;font-size:13px'}">${S.anularId===c.id?'¿Anular?':'⊘'}</button>`}</div>`}).join('')}</div>` :
         '<div style="padding:18px;text-align:center;color:var(--text-muted);font-size:12px">Aún no hay comprobantes.</div>'));
+  } else if (S.tab === 'anulaciones') {
+    body = `<div style="font-size:11px;font-weight:800;color:var(--gold);margin-bottom:8px">SOLICITUDES DE ANULACIÓN</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;line-height:1.5">Los operadores del muelle piden anular desde su historial. Tú revisas el motivo y apruebas (recién ahí se anula en SUNAT) o rechazas.</div>` +
+      (S.cargandoAnul ? '<div style="text-align:center;padding:24px"><div class="spin" style="display:inline-block"></div></div>' :
+       (S.solicitudes.length ? S.solicitudes.map(c=>`<div style="border:1px solid var(--border);border-radius:12px;padding:11px;margin-bottom:9px">
+          <div style="display:flex;justify-content:space-between;gap:8px;align-items:start">
+            <div style="min-width:0"><div style="font-weight:800;font-size:13px">${c.serie}-${String(c.numero).padStart(6,'0')} · ${_facEsc(c.cliente_nombre||'')}</div><div style="font-size:10px;color:var(--text-muted)">${c.solicitada} · pidió: ${_facEsc(c.anulacion_por||'—')}</div></div>
+            <span style="font-weight:800;font-size:12px;color:var(--gold);white-space:nowrap">S/ ${(c.total||0)}</span>
+          </div>
+          <div style="margin:8px 0;padding:7px 9px;background:rgba(220,38,38,0.07);border-radius:8px;font-size:12px;color:var(--text)"><b style="color:#dc2626">Motivo:</b> ${_facEsc(c.anulacion_motivo||'—')}</div>
+          <div style="display:flex;gap:8px">
+            <button onclick="_facResolverAnul('${c.id}',false)" style="flex:1;padding:9px;border-radius:9px;border:1px solid var(--border);background:#fff;color:var(--text-muted);font-weight:700;font-size:12px;cursor:pointer">Rechazar</button>
+            <button onclick="_facResolverAnul('${c.id}',true)" style="flex:1;padding:9px;border-radius:9px;border:none;background:linear-gradient(135deg,#b91c1c,#7f1d1d);color:#fff;font-weight:800;font-size:12px;cursor:pointer">Aprobar y anular</button>
+          </div>
+        </div>`).join('') :
+        '<div style="padding:22px;text-align:center;color:var(--text-muted);font-size:12px">No hay solicitudes pendientes. ✓</div>'));
   }
   ov.innerHTML = `<div class="modal-box glass-strong${S.shake?' si-shake':''}" style="max-width:560px;width:94vw;max-height:90vh;overflow-y:auto">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
       <div style="font-size:24px">🧾</div><div style="flex:1"><div class="modal-title" style="margin:0">Facturación</div><div style="font-size:11px;color:var(--text-muted)">Boletas / facturas · NubeFact (demo)</div></div>
       <button onclick="cerrarFacturacion()" style="font-size:24px;color:var(--text-muted);background:none;border:none;padding:2px 8px">×</button>
     </div>
-    <div style="display:flex;gap:6px;margin-bottom:14px">${tabBtn('emitir','🧾 Emitir')}${tabBtn('servicios','🏷 Servicios')}${tabBtn('historial','📜 Historial')}${tabBtn('ajustes','⚙ Ajustes')}</div>
+    <div style="display:flex;gap:6px;margin-bottom:14px">${tabBtn('emitir','🧾 Emitir')}${tabBtn('historial','📜 Historial')}${tabBtn('anulaciones','⊘ Anular' + ((S.solicitudes && S.solicitudes.length) ? ' <span style="background:#dc2626;color:#fff;border-radius:999px;font-size:9px;font-weight:800;padding:1px 5px">' + S.solicitudes.length + '</span>' : ''))}${tabBtn('servicios','🏷 Servicios')}${tabBtn('ajustes','⚙ Ajustes')}</div>
     ${body}
   </div>`;
   // listeners
