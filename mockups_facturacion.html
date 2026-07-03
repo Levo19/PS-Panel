@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PS · Facturación Electrónica — Mockups (superplan)</title>
+<style>
+  :root{
+    --guinda:#7B2030; --guinda2:#56070c; --gold:#C9A84C; --gold2:#e6c869;
+    --bg:#0e0608; --panel:#1a0f12; --panel2:#241419; --line:#3a2228;
+    --tx:#f3e9df; --mut:#b79aa0; --ok:#3fb27f; --warn:#e0a63a; --bad:#d9534f; --info:#5aa9e6;
+  }
+  *{box-sizing:border-box;font-family:'Segoe UI',system-ui,Arial,sans-serif}
+  body{margin:0;background:radial-gradient(1200px 600px at 50% -10%,#1c0d11,var(--bg));color:var(--tx);padding:0 0 60px}
+  header{padding:22px 24px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#20101550,transparent)}
+  h1{margin:0;font-size:22px;letter-spacing:.5px}
+  h1 span{color:var(--gold)}
+  .sub{color:var(--mut);font-size:13px;margin-top:4px}
+  .wrap{display:flex;gap:22px;max-width:1280px;margin:22px auto;padding:0 20px;align-items:flex-start}
+  nav{position:sticky;top:16px;min-width:230px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:10px;flex-shrink:0}
+  nav b{display:block;color:var(--gold);font-size:11px;letter-spacing:1px;text-transform:uppercase;padding:8px 10px 4px}
+  nav a{display:block;padding:9px 12px;border-radius:10px;color:var(--tx);text-decoration:none;font-size:13.5px;font-weight:600;cursor:pointer;border:1px solid transparent}
+  nav a:hover{background:var(--panel2)}
+  nav a.on{background:linear-gradient(90deg,var(--guinda),transparent);border-color:var(--line)}
+  main{flex:1;min-width:0}
+  .screen{display:none;animation:fade .35s ease}
+  .screen.on{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .stitle{font-size:19px;font-weight:800;margin:0 0 2px}
+  .sdesc{color:var(--mut);font-size:13px;margin:0 0 16px;max-width:760px;line-height:1.5}
+  .row{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start}
+  .phone{width:360px;background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:16px;box-shadow:0 20px 50px #0009}
+  .phone.wide{width:520px}
+  .card{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px}
+  .seg{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:12px}
+  .seg div{flex:1;text-align:center;padding:9px;font-size:13px;font-weight:700;color:var(--mut);cursor:pointer}
+  .seg div.on{background:linear-gradient(180deg,var(--guinda),var(--guinda2));color:#fff}
+  .inp{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:11px;background:#120a0d;color:var(--tx);font-size:14px;margin-bottom:10px}
+  .lbl{font-size:11px;color:var(--gold);font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin:2px 0 5px}
+  .btn{display:block;width:100%;text-align:center;padding:13px;border:none;border-radius:13px;font-weight:800;font-size:15px;cursor:pointer;background:linear-gradient(180deg,var(--gold2),var(--gold));color:#2a1206}
+  .btn.g{background:linear-gradient(180deg,#8f2636,var(--guinda2));color:#fff}
+  .chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px}
+  .c-ok{background:#123a2a;color:var(--ok);border:1px solid #1e5c43}
+  .c-warn{background:#3a2e12;color:var(--warn);border:1px solid #5c481e}
+  .c-bad{background:#3a1614;color:var(--bad);border:1px solid #5c2320}
+  .c-info{background:#122a3a;color:var(--info);border:1px solid #1e4258}
+  .c-gold{background:#3a3212;color:var(--gold);border:1px solid #5c521e}
+  .rule{display:flex;align-items:center;gap:8px;font-size:12.5px;padding:5px 0;color:var(--tx)}
+  .rule .m{width:18px;text-align:center}
+  .muted{color:var(--mut);font-size:12px;line-height:1.5}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th{text-align:left;color:var(--gold);font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;padding:6px 6px;border-bottom:1px solid var(--line)}
+  td{padding:8px 6px;border-bottom:1px solid #241419}
+  .note{background:linear-gradient(90deg,#241419,transparent);border-left:3px solid var(--gold);border-radius:0 10px 10px 0;padding:10px 12px;margin:8px 0;font-size:12.5px;color:var(--tx)}
+  .note b{color:var(--gold2)}
+  .fx{background:var(--panel);border:1px dashed var(--line);border-radius:12px;padding:12px;font-size:12px;color:var(--mut);width:300px}
+  .fx h4{margin:0 0 8px;color:var(--gold);font-size:12px;letter-spacing:.5px}
+  .fx div{padding:3px 0;border-bottom:1px dashed #241419}
+  .plus1{display:inline-block;background:var(--guinda2);color:#fff;border-radius:999px;font-weight:900;padding:2px 10px;font-size:12px}
+  .big{font-size:26px;font-weight:900;color:var(--gold2)}
+  .kpi{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid #241419;font-size:13px}
+  .bar{height:9px;border-radius:6px;background:#241419;overflow:hidden;margin-top:4px}
+  .bar i{display:block;height:100%}
+  .pill{font-size:10px;padding:2px 7px;border-radius:6px;background:#241419;color:var(--mut);margin-left:6px}
+  .flag{display:inline-block;font-size:11px}
+</style>
+</head>
+<body>
+<header>
+  <h1>PS · Facturación Electrónica <span>— Superplan (mockups)</span></h1>
+  <div class="sub">Un solo sistema para el <b>Panel PS (admin)</b> y el <b>Muelle (operador)</b> · NubeFact/SUNAT · paleta Paracas · 2026-07-03</div>
+</header>
+<div class="wrap">
+  <nav id="nav">
+    <b>Emisión</b>
+    <a data-s="s1" class="on">1 · Emitir CPE (unificado)</a>
+    <a data-s="s2">2 · Jalar zarpe (IA)</a>
+    <a data-s="s3">3 · Zarpe digitalizado</a>
+    <a data-s="s4">4 · Modo Exportación 0%</a>
+    <b>Control</b>
+    <a data-s="s5">5 · Conciliación zarpe↔CPE</a>
+    <a data-s="s6">6 · Módulo Tributario (BN)</a>
+    <a data-s="s7">7 · Historial + estados</a>
+    <a data-s="s8">8 · Ajustes NubeFact</a>
+    <b>Sistema</b>
+    <a data-s="s9">★ Efectos & atajos</a>
+  </nav>
+  <main>
+
+  <!-- ============ 1 EMITIR ============ -->
+  <section class="screen on" id="s1">
+    <div class="stitle">1 · Emitir CPE — mismo modelo en Panel y Muelle</div>
+    <p class="sdesc">Una sola barra de búsqueda inteligente (como en MOS): escribes nombre o documento y autodetecta <b>8→DNI</b>, <b>11→RUC</b>; si no está, lo trae de APIsPeru; CE/pasaporte a mano. Debajo, un <b>checklist de reglas SUNAT en vivo</b> que se pinta solo según lo que vas eligiendo — te avisa qué falta ANTES de emitir.</p>
+    <div class="row">
+      <div class="phone">
+        <div class="seg"><div>Boleta</div><div class="on">Factura</div><div>Exportación</div></div>
+        <div class="lbl">Cliente</div>
+        <input class="inp" value="🔎 Buscar nombre o documento…" >
+        <div class="card" style="border-color:#1e5c43">
+          <span class="chip c-ok">✓ SUNAT</span> <b>TURISMO PARACAS SAC</b>
+          <div class="muted">RUC 20512345678 · Av. Grau 123, Pisco</div>
+        </div>
+        <div class="lbl">Servicios</div>
+        <div class="card">Tour Islas Ballestas · S/50 &nbsp;<span class="pill">gravado</span>
+          <div style="margin-top:6px">Guiado turístico · S/20 <span class="pill">gravado</span></div>
+        </div>
+        <div class="card" style="background:#150d10">
+          <div class="lbl" style="margin-top:0">✔ Requisitos SUNAT (en vivo)</div>
+          <div class="rule"><span class="m">✅</span> Factura → RUC (11) + razón social + dirección</div>
+          <div class="rule"><span class="m">🟡</span> Detracción 12% (servicio &gt;S/700) — <b>la agencia deposita en tu cuenta BN</b></div>
+          <div class="rule"><span class="m">✅</span> Base imponible cuadra (Σ ítems)</div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin:6px 2px">
+          <span class="muted">Total (IGV inc.)</span><span class="big">S/ 70.00</span>
+        </div>
+        <button class="btn g">Emitir factura</button>
+        <div class="muted" style="text-align:center;margin-top:6px">no cierra · listo para el siguiente <span class="plus1">+1</span></div>
+      </div>
+
+      <div class="fx">
+        <h4>Qué pasa aquí</h4>
+        <div>🔎 <b>Autodetección</b> por longitud (8/11) + lookup APIsPeru + cache</div>
+        <div>🟢🟡🔴 <b>Checklist en vivo</b> = motor <code>_cpeReglas</code> portado de MOS</div>
+        <div>⚠️ Avisa detracción / bancarización / boleta&gt;700 <b>antes</b> de emitir</div>
+        <div>🔒 El botón se <b>bloquea</b> si falta un requisito duro (RUC en factura)</div>
+        <div>🔊 sonido ✓ + vibración + <span class="plus1">+1</span> animado al emitir</div>
+        <div>♻️ emitir <b>no cierra</b> el modal → throughput de muelle</div>
+      </div>
+    </div>
+    <div class="note"><b>Boleta &lt;S/700:</b> permite "Cliente varios" sin documento (legal). <b>Boleta &gt;S/700:</b> exige DNI/CE/pasaporte. <b>Todo gravado 18% por defecto.</b></div>
+  </section>
+
+  <!-- ============ 2 JALAR ZARPE IA ============ -->
+  <section class="screen" id="s2">
+    <div class="stitle">2 · Jalar zarpe con IA — la joya del sistema</div>
+    <p class="sdesc">El operador toma la <b>foto del zarpe</b> (lista de pasajeros con sus documentos). La IA (Claude vision, mismo Anthropic que MOS) la <b>digitaliza</b>: extrae documento + nombre + nacionalidad. Tú revisas, agrupas (B2B vs sueltos) y emites los CPE — todo <b>después</b> del paseo.</p>
+    <div class="row">
+      <div class="phone wide">
+        <div class="card" style="text-align:center;border-style:dashed">
+          📸 <b>zarpe_2026-07-03_lancha3.jpg</b>
+          <div class="muted">40 PAX · Op #A-1187 · 10:30am</div>
+          <div style="margin-top:8px"><span class="chip c-info">🤖 Analizando con IA… ▓▓▓▓▓▓▓░ 88%</span></div>
+        </div>
+        <div class="lbl">Pasajeros detectados (revisa y corrige)</div>
+        <table>
+          <tr><th>✓</th><th>Documento</th><th>Nombre</th><th>Grupo</th><th>Trato</th></tr>
+          <tr><td>☑</td><td>DNI 45678912</td><td>Luis Vargas</td><td><span class="pill">Suelto</span></td><td><span class="chip c-gold">Boleta 18%</span></td></tr>
+          <tr><td>☑</td><td>PAS X1234567</td><td>John Smith</td><td><span class="pill">Suelto</span></td><td><span class="chip c-ok">Export 0%</span></td></tr>
+          <tr><td>☑</td><td>RUC 205… </td><td>VIAJES PERU SAC</td><td><span class="pill" style="color:var(--gold)">B2B · 20 pax</span></td><td><span class="chip c-gold">Factura 18%</span></td></tr>
+          <tr><td>☑</td><td>CE 001234</td><td>Ana Torres (residente)</td><td><span class="pill">Suelto</span></td><td><span class="chip c-gold">Boleta 18%</span></td></tr>
+        </table>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="btn g" style="flex:1">Agrupar 20 → 1 factura a agencia</button>
+          <button class="btn" style="flex:1">Emitir sueltos (uno c/u)</button>
+        </div>
+      </div>
+      <div class="fx">
+        <h4>Qué pasa aquí</h4>
+        <div>🤖 Edge <code>extraer-zarpe</code> → Claude vision → JSON pasajeros</div>
+        <div>🧠 <b>Trato automático por doc:</b> DNI→18% · PAS→export 0% · RUC→factura · CE→18%</div>
+        <div>👥 <b>Agrupa</b>: 20 de 40 son de una agencia B2B → 1 factura; el resto boletas sueltas</div>
+        <div>✍️ <b>Revisión humana</b> antes de emitir (la foto puede fallar)</div>
+        <div>📎 Guarda la foto + el registro (Storage + tabla zarpe)</div>
+        <div>🛡️ Cada pax queda con su CPE → <b>SUNAT no puede cruzarte huecos</b></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 3 ZARPE DIGITALIZADO ============ -->
+  <section class="screen" id="s3">
+    <div class="stitle">3 · Zarpe digitalizado — tabla de registro permanente</div>
+    <p class="sdesc">Cada zarpe jalado queda guardado como registro: <b>documento + nombre + empresa (si tiene) o libre + su CPE</b>. Es tu historial legal y la base de la conciliación con SUNAT.</p>
+    <div class="phone wide" style="width:640px">
+      <div class="card"><b>Zarpe #A-1187</b> · Lancha 3 · 2026-07-03 10:30 <span class="chip c-ok" style="float:right">40/40 facturado</span></div>
+      <table>
+        <tr><th>Documento</th><th>Nombre</th><th>Empresa</th><th>CPE</th><th>Estado</th></tr>
+        <tr><td>DNI 45678912</td><td>Luis Vargas</td><td class="muted">— libre —</td><td>B001-3421</td><td><span class="chip c-ok">🟢 SUNAT</span></td></tr>
+        <tr><td>PAS X1234567</td><td>John Smith</td><td class="muted">— libre —</td><td>F001-0088 <span class="pill">export</span></td><td><span class="chip c-ok">🟢 SUNAT</span></td></tr>
+        <tr><td>RUC 205…</td><td>—</td><td>VIAJES PERU SAC</td><td>F001-0089 <span class="pill">20 pax</span></td><td><span class="chip c-warn">🟡 pendiente</span></td></tr>
+        <tr><td>CE 001234</td><td>Ana Torres</td><td class="muted">— libre —</td><td>B001-3422</td><td><span class="chip c-ok">🟢 SUNAT</span></td></tr>
+      </table>
+      <div class="note"><b>Tabla <code>zarpe_pax</code>:</b> foto + pax {documento, nombre, empresa|libre, id_cpe, estado} ligados a la operación. Fuente única para conciliar y reimprimir.</div>
+    </div>
+  </section>
+
+  <!-- ============ 4 EXPORTACION ============ -->
+  <section class="screen" id="s4">
+    <div class="stitle">4 · Modo Exportación 0% — factura al turista extranjero</div>
+    <p class="sdesc">Se habilita el 0% <b>solo si se cumplen las 3 condiciones a la vez</b>. La UI te guía como un semáforo; si falta algo, emite 18% automáticamente. Nunca exonera por error.</p>
+    <div class="row">
+      <div class="phone">
+        <div class="seg"><div>Boleta</div><div>Factura</div><div class="on">Exportación</div></div>
+        <div class="lbl">Turista no domiciliado</div>
+        <input class="inp" value="Pasaporte  X1234567">
+        <input class="inp" value="John Smith · 🇺🇸 USA">
+        <div class="card" style="background:#150d10">
+          <div class="lbl" style="margin-top:0">🌎 Requisitos exportación (0%)</div>
+          <div class="rule"><span class="m">✅</span> Cliente con <b>PASAPORTE</b> (no CE/DNI)</div>
+          <div class="rule"><span class="m">✅</span> Paquete 2+ servicios: bote + guía</div>
+          <div class="rule"><span class="m">✅</span> Operador turístico registrado (MINCETUR+SUNAT+DICAPI)</div>
+          <div class="rule" style="color:var(--ok)"><span class="m">🎉</span> <b>Califica → IGV 0%</b></div>
+        </div>
+        <div class="card">Transporte turístico en bote · S/60 <span class="pill" style="color:var(--ok)">export</span>
+          <div style="margin-top:6px">Guiado turístico (licenciado) · S/20 <span class="pill" style="color:var(--ok)">export</span></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin:6px 2px">
+          <span class="muted">Total · IGV S/0.00</span><span class="big">S/ 80.00</span></div>
+        <button class="btn g">Emitir factura de exportación</button>
+      </div>
+      <div class="fx">
+        <h4>Reglas (Informe SUNAT 123-2012)</h4>
+        <div>📘 Afectación cat.07 = <b>40 (Exportación)</b> · tipo op cat.51 = <b>0205</b></div>
+        <div>🛂 <b>Pasaporte</b> = no domiciliado ✓ · CE = residente → 18%</div>
+        <div>🚤 Bote = "transporte turístico acuático" (permiso DICAPI)</div>
+        <div>🎫 + guía licenciado = paquete válido (2 servicios)</div>
+        <div>💧 Genera <b>Saldo a Favor del Exportador</b> (recuperas IGV de compras)</div>
+        <div>⛔ falta 1 requisito → emite 18% (nunca 0% por error)</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 5 CONCILIACION ============ -->
+  <section class="screen" id="s5">
+    <div class="stitle">5 · Conciliación zarpe ↔ CPE — tu escudo ante fiscalización</div>
+    <p class="sdesc">SUNAT cruza el zarpe (cuántos viajaron) contra los CPE (cuántos facturaste). Esta vista lo hace por ti: por día/operación muestra PAX vs comprobantes vs monto y <b>marca en rojo cualquier hueco</b>.</p>
+    <div class="phone wide" style="width:640px">
+      <div class="kpi"><span>Hoy · 2026-07-03</span><span><span class="chip c-ok">🟢 3 operaciones OK</span> <span class="chip c-bad">🔴 1 con hueco</span></span></div>
+      <table>
+        <tr><th>Operación</th><th>PAX zarpe</th><th>CPE emitidos</th><th>Monto</th><th>Estado</th></tr>
+        <tr><td>#A-1187 Lancha 3</td><td>40</td><td>40</td><td>S/ 2,180</td><td><span class="chip c-ok">🟢 cuadra</span></td></tr>
+        <tr><td>#A-1188 Lancha 1</td><td>32</td><td>32</td><td>S/ 1,760</td><td><span class="chip c-ok">🟢 cuadra</span></td></tr>
+        <tr style="background:#2a1214"><td>#A-1190 Lancha 2</td><td>28</td><td><b style="color:var(--bad)">21</b></td><td>S/ 1,155</td><td><span class="chip c-bad">🔴 faltan 7</span></td></tr>
+      </table>
+      <div class="note"><b>Acción sugerida:</b> jalar el zarpe de #A-1190 y emitir los 7 pendientes → botón directo. Así los libros cuadran <b>por construcción</b>.</div>
+    </div>
+  </section>
+
+  <!-- ============ 6 MODULO TRIBUTARIO ============ -->
+  <section class="screen" id="s6">
+    <div class="stitle">6 · Módulo Tributario — Balance de tributos (como en MOS)</div>
+    <p class="sdesc">El corazón administrativo: cuánto IGV vas debiendo, cuánto crédito acumulas subiendo tus <b>facturas de compra</b> (combustible, mantenimiento) para contrarrestarlo, y el estado de detracciones/retenciones/saldo a favor. Piensa como tu contador, en tiempo real.</p>
+    <div class="row">
+      <div class="phone wide">
+        <div class="lbl">Período · Julio 2026</div>
+        <div class="card">
+          <div class="kpi"><span>🔴 IGV Ventas (débito)</span><b style="color:var(--bad)">S/ 4,820</b></div>
+          <div class="kpi"><span>🟢 IGV Compras (crédito)</span><b style="color:var(--ok)">S/ 2,310</b></div>
+          <div class="kpi" style="border:none"><span><b>IGV por pagar</b></span><span class="big" style="font-size:22px">S/ 2,510</span></div>
+          <div class="bar"><i style="width:48%;background:var(--ok)"></i></div>
+          <div class="muted" style="margin-top:4px">48% del IGV ya cubierto con compras · sube más facturas para bajarlo</div>
+        </div>
+        <div class="card">
+          <div class="kpi"><span>💧 Saldo a Favor Exportador</span><b style="color:var(--info)">S/ 640</b></div>
+          <div class="kpi"><span>🏦 Detracciones en tu cuenta BN</span><b>S/ 1,180</b></div>
+          <div class="kpi" style="border:none"><span>📥 Retenciones que te hicieron (3%)</span><b>S/ 210</b></div>
+        </div>
+        <button class="btn">📸 Subir factura de compra (IA extrae IGV)</button>
+      </div>
+      <div class="fx">
+        <h4>Qué hace</h4>
+        <div>📊 <b>Débito vs crédito</b> en vivo (ventas CPE − compras)</div>
+        <div>📸 Subes foto de factura de compra → IA extrae RUC/base/IGV → suma crédito</div>
+        <div>🏦 <b>Detracción BN</b>: lo que la agencia depositó (tu dinero para impuestos)</div>
+        <div>📥 <b>Retenciones 3%</b> que agencias te aplicaron (crédito a tu favor)</div>
+        <div>💧 <b>Saldo a favor exportador</b> por las ventas 0%</div>
+        <div>🔔 Aviso antes del vencimiento mensual (SIRE)</div>
+        <div class="muted" style="margin-top:6px">Marketing interno: "sabes exactamente cuánto pagarás, sin sorpresas"</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 7 HISTORIAL ============ -->
+  <section class="screen" id="s7">
+    <div class="stitle">7 · Historial + estados SUNAT + anulación</div>
+    <p class="sdesc">Cada CPE con su estado real (NubeFact vs SUNAT), reenvío de PDF por WhatsApp/correo, y anulación con aprobación (el operador solicita, el admin aprueba).</p>
+    <div class="phone wide">
+      <div class="seg"><div class="on">Hoy</div><div>Semana</div><div>Anulaciones ⊘ 2</div></div>
+      <table>
+        <tr><th>CPE</th><th>Cliente</th><th>Total</th><th>Estado</th><th></th></tr>
+        <tr><td>B001-3421</td><td>Luis Vargas</td><td>S/70</td><td><span class="chip c-ok">🟢 Aceptada</span></td><td>📤 🖨</td></tr>
+        <tr><td>F001-0088</td><td>John Smith</td><td>S/80</td><td><span class="chip c-warn">🟡 Pendiente</span></td><td>📤 🖨</td></tr>
+        <tr><td>B001-3419</td><td>Varios</td><td>S/30</td><td><span class="chip c-bad">🔴 Rechazada</span></td><td>🔁</td></tr>
+      </table>
+      <div class="note">🟢 aceptada por SUNAT (CDR) · 🟡 en NubeFact, SUNAT confirma async (cron reconcilia) · 🔴 rechazada → mensaje entendible + reintento. PDF/XML/CDR/QR guardados para reimprimir.</div>
+    </div>
+  </section>
+
+  <!-- ============ 8 AJUSTES ============ -->
+  <section class="screen" id="s8">
+    <div class="stitle">8 · Ajustes — Conexión NubeFact (solo admin)</div>
+    <p class="sdesc">Donde el admin pega tokens y define numeración. Tokens nunca salen al navegador (RLS deny-all, solo RPC).</p>
+    <div class="row">
+      <div class="phone">
+        <div class="lbl">Conexión NubeFact</div>
+        <input class="inp" value="RUTA  https://api.nubefact.com/api/v1/••••">
+        <input class="inp" value="TOKEN  ••••••••••••••••••">
+        <div class="card">
+          <div class="kpi"><span>Modo</span><span class="chip c-warn">demo</span></div>
+          <div class="kpi"><span>Emitir de verdad</span><span class="chip c-bad">OFF (stub)</span></div>
+          <div class="kpi" style="border:none"><span>Series</span><b>BBB1 / FFF1</b></div>
+        </div>
+        <div class="lbl">Lookup RUC/DNI (APIsPeru)</div>
+        <input class="inp" value="TOKEN APIsPeru ••••••">
+        <div class="card">
+          <div class="kpi" style="border:none"><span>Operador turístico registrado</span><span class="chip c-ok">ON</span></div>
+        </div>
+        <button class="btn">Guardar</button>
+      </div>
+      <div class="fx">
+        <h4>Cutover</h4>
+        <div>1 · pegar RUTA+TOKEN demo → validar header crudo</div>
+        <div>2 · emitir 1 boleta + 1 factura + 1 export de prueba</div>
+        <div>3 · alinear correlativo → prender "Emitir de verdad"</div>
+        <div>4 · pasar a producción con series reales</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 9 EFECTOS ============ -->
+  <section class="screen" id="s9">
+    <div class="stitle">★ Sistema de efectos, atajos y sensaciones (unificado Panel + Muelle)</div>
+    <p class="sdesc">La misma "sensación MOS" en las dos apps: rápido, sonoro, con feedback claro. Todo triple: visual + sonoro + háptico.</p>
+    <div class="row">
+      <div class="fx" style="width:340px"><h4>🔊 Sonoro</h4>
+        <div>✓ emisión exitosa (tono ascendente)</div>
+        <div>✗ error / rechazo (tono grave + shake)</div>
+        <div>👆 tap suave en cada botón</div>
+        <div>🔔 aviso conciliación con hueco</div>
+      </div>
+      <div class="fx" style="width:340px"><h4>🎬 Animaciones</h4>
+        <div><span class="plus1">+1</span> contador al emitir (no cierra)</div>
+        <div>slide-up del modal (bottom-sheet)</div>
+        <div>checklist que se pinta en vivo 🟢🟡🔴</div>
+        <div>barra IA "analizando…" del zarpe</div>
+        <div>reveal-pop en tarjetas de resultado</div>
+      </div>
+      <div class="fx" style="width:340px"><h4>⌨️ Atajos (como MOS)</h4>
+        <div>⌘K / búsqueda global de cliente</div>
+        <div>enter = emitir · esc = cerrar</div>
+        <div>+/− PAX · teclado numérico en docs</div>
+        <div>doble-tap protegido (anti doble-emisión)</div>
+      </div>
+      <div class="fx" style="width:340px"><h4>⚠️ Advertencias (lo que puedes/no puedes)</h4>
+        <div>factura sin RUC → botón bloqueado</div>
+        <div>boleta &gt;700 sin doc → aviso ámbar</div>
+        <div>≥S/2000 efectivo → recordatorio bancarización</div>
+        <div>factura B2B &gt;700 → "detracción 12% a tu cuenta BN"</div>
+        <div>export sin las 3 condiciones → cae a 18%</div>
+      </div>
+      <div class="fx" style="width:340px"><h4>📱 Responsive</h4>
+        <div>safe-area iOS (botón no bajo el home-bar)</div>
+        <div>bottom-sheet en móvil, modal en desktop</div>
+        <div>mismo componente Panel/Muelle</div>
+      </div>
+      <div class="fx" style="width:340px"><h4>🎯 Marketing / confianza</h4>
+        <div>"tus libros cuadran solos con el zarpe"</div>
+        <div>"sabes cuánto IGV pagarás, sin sorpresas"</div>
+        <div>PDF con QR al WhatsApp del turista al instante</div>
+      </div>
+    </div>
+  </section>
+
+  </main>
+</div>
+<script>
+  const nav=document.getElementById('nav');
+  nav.addEventListener('click',e=>{const a=e.target.closest('a[data-s]');if(!a)return;
+    document.querySelectorAll('nav a').forEach(x=>x.classList.remove('on'));a.classList.add('on');
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
+    document.getElementById(a.dataset.s).classList.add('on');window.scrollTo({top:0,behavior:'smooth'});});
+</script>
+</body>
+</html>

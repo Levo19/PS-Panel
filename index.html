@@ -1734,7 +1734,9 @@ const PS_GET = {
   buscar_cliente:         p => _psRpc('buscar_cliente', { p_doc_tipo: p.doc_tipo, p_doc: p.doc }),
   get_facturacion_config: () => _psRpc('get_facturacion_config'),
   consultar_documento:    p => _psRpc('consultar_documento', { p_numero: p.numero, p_tipo: p.tipo || null }),
-  solicitudes_anulacion:  () => _psRpc('listar_solicitudes_anulacion')
+  solicitudes_anulacion:  () => _psRpc('listar_solicitudes_anulacion'),
+  balance_tributos:       p => _psRpc('balance_tributos',   { p_periodo: p.periodo || null }),
+  conciliacion_zarpe:     p => _psRpc('conciliacion_zarpe', { p_fecha: p.fecha || null })
 };
 const PS_POST = {
   registrar_pago: b => _psRpc('registrar_transaccion', { p_op: b.id_operacion || null, p_contacto: b.id_contacto || null, p_categoria: b.categoria || 'Cobro', p_monto: parseFloat(b.monto) || 0, p_metodo: b.metodo_pago || 'Efectivo', p_comentarios: b.comentarios || null, p_foto_url: null, p_operador: b.operador || 'PS', p_mov: b.id_movimiento || null, p_local_id: b.localId || null }).then(id => ({ id })),
@@ -1744,9 +1746,11 @@ const PS_POST = {
   emitir_comprobante: b => _psRpc('emitir_comprobante', {
     p_tipo: b.tipo, p_serie: b.serie, p_cliente_doc_tipo: b.cliente_doc_tipo || null, p_cliente_doc: b.cliente_doc || null,
     p_cliente_nombre: b.cliente_nombre, p_cliente_email: b.cliente_email || null, p_items: b.items || [],
-    p_exonerado: !!b.exonerado, p_moneda: b.moneda || 'PEN', p_origen: 'panel', p_operacion_ref: b.operacion_ref || null,
+    p_exonerado: false, p_moneda: b.moneda || 'PEN', p_origen: 'panel', p_operacion_ref: b.operacion_ref || null,
     p_creado_por: b.operador || 'PS', p_local_id: b.localId || null, p_cliente_tel: b.cliente_tel || null,
-    p_cliente_dir: b.cliente_dir || null, p_es_extranjero: !!b.es_extranjero }),
+    p_cliente_dir: b.cliente_dir || null, p_es_extranjero: !!b.es_extranjero,
+    p_medio_pago: b.medio_pago || null, p_exportacion: !!b.exportacion }),
+  registrar_compra: b => _psRpc('registrar_compra', { p: { ruc_proveedor: String(b.ruc_proveedor || '').trim(), razon_social: b.razon_social || null, base: parseFloat(b.base) || 0, igv: parseFloat(b.igv) || 0, total: parseFloat(b.total) || 0, fecha: b.fecha || null, serie: b.serie || null, numero: b.numero || null } }),
   set_servicio: b => _psRpc('admin_set_servicio', { p_id: b.id || '', p_nombre: b.nombre, p_desc: b.descripcion || null, p_precio: parseFloat(b.precio) || 0, p_unidad: b.unidad || 'NIU', p_activo: b.activo !== false }).then(id => ({ id })),
   eliminar_servicio: b => _psRpc('admin_eliminar_servicio', { p_id: b.id }).then(() => ({ ok: true })),
   set_facturacion_muelle: b => _psRpc('admin_set_facturacion_muelle', { p_on: !!b.on }).then(v => ({ on: v })),
@@ -4393,11 +4397,27 @@ function _facSerie() { const c = _facState.facCfg || {}; return _facState.tipo =
 function _facTotales() {
   const S = _facState;
   const total = S.items.reduce((s, i) => s + (parseFloat(i.cantidad) || 0) * (parseFloat(i.precio) || 0), 0);
-  const grav = S.exonerado ? 0 : Math.round(total / 1.18 * 100) / 100;
-  const igv = S.exonerado ? 0 : Math.round((total - grav) * 100) / 100;
-  return { total: Math.round(total * 100) / 100, grav, igv };
+  // Exportación de servicios (turismo receptivo) = tasa 0% IGV; el backend fija la afectación.
+  // El resto SIEMPRE es gravado 18% (se eliminó el toggle "exonerado").
+  const esExport = !!S.exportacion;
+  const grav = esExport ? 0 : Math.round(total / 1.18 * 100) / 100;
+  const igv = esExport ? 0 : Math.round((total - grav) * 100) / 100;
+  return { total: Math.round(total * 100) / 100, grav, igv, esExport };
 }
 function _facErr(msg) { sndErr(); haptic([60, 30, 60]); if (typeof showToast === 'function') showToast('⚠️ ' + msg); if (_facState) { _facState.shake = true; _facRender(); setTimeout(() => { if (_facState) { _facState.shake = false; _facRender(); } }, 450); } }
+// Chip de estado SUNAT para el historial
+function _facChipEstado(c) {
+  const est = String((c && c.estado) || '').toLowerCase();
+  const aceptada = est === 'aceptada' || c.aceptada_por_sunat === true;
+  const rechazada = est === 'rechazada' || est === 'error';
+  const anulada = est === 'anulada';
+  let ico = '🟡', col = '#fbbf24', txt = est || 'pendiente';
+  if (aceptada) { ico = '🟢'; col = '#4ade80'; txt = 'aceptada'; }
+  else if (rechazada) { ico = '🔴'; col = '#f87171'; txt = 'rechazada'; }
+  else if (anulada) { ico = '⊘'; col = 'var(--text-muted)'; txt = 'anulada'; }
+  else if (est === 'stub') { ico = '🧪'; col = 'var(--text-muted)'; txt = 'demo'; }
+  return `<span style="font-size:9px;font-weight:800;padding:1px 7px;border-radius:999px;background:rgba(255,255,255,0.06);color:${col}">${ico} ${txt}</span>`;
+}
 window.cerrarFacturacion = function () { const ov = document.getElementById('fac-ov'); if (ov) ov.style.display = 'none'; haptic(8); };
 
 window.abrirFacturacion = async function () {
@@ -4414,12 +4434,64 @@ window.abrirFacturacion = async function () {
     servicios = (sR.ok && sR.data) || []; muelleOn = !!(mR.ok && mR.data); facCfg = (cR.ok && cR.data) || {};
   } catch (e) {}
   _facState = { tab: 'emitir', ses, servicios, muelleOn, facCfg, cfgEdit: {}, comprobantes: [], cargandoHist: false,
-    tipo: 2, docTipo: '1', doc: '', nombre: '', email: '', tel: '', dir: '', exonerado: false, esExtranjero: false,
-    items: [], resultado: null, shake: false, svcEdit: null, solicitudes: [], cargandoAnul: false };
+    tipo: 2, facModo: 'boleta', exportacion: false, medioPago: '', lookupState: 'idle',
+    docTipo: '1', doc: '', nombre: '', email: '', tel: '', dir: '', esExtranjero: false,
+    items: [], resultado: null, shake: false, svcEdit: null, solicitudes: [], cargandoAnul: false,
+    tributos: null, cargandoTrib: false, periodoTrib: '', compraEdit: {}, concilia: [], cargandoConcilia: false };
   _facRender();
   _facLoadAnul();   // precarga el badge de solicitudes pendientes
 };
-function _facTab(t) { sndTap(); haptic(8); _facState.tab = t; _facState.resultado = null; _facRender(); if (t === 'historial') _facLoadHist(); if (t === 'anulaciones') _facLoadAnul(); }
+function _facTab(t) { sndTap(); haptic(8); _facState.tab = t; _facState.resultado = null; _facRender(); if (t === 'historial') _facLoadHist(); if (t === 'anulaciones') _facLoadAnul(); if (t === 'tributario') _facLoadTrib(); if (t === 'conciliacion') _facLoadConcilia(); }
+// Segmento Boleta / Factura / Exportación
+function _facSetModo(m) {
+  sndTap(); haptic(8); const S = _facState;
+  S.facModo = m;
+  if (m === 'boleta') { S.tipo = 2; S.exportacion = false; S.esExtranjero = false; }
+  else if (m === 'factura') { S.tipo = 1; S.exportacion = false; S.esExtranjero = false; if (S.docTipo === '1' || S.docTipo === '0') S.docTipo = '6'; }
+  else if (m === 'export') { S.tipo = 1; S.exportacion = true; S.esExtranjero = true; S.docTipo = '7'; }
+  S.lookupState = 'idle';
+  _facRender();
+}
+// Motor de reglas SUNAT EN VIVO — devuelve requisitos con estado (todos hard salvo marca).
+function _facReglas() {
+  const S = _facState, tot = _facTotales();
+  const doc = String(S.doc || '').trim(), nom = String(S.nombre || '').trim(), dir = String(S.dir || '').trim();
+  const R = [];
+  if (S.exportacion) {
+    R.push({ label: 'Pasaporte del turista', ok: S.docTipo === '7' && doc.length > 0, hard: true });
+    R.push({ label: 'Paquete de 2 o más servicios', ok: S.items.length >= 2, hard: true });
+  } else if (S.tipo === 1) {
+    R.push({ label: 'RUC de 11 dígitos', ok: S.docTipo === '6' && /^\d{11}$/.test(doc), hard: true });
+    R.push({ label: 'Razón social', ok: nom.length > 0, hard: true });
+    R.push({ label: 'Dirección fiscal', ok: dir.length > 0, hard: true });
+  } else {
+    if (tot.total > 700) R.push({ label: 'Identificar cliente (boleta mayor a S/700)', ok: S.docTipo !== '0' && doc.length > 0 && nom.length > 0, hard: true });
+  }
+  if (!S.exportacion && tot.total >= 2000) R.push({ label: 'Medio de pago (total 2000 o más)', ok: !!S.medioPago, hard: true });
+  return R;
+}
+function _facReglasOk() { return !_facReglas().some(r => r.hard && !r.ok); }
+async function _facLoadTrib() {
+  const S = _facState; S.cargandoTrib = true; _facRender();
+  try { const r = await apiGet('balance_tributos', { periodo: S.periodoTrib || null }); S.tributos = (r.ok && r.data) || null; } catch (e) { S.tributos = null; }
+  S.cargandoTrib = false; _facRender();
+}
+async function _facRegistrarCompra() {
+  const S = _facState, c = S.compraEdit || {};
+  if (!String(c.ruc || '').trim()) return _facErr('RUC del proveedor');
+  if (!(parseFloat(c.total) > 0)) return _facErr('Total de la compra');
+  sndTap(); haptic(10);
+  const base = parseFloat(c.base) || 0, igv = parseFloat(c.igv) || 0, total = parseFloat(c.total) || 0;
+  const r = await apiPost({ accion: 'registrar_compra', ruc_proveedor: c.ruc, razon_social: c.razon || '', base, igv, total, fecha: c.fecha || null, serie: c.serie || '', numero: c.numero || '' });
+  if (r.ok) { sndOk(); haptic([15, 40, 15]); if (typeof showToast === 'function') showToast('✓ Compra registrada (crédito IGV)'); S.compraEdit = {}; _facLoadTrib(); }
+  else _facErr((r.error || 'No se pudo registrar').replace(/^.*?:\s*/, ''));
+}
+async function _facLoadConcilia() {
+  const S = _facState; S.cargandoConcilia = true; _facRender();
+  const hoy = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  try { const r = await apiGet('conciliacion_zarpe', { fecha: hoy }); S.concilia = (r.ok && Array.isArray(r.data)) ? r.data : []; } catch (e) { S.concilia = []; }
+  S.cargandoConcilia = false; _facRender();
+}
 async function _facLoadAnul() {
   if (_facState.tab === 'anulaciones') { _facState.cargandoAnul = true; _facRender(); }
   try { const r = await apiGet('solicitudes_anulacion'); _facState.solicitudes = (r.ok && r.data) || []; } catch (e) {}
@@ -4439,21 +4511,23 @@ function _facAddServicio(id) {
 function _facAddLibre() { sndTap(); haptic(8); _facState.items.push({ descripcion: '', cantidad: 1, precio: 0 }); _facRender(); }
 function _facDelItem(i) { sndTap(); haptic(8); _facState.items.splice(i, 1); _facRender(); }
 async function _facBuscar() {
-  const S = _facState; if (!S.doc) return;
+  const S = _facState; const doc = String(S.doc || '').trim(); if (!doc) return;
   sndTap(); haptic(8);
   const toast = m => { if (typeof showToast === 'function') showToast(m); };
-  try { const r = await apiGet('buscar_cliente', { doc_tipo: S.docTipo, doc: S.doc });
-    if (r.ok && r.data && r.data.nombre) { S.nombre = r.data.nombre; S.email = r.data.email || ''; S.tel = r.data.telefono || ''; S.dir = r.data.direccion || ''; sndOk(); _facRender(); toast('✓ Cliente frecuente'); return; }
+  // Autodetección: 8 dígitos = DNI, 11 = RUC (no pisa CE/Pasaporte)
+  if (doc.length === 11) S.docTipo = '6'; else if (doc.length === 8 && S.docTipo !== '7' && S.docTipo !== '4') S.docTipo = '1';
+  // 1) cliente frecuente ya guardado
+  try { const r = await apiGet('buscar_cliente', { doc_tipo: S.docTipo, doc });
+    if (r.ok && r.data && r.data.nombre) { S.nombre = r.data.nombre; S.email = r.data.email || ''; S.tel = r.data.telefono || ''; S.dir = r.data.direccion || ''; S.lookupState = 'ok'; sndOk(); _facRender(); toast('✓ Cliente frecuente'); return; }
   } catch (e) {}
-  // no estaba guardado → lookup externo RUC/DNI (si hay token configurado)
+  // 2) lookup externo RUC/DNI vía Edge consultar-documento
+  if (doc.length !== 8 && doc.length !== 11) { S.lookupState = 'err'; _facRender(); toast('CE/Pasaporte: escribe el nombre a mano'); return; }
+  S.lookupState = 'loading'; _facRender();
   try {
-    const d = await apiGet('consultar_documento', { tipo: S.docTipo, numero: S.doc });
-    const j = d.ok && d.data;
-    if (j && j.ok && j.nombre) { S.nombre = j.nombre; if (j.direccion) S.dir = j.direccion; sndOk(); _facRender(); toast('✓ ' + j.nombre); }
-    else if (j && j.motivo === 'tipo_manual') toast('CE/Pasaporte: escribe el nombre a mano');
-    else if (j && j.motivo === 'sin_config') toast('Escribe el nombre (lookup RUC/DNI sin token aún)');
-    else toast('Sin datos — escribe el nombre');
-  } catch (e) { toast('Escribe el nombre a mano'); }
+    const { data: j, error } = await sbClient.functions.invoke('consultar-documento', { body: { numero: doc, tipo: doc.length === 11 ? 'ruc' : 'dni' } });
+    if (!error && j && j.ok && j.nombre) { S.nombre = j.nombre; if (j.direccion) S.dir = j.direccion; if (j.doc_tipo) S.docTipo = String(j.doc_tipo); S.lookupState = 'ok'; sndOk(); _facRender(); toast('✓ ' + j.nombre); }
+    else { S.lookupState = 'err'; _facRender(); toast('Sin datos — escribe el nombre'); }
+  } catch (e) { S.lookupState = 'err'; _facRender(); toast('Escribe el nombre a mano'); }
 }
 async function _facAnular(id) {
   const S = _facState;
@@ -4469,17 +4543,21 @@ async function _facEmitir() {
   if (S.docTipo !== '0' && !S.doc.trim()) return _facErr('Falta el número de documento');
   if (!S.items.length || tot.total <= 0) return _facErr('Agrega al menos un servicio con monto');
   if (S.items.some(i => !String(i.descripcion).trim())) return _facErr('Hay un ítem sin descripción');
+  // Reglas SUNAT en vivo (previene los rechazos server-side)
+  const faltan = _facReglas().filter(r => r.hard && !r.ok);
+  if (faltan.length) return _facErr('Requisito SUNAT: ' + faltan[0].label);
   const btn = document.getElementById('fac-emitir'); if (btn) { btn.disabled = true; btn.textContent = 'Emitiendo…'; }
   const r = await apiPost({ accion: 'emitir_comprobante', tipo: S.tipo, serie: _facSerie(),
     cliente_doc_tipo: S.docTipo, cliente_doc: S.docTipo === '0' ? '' : S.doc.trim(), cliente_nombre: S.nombre.trim(),
     cliente_email: S.email.trim(), cliente_tel: S.tel.trim(), cliente_dir: S.dir.trim(), es_extranjero: S.esExtranjero,
     items: S.items.map(i => ({ descripcion: i.descripcion, cantidad: parseFloat(i.cantidad) || 0, precio: parseFloat(i.precio) || 0 })),
-    exonerado: S.exonerado, moneda: 'PEN', operador: (S.ses && S.ses.nombre) || 'PS',
+    exportacion: !!S.exportacion, medio_pago: S.medioPago || null,
+    moneda: 'PEN', operador: (S.ses && S.ses.nombre) || 'PS',
     localId: 'fac-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) });
   if (r.ok && r.data) {
     sndOk(); haptic([15, 40, 15]);
     S.resultado = Object.assign({}, r.data, { _tel: S.tel.trim(), _email: S.email.trim(), _nombre: S.nombre.trim() });
-    S.items = []; S.doc = ''; S.nombre = ''; S.email = ''; S.tel = ''; S.dir = ''; S.exonerado = false; S.esExtranjero = false;
+    S.items = []; S.doc = ''; S.nombre = ''; S.email = ''; S.tel = ''; S.dir = ''; S.medioPago = ''; S.lookupState = 'idle';
     _facRender();
   } else { _facErr((r.error || 'No se pudo emitir').replace(/^.*?:\s*/, '')); if (btn) { btn.disabled = false; btn.textContent = '🧾 Emitir comprobante'; } }
 }
@@ -4561,24 +4639,26 @@ function _facRender() {
         <button onclick="_facState.resultado=null;_facRender()" class="btn-primary" style="padding:10px 22px;font-weight:800">Emitir otro</button>
       </div>`;
     } else {
+      const segBtn = (m, label) => { const on = S.facModo === m; return `<button onclick="_facSetModo('${m}')" style="flex:1;padding:9px 4px;border-radius:10px;font-weight:800;font-size:12px;cursor:pointer;border:1px solid ${on?'var(--gold)':'var(--border)'};background:${on?'rgba(201,168,76,0.16)':'transparent'};color:${on?'var(--gold)':'var(--text-muted)'}">${label}</button>`; };
       body = `
-      <div style="display:flex;gap:8px;margin-bottom:12px">
-        <button onclick="_facSetTipo(2)" style="flex:1;padding:10px;border-radius:10px;font-weight:800;font-size:13px;cursor:pointer;border:1px solid ${S.tipo===2?'var(--gold)':'var(--border)'};background:${S.tipo===2?'rgba(201,168,76,0.16)':'transparent'};color:${S.tipo===2?'var(--gold)':'var(--text-muted)'}">Boleta · ${(S.facCfg&&S.facCfg.serie_boleta)||'B002'}</button>
-        <button onclick="_facSetTipo(1)" style="flex:1;padding:10px;border-radius:10px;font-weight:800;font-size:13px;cursor:pointer;border:1px solid ${S.tipo===1?'var(--gold)':'var(--border)'};background:${S.tipo===1?'rgba(201,168,76,0.16)':'transparent'};color:${S.tipo===1?'var(--gold)':'var(--text-muted)'}">Factura · ${(S.facCfg&&S.facCfg.serie_factura)||'F002'}</button>
+      <div style="display:flex;gap:6px;margin-bottom:12px">
+        ${segBtn('boleta', 'Boleta · ' + ((S.facCfg&&S.facCfg.serie_boleta)||'B002'))}
+        ${segBtn('factura', 'Factura · ' + ((S.facCfg&&S.facCfg.serie_factura)||'F002'))}
+        ${segBtn('export', '🌎 Exportación')}
       </div>
+      ${S.exportacion ? '<div style="font-size:11px;color:var(--text-muted);background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.25);border-radius:9px;padding:8px 10px;margin-bottom:10px;line-height:1.5">Turismo receptivo (0% IGV). Requiere <b>pasaporte</b> del turista y un <b>paquete de 2 o más servicios</b>. La afectación la fija el sistema.</div>' : ''}
       <div style="display:flex;gap:8px;margin-bottom:8px">
         <select id="fac-doctipo" class="config-input" style="flex:0 0 110px">${_FAC_DOCS.map(d=>`<option value="${d[0]}"${S.docTipo===d[0]?' selected':''}>${d[1]}</option>`).join('')}</select>
         <input id="fac-doc" class="config-input" style="flex:1" placeholder="N° documento" value="${_facEsc(S.doc)}" ${S.docTipo==='0'?'disabled':''}>
-        <button onclick="_facBuscar()" title="Buscar" style="flex:0 0 44px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,0.05);color:var(--gold);font-size:16px;cursor:pointer">🔎</button>
+        <button onclick="_facBuscar()" title="Consultar RUC/DNI" ${S.lookupState==='loading'?'disabled':''} style="flex:0 0 44px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,0.05);color:${S.lookupState==='ok'?'#4ade80':(S.lookupState==='err'?'#fbbf24':'var(--gold)')};font-size:16px;cursor:pointer">${S.lookupState==='loading'?'<span class="spin" style="display:inline-block;width:14px;height:14px;vertical-align:middle"></span>':(S.lookupState==='ok'?'✓':(S.lookupState==='err'?'⚠':'🔎'))}</button>
       </div>
+      ${S.lookupState==='loading'?'<div style="font-size:10px;color:var(--text-muted);margin:-4px 0 8px">Consultando SUNAT…</div>':''}
       <input id="fac-nombre" class="config-input" style="margin-bottom:8px" placeholder="Nombre / Razón social" value="${_facEsc(S.nombre)}">
       <div style="display:flex;gap:8px;margin-bottom:10px">
         <input id="fac-email" class="config-input" style="flex:1" placeholder="Email (opcional)" value="${_facEsc(S.email)}">
         <input id="fac-tel" class="config-input" style="flex:1" placeholder="WhatsApp (opcional)" value="${_facEsc(S.tel)}">
       </div>
-      <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-muted);margin-bottom:12px;cursor:pointer">
-        <input type="checkbox" id="fac-exo" ${S.exonerado?'checked':''}> Turista extranjero · exonerado IGV (turismo receptivo)
-      </label>
+      ${S.exportacion ? '' : `<input id="fac-dir" class="config-input" style="margin-bottom:12px" placeholder="Dirección fiscal${S.tipo===1?' (obligatoria para factura)':' (opcional)'}" value="${_facEsc(S.dir)}">`}
       <div style="font-size:11px;font-weight:800;color:var(--gold);letter-spacing:.04em;margin-bottom:6px">SERVICIOS</div>
       <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:8px">
         ${S.items.length ? S.items.map((it,i)=>`<div style="display:flex;align-items:center;gap:6px;padding:7px 8px;border-bottom:1px solid var(--border)">
@@ -4593,12 +4673,23 @@ function _facRender() {
         <select id="fac-svcsel" class="config-input" style="flex:1"><option value="">+ servicio del catálogo…</option>${S.servicios.map(s=>`<option value="${s.id}">${_facEsc(s.nombre)} · S/${s.precio}</option>`).join('')}</select>
         <button onclick="_facAddLibre()" style="flex:0 0 auto;padding:0 14px;border-radius:10px;border:1px dashed var(--border);background:none;color:var(--text-muted);font-size:12px;font-weight:700;cursor:pointer">+ libre</button>
       </div>
-      <div style="background:var(--bg2,rgba(255,255,255,0.03));border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:12px">
-        <div style="display:flex;justify-content:space-between;color:var(--text-muted)"><span>Gravada</span><span id="fac-tg">S/ ${tot.grav.toFixed(2)}</span></div>
-        <div style="display:flex;justify-content:space-between;color:var(--text-muted)"><span>IGV (18%${S.exonerado?' · exonerado':''})</span><span id="fac-ti">S/ ${tot.igv.toFixed(2)}</span></div>
+      <div style="background:var(--bg2,rgba(255,255,255,0.03));border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:12px">
+        <div style="display:flex;justify-content:space-between;color:var(--text-muted)"><span>${S.exportacion?'Exportación':'Gravada'}</span><span id="fac-tg">S/ ${(S.exportacion?tot.total:tot.grav).toFixed(2)}</span></div>
+        <div style="display:flex;justify-content:space-between;color:var(--text-muted)"><span>IGV ${S.exportacion?'(0% · exportación)':'(18%)'}</span><span id="fac-ti">S/ ${tot.igv.toFixed(2)}</span></div>
         <div style="display:flex;justify-content:space-between;font-weight:900;color:var(--text);margin-top:4px;font-size:15px"><span>TOTAL</span><span id="fac-tt">S/ ${tot.total.toFixed(2)}</span></div>
       </div>
-      <button id="fac-emitir" onclick="_facEmitir()" class="btn-primary" style="width:100%;padding:13px;font-size:14px;font-weight:800">🧾 Emitir comprobante</button>`;
+      ${(!S.exportacion && tot.total >= 2000) ? `<div style="margin-bottom:12px">
+        <div style="font-size:11px;font-weight:800;color:var(--gold);margin-bottom:5px">MEDIO DE PAGO <span style="color:var(--text-muted);font-weight:600">(obligatorio ≥ S/2000)</span></div>
+        <select id="fac-medio" class="config-input">
+          <option value="">Elige medio de pago…</option>
+          ${['Efectivo','Transferencia','Depósito en cuenta','Tarjeta','Yape / Plin'].map(m=>`<option value="${m}"${S.medioPago===m?' selected':''}>${m}</option>`).join('')}
+        </select>
+      </div>` : ''}
+      ${(() => { const rg = _facReglas(); return rg.length ? `<div style="border:1px solid var(--border);border-radius:10px;padding:9px 11px;margin-bottom:12px;background:rgba(255,255,255,0.02)">
+        <div style="font-size:10px;font-weight:800;color:var(--text-muted);letter-spacing:.05em;margin-bottom:5px">REQUISITOS SUNAT</div>
+        ${rg.map(r=>`<div style="display:flex;align-items:center;gap:7px;font-size:12px;padding:2px 0;color:${r.ok?'var(--text)':'#fbbf24'}"><span>${r.ok?'🟢':(r.hard?'🔴':'🟡')}</span><span>${r.label}</span></div>`).join('')}
+      </div>` : ''; })()}
+      <button id="fac-emitir" onclick="_facEmitir()" class="btn-primary" ${_facReglasOk()?'':'disabled'} style="width:100%;padding:13px;font-size:14px;font-weight:800;${_facReglasOk()?'':'opacity:.5;cursor:not-allowed'}">${_facReglasOk()?'🧾 Emitir comprobante':'⛔ Faltan requisitos SUNAT'}</button>`;
     }
   } else if (S.tab === 'servicios') {
     const e = S.svcEdit;
@@ -4655,7 +4746,7 @@ function _facRender() {
     body = `<div style="font-size:11px;font-weight:800;color:var(--gold);margin-bottom:8px">COMPROBANTES EMITIDOS</div>` +
       (S.cargandoHist ? '<div style="text-align:center;padding:24px"><div class="spin" style="display:inline-block"></div></div>' :
        (S.comprobantes.length ? `<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">${S.comprobantes.map(c=>{const real=/^https?:\/\//.test(String(c.enlace_pdf||''));const anu=c.estado==='anulada';return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 10px;border-bottom:1px solid var(--border);${anu?'opacity:.55':''}">
-          <div style="min-width:0;flex:1"><div style="font-weight:700;font-size:12px;${anu?'text-decoration:line-through':''}">${c.serie}-${String(c.numero).padStart(6,'0')} · ${_facEsc(c.cliente_nombre||'')}</div><div style="font-size:10px;color:var(--text-muted)">${c.creado} · ${c.estado}</div></div>
+          <div style="min-width:0;flex:1"><div style="font-weight:700;font-size:12px;${anu?'text-decoration:line-through':''}">${c.serie}-${String(c.numero).padStart(6,'0')} · ${_facEsc(c.cliente_nombre||'')}</div><div style="font-size:10px;color:var(--text-muted);display:flex;align-items:center;gap:6px;margin-top:2px">${c.creado} ${_facChipEstado(c)}</div></div>
           <span style="font-weight:800;font-size:12px;color:var(--gold)">S/ ${(c.total||0)}</span>
           ${real?`<a href="${_facEsc(c.enlace_pdf)}" target="_blank" rel="noopener" onclick="sndTap()" title="PDF" style="text-decoration:none;font-size:14px">📄</a>`:''}
           ${anu?'':`<button onclick="_facAnular('${c.id}')" title="Anular" style="cursor:pointer;${S.anularId===c.id?'color:#fff;background:#f87171;border:none;border-radius:7px;padding:3px 8px;font-size:10px;font-weight:800':'color:#f87171;background:none;border:none;font-size:13px'}">${S.anularId===c.id?'¿Anular?':'⊘'}</button>`}</div>`}).join('')}</div>` :
@@ -4676,27 +4767,88 @@ function _facRender() {
           </div>
         </div>`).join('') :
         '<div style="padding:22px;text-align:center;color:var(--text-muted);font-size:12px">No hay solicitudes pendientes. ✓</div>'));
+  } else if (S.tab === 'tributario') {
+    const t = S.tributos || {};
+    const money = v => 'S/ ' + (Number(v) || 0).toFixed(2);
+    const cob = Math.max(0, Math.min(100, Number(t.cobertura_pct) || 0));
+    const ce = S.compraEdit || {};
+    body = `<div style="font-size:11px;font-weight:800;color:var(--gold);margin-bottom:8px">BALANCE TRIBUTARIO (BN)</div>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <input id="trib-periodo" class="config-input" style="flex:1" placeholder="Periodo AAAA-MM (vacío = mes actual)" value="${_facEsc(S.periodoTrib||'')}">
+        <button onclick="_facLoadTrib()" style="flex:0 0 auto;padding:0 16px;border-radius:10px;border:1px solid var(--gold);background:rgba(201,168,76,0.14);color:var(--gold);font-weight:800;font-size:12px;cursor:pointer">Ver</button>
+      </div>` +
+      (S.cargandoTrib ? '<div style="text-align:center;padding:24px"><div class="spin" style="display:inline-block"></div></div>' :
+       (!S.tributos ? '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:12px">Sin datos del periodo.</div>' : `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+        <div style="border:1px solid var(--border);border-radius:10px;padding:10px"><div style="font-size:10px;color:var(--text-muted)">IGV débito (ventas)</div><div style="font-weight:900;font-size:16px;color:var(--text)">${money(t.igv_debito)}</div></div>
+        <div style="border:1px solid var(--border);border-radius:10px;padding:10px"><div style="font-size:10px;color:var(--text-muted)">IGV crédito (compras)</div><div style="font-weight:900;font-size:16px;color:var(--text)">${money(t.igv_credito)}</div></div>
+        <div style="border:1px solid var(--border);border-radius:10px;padding:10px;background:rgba(248,113,113,0.06)"><div style="font-size:10px;color:var(--text-muted)">IGV por pagar</div><div style="font-weight:900;font-size:16px;color:#f87171">${money(t.igv_por_pagar)}</div></div>
+        <div style="border:1px solid var(--border);border-radius:10px;padding:10px;background:rgba(74,222,128,0.06)"><div style="font-size:10px;color:var(--text-muted)">Saldo a favor</div><div style="font-weight:900;font-size:16px;color:#4ade80">${money(t.saldo_a_favor)}</div></div>
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Base gravada ${money(t.base_gravada)} · Exportación ${money(t.total_exportacion)}</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Cobertura de crédito: <b>${cob.toFixed(0)}%</b></div>
+      <div style="height:9px;border-radius:999px;background:var(--border);overflow:hidden;margin-bottom:16px"><div style="height:100%;width:${cob}%;background:linear-gradient(90deg,#C9A84C,#4ade80)"></div></div>`)) + `
+      <div style="font-size:11px;font-weight:800;color:var(--gold);margin-bottom:6px">REGISTRAR COMPRA (crédito IGV)</div>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <input id="cmp-ruc" class="config-input" style="flex:1" placeholder="RUC proveedor" value="${_facEsc(ce.ruc||'')}">
+        <input id="cmp-razon" class="config-input" style="flex:1.4" placeholder="Razón social" value="${_facEsc(ce.razon||'')}">
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <input id="cmp-serie" class="config-input" style="flex:1" placeholder="Serie" value="${_facEsc(ce.serie||'')}">
+        <input id="cmp-numero" class="config-input" style="flex:1" placeholder="Número" value="${_facEsc(ce.numero||'')}">
+        <input id="cmp-fecha" type="date" class="config-input" style="flex:1.2" value="${_facEsc(ce.fecha||'')}">
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <input id="cmp-base" type="number" inputmode="decimal" class="config-input" style="flex:1" placeholder="Base S/" value="${ce.base||''}">
+        <input id="cmp-igv" type="number" inputmode="decimal" class="config-input" style="flex:1" placeholder="IGV S/" value="${ce.igv||''}">
+        <input id="cmp-total" type="number" inputmode="decimal" class="config-input" style="flex:1" placeholder="Total S/" value="${ce.total||''}">
+      </div>
+      <button onclick="_facRegistrarCompra()" class="btn-primary" style="width:100%;padding:11px;font-weight:800">➕ Registrar compra</button>`;
+  } else if (S.tab === 'conciliacion') {
+    const money = v => 'S/ ' + (Number(v) || 0).toFixed(2);
+    body = `<div style="font-size:11px;font-weight:800;color:var(--gold);margin-bottom:6px">CONCILIACIÓN ZARPE ↔ FACTURADO (hoy)</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;line-height:1.5">Compara los PAX que zarparon contra los PAX facturados por operación. En rojo lo que no cuadra.</div>` +
+      (S.cargandoConcilia ? '<div style="text-align:center;padding:24px"><div class="spin" style="display:inline-block"></div></div>' :
+       (S.concilia.length ? `<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">
+        <div style="display:flex;gap:6px;padding:7px 10px;font-size:10px;font-weight:800;color:var(--text-muted);background:rgba(255,255,255,0.03);border-bottom:1px solid var(--border)"><span style="flex:1.4">Operación</span><span style="flex:0 0 46px;text-align:center">Zarpe</span><span style="flex:0 0 60px;text-align:center">Facturado</span><span style="flex:0 0 66px;text-align:right">Monto</span></div>
+        ${S.concilia.map(r=>{const pz=Number(r.pax_zarpe)||0,pf=Number(r.pax_facturado)||0,ok=pz===pf;return `<div style="display:flex;gap:6px;align-items:center;padding:8px 10px;border-bottom:1px solid var(--border);${ok?'':'background:rgba(248,113,113,0.09)'}">
+          <span style="flex:1.4;font-size:12px;font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ok?'🟢':'🔴'} ${_facEsc(r.id_operacion||'—')}</span>
+          <span style="flex:0 0 46px;text-align:center;font-size:12px">${pz}</span>
+          <span style="flex:0 0 60px;text-align:center;font-size:12px;font-weight:800;color:${ok?'var(--text)':'#f87171'}">${pf}</span>
+          <span style="flex:0 0 66px;text-align:right;font-size:12px;color:var(--gold);font-weight:800">${money(r.monto)}</span>
+        </div>`;}).join('')}
+      </div>` :
+        '<div style="padding:22px;text-align:center;color:var(--text-muted);font-size:12px">Sin operaciones hoy o todo conciliado. ✓</div>'));
   }
   ov.innerHTML = `<div class="modal-box glass-strong${S.shake?' si-shake':''}" style="max-width:560px;width:94vw;max-height:90vh;overflow-y:auto">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
       <div style="font-size:24px">🧾</div><div style="flex:1"><div class="modal-title" style="margin:0">Facturación</div><div style="font-size:11px;color:var(--text-muted)">Boletas / facturas · NubeFact (demo)</div></div>
       <button onclick="cerrarFacturacion()" style="font-size:24px;color:var(--text-muted);background:none;border:none;padding:2px 8px">×</button>
     </div>
-    <div style="display:flex;gap:6px;margin-bottom:14px">${tabBtn('emitir','🧾 Emitir')}${tabBtn('historial','📜 Historial')}${tabBtn('anulaciones','⊘ Anular' + ((S.solicitudes && S.solicitudes.length) ? ' <span style="background:#dc2626;color:#fff;border-radius:999px;font-size:9px;font-weight:800;padding:1px 5px">' + S.solicitudes.length + '</span>' : ''))}${tabBtn('servicios','🏷 Servicios')}${tabBtn('ajustes','⚙ Ajustes')}</div>
+    <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">${tabBtn('emitir','🧾 Emitir')}${tabBtn('historial','📜 Historial')}${tabBtn('anulaciones','⊘ Anular' + ((S.solicitudes && S.solicitudes.length) ? ' <span style="background:#dc2626;color:#fff;border-radius:999px;font-size:9px;font-weight:800;padding:1px 5px">' + S.solicitudes.length + '</span>' : ''))}${tabBtn('tributario','📊 Tributario')}${tabBtn('conciliacion','⚖ Conciliar')}${tabBtn('servicios','🏷 Servicios')}${tabBtn('ajustes','⚙ Ajustes')}</div>
     ${body}
   </div>`;
   // listeners
   ov.querySelectorAll('[data-fac-tab]').forEach(b => b.onclick = () => _facTab(b.getAttribute('data-fac-tab')));
   const bind = (id, key) => { const el = ov.querySelector('#' + id); if (el) el.oninput = e => { _facState[key] = e.target.value; }; };
-  bind('fac-doc', 'doc'); bind('fac-nombre', 'nombre'); bind('fac-email', 'email'); bind('fac-tel', 'tel');
+  bind('fac-nombre', 'nombre'); bind('fac-email', 'email'); bind('fac-tel', 'tel'); bind('fac-dir', 'dir');
+  const fdoc = ov.querySelector('#fac-doc'); if (fdoc) fdoc.oninput = e => { _facState.doc = e.target.value; if (_facState.lookupState !== 'idle') _facState.lookupState = 'idle'; };
+  const fmed = ov.querySelector('#fac-medio'); if (fmed) fmed.onchange = e => { _facState.medioPago = e.target.value; _facRender(); };
   const dt = ov.querySelector('#fac-doctipo'); if (dt) dt.onchange = e => { _facState.docTipo = e.target.value; _facRender(); };
-  const exo = ov.querySelector('#fac-exo'); if (exo) exo.onchange = e => { _facState.exonerado = e.target.checked; _facRender(); };
   const ss = ov.querySelector('#fac-svcsel'); if (ss) ss.onchange = e => { if (e.target.value) _facAddServicio(e.target.value); };
-  ov.querySelectorAll('[data-it]').forEach(el => el.oninput = e => {
-    const i = +el.getAttribute('data-it'); const f = el.getAttribute('data-f');
-    if (_facState.items[i]) _facState.items[i][f] = e.target.value;
-    const t = _facTotales(), g = ov.querySelector('#fac-tg'), ig = ov.querySelector('#fac-ti'), tt = ov.querySelector('#fac-tt');
-    if (g) g.textContent = 'S/ ' + t.grav.toFixed(2); if (ig) ig.textContent = 'S/ ' + t.igv.toFixed(2); if (tt) tt.textContent = 'S/ ' + t.total.toFixed(2);
+  // Tributario · form de compra (no re-render en cada tecla)
+  const cmpBind = (id, key) => { const el = ov.querySelector('#' + id); if (el) el.oninput = e => { _facState.compraEdit = Object.assign({}, _facState.compraEdit, { [key]: e.target.value }); }; };
+  cmpBind('cmp-ruc', 'ruc'); cmpBind('cmp-razon', 'razon'); cmpBind('cmp-serie', 'serie'); cmpBind('cmp-numero', 'numero'); cmpBind('cmp-fecha', 'fecha'); cmpBind('cmp-base', 'base'); cmpBind('cmp-igv', 'igv'); cmpBind('cmp-total', 'total');
+  const tp = ov.querySelector('#trib-periodo'); if (tp) tp.oninput = e => { _facState.periodoTrib = e.target.value; };
+  ov.querySelectorAll('[data-it]').forEach(el => {
+    el.oninput = e => {
+      const i = +el.getAttribute('data-it'); const f = el.getAttribute('data-f');
+      if (_facState.items[i]) _facState.items[i][f] = e.target.value;
+      const t = _facTotales(), g = ov.querySelector('#fac-tg'), ig = ov.querySelector('#fac-ti'), tt = ov.querySelector('#fac-tt');
+      if (g) g.textContent = 'S/ ' + (_facState.exportacion ? t.total : t.grav).toFixed(2); if (ig) ig.textContent = 'S/ ' + t.igv.toFixed(2); if (tt) tt.textContent = 'S/ ' + t.total.toFixed(2);
+    };
+    // al salir del campo, re-render completo para refrescar semáforo/medio-pago si cruzó S/700 o S/2000
+    el.onchange = () => { if (_facState.tab === 'emitir' && !_facState.resultado) _facRender(); };
   });
   const sn = ov.querySelector('#svc-nombre'); if (sn) sn.oninput = e => { _facState.svcEdit = Object.assign({}, _facState.svcEdit, { nombre: e.target.value }); };
   const sp = ov.querySelector('#svc-precio'); if (sp) sp.oninput = e => { _facState.svcEdit = Object.assign({}, _facState.svcEdit, { precio: e.target.value }); };
@@ -6976,7 +7128,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.14.3';
+const APP_VERSION = '1.16.0';
 (function() {
   let _reg = null, _waitingWorker = null;
 
