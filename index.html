@@ -1012,64 +1012,100 @@ select.config-input option { background: #1e0a10; color: var(--text); }
   position:relative;
   font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, system-ui, sans-serif;
   animation:facModIn .5s cubic-bezier(.34,1.56,.64,1);
-  max-width:1120px; margin:0 auto;
-  padding:6px max(env(safe-area-inset-right),2px) calc(30px + env(safe-area-inset-bottom)) max(env(safe-area-inset-left),2px);
+  max-width:1120px; margin:0 auto; border-radius:26px;
+  padding:18px max(env(safe-area-inset-right),14px) calc(30px + env(safe-area-inset-bottom)) max(env(safe-area-inset-left),14px);
 }
-/* Mesh de fondo sutil (no negro plano) — contenido queda por encima */
-.fac-mod-shell2::before {
-  content:''; position:absolute; inset:-60px -60px 40%; pointer-events:none; z-index:0;
+/* ── Mesh gradient VIBRANTE (blobs de color) — hace que el frosted glass encima se note ── */
+.fac-mesh {
+  position:absolute; inset:0; z-index:0; overflow:hidden; pointer-events:none;
+  border-radius:inherit; background:#160a0f;
+}
+.fac-mesh::before {
+  content:''; position:absolute; inset:-40%;
   background:
-    radial-gradient(46% 40% at 12% 2%, rgba(157,42,62,.24), transparent 62%),
-    radial-gradient(42% 34% at 98% 0%, rgba(201,168,76,.13), transparent 58%);
+    radial-gradient(38% 44% at 16% 18%, rgba(123,32,48,.98), transparent 60%),
+    radial-gradient(34% 40% at 84% 10%, rgba(176,41,94,.80), transparent 60%),
+    radial-gradient(42% 48% at 90% 84%, rgba(201,168,76,.52), transparent 62%),
+    radial-gradient(46% 52% at 6% 90%, rgba(58,21,80,.92), transparent 62%),
+    radial-gradient(30% 34% at 52% 52%, rgba(176,41,94,.34), transparent 70%);
+  filter:blur(26px) saturate(150%);
+  animation:facMesh 22s ease-in-out infinite alternate;
+  will-change:transform;
+}
+@keyframes facMesh {
+  0%   { transform:translate3d(0,0,0) scale(1) rotate(0deg); }
+  50%  { transform:translate3d(2.5%,-2.5%,0) scale(1.16) rotate(7deg); }
+  100% { transform:translate3d(-2.5%,2.5%,0) scale(1.09) rotate(-6deg); }
 }
 .fac-mod-cols2 {
   position:relative; z-index:1;
   display:grid; grid-template-columns:360px minmax(0,1fr); gap:22px; align-items:start;
 }
-/* ── Panel balanza · glass card ── */
+/* ── Panel balanza · GLASS FROSTED notorio ── */
 .fac-mod-l {
   position:sticky; top:8px; overflow:hidden;
-  background:linear-gradient(165deg, rgba(157,42,62,.30), rgba(62,15,23,.46));
-  border:1px solid rgba(255,255,255,.10);
-  border-radius:24px; padding:22px 20px;
-  box-shadow:0 8px 32px rgba(0,0,0,.42), 0 2px 8px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.09);
-  -webkit-backdrop-filter:blur(24px) saturate(160%); backdrop-filter:blur(24px) saturate(160%);
-  animation:facColIn .5s cubic-bezier(.34,1.56,.64,1) backwards;
+  background:rgba(255,255,255,.07);
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:28px; padding:22px 20px;
+  box-shadow:0 12px 40px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.25);
+  -webkit-backdrop-filter:blur(30px) saturate(180%); backdrop-filter:blur(30px) saturate(180%);
+  animation:facRise .55s cubic-bezier(.34,1.56,.64,1) both; animation-delay:.06s;
 }
 .fac-mod-l::before {
   content:''; position:absolute; inset:0; pointer-events:none;
-  background:radial-gradient(120% 90% at 80% -10%, rgba(232,196,106,.16), transparent 60%);
+  background:radial-gradient(120% 90% at 80% -10%, rgba(232,196,106,.20), transparent 60%);
 }
 .fac-mod-l > * { position:relative; z-index:1; }
-.fac-mod-r { min-width:0; animation:facColIn .5s .07s cubic-bezier(.34,1.56,.64,1) backwards; }
-/* ── Tabbar = segmented control iOS ── */
+.fac-mod-r { min-width:0; }
+/* Entrada coreografiada (stagger spring): balanza → tabbar → contenido */
+@keyframes facRise { from{opacity:0; transform:translateY(16px) scale(.98);} to{opacity:1; transform:none;} }
+/* ── Tabbar = segmented control iOS con lozenge deslizante ── */
 .fac-tabbar {
+  position:relative;
   display:flex; flex-wrap:wrap; gap:4px; margin-bottom:16px; padding:5px;
-  background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08);
-  border-radius:17px;
-  -webkit-backdrop-filter:blur(20px) saturate(160%); backdrop-filter:blur(20px) saturate(160%);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
+  background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.12);
+  border-radius:18px;
+  -webkit-backdrop-filter:blur(30px) saturate(180%); backdrop-filter:blur(30px) saturate(180%);
+  box-shadow:0 8px 26px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.20);
   scrollbar-width:none; -ms-overflow-style:none;
+  animation:facRise .55s cubic-bezier(.34,1.56,.64,1) both; animation-delay:.12s;
 }
 .fac-tabbar::-webkit-scrollbar { display:none; }
+/* Indicador lozenge (firma iOS): se DESLIZA al tab activo con spring */
+.fac-tab-ind {
+  position:absolute; top:0; left:0; z-index:0; opacity:0;
+  border-radius:13px; pointer-events:none;
+  background:linear-gradient(135deg, rgba(176,41,94,.98), rgba(123,32,48,.90));
+  box-shadow:0 6px 18px rgba(123,32,48,.55), inset 0 1px 0 rgba(255,255,255,.28);
+  transition:transform .42s cubic-bezier(.34,1.56,.64,1), width .42s cubic-bezier(.34,1.56,.64,1), height .42s cubic-bezier(.34,1.56,.64,1), opacity .22s ease;
+}
 .fac-tb {
-  position:relative; flex:1 1 auto; min-width:0;
+  position:relative; z-index:1; flex:1 1 auto; min-width:0;
   display:inline-flex; align-items:center; justify-content:center; gap:5px;
-  padding:9px 12px; border-radius:12px; border:none; background:transparent;
+  padding:9px 12px; border-radius:13px; border:none; background:transparent;
   color:var(--text-muted); font-size:12.5px; font-weight:700; letter-spacing:-.1px;
   cursor:pointer; white-space:nowrap; min-height:38px;
-  transition:color .25s cubic-bezier(.4,0,.2,1), background .25s cubic-bezier(.4,0,.2,1), box-shadow .25s, transform .2s cubic-bezier(.34,1.56,.64,1);
+  transition:color .25s cubic-bezier(.4,0,.2,1), transform .2s cubic-bezier(.34,1.56,.64,1);
   -webkit-tap-highlight-color:transparent; -webkit-user-select:none; user-select:none;
 }
 .fac-tb:hover { color:var(--text); }
-.fac-tb:active { transform:scale(.94); }
-.fac-tb.on {
-  color:#fff;
-  background:linear-gradient(135deg, rgba(157,42,62,.95), rgba(123,32,48,.78));
-  box-shadow:0 4px 14px rgba(123,32,48,.48), inset 0 1px 0 rgba(255,255,255,.16);
+.fac-tb:active { transform:scale(.92); }
+.fac-tb.on { color:#fff; }
+.fac-tb-badge { position:absolute; top:1px; right:2px; z-index:2; background:linear-gradient(135deg,#ff5a52,#e0342b); color:#fff; border-radius:999px; font-size:9px; font-weight:800; padding:1px 6px; box-shadow:0 2px 6px rgba(224,52,43,.55); }
+/* ── Slot = card de sección · glass frosted ── */
+.fac-slot {
+  position:relative; min-height:300px; padding:20px; border-radius:26px;
+  background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12);
+  box-shadow:0 12px 40px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.22);
+  -webkit-backdrop-filter:blur(30px) saturate(180%); backdrop-filter:blur(30px) saturate(180%);
+  animation:facRise .55s cubic-bezier(.34,1.56,.64,1) both; animation-delay:.18s;
 }
-.fac-tb-badge { position:absolute; top:1px; right:2px; background:linear-gradient(135deg,#ff5a52,#e0342b); color:#fff; border-radius:999px; font-size:9px; font-weight:800; padding:1px 6px; box-shadow:0 2px 6px rgba(224,52,43,.55); }
-.fac-slot { min-height:300px; }
+/* Cambio de sección: slide + fade con spring (visible, no un fade tímido) */
+.fac-slot.fac-slot-anim { animation:facSlotIn .44s cubic-bezier(.34,1.56,.64,1); }
+@keyframes facSlotIn { from{opacity:0; transform:translateX(16px) scale(.985);} to{opacity:1; transform:none;} }
+/* Tap feedback marcado en todo lo interactivo del slot */
+.fac-slot button { transition:transform .16s cubic-bezier(.34,1.56,.64,1); }
+.fac-slot button:active { transform:scale(.95); }
 /* ── Balanza · contenido ── */
 .facb-chips { display:flex; gap:6px; flex-wrap:wrap; justify-content:center; margin-bottom:16px; }
 .facb-hero { text-align:center; margin-bottom:6px; }
@@ -1109,8 +1145,9 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 .facb-hint { text-align:center; font-size:11.5px; color:var(--text-muted); margin-top:14px; }
 /* Fallback sólido si el navegador no soporta backdrop-filter (Android viejo) */
 @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
-  .fac-mod-l { background:linear-gradient(165deg, rgba(96,26,38,.96), rgba(46,12,18,.98)); }
-  .fac-tabbar { background:rgba(30,14,18,.9); }
+  .fac-mod-l { background:linear-gradient(165deg, rgba(96,26,38,.95), rgba(46,12,18,.97)); }
+  .fac-tabbar { background:rgba(30,14,18,.92); }
+  .fac-slot { background:rgba(28,14,18,.90); }
 }
 /* ── Responsive ── */
 @media(max-width:1024px){
@@ -1136,8 +1173,9 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 }
 /* Respeta preferencia de menos movimiento */
 @media (prefers-reduced-motion: reduce){
-  .fac-mod-shell2, .fac-mod-l, .fac-mod-r { animation:none; }
-  .fac-tb, .facb-cta, .facb-bar { transition:none; }
+  .fac-mod-shell2, .fac-mod-l, .fac-mod-r, .fac-tabbar, .fac-slot, .fac-slot.fac-slot-anim { animation:none; }
+  .fac-mesh::before { animation:none; }
+  .fac-tb, .facb-cta, .facb-bar, .fac-tab-ind, .fac-slot button { transition:none; }
 }
 
 /* ── Separator ──────────────────────────────────────────── */
@@ -5145,8 +5183,49 @@ function _facTabbarHTML(S) {
   }).join('');
 }
 function _facUpdateTabbar() {
-  _facRenderRoots().forEach(ov => { const bar = ov.querySelector('#fac-tabbar'); if (bar) bar.innerHTML = _facTabbarHTML(_facState); });
+  _facRenderRoots().forEach(ov => _facSyncTabbar(ov.querySelector('#fac-tabbar')));
 }
+// Refresca el tabbar SIN destruir el indicador lozenge (solo togglea .on / badge) y lo reposiciona.
+function _facSyncTabbar(bar) {
+  if (!bar || !_facState) return;
+  let ind = bar.querySelector('#fac-tab-ind');
+  if (!ind) { ind = document.createElement('span'); ind.className = 'fac-tab-ind'; ind.id = 'fac-tab-ind'; bar.insertBefore(ind, bar.firstChild); }
+  if (!bar.querySelector('.fac-tb')) ind.insertAdjacentHTML('afterend', _facTabbarHTML(_facState));
+  const pend = (_facState.solicitudes && _facState.solicitudes.length) || 0;
+  bar.querySelectorAll('.fac-tb').forEach(b => {
+    const id = b.getAttribute('data-tab');
+    b.classList.toggle('on', _facState.tab === id);
+    if (id === 'anulaciones') {
+      let badge = b.querySelector('.fac-tb-badge');
+      if (pend) { if (!badge) { badge = document.createElement('span'); badge.className = 'fac-tb-badge'; b.appendChild(badge); } badge.textContent = String(pend); }
+      else if (badge) badge.remove();
+    }
+  });
+  _facMoveTabInd(bar, false);
+}
+// Desliza el lozenge al tab activo (offset* ignoran transforms → posición fiable aunque haya animación de entrada).
+function _facMoveTabInd(bar, instant) {
+  const bars = bar ? [bar] : _facRenderRoots().map(ov => ov.querySelector('#fac-tabbar')).filter(Boolean);
+  bars.forEach(b => {
+    const ind = b.querySelector('#fac-tab-ind'); if (!ind) return;
+    const on = b.querySelector('.fac-tb.on');
+    if (!on || on.offsetParent === null && b.offsetParent === null) { /* instancia oculta: no tocar */ }
+    if (!on) { ind.style.opacity = '0'; return; }
+    const place = () => {
+      ind.style.width = on.offsetWidth + 'px';
+      ind.style.height = on.offsetHeight + 'px';
+      ind.style.transform = 'translate(' + on.offsetLeft + 'px,' + on.offsetTop + 'px)';
+      ind.style.opacity = '1';
+      if (b.scrollWidth > b.clientWidth + 2) {
+        const target = on.offsetLeft - (b.clientWidth - on.offsetWidth) / 2;
+        try { b.scrollTo({ left: Math.max(0, target), behavior: instant ? 'auto' : 'smooth' }); } catch (e) { b.scrollLeft = Math.max(0, target); }
+      }
+    };
+    if (instant) { const prev = ind.style.transition; ind.style.transition = 'none'; place(); requestAnimationFrame(() => { ind.style.transition = prev || ''; }); }
+    else { requestAnimationFrame(place); }
+  });
+}
+if (!window._facTabIndResize) { window._facTabIndResize = true; window.addEventListener('resize', () => { if (_facMode === 'module' && _facState) _facMoveTabInd(null, true); }); }
 // BALANZA FINA (estilo C): viga delgada gradiente rojo→dorado→verde que rota según ratio, poste dorado, 2 puntos.
 function _facBalanzaFinaHTML(S) {
   const chips = `<div class="facb-chips">${_tribPeriodChips(S)}</div>`;
@@ -5196,9 +5275,9 @@ function _facAfterBalanza(panel) {
 function _facSwapSlot(ov) {
   const slot = ov.querySelector('#fac-slot'); if (!slot) return;
   slot.innerHTML = _facSectionBody(_facState);
-  slot.classList.remove('fac-fade'); void slot.offsetWidth; slot.classList.add('fac-fade');
+  slot.classList.remove('fac-slot-anim'); void slot.offsetWidth; slot.classList.add('fac-slot-anim');
   _facBindSlot(ov);
-  const bar = ov.querySelector('#fac-tabbar'); if (bar) bar.innerHTML = _facTabbarHTML(_facState);
+  _facSyncTabbar(ov.querySelector('#fac-tabbar'));
 }
 // Re-pinta SOLO el panel izquierdo (balanza) en TODAS las instancias. Al cargar tributos / cambiar mes / registrar compra.
 function _facRenderBalanza() {
@@ -5211,16 +5290,18 @@ function _facRenderSlot() { _facRenderRoots().forEach(_facSwapSlot); }
 function _facBuildShellInto(ov) {
   const S = _facState;
   ov.innerHTML = `<div class="fac-mod-shell2${S.shake ? ' si-shake' : ''}">
+    <div class="fac-mesh" aria-hidden="true"></div>
     <div class="fac-mod-cols2">
       <div class="fac-mod-l" id="fac-balanza-panel"></div>
       <div class="fac-mod-r">
-        <div class="fac-tabbar" id="fac-tabbar">${_facTabbarHTML(S)}</div>
-        <div class="fac-slot fac-fade" id="fac-slot"></div>
+        <div class="fac-tabbar" id="fac-tabbar"><span class="fac-tab-ind" id="fac-tab-ind"></span>${_facTabbarHTML(S)}</div>
+        <div class="fac-slot" id="fac-slot"></div>
       </div>
     </div>
   </div>`;
   const panel = ov.querySelector('#fac-balanza-panel'); if (panel) { panel.innerHTML = _facBalanzaFinaHTML(S); _facAfterBalanza(panel); }
   const slot = ov.querySelector('#fac-slot'); if (slot) { slot.innerHTML = _facSectionBody(S); _facBindSlot(ov); }
+  _facMoveTabInd(ov.querySelector('#fac-tabbar'), true);
 }
 // Shell PERSISTENTE: construye cada instancia UNA vez; si ya existe (#fac-slot), solo hace swap del slot — la balanza queda fija.
 function _facRenderModuleShell() {
@@ -7997,7 +8078,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.21.0';
+const APP_VERSION = '1.22.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
