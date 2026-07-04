@@ -4524,20 +4524,24 @@ async function _facCargarBase() {
 // Monta el HUB de facturación DENTRO del contenedor del módulo (full-page, no overlay).
 window._facMountModule = async function (el) {
   if (_facMounting) return;
-  const ses = JSON.parse(localStorage.getItem('ps_session') || '{}');
-  if (ses.rol !== 'Administrador') { el.innerHTML = '<div class="fac-mod-loading">Solo administradores.</div>'; return; }
   _facMounting = true;
-  _facMode = 'module'; _facTargetEl = el;
-  el.innerHTML = '<div class="fac-mod-loading"><div class="spin"></div>Cargando facturación…</div>';
   try {
+    const ses = JSON.parse(localStorage.getItem('ps_session') || '{}');
+    if (ses.rol !== 'Administrador') { el.innerHTML = '<div class="fac-mod-loading">Solo administradores pueden ver Facturación.</div>'; return; }
+    _facMode = 'module'; _facTargetEl = el;
+    el.innerHTML = '<div class="fac-mod-loading"><div class="spin"></div>Cargando facturación…</div>';
     const base = await _facCargarBase();
+    if (_facTargetEl !== el) return;   // el usuario navegó fuera mientras cargaba
     _facState = _facInitState(ses, base.servicios, base.muelleOn, base.facCfg);
+    _facMode = 'module'; _facTargetEl = el;   // reafirmar por si algo lo tocó durante el await
+    _facRender();                              // pinta el hub (reemplaza el "Cargando…")
+    _facLoadTrib();                            // balanza con count-up
+    _facLoadAnul();                            // badge de solicitudes
+  } catch (e) {
+    try { el.innerHTML = '<div class="fac-mod-loading">No se pudo cargar Facturación.<div style="font-size:11px;opacity:.7;margin-top:6px">' + _facEsc((e && e.message) || 'error') + '</div><button onclick="_facRetryModule()" style="margin-top:12px;padding:9px 16px;border-radius:10px;border:1px solid var(--gold);background:rgba(201,168,76,.14);color:var(--gold);font-weight:800;cursor:pointer">Reintentar</button></div>'; } catch (_) {}
   } finally { _facMounting = false; }
-  if (_facTargetEl !== el) return;   // el usuario navegó fuera mientras cargaba
-  _facRender();
-  _facLoadTrib();   // Balanza con count-up
-  _facLoadAnul();   // badge de solicitudes
 };
+window._facRetryModule = function () { const el = _facTargetEl; if (el) { _facState = null; _facMountModule(el); } };
 // Reactivación (keep-alive): re-apunta el destino y refresca sin recargar todo.
 window._facActivateModule = function (el) {
   _facMode = 'module'; _facTargetEl = el;
@@ -7720,7 +7724,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.19.0';
+const APP_VERSION = '1.19.1';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
