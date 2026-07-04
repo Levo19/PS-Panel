@@ -7128,7 +7128,10 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.16.0';
+const APP_VERSION = '1.16.1';
+console.log('%c PS Panel %c v' + APP_VERSION + ' ',
+  'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
+  'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
 (function() {
   let _reg = null, _waitingWorker = null;
 
@@ -7151,14 +7154,26 @@ const APP_VERSION = '1.16.0';
     const b = document.getElementById('psUpdateBanner');
     if (b) b.classList.remove('visible');
   }
+  // Solo molesta al usuario si de verdad hay versión NUEVA (version.json != APP_VERSION).
+  // Si un SW quedó "waiting" pero la versión ya coincide, lo activa en silencio (no banner) → mata el loop.
+  function _maybeUpdate(worker) {
+    fetch('./version.json?t=' + Date.now(), { cache: 'no-store' })
+      .then(r => r.json())
+      .then(v => {
+        if (v.version && v.version !== APP_VERSION) { _showBanner(worker); }
+        else if (worker) { worker.postMessage('SKIP_WAITING'); }
+      })
+      .catch(() => { if (worker) _showBanner(worker); });
+  }
 
   window._psApplyUpdate = function() {
     _hideBanner();
     _showOverlay(); // display:flex instantáneo — bloquea la vista antes de cualquier async
     // Fallback: si el SW no dispara controllerchange en 4s, forzar reload
     const fallback = setTimeout(() => window.location.reload(), 4000);
-    if (_waitingWorker) {
-      _waitingWorker.postMessage('SKIP_WAITING');
+    const w = _waitingWorker || (_reg && _reg.waiting);
+    if (w) {
+      w.postMessage('SKIP_WAITING');
       // controllerchange listener hace el reload; fallback cubre el caso iOS donde no dispara
     } else {
       clearTimeout(fallback);
@@ -7197,12 +7212,13 @@ const APP_VERSION = '1.16.0';
 
   navigator.serviceWorker.register('./sw.js').then(reg => {
     _reg = reg;
-    navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload());
-    if (reg.waiting) { _showBanner(reg.waiting); return; }
+    let _psRefreshing = false;  // guard: un solo reload, nunca en bucle
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (_psRefreshing) return; _psRefreshing = true; window.location.reload(); });
+    if (reg.waiting) { _maybeUpdate(reg.waiting); }
     reg.addEventListener('updatefound', () => {
       const nw = reg.installing;
       nw.addEventListener('statechange', () => {
-        if (nw.state === 'installed' && navigator.serviceWorker.controller) _showBanner(nw);
+        if (nw.state === 'installed' && navigator.serviceWorker.controller) _maybeUpdate(nw);
       });
     });
     _reg.update().catch(() => {});

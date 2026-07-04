@@ -2,7 +2,7 @@
 // PS Panel — Service Worker
 // Bumpa VERSION en cada deploy para invalidar caché
 // ============================================================
-const VERSION = '1.16.0';
+const VERSION = '1.16.1';
 const CACHE   = 'ps-panel-v' + VERSION;
 const ASSETS  = [
   './',
@@ -43,6 +43,19 @@ self.addEventListener('fetch', e => {
     );
     return;
   }
+  // HTML / navegación / app.js-style entry: NETWORK-FIRST → la app nunca queda pegada en una versión vieja.
+  // (cache-first en el HTML era la causa del loop de "Actualizar": servía el index.html viejo tras activar el SW nuevo.)
+  const esDocumento = e.request.mode === 'navigate' || url.pathname === '/' || url.pathname.endsWith('/') || url.pathname.endsWith('.html');
+  if (esDocumento) {
+    e.respondWith(
+      fetch(e.request, { cache: 'no-store' }).then(res => {
+        if (res && res.status === 200) { const clone = res.clone(); caches.open(CACHE).then(c => c.put(e.request, clone)); }
+        return res;
+      }).catch(() => caches.match(e.request).then(c => c || caches.match('./index.html')))
+    );
+    return;
+  }
+  // Resto de assets (JS/CSS/img/CDN): cache-first (rápido; se invalidan al bumpear VERSION que cambia el nombre del CACHE).
   e.respondWith(
     caches.match(e.request).then(cached => {
       if (cached) return cached;
