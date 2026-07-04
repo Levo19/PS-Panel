@@ -4525,33 +4525,36 @@ async function _facCargarBase() {
   } catch (e) {}
   return { servicios, muelleOn, facCfg };
 }
-// Monta el HUB de facturación DENTRO del contenedor del módulo (full-page, no overlay).
-window._facMountModule = async function (el) {
-  if (_facMounting) return;
-  _facMounting = true;
-  try {
-    const ses = JSON.parse(localStorage.getItem('ps_session') || '{}');
-    if (ses.rol !== 'Administrador') { el.innerHTML = '<div class="fac-mod-loading">Solo administradores pueden ver Facturación.</div>'; return; }
-    _facMode = 'module'; _facTargetEl = el;
-    el.innerHTML = '<div class="fac-mod-loading"><div class="spin"></div>Cargando facturación…</div>';
-    const base = await _facCargarBase();
-    if (_facTargetEl !== el) return;   // el usuario navegó fuera mientras cargaba
-    _facState = _facInitState(ses, base.servicios, base.muelleOn, base.facCfg);
-    _facMode = 'module'; _facTargetEl = el;   // reafirmar por si algo lo tocó durante el await
-    _facRender();                              // pinta el hub (reemplaza el "Cargando…")
-    _facLoadTrib();                            // balanza con count-up
-    _facLoadAnul();                            // badge de solicitudes
-  } catch (e) {
-    try { el.innerHTML = '<div class="fac-mod-loading">No se pudo cargar Facturación.<div style="font-size:11px;opacity:.7;margin-top:6px">' + _facEsc((e && e.message) || 'error') + '</div><button onclick="_facRetryModule()" style="margin-top:12px;padding:9px 16px;border-radius:10px;border:1px solid var(--gold);background:rgba(201,168,76,.14);color:var(--gold);font-weight:800;cursor:pointer">Reintentar</button></div>'; } catch (_) {}
-  } finally { _facMounting = false; }
-};
-window._facRetryModule = function () { const el = _facTargetEl; if (el) { _facState = null; _facMountModule(el); } };
-// Reactivación (keep-alive): re-apunta el destino y refresca sin recargar todo.
-window._facActivateModule = function (el) {
-  if (_facMounting) return;   // mount en curso: NO tocar _facTargetEl (o el guard del mount aborta el render)
+// ── Bridge MULTI-INSTANCIA (hay 2 componentes ViewFacturacion: portrait + landscape) ──
+// El estado se carga UNA vez (promesa compartida); cada instancia PINTA su propio contenedor.
+let _facStateLoading = null;
+async function _facEnsureState(el) {
+  const ses = JSON.parse(localStorage.getItem('ps_session') || '{}');
+  if (ses.rol !== 'Administrador') { if (el) el.innerHTML = '<div class="fac-mod-loading">Solo administradores pueden ver Facturación.</div>'; return false; }
+  if (_facState) return true;
+  if (el) el.innerHTML = '<div class="fac-mod-loading"><div class="spin"></div>Cargando facturación…</div>';
+  if (!_facStateLoading) _facStateLoading = (async () => { const b = await _facCargarBase(); _facState = _facInitState(ses, b.servicios, b.muelleOn, b.facCfg); })();
+  try { await _facStateLoading; } catch (e) {}
+  return !!_facState;
+}
+// Pinta el hub en el contenedor dado (esta es la instancia visible que reclama el destino).
+function _facPaint(el) {
+  if (!el || !_facState) return;
   _facMode = 'module'; _facTargetEl = el;
-  if (_facState) { _facRender(); if (_facState.tab === 'inicio') _facLoadTrib(); }
-  else _facMountModule(el);
+  _facRender();          // hub (reemplaza el "Cargando…")
+  _facLoadTrib();        // balanza con count-up (pinta en este el)
+  _facLoadAnul();        // badge de solicitudes
+}
+window._facMountModule = async function (el) {
+  if (!el) return;
+  try { if (await _facEnsureState(el)) _facPaint(el); }
+  catch (e) { try { el.innerHTML = '<div class="fac-mod-loading">No se pudo cargar Facturación.<div style="font-size:11px;opacity:.7;margin-top:6px">' + _facEsc((e && e.message) || 'error') + '</div><button onclick="_facRetryModule()" style="margin-top:12px;padding:9px 16px;border-radius:10px;border:1px solid var(--gold);background:rgba(201,168,76,.14);color:var(--gold);font-weight:800;cursor:pointer">Reintentar</button></div>'; } catch (_) {} }
+};
+window._facRetryModule = function () { const el = _facTargetEl; _facState = null; _facStateLoading = null; if (el) _facMountModule(el); };
+// Reactivación (keep-alive): la instancia visible reclama el destino y pinta.
+window._facActivateModule = async function (el) {
+  if (!el) return;
+  try { if (await _facEnsureState(el)) _facPaint(el); } catch (e) {}
 };
 const _FAC_DOCS = [['1', 'DNI'], ['6', 'RUC'], ['4', 'CE'], ['7', 'Pasaporte'], ['0', 'Varios']];
 const _facEsc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -7728,7 +7731,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.19.3';
+const APP_VERSION = '1.19.4';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
