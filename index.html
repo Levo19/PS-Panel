@@ -4516,8 +4516,12 @@ function _facInitState(ses, servicios, muelleOn, facCfg) {
 async function _facCargarBase() {
   let servicios = [], muelleOn = false, facCfg = {};
   try {
-    const [sR, mR, cR] = await Promise.all([apiGet('listar_servicios'), apiGet('get_facturacion_muelle'), apiGet('get_facturacion_config')]);
-    servicios = (sR.ok && sR.data) || []; muelleOn = !!(mR.ok && mR.data); facCfg = (cR.ok && cR.data) || {};
+    // NUNCA colgar el montaje: si los datos tardan >6s, seguimos con lo que haya (el hub igual pinta).
+    const res = await Promise.race([
+      Promise.all([apiGet('listar_servicios'), apiGet('get_facturacion_muelle'), apiGet('get_facturacion_config')]),
+      new Promise(r => setTimeout(() => r(null), 6000))
+    ]);
+    if (res) { const [sR, mR, cR] = res; servicios = (sR.ok && sR.data) || []; muelleOn = !!(mR.ok && mR.data); facCfg = (cR.ok && cR.data) || {}; }
   } catch (e) {}
   return { servicios, muelleOn, facCfg };
 }
@@ -7724,7 +7728,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.19.1';
+const APP_VERSION = '1.19.2';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
