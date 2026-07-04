@@ -1003,6 +1003,42 @@ select.config-input option { background: #1e0a10; color: var(--text); }
   .fac-mod-ico { font-size:30px; }
 }
 
+/* ── Facturación · MÓDULO v2: balanza FINA fija (izq) + tabbar/slot (der) ── */
+.fac-mod-shell2 { animation:facModIn .42s cubic-bezier(.22,1,.36,1); padding:2px 0 26px; }
+.fac-mod-cols2 { display:grid; grid-template-columns:minmax(300px,0.92fr) 1.4fr; gap:20px; align-items:start; }
+.fac-mod-l { position:sticky; top:12px; background:linear-gradient(160deg,rgba(255,255,255,0.055),rgba(255,255,255,0.02)); border:1px solid var(--border); border-radius:20px; padding:16px; box-shadow:0 12px 32px rgba(0,0,0,.28); animation:facColIn .45s ease backwards; }
+.fac-mod-r { min-width:0; animation:facColIn .45s .06s ease backwards; }
+.fac-tabbar { display:flex; flex-wrap:wrap; gap:7px; margin-bottom:14px; }
+.fac-tb { position:relative; padding:8px 13px; border-radius:11px; border:1px solid var(--border); background:linear-gradient(160deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02)); color:var(--text-muted); font-size:12.5px; font-weight:800; cursor:pointer; white-space:nowrap; transition:transform .16s ease, border-color .16s ease, color .16s ease, box-shadow .16s ease; min-height:40px; -webkit-tap-highlight-color:transparent; }
+.fac-tb:hover { border-color:var(--gold); color:var(--text); transform:translateY(-1px); }
+.fac-tb:active { transform:scale(.97); }
+.fac-tb.on { background:linear-gradient(135deg,#7a1015,#56070c); color:#fff; border-color:var(--gold); box-shadow:0 5px 16px rgba(123,32,48,.4); }
+.fac-tb-badge { position:absolute; top:-5px; right:-5px; background:#dc2626; color:#fff; border-radius:999px; font-size:9px; font-weight:800; padding:1px 6px; box-shadow:0 2px 6px rgba(220,38,38,.5); }
+.fac-slot { min-height:240px; }
+.facb-chips { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
+.facb-hero { text-align:center; margin-bottom:4px; }
+.facb-hero-lbl { font-size:10px; letter-spacing:.5px; color:var(--text-muted); font-weight:700; text-transform:uppercase; }
+.facb-hero-val { font-weight:900; font-size:33px; line-height:1.05; color:var(--gold); text-shadow:0 2px 18px rgba(201,168,76,.35); margin:2px 0; }
+.facb-hero .venc { font-size:11px; font-weight:700; }
+.facb-beam { position:relative; height:58px; margin:10px 0 0; }
+.facb-post { position:absolute; left:50%; top:10px; width:3px; height:30px; border-radius:3px; background:linear-gradient(180deg,var(--gold),rgba(201,168,76,.15)); transform:translateX(-50%); }
+.facb-post::after { content:''; position:absolute; left:50%; bottom:-5px; transform:translateX(-50%); width:30px; height:7px; border-radius:50%; background:radial-gradient(closest-side,rgba(201,168,76,.55),transparent); }
+.facb-bar { position:absolute; top:13px; left:9%; right:9%; height:3px; border-radius:3px; background:linear-gradient(90deg,#e0544e,var(--gold) 50%,#3fb27f); box-shadow:0 0 14px rgba(201,168,76,.55); transform:rotate(-3deg); transform-origin:center center; transition:transform 1.1s cubic-bezier(.22,1.4,.36,1); }
+.facb-dot { position:absolute; top:50%; width:11px; height:11px; border-radius:50%; transform:translate(-50%,-50%); }
+.facb-dot.l { left:15%; background:#e0544e; box-shadow:0 0 10px rgba(224,84,78,.85); }
+.facb-dot.r { left:85%; background:#3fb27f; box-shadow:0 0 10px rgba(63,178,127,.85); }
+.facb-lbls { display:flex; justify-content:space-between; padding:0 8%; font-size:10px; font-weight:700; margin-top:2px; }
+.facb-lbls .deb { color:#f87171; } .facb-lbls .cre { color:#4ade80; }
+.facb-kpis { margin-top:6px; }
+.facb-kpi { display:flex; justify-content:space-between; align-items:center; padding:9px 0; border-bottom:1px solid var(--border); font-size:13px; }
+.facb-kpi b { font-weight:800; }
+.facb-cta { width:100%; margin-top:12px; padding:12px; border:none; border-radius:12px; background:linear-gradient(135deg,#8f2636,#56070c); color:#fff; font-weight:800; font-size:13px; cursor:pointer; min-height:44px; }
+.facb-hint { text-align:center; font-size:11.5px; color:var(--text-muted); margin-top:12px; }
+@media(max-width:900px){
+  .fac-mod-cols2 { grid-template-columns:1fr; }
+  .fac-mod-l { position:static; }
+}
+
 /* ── Separator ──────────────────────────────────────────── */
 .sep { height: 1px; background: var(--border); margin: 16px 0; opacity: 0.5; }
 
@@ -4501,15 +4537,24 @@ let _facState = null;
 let _facMode = 'modal';
 let _facTargetEl = null;
 let _facMounting = false;
-// Contenedor de render según modo. En módulo pinta en el <div> del componente ViewFacturacion.
-function _facRoot() { return _facMode === 'module' ? _facTargetEl : document.getElementById('fac-ov'); }
+// Contenedor de render según modo. En módulo hay 2 instancias montadas (portrait+landscape);
+// _facRoot() devuelve la VISIBLE (para posicionar efectos), _facRenderRoots() devuelve TODAS (para pintar).
+function _facRoot() {
+  if (_facMode !== 'module') return document.getElementById('fac-ov');
+  const mods = Array.from(document.querySelectorAll('.fac-module'));
+  return mods.find(el => el.offsetParent !== null) || mods[0] || _facTargetEl;
+}
+function _facRenderRoots() {
+  if (_facMode === 'module') { const m = Array.from(document.querySelectorAll('.fac-module')); return m.length ? m : (_facTargetEl ? [_facTargetEl] : []); }
+  const ov = document.getElementById('fac-ov'); return ov ? [ov] : [];
+}
 // Estado inicial compartido por modal y módulo.
 function _facInitState(ses, servicios, muelleOn, facCfg) {
   return { tab: 'inicio', ses, servicios, muelleOn, facCfg, cfgEdit: {}, comprobantes: [], cargandoHist: false,
     tipo: 2, facModo: 'boleta', exportacion: false, medioPago: '', lookupState: 'idle',
     docTipo: '1', doc: '', nombre: '', email: '', tel: '', dir: '', esExtranjero: false,
     items: [], resultado: null, shake: false, svcEdit: null, solicitudes: [], cargandoAnul: false,
-    tributos: null, cargandoTrib: true, periodoTrib: (_tribPeriodos()[0] || {}).p || '', compraEdit: {}, concilia: [], cargandoConcilia: false,
+    tributos: null, cargandoTrib: true, _tribPeriodoLoaded: null, periodoTrib: (_tribPeriodos()[0] || {}).p || '', compraEdit: {}, concilia: [], cargandoConcilia: false,
     tribSub: 'balanza', renta: null, cargandoRenta: false, anioTrib: new Date().getFullYear(),
     compras: [], cargandoCompras: false, ia: null };
 }
@@ -4541,8 +4586,10 @@ async function _facEnsureState(el) {
 function _facPaint(el) {
   if (!el || !_facState) return;
   _facMode = 'module'; _facTargetEl = el;
-  _facRender();          // hub (reemplaza el "Cargando…")
-  _facLoadTrib();        // balanza con count-up (pinta en este el)
+  // El módulo ya no tiene tab 'inicio' (la balanza vive fija a la izquierda). Default = Emitir.
+  if (_facState.tab === 'inicio' || !_FAC_MOD_TAB_IDS.includes(_facState.tab)) _facState.tab = 'emitir';
+  _facRender();          // shell persistente (balanza izq + tabbar/slot der)
+  _facLoadTrib();        // balanza con count-up (cache por período; no re-pide si ya está)
   _facLoadAnul();        // badge de solicitudes
 }
 window._facMountModule = async function (el) {
@@ -4609,8 +4656,10 @@ function _facTab(t) {
   S.resultado = null; S.anularId = null; S.cfgEdit = {}; S.svcEdit = null; S.serieEdit = null; S.corrEdit = null;
   // si salimos de "Subir" con la IA en curso, cortar su timer (no dejar timer huérfano)
   if (prev === 'subir' && t !== 'subir' && S._iaTimer) { clearInterval(S._iaTimer); S._iaTimer = null; }
-  S.tab = t; _facRender();
-  if (t === 'inicio') _facLoadTrib();
+  S.tab = t;
+  // MÓDULO: solo se hace swap del slot (fade) — la balanza de la izquierda NO se toca ni se re-pide.
+  if (_facMode === 'module') { _facRenderSlot(); } else { _facRender(); }
+  if (t === 'inicio') { if (_facMode !== 'module') _facLoadTrib(); }
   else if (t === 'historial') _facLoadHist();
   else if (t === 'anulaciones') _facLoadAnul();
   else if (t === 'conciliacion') _facLoadConcilia();
@@ -4646,10 +4695,19 @@ function _facReglas() {
   return R;
 }
 function _facReglasOk() { return !_facReglas().some(r => r.hard && !r.ok); }
-async function _facLoadTrib() {
-  const S = _facState; S.cargandoTrib = true; _facRender();
-  try { const r = await apiGet('balance_tributos', { periodo: S.periodoTrib || null }); S.tributos = (r.ok && r.data) || null; } catch (e) { S.tributos = null; }
-  S.cargandoTrib = false; _facRender();
+async function _facLoadTrib(force) {
+  const S = _facState; const per = S.periodoTrib || '';
+  // Cache por período: cambiar de pestaña = cero fetch. Solo re-pide si cambió el mes o se fuerza (registrar compra).
+  if (!force && S.tributos && S._tribPeriodoLoaded === per) {
+    // Ya está cacheado: la balanza (si aplica) ya fue pintada por el shell; en modal aseguramos el render.
+    if (_facMode !== 'module') _facRender();
+    return;
+  }
+  S.cargandoTrib = true;
+  if (_facMode === 'module') _facRenderBalanza(); else _facRender();
+  try { const r = await apiGet('balance_tributos', { periodo: per || null }); S.tributos = (r.ok && r.data) || null; S._tribPeriodoLoaded = per; } catch (e) { S.tributos = null; }
+  S.cargandoTrib = false;
+  if (_facMode === 'module') _facRenderBalanza(); else _facRender();
 }
 async function _facRegistrarCompra() {
   const S = _facState, c = S.compraEdit || {};
@@ -4786,9 +4844,9 @@ async function _facAlinear(serie) {
   if (r.ok) { sndOk(); haptic([15, 40, 15]); try { const cR = await apiGet('get_facturacion_config'); S.facCfg = (cR.ok && cR.data) || S.facCfg; } catch (e) {} if (S.corrEdit) delete S.corrEdit[serie]; _facRender(); if (typeof showToast === 'function') showToast('✓ ' + serie + ' → próximo ' + (((r.data && r.data.correlativo) || 0) + 1)); }
   else _facErr((r.error || 'No se pudo alinear').replace(/^.*?:\s*/, ''));
 }
-function _facRender() {
-  const ov = _facRoot(); if (!ov || !_facState) return;
-  const S = _facState, tot = _facTotales();
+// Construye el HTML de la sección activa (slot módulo / cuerpo modal). Reusado por ambos modos.
+function _facSectionBody(S) {
+  const tot = _facTotales();
   let body = '';
   if (S.tab === 'emitir') {
     if (S.resultado) {
@@ -4967,31 +5025,123 @@ function _facRender() {
       </div>` :
         '<div style="padding:22px;text-align:center;color:var(--text-muted);font-size:12px">Sin operaciones hoy o todo conciliado. ✓</div>'));
   }
+  return body;
+}
+
+// ═══ MÓDULO (full-page): shell PERSISTENTE = balanza fina fija (izq) + tabbar/slot (der) ═══
+const _FAC_MOD_TABS = [
+  ['emitir', '🧾', 'Emitir'], ['subir', '📸', 'Subir'], ['historial', '📜', 'Historial'],
+  ['compras', '🧾', 'Compras'], ['renta', '📈', 'Renta'], ['conciliacion', '⚖', 'Conciliar'],
+  ['servicios', '🏷', 'Servicios'], ['ajustes', '⚙', 'Ajustes'], ['anulaciones', '⊘', 'Anular']
+];
+const _FAC_MOD_TAB_IDS = _FAC_MOD_TABS.map(t => t[0]);
+function _facTabbarHTML(S) {
+  const pend = (S.solicitudes && S.solicitudes.length) || 0;
+  return _FAC_MOD_TABS.map(([id, ico, label]) => {
+    const on = S.tab === id;
+    const badge = (id === 'anulaciones' && pend) ? `<span class="fac-tb-badge">${pend}</span>` : '';
+    return `<button class="fac-tb${on ? ' on' : ''}" data-tab="${id}" onclick="_facTab('${id}')">${ico} ${label}${badge}</button>`;
+  }).join('');
+}
+function _facUpdateTabbar() {
+  _facRenderRoots().forEach(ov => { const bar = ov.querySelector('#fac-tabbar'); if (bar) bar.innerHTML = _facTabbarHTML(_facState); });
+}
+// BALANZA FINA (estilo C): viga delgada gradiente rojo→dorado→verde que rota según ratio, poste dorado, 2 puntos.
+function _facBalanzaFinaHTML(S) {
+  const chips = `<div class="facb-chips">${_tribPeriodChips(S)}</div>`;
+  if (S.cargandoTrib) return `${chips}<div style="text-align:center;padding:56px 0"><div class="spin" style="display:inline-block"></div></div>`;
+  const t = S.tributos || {};
+  const deb = Number(t.igv_debito) || 0, cre = Number(t.igv_credito) || 0, tot = deb + cre;
+  const inclina = deb > cre;
+  return `${chips}
+  <div class="facb-hero">
+    <div class="facb-hero-lbl">A pagar este mes · IGV + Renta</div>
+    <div class="facb-hero-val" id="facb-hero">S/ 0.00</div>
+    ${_facHeroVenc(S)}
+  </div>
+  <div class="facb-beam">
+    <div class="facb-post"></div>
+    <div class="facb-bar" id="facb-bar"><span class="facb-dot l"></span><span class="facb-dot r"></span></div>
+  </div>
+  <div class="facb-lbls"><span class="deb">debes</span><span class="cre">a favor</span></div>
+  <div style="text-align:center;margin:6px 0 12px"><span class="trib-chip" style="background:${tot <= 0 ? 'rgba(255,255,255,0.06)' : (inclina ? 'rgba(224,84,78,0.16)' : 'rgba(63,178,127,0.16)')};color:${tot <= 0 ? 'var(--text-muted)' : (inclina ? '#f87171' : '#4ade80')}">${tot <= 0 ? 'Sin movimiento este período' : (inclina ? '⚖️ Se inclina a pagar' : '✓ Tu crédito cubre el IGV')}</span></div>
+  <div class="facb-kpis">
+    <div class="facb-kpi"><span>🔴 Ventas (IGV)</span><b id="facb-kd" style="color:#f87171">S/ 0.00</b></div>
+    <div class="facb-kpi"><span>🟢 Compras (crédito)</span><b id="facb-kc" style="color:#4ade80">S/ 0.00</b></div>
+    <div class="facb-kpi" style="border-bottom:none"><span>📈 Renta</span><b id="facb-kr">S/ 0.00</b></div>
+  </div>
+  ${inclina
+    ? `<button onclick="_facTab('subir')" class="facb-cta">📸 Sube una compra y baja el pago</button>`
+    : `<div class="facb-hint">Sube tus compras y este pago baja</div>`}`;
+}
+// count-up + rotación de la balanza fina — corre UNA vez por cambio de datos (no en cada pestaña).
+function _facAfterBalanza(panel) {
+  const S = _facState; if (!panel || S.cargandoTrib) return;
+  const t = S.tributos || {};
+  const deb = Number(t.igv_debito) || 0, cre = Number(t.igv_credito) || 0, tot = deb + cre;
+  const totalMes = (Number(t.igv_por_pagar) || 0) + (Number(t.renta_pago_cuenta) || 0);
+  _tribCountUp(panel.querySelector('#facb-hero'), totalMes);
+  _tribCountUp(panel.querySelector('#facb-kd'), deb);
+  _tribCountUp(panel.querySelector('#facb-kc'), cre);
+  _tribCountUp(panel.querySelector('#facb-kr'), Number(t.renta_pago_cuenta) || 0);
+  const ratio = tot > 0 ? (cre - deb) / tot : 0;           // >0 = a favor pesa más (viga cae a la derecha/verde)
+  const ang = Math.max(-13, Math.min(13, ratio * 13));
+  requestAnimationFrame(() => {
+    const bar = panel.querySelector('#facb-bar'); if (bar) bar.style.transform = 'rotate(' + ang.toFixed(2) + 'deg)';
+    setTimeout(() => { try { haptic(6); } catch (e) {} }, 520);   // "asentar" al terminar la inclinación
+  });
+}
+// Swap del slot (sección activa) dentro de un contenedor: fade + re-bind + refresca tabbar. NO toca la balanza.
+function _facSwapSlot(ov) {
+  const slot = ov.querySelector('#fac-slot'); if (!slot) return;
+  slot.innerHTML = _facSectionBody(_facState);
+  slot.classList.remove('fac-fade'); void slot.offsetWidth; slot.classList.add('fac-fade');
+  _facBindSlot(ov);
+  const bar = ov.querySelector('#fac-tabbar'); if (bar) bar.innerHTML = _facTabbarHTML(_facState);
+}
+// Re-pinta SOLO el panel izquierdo (balanza) en TODAS las instancias. Al cargar tributos / cambiar mes / registrar compra.
+function _facRenderBalanza() {
+  if (_facMode !== 'module') return;
+  _facRenderRoots().forEach(ov => { const panel = ov.querySelector('#fac-balanza-panel'); if (panel) { panel.innerHTML = _facBalanzaFinaHTML(_facState); _facAfterBalanza(panel); } });
+}
+// Re-pinta SOLO el slot derecho (sección activa) en TODAS las instancias, con fade. La balanza NO se toca ni re-pide.
+function _facRenderSlot() { _facRenderRoots().forEach(_facSwapSlot); }
+// Construye el shell del módulo (balanza + tabbar + slot) en un contenedor y lo rellena por primera vez.
+function _facBuildShellInto(ov) {
+  const S = _facState;
+  ov.innerHTML = `<div class="fac-mod-shell2${S.shake ? ' si-shake' : ''}">
+    <div class="fac-mod-cols2">
+      <div class="fac-mod-l" id="fac-balanza-panel"></div>
+      <div class="fac-mod-r">
+        <div class="fac-tabbar" id="fac-tabbar">${_facTabbarHTML(S)}</div>
+        <div class="fac-slot fac-fade" id="fac-slot"></div>
+      </div>
+    </div>
+  </div>`;
+  const panel = ov.querySelector('#fac-balanza-panel'); if (panel) { panel.innerHTML = _facBalanzaFinaHTML(S); _facAfterBalanza(panel); }
+  const slot = ov.querySelector('#fac-slot'); if (slot) { slot.innerHTML = _facSectionBody(S); _facBindSlot(ov); }
+}
+// Shell PERSISTENTE: construye cada instancia UNA vez; si ya existe (#fac-slot), solo hace swap del slot — la balanza queda fija.
+function _facRenderModuleShell() {
+  const S = _facState; if (!S) return;
+  _facRenderRoots().forEach(ov => {
+    if (!ov.querySelector('#fac-slot')) { _facBuildShellInto(ov); }
+    else {
+      const shell = ov.querySelector('.fac-mod-shell2'); if (shell) shell.classList.toggle('si-shake', !!S.shake);
+      _facSwapSlot(ov);
+    }
+  });
+}
+function _facRender() {
+  if (_facMode === 'module') { if (_facState) _facRenderModuleShell(); return; }
+  const ov = _facRoot(); if (!ov || !_facState) return;
+  // ── MODAL (legacy · muelle): caja con header + hub balanza + secciones ──
+  const S = _facState;
+  const body = _facSectionBody(S);
   const secNames = { emitir: 'Emitir CPE', subir: 'Subir compra', historial: 'Historial', compras: 'Compras', renta: 'Renta', conciliacion: 'Conciliación', calendario: 'Calendario', servicios: 'Servicios', ajustes: 'Ajustes', anulaciones: 'Anulaciones' };
   const headSub = S.tab === 'inicio' ? 'Balanza comercial · IGV · Renta' : (secNames[S.tab] || 'Boletas / facturas · NubeFact');
   const back = S.tab === 'inicio' ? '' : `<div class="fac-back" onclick="_facTab('inicio')">← Volver a la balanza</div>`;
-  if (_facMode === 'module') {
-    // MÓDULO full-page: header con hero "A pagar este mes" prominente + 2 columnas en inicio.
-    const t = S.tributos || {};
-    const totalMes = (Number(t.igv_por_pagar) || 0) + (Number(t.renta_pago_cuenta) || 0);
-    const bodyWrap = S.tab === 'inicio' ? body : `<div class="fac-mod-section">${body}</div>`;
-    ov.innerHTML = `<div class="fac-mod-shell${S.shake ? ' si-shake' : ''}">
-      <header class="fac-mod-head">
-        <div class="fac-mod-head-l">
-          <div class="fac-mod-ico">🧾</div>
-          <div><div class="fac-mod-title">Facturación</div><div class="fac-mod-sub">${headSub}</div></div>
-        </div>
-        <div class="fac-mod-hero">
-          <div class="lbl">A pagar este mes · IGV + Renta</div>
-          <div class="val">${S.cargandoTrib ? '···' : _tribMoney(totalMes)}</div>
-          ${_facHeroVenc(S)}
-        </div>
-      </header>
-      ${back}
-      <div class="fac-fade fac-mod-body">${bodyWrap}</div>
-    </div>`;
-  } else {
-    ov.innerHTML = `<div class="modal-box glass-strong${S.shake?' si-shake':''}" style="max-width:${S.tab==='inicio'?'660':'560'}px;width:94vw;max-height:90vh;overflow-y:auto">
+  ov.innerHTML = `<div class="modal-box glass-strong${S.shake ? ' si-shake' : ''}" style="max-width:${S.tab === 'inicio' ? '660' : '560'}px;width:94vw;max-height:90vh;overflow-y:auto">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
       <div style="font-size:24px">🧾</div><div style="flex:1"><div class="modal-title" style="margin:0">Facturación</div><div style="font-size:11px;color:var(--text-muted)">${headSub}</div></div>
       <button onclick="cerrarFacturacion()" style="font-size:24px;color:var(--text-muted);background:none;border:none;padding:2px 8px">×</button>
@@ -4999,15 +5149,18 @@ function _facRender() {
     ${back}
     <div class="fac-fade">${body}</div>
   </div>`;
-  }
-  // listeners
+  _facBindSlot(ov);
+}
+// Enlaza inputs + animaciones de la sección activa dentro de `ov` (slot del módulo o caja del modal).
+function _facBindSlot(ov) {
+  const S = _facState;
   const bind = (id, key) => { const el = ov.querySelector('#' + id); if (el) el.oninput = e => { _facState[key] = e.target.value; }; };
   bind('fac-nombre', 'nombre'); bind('fac-email', 'email'); bind('fac-tel', 'tel'); bind('fac-dir', 'dir');
   const fdoc = ov.querySelector('#fac-doc'); if (fdoc) fdoc.oninput = e => { _facState.doc = e.target.value; if (_facState.lookupState !== 'idle') _facState.lookupState = 'idle'; };
   const fmed = ov.querySelector('#fac-medio'); if (fmed) fmed.onchange = e => { _facState.medioPago = e.target.value; _facRender(); };
   const dt = ov.querySelector('#fac-doctipo'); if (dt) dt.onchange = e => { _facState.docTipo = e.target.value; _facRender(); };
   const ss = ov.querySelector('#fac-svcsel'); if (ss) ss.onchange = e => { if (e.target.value) _facAddServicio(e.target.value); };
-  // Balanza / secciones tributarias (binds del uploader + animaciones count-up post-render)
+  // Uploader IA + animaciones count-up post-render de las secciones tributarias.
   if (S.tab === 'subir') _tribBind(ov);
   if (S.tab === 'inicio' || S.tab === 'renta' || S.tab === 'compras' || S.tab === 'subir') _tribAfterRender(ov);
   ov.querySelectorAll('[data-it]').forEach(el => {
@@ -5017,7 +5170,7 @@ function _facRender() {
       const t = _facTotales(), g = ov.querySelector('#fac-tg'), ig = ov.querySelector('#fac-ti'), tt = ov.querySelector('#fac-tt');
       if (g) g.textContent = 'S/ ' + (_facState.exportacion ? t.total : t.grav).toFixed(2); if (ig) ig.textContent = 'S/ ' + t.igv.toFixed(2); if (tt) tt.textContent = 'S/ ' + t.total.toFixed(2);
     };
-    // al salir del campo, re-render completo para refrescar semáforo/medio-pago si cruzó S/700 o S/2000
+    // al salir del campo, re-render de la sección para refrescar semáforo/medio-pago si cruzó S/700 o S/2000
     el.onchange = () => { if (_facState.tab === 'emitir' && !_facState.resultado) _facRender(); };
   });
   const sn = ov.querySelector('#svc-nombre'); if (sn) sn.oninput = e => { _facState.svcEdit = Object.assign({}, _facState.svcEdit, { nombre: e.target.value }); };
@@ -5060,7 +5213,12 @@ function _tribThumbIco(name) {
 // se conservan y se consumen directamente desde el dispatcher de _facRender.
 function _tribSetPeriodo(p) {
   sndTap(); haptic(8); const S = _facState; S.periodoTrib = p;
-  if (S.tab === 'compras') _tribLoadCompras(); else _facLoadTrib();
+  if (_facMode === 'module') {
+    _facLoadTrib();                          // período cambió → refetch + re-anima SOLO la balanza (izq)
+    if (S.tab === 'compras') _tribLoadCompras();
+  } else {
+    if (S.tab === 'compras') _tribLoadCompras(); else _facLoadTrib();
+  }
 }
 async function _tribLoadRenta() {
   const S = _facState; S.cargandoRenta = true; _facRender();
@@ -5362,7 +5520,7 @@ function _tribCountUp(el, to, opts) {
 function _tribFly(amount) {
   try {
     const ov = _facRoot(); if (!ov) return;
-    const btn = ov.querySelector('#trib-guardar-compra') || ov.querySelector('.modal-box') || ov.querySelector('.fac-mod-shell');
+    const btn = ov.querySelector('#trib-guardar-compra') || ov.querySelector('.modal-box') || ov.querySelector('.fac-mod-shell2');
     const r = (btn || ov).getBoundingClientRect();
     const el = document.createElement('div'); el.className = 'trib-float'; el.textContent = '+ ' + _tribMoney(amount);
     el.style.left = (r.left + r.width / 2) + 'px'; el.style.top = r.top + 'px';
@@ -5424,9 +5582,16 @@ async function _tribGuardarCompra() {
     try { if (S.ia && S.ia.previewUrl) URL.revokeObjectURL(S.ia.previewUrl); } catch (e) {}
     _tribFly(igv || parseFloat(c.total) || 0); sndUp(); haptic([15, 45, 15]);
     if (typeof showToast === 'function') showToast('✓ Compra registrada · +' + _tribMoney(igv) + ' de crédito');
-    S.ia = null; S.tab = 'inicio';                 // salta a la balanza (inicio) para ver el re-equilibrio
-    _tribLoadCompras();                            // refresca lista en background
-    _facLoadTrib();                                // recarga balanza + anima
+    S.ia = null;
+    if (_facMode === 'module') {
+      // La balanza vive fija a la izquierda → salta a "Compras" para ver la factura y re-anima la balanza.
+      _facTab('compras');
+      _facLoadTrib(true);                          // invalida cache + recarga balanza + re-anima el re-equilibrio
+    } else {
+      S.tab = 'inicio';                            // modal: vuelve a la balanza-hub
+      _tribLoadCompras();
+      _facLoadTrib(true);
+    }
   } else if (rd && rd.motivo === 'duplicado') {
     S.ia.phase = 'ready'; sndDown(); _facErr('Esta factura de compra ya fue registrada');
   } else { S.ia.phase = 'ready'; _facErr((r.error || (rd && rd.motivo) || 'No se pudo registrar').replace(/^.*?:\s*/, '')); }
@@ -7731,7 +7896,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.19.4';
+const APP_VERSION = '1.20.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
