@@ -1792,7 +1792,7 @@ const PS_POST = {
     p_creado_por: b.operador || 'PS', p_local_id: b.localId || null, p_cliente_tel: b.cliente_tel || null,
     p_cliente_dir: b.cliente_dir || null, p_es_extranjero: !!b.es_extranjero,
     p_medio_pago: b.medio_pago || null, p_exportacion: !!b.exportacion }),
-  registrar_compra: b => _psRpc('registrar_compra', { p: { ruc_proveedor: String(b.ruc_proveedor || '').trim(), razon_social: b.razon_social || null, base: parseFloat(b.base) || 0, igv: parseFloat(b.igv) || 0, total: parseFloat(b.total) || 0, fecha: b.fecha || null, serie: b.serie || null, numero: b.numero || null, foto_path: b.foto_path || null } }),
+  registrar_compra: b => _psRpc('registrar_compra', { p: { ruc_proveedor: String(b.ruc_proveedor || '').trim(), razon_social: b.razon_social || null, base: parseFloat(b.base) || 0, igv: parseFloat(b.igv) || 0, total: parseFloat(b.total) || 0, fecha: b.fecha || null, serie: b.serie || null, numero: b.numero || null, foto_path: b.foto_path || null, periodo: b.periodo || null } }),
   set_servicio: b => _psRpc('admin_set_servicio', { p_id: b.id || '', p_nombre: b.nombre, p_desc: b.descripcion || null, p_precio: parseFloat(b.precio) || 0, p_unidad: b.unidad || 'NIU', p_activo: b.activo !== false }).then(id => ({ id })),
   eliminar_servicio: b => _psRpc('admin_eliminar_servicio', { p_id: b.id }).then(() => ({ ok: true })),
   set_facturacion_muelle: b => _psRpc('admin_set_facturacion_muelle', { p_on: !!b.on }).then(v => ({ on: v })),
@@ -4460,7 +4460,8 @@ function _facChipEstado(c) {
   else if (est === 'stub') { ico = '🧪'; col = 'var(--text-muted)'; txt = 'demo'; }
   return `<span style="font-size:9px;font-weight:800;padding:1px 7px;border-radius:999px;background:rgba(255,255,255,0.06);color:${col}">${ico} ${txt}</span>`;
 }
-window.cerrarFacturacion = function () { const ov = document.getElementById('fac-ov'); if (ov) ov.style.display = 'none'; haptic(8); };
+window.cerrarFacturacion = function () { const ov = document.getElementById('fac-ov'); if (ov) ov.style.display = 'none'; try { const S = _facState; if (S && S._iaTimer) { clearInterval(S._iaTimer); S._iaTimer = null; } if (S && S.ia && S.ia.previewUrl) URL.revokeObjectURL(S.ia.previewUrl); } catch (e) {} haptic(8); };
+window._tribDiscardIA = function () { const S = _facState; try { if (S._iaTimer) { clearInterval(S._iaTimer); S._iaTimer = null; } if (S.ia && S.ia.previewUrl) URL.revokeObjectURL(S.ia.previewUrl); } catch (e) {} S.ia = null; _facRender(); };
 
 window.abrirFacturacion = async function () {
   const ses = JSON.parse(localStorage.getItem('ps_session') || '{}');
@@ -5016,7 +5017,7 @@ function _tribSubirBody(S) {
       ${ia.error ? `<div style="font-size:10.5px;color:#fbbf24;margin-top:4px">${_facEsc(ia.error)}</div>` : ''}
       ${(!busy && !ia.error) ? `<div style="font-size:10.5px;color:var(--text-muted);margin-top:3px">Revisa y corrige si hace falta, luego guarda.</div>` : ''}
     </div>
-    <button onclick="_facState.ia=null;_facRender()" title="Descartar" style="background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer">×</button>
+    <button onclick="_tribDiscardIA()" title="Descartar" style="background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer">×</button>
   </div>`;
   if (!busy) {
     const fld = (id, label, val, attrs) => `<div style="flex:1;min-width:0"><div style="font-size:9px;color:var(--text-muted);font-weight:700;margin-bottom:3px;text-transform:uppercase;letter-spacing:.4px">${label}</div><input id="${id}" class="config-input" style="padding:8px" value="${_facEsc(val == null ? '' : String(val))}" ${attrs || ''}></div>`;
@@ -5192,7 +5193,7 @@ async function _tribHandleFile(f) {
   try {
     const { data: j, error } = await sbClient.functions.invoke('extraer-compra', { body: { imagen_base64: b64, media_type: mediaType } });
     if (!S.ia || S.ia.file !== f) return;
-    if (error || !j || !j.ok || !j.compra) throw new Error((j && j.error) || 'La IA no pudo leer');
+    if (error || !j || !j.ok || !j.compra) throw new Error((j && (j.error || j.motivo)) || 'La IA no pudo leer');
     const k = j.compra;
     S.ia.compra = { proveedor: k.proveedor || '', razon: k.proveedor || '', ruc: k.ruc_proveedor || '', fecha: String(k.fecha || '').slice(0, 10), tipoDoc: k.tipo_doc || '', serie: k.serie || '', numero: k.numero || '', base: k.base != null ? k.base : '', igv: k.igv != null ? k.igv : '', total: k.total != null ? k.total : '', moneda: k.moneda || 'PEN' };
     S.ia.phase = 'ready'; S.ia.progress = 100; sndOk(); haptic([12, 30, 12]);
@@ -5208,15 +5209,22 @@ async function _tribGuardarCompra() {
   if (!String(c.ruc || '').trim()) return _facErr('RUC del proveedor');
   if (!(parseFloat(c.total) > 0)) return _facErr('Total de la compra');
   const igv = parseFloat(c.igv) || 0;
+  // el crédito va al mes de EMISIÓN de la factura (si hay fecha válida), si no al período que se ve
+  const per = /^\d{4}-\d{2}-\d{2}$/.test(c.fecha || '') ? String(c.fecha).slice(0, 7) : (S.periodoTrib || null);
   S.ia.phase = 'saving'; _facRender();
-  const r = await apiPost({ accion: 'registrar_compra', ruc_proveedor: c.ruc, razon_social: c.razon || c.proveedor || '', base: parseFloat(c.base) || 0, igv, total: parseFloat(c.total) || 0, fecha: c.fecha || null, serie: c.serie || '', numero: c.numero || '', foto_path: S.ia.path || null });
-  if (r.ok) {
+  const r = await apiPost({ accion: 'registrar_compra', ruc_proveedor: c.ruc, razon_social: c.razon || c.proveedor || '', base: parseFloat(c.base) || 0, igv, total: parseFloat(c.total) || 0, fecha: c.fecha || null, serie: c.serie || '', numero: c.numero || '', foto_path: S.ia.path || null, periodo: per });
+  const rd = r && r.data;
+  if (r.ok && rd && rd.ok !== false) {
+    if (per) S.periodoTrib = per;                 // ir al mes donde cayó la compra → se ve el re-equilibrio
+    try { if (S.ia && S.ia.previewUrl) URL.revokeObjectURL(S.ia.previewUrl); } catch (e) {}
     _tribFly(igv || parseFloat(c.total) || 0); sndUp(); haptic([15, 45, 15]);
     if (typeof showToast === 'function') showToast('✓ Compra registrada · +' + _tribMoney(igv) + ' de crédito');
     S.ia = null; S.tribSub = 'balanza';           // salta a la balanza para ver el re-equilibrio
     _tribLoadCompras();                            // refresca lista en background
     _facLoadTrib();                                // recarga balanza + anima
-  } else { S.ia.phase = 'ready'; _facErr((r.error || 'No se pudo registrar').replace(/^.*?:\s*/, '')); }
+  } else if (rd && rd.motivo === 'duplicado') {
+    S.ia.phase = 'ready'; sndDown(); _facErr('Esta factura de compra ya fue registrada');
+  } else { S.ia.phase = 'ready'; _facErr((r.error || (rd && rd.motivo) || 'No se pudo registrar').replace(/^.*?:\s*/, '')); }
 }
 async function _tribVerFoto(path) {
   if (!path) return; sndTap();
@@ -7496,7 +7504,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.17.0';
+const APP_VERSION = '1.17.1';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
