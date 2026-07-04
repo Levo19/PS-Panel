@@ -936,6 +936,26 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 @keyframes tribPulse { 0%,100%{transform:scale(1);} 45%{transform:scale(1.09);} }
 .trib-chip { font-size:9.5px; font-weight:800; padding:2px 8px; border-radius:999px; }
 
+/* ── Facturación · HUB (Balanza como inicio + grid de accesos) ── */
+.fac-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:14px; }
+.fac-acc { min-height:88px; background:linear-gradient(160deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02)); border:1px solid var(--border); border-radius:15px; padding:13px 10px; cursor:pointer; text-align:center; color:var(--text); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; transition:transform .15s ease, border-color .15s ease, box-shadow .15s ease; position:relative; }
+.fac-acc:hover { transform:translateY(-3px); border-color:var(--gold); box-shadow:0 8px 22px rgba(0,0,0,.28); }
+.fac-acc:active { transform:translateY(-1px) scale(.98); }
+.fac-acc .ico { font-size:25px; line-height:1; }
+.fac-acc .t { font-weight:800; font-size:12.5px; margin-top:5px; }
+.fac-acc .d { font-size:10px; color:var(--text-muted); margin-top:1px; }
+.fac-acc.primary { grid-column:1 / -1; min-height:auto; flex-direction:row; gap:14px; text-align:left; justify-content:flex-start; background:linear-gradient(135deg,#7a1015,#56070c); border-color:var(--gold); box-shadow:0 6px 20px rgba(123,32,48,.35); }
+.fac-acc.primary .ico { font-size:34px; }
+.fac-acc.primary .t { font-size:16px; margin:0; }
+.fac-acc.primary .d { color:rgba(244,236,227,0.82); margin-top:2px; }
+.fac-acc .badge { position:absolute; top:7px; right:8px; background:#dc2626; color:#fff; border-radius:999px; font-size:9px; font-weight:800; padding:1px 6px; box-shadow:0 2px 6px rgba(220,38,38,.5); }
+.fac-back { display:inline-flex; align-items:center; gap:7px; color:var(--gold); font-weight:800; font-size:13px; cursor:pointer; padding:9px 12px; margin-bottom:14px; border:1px solid var(--border); border-radius:11px; background:rgba(201,168,76,0.06); min-height:44px; transition:background .15s ease, border-color .15s ease; -webkit-tap-highlight-color:transparent; }
+.fac-back:hover { background:rgba(201,168,76,0.14); border-color:var(--gold); }
+.fac-back:active { transform:scale(.98); }
+.fac-fade { animation:facFade .28s ease; }
+@keyframes facFade { from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);} }
+@media(max-width:560px){ .fac-grid{ grid-template-columns:repeat(2,1fr); } }
+
 /* ── Separator ──────────────────────────────────────────── */
 .sep { height: 1px; background: var(--border); margin: 16px 0; opacity: 0.5; }
 
@@ -4476,17 +4496,27 @@ window.abrirFacturacion = async function () {
     const [sR, mR, cR] = await Promise.all([apiGet('listar_servicios'), apiGet('get_facturacion_muelle'), apiGet('get_facturacion_config')]);
     servicios = (sR.ok && sR.data) || []; muelleOn = !!(mR.ok && mR.data); facCfg = (cR.ok && cR.data) || {};
   } catch (e) {}
-  _facState = { tab: 'emitir', ses, servicios, muelleOn, facCfg, cfgEdit: {}, comprobantes: [], cargandoHist: false,
+  _facState = { tab: 'inicio', ses, servicios, muelleOn, facCfg, cfgEdit: {}, comprobantes: [], cargandoHist: false,
     tipo: 2, facModo: 'boleta', exportacion: false, medioPago: '', lookupState: 'idle',
     docTipo: '1', doc: '', nombre: '', email: '', tel: '', dir: '', esExtranjero: false,
     items: [], resultado: null, shake: false, svcEdit: null, solicitudes: [], cargandoAnul: false,
-    tributos: null, cargandoTrib: false, periodoTrib: (_tribPeriodos()[0] || {}).p || '', compraEdit: {}, concilia: [], cargandoConcilia: false,
+    tributos: null, cargandoTrib: true, periodoTrib: (_tribPeriodos()[0] || {}).p || '', compraEdit: {}, concilia: [], cargandoConcilia: false,
     tribSub: 'balanza', renta: null, cargandoRenta: false, anioTrib: new Date().getFullYear(),
     compras: [], cargandoCompras: false, ia: null };
   _facRender();
+  _facLoadTrib();   // pinta la Balanza (inicio) con count-up
   _facLoadAnul();   // precarga el badge de solicitudes pendientes
 };
-function _facTab(t) { sndTap(); haptic(8); _facState.tab = t; _facState.resultado = null; _facRender(); if (t === 'historial') _facLoadHist(); if (t === 'anulaciones') _facLoadAnul(); if (t === 'tributario') _tribEnter(); if (t === 'conciliacion') _facLoadConcilia(); }
+// Navegación del hub: 'inicio' = Balanza; el resto son secciones que se abren desde las cards.
+function _facTab(t) {
+  sndTap(); haptic(12); _facState.tab = t; _facState.resultado = null; _facRender();
+  if (t === 'inicio') _facLoadTrib();
+  else if (t === 'historial') _facLoadHist();
+  else if (t === 'anulaciones') _facLoadAnul();
+  else if (t === 'conciliacion') _facLoadConcilia();
+  else if (t === 'compras') _tribLoadCompras();
+  else if (t === 'renta') _tribLoadRenta();
+}
 // Segmento Boleta / Factura / Exportación
 function _facSetModo(m) {
   sndTap(); haptic(8); const S = _facState;
@@ -4659,7 +4689,6 @@ async function _facAlinear(serie) {
 function _facRender() {
   const ov = document.getElementById('fac-ov'); if (!ov || !_facState) return;
   const S = _facState, tot = _facTotales();
-  const tabBtn = (id, label) => `<button data-fac-tab="${id}" style="flex:1;padding:8px 4px;border-radius:9px;font-size:11px;font-weight:800;cursor:pointer;border:1px solid ${S.tab === id ? 'var(--gold)' : 'var(--border)'};background:${S.tab === id ? 'rgba(201,168,76,0.18)' : 'transparent'};color:${S.tab === id ? 'var(--gold)' : 'var(--text-muted)'}">${label}</button>`;
   let body = '';
   if (S.tab === 'emitir') {
     if (S.resultado) {
@@ -4812,8 +4841,16 @@ function _facRender() {
           </div>
         </div>`).join('') :
         '<div style="padding:22px;text-align:center;color:var(--text-muted);font-size:12px">No hay solicitudes pendientes. ✓</div>'));
-  } else if (S.tab === 'tributario') {
-    body = _tribBody(S);
+  } else if (S.tab === 'inicio') {
+    body = _facHome(S);
+  } else if (S.tab === 'subir') {
+    body = _tribSubirBody(S);
+  } else if (S.tab === 'compras') {
+    body = _tribComprasBody(S);
+  } else if (S.tab === 'renta') {
+    body = _tribRentaBody(S);
+  } else if (S.tab === 'calendario') {
+    body = _tribCalendarioBody(S);
   } else if (S.tab === 'conciliacion') {
     const money = v => 'S/ ' + (Number(v) || 0).toFixed(2);
     body = `<div style="font-size:11px;font-weight:800;color:var(--gold);margin-bottom:6px">CONCILIACIÓN ZARPE ↔ FACTURADO (hoy)</div>
@@ -4830,24 +4867,27 @@ function _facRender() {
       </div>` :
         '<div style="padding:22px;text-align:center;color:var(--text-muted);font-size:12px">Sin operaciones hoy o todo conciliado. ✓</div>'));
   }
-  ov.innerHTML = `<div class="modal-box glass-strong${S.shake?' si-shake':''}" style="max-width:${S.tab==='tributario'?'640':'560'}px;width:94vw;max-height:90vh;overflow-y:auto">
+  const secNames = { emitir: 'Emitir CPE', subir: 'Subir compra', historial: 'Historial', compras: 'Compras', renta: 'Renta', conciliacion: 'Conciliación', calendario: 'Calendario', servicios: 'Servicios', ajustes: 'Ajustes', anulaciones: 'Anulaciones' };
+  const headSub = S.tab === 'inicio' ? 'Balanza comercial · IGV · Renta' : (secNames[S.tab] || 'Boletas / facturas · NubeFact');
+  const back = S.tab === 'inicio' ? '' : `<div class="fac-back" onclick="_facTab('inicio')">← Volver a la balanza</div>`;
+  ov.innerHTML = `<div class="modal-box glass-strong${S.shake?' si-shake':''}" style="max-width:${S.tab==='inicio'?'660':'560'}px;width:94vw;max-height:90vh;overflow-y:auto">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-      <div style="font-size:24px">🧾</div><div style="flex:1"><div class="modal-title" style="margin:0">Facturación</div><div style="font-size:11px;color:var(--text-muted)">Boletas / facturas · NubeFact (demo)</div></div>
+      <div style="font-size:24px">🧾</div><div style="flex:1"><div class="modal-title" style="margin:0">Facturación</div><div style="font-size:11px;color:var(--text-muted)">${headSub}</div></div>
       <button onclick="cerrarFacturacion()" style="font-size:24px;color:var(--text-muted);background:none;border:none;padding:2px 8px">×</button>
     </div>
-    <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">${tabBtn('emitir','🧾 Emitir')}${tabBtn('historial','📜 Historial')}${tabBtn('anulaciones','⊘ Anular' + ((S.solicitudes && S.solicitudes.length) ? ' <span style="background:#dc2626;color:#fff;border-radius:999px;font-size:9px;font-weight:800;padding:1px 5px">' + S.solicitudes.length + '</span>' : ''))}${tabBtn('tributario','📊 Tributario')}${tabBtn('conciliacion','⚖ Conciliar')}${tabBtn('servicios','🏷 Servicios')}${tabBtn('ajustes','⚙ Ajustes')}</div>
-    ${body}
+    ${back}
+    <div class="fac-fade">${body}</div>
   </div>`;
   // listeners
-  ov.querySelectorAll('[data-fac-tab]').forEach(b => b.onclick = () => _facTab(b.getAttribute('data-fac-tab')));
   const bind = (id, key) => { const el = ov.querySelector('#' + id); if (el) el.oninput = e => { _facState[key] = e.target.value; }; };
   bind('fac-nombre', 'nombre'); bind('fac-email', 'email'); bind('fac-tel', 'tel'); bind('fac-dir', 'dir');
   const fdoc = ov.querySelector('#fac-doc'); if (fdoc) fdoc.oninput = e => { _facState.doc = e.target.value; if (_facState.lookupState !== 'idle') _facState.lookupState = 'idle'; };
   const fmed = ov.querySelector('#fac-medio'); if (fmed) fmed.onchange = e => { _facState.medioPago = e.target.value; _facRender(); };
   const dt = ov.querySelector('#fac-doctipo'); if (dt) dt.onchange = e => { _facState.docTipo = e.target.value; _facRender(); };
   const ss = ov.querySelector('#fac-svcsel'); if (ss) ss.onchange = e => { if (e.target.value) _facAddServicio(e.target.value); };
-  // Tributario · módulo Balanza Comercial (binds + animaciones post-render)
-  if (S.tab === 'tributario') { _tribBind(ov); _tribAfterRender(ov); }
+  // Balanza / secciones tributarias (binds del uploader + animaciones count-up post-render)
+  if (S.tab === 'subir') _tribBind(ov);
+  if (S.tab === 'inicio' || S.tab === 'renta' || S.tab === 'compras' || S.tab === 'subir') _tribAfterRender(ov);
   ov.querySelectorAll('[data-it]').forEach(el => {
     el.oninput = e => {
       const i = +el.getAttribute('data-it'); const f = el.getAttribute('data-f');
@@ -4893,24 +4933,12 @@ function _tribThumbIco(name) {
   if (/transp|flet|logi|carga/.test(n)) return '🚚';
   return '🧾';
 }
-// ── Entrada / navegación de sub-pantallas ──
-function _tribEnter() {
-  const S = _facState; if (!S) return;
-  if (!S.periodoTrib) S.periodoTrib = (_tribPeriodos()[0] || {}).p || '';
-  if (S.tribSub === 'renta') _tribLoadRenta();
-  else if (S.tribSub === 'compras') _tribLoadCompras();
-  else _facLoadTrib();   // balanza (usa S.tributos)
-}
-function _tribSub(sub) {
-  sndTap(); haptic(8); const S = _facState; S.tribSub = sub; S.resultado = null;
-  if (sub === 'balanza') { if (!S.tributos) _facLoadTrib(); else _facRender(); }
-  else if (sub === 'renta') { if (!S.renta) _tribLoadRenta(); else _facRender(); }
-  else if (sub === 'compras') _tribLoadCompras();
-  else _facRender();
-}
+// La navegación por sub-pestañas (_tribEnter/_tribSub/_tribBody) se reemplazó por el HUB
+// Balanza + grid de accesos (_facHome + _facTab). Los bodies (_tribBalanzaBody/_tribSubirBody/…)
+// se conservan y se consumen directamente desde el dispatcher de _facRender.
 function _tribSetPeriodo(p) {
   sndTap(); haptic(8); const S = _facState; S.periodoTrib = p;
-  if (S.tribSub === 'compras') _tribLoadCompras(); else _facLoadTrib();
+  if (S.tab === 'compras') _tribLoadCompras(); else _facLoadTrib();
 }
 async function _tribLoadRenta() {
   const S = _facState; S.cargandoRenta = true; _facRender();
@@ -4930,21 +4958,7 @@ async function _tribLoadCompras() {
   catch (e) { S.compras = []; }
   S.cargandoCompras = false; _facRender();
 }
-// ── Render principal (dispatcher) ──
-function _tribBody(S) {
-  const sub = S.tribSub || 'balanza';
-  const nav = `<div class="trib-sub">
-    ${_tribNavBtn('balanza', '⚖️ Balanza', sub)}${_tribNavBtn('subir', '📸 Subir', sub)}${_tribNavBtn('compras', '🧾 Compras', sub)}${_tribNavBtn('renta', '📈 Renta', sub)}${_tribNavBtn('calendario', '🗓️ Calendario', sub)}
-  </div>`;
-  let inner = '';
-  if (sub === 'balanza') inner = _tribBalanzaBody(S);
-  else if (sub === 'subir') inner = _tribSubirBody(S);
-  else if (sub === 'compras') inner = _tribComprasBody(S);
-  else if (sub === 'renta') inner = _tribRentaBody(S);
-  else inner = _tribCalendarioBody(S);
-  return nav + `<div class="trib-fade">${inner}</div>`;
-}
-function _tribNavBtn(id, label, cur) { return `<button onclick="_tribSub('${id}')" class="${cur === id ? 'on' : ''}">${label}</button>`; }
+// ── Chips de periodo (reusados por Balanza y Compras) ──
 function _tribPeriodChips(S) {
   return _tribPeriodos().map(o => `<button onclick="_tribSetPeriodo('${o.p}')" class="trib-chip" style="border:1px solid ${S.periodoTrib === o.p ? 'var(--gold)' : 'var(--border)'};background:${S.periodoTrib === o.p ? 'rgba(201,168,76,0.18)' : 'transparent'};color:${S.periodoTrib === o.p ? 'var(--gold)' : 'var(--text-muted)'};cursor:pointer;padding:5px 11px;text-transform:capitalize">${o.label}</button>`).join('');
 }
@@ -4992,6 +5006,28 @@ function _tribBalanzaBody(S) {
     <div class="trib-kpi"><span>🌎 Exportación (0% IGV)</span><b>${_tribMoney(t.total_exportacion)}</b></div>
   </div>
   <div class="trib-note">💡 <b>Total a desembolsar ≈ ${_tribMoney(totalMes)}</b> (IGV ${_tribMoney(t.igv_por_pagar)} + Renta ${_tribMoney(t.renta_pago_cuenta)}). Sabes cuánto pagarás, sin sorpresas.</div>`;
+}
+// ── HUB / Inicio del módulo: Balanza (reusada, compacta) + grid de accesos ──
+function _facHome(S) {
+  const pend = (S.solicitudes && S.solicitudes.length) || 0;
+  const card = (tab, ico, t, d, extra) => `<button onclick="_facTab('${tab}')" class="fac-acc"><div class="ico">${ico}</div><div class="t">${t}</div><div class="d">${d}</div>${extra || ''}</button>`;
+  const primary = `<button onclick="_facTab('emitir')" class="fac-acc primary"><div class="ico">🧾</div><div><div class="t">Emitir CPE</div><div class="d">Boleta · Factura · Exportación 0% → abre el layout de emisión</div></div></button>`;
+  const anulBadge = pend ? `<span class="badge">${pend}</span>` : '';
+  return `
+  <div style="text-align:center;font-size:11.5px;color:var(--text-muted);margin-bottom:10px;line-height:1.5">Tu situación tributaria del mes de un vistazo — <b style="color:var(--gold)">sube compras y el pago de este mes baja</b>. Debajo tienes todo el módulo a un toque.</div>
+  ${_tribBalanzaBody(S)}
+  <div class="fac-grid">
+    ${primary}
+    ${card('subir', '📸', 'Subir compra', 'IA lee el IGV')}
+    ${card('historial', '📜', 'Historial', 'CPE emitidos')}
+    ${card('compras', '🧾', 'Compras', 'crédito fiscal')}
+    ${card('renta', '📈', 'Renta', 'proyección')}
+    ${card('conciliacion', '⚖', 'Conciliar', 'zarpe ↔ CPE')}
+    ${card('calendario', '🗓️', 'Calendario', 'vencimientos')}
+    ${card('servicios', '🏷', 'Servicios', 'catálogo')}
+    ${card('ajustes', '⚙', 'Ajustes', 'NubeFact · series')}
+    ${card('anulaciones', '⊘', 'Anular', 'solicitudes', anulBadge)}
+  </div>`;
 }
 // ── 2 · Subir compra (IA) — la estrella ──
 function _tribSubirBody(S) {
@@ -5111,7 +5147,7 @@ function _tribBind(ov) {
   iaBind('ia-proveedor', 'proveedor'); iaBind('ia-ruc', 'ruc'); iaBind('ia-fecha', 'fecha'); iaBind('ia-serie', 'serie'); iaBind('ia-numero', 'numero'); iaBind('ia-base', 'base'); iaBind('ia-igv', 'igv'); iaBind('ia-total', 'total');
 }
 function _tribAfterRender(ov) {
-  const S = _facState; const sub = S.tribSub || 'balanza';
+  const S = _facState; const sub = (S.tab === 'inicio') ? 'balanza' : S.tab;
   if (sub === 'balanza' && !S.cargandoTrib) {
     const t = S.tributos || {};
     const deb = Number(t.igv_debito) || 0, cre = Number(t.igv_credito) || 0, tot = deb + cre;
@@ -5219,7 +5255,7 @@ async function _tribGuardarCompra() {
     try { if (S.ia && S.ia.previewUrl) URL.revokeObjectURL(S.ia.previewUrl); } catch (e) {}
     _tribFly(igv || parseFloat(c.total) || 0); sndUp(); haptic([15, 45, 15]);
     if (typeof showToast === 'function') showToast('✓ Compra registrada · +' + _tribMoney(igv) + ' de crédito');
-    S.ia = null; S.tribSub = 'balanza';           // salta a la balanza para ver el re-equilibrio
+    S.ia = null; S.tab = 'inicio';                 // salta a la balanza (inicio) para ver el re-equilibrio
     _tribLoadCompras();                            // refresca lista en background
     _facLoadTrib();                                // recarga balanza + anima
   } else if (rd && rd.motivo === 'duplicado') {
@@ -7504,7 +7540,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.17.1';
+const APP_VERSION = '1.18.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
