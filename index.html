@@ -954,6 +954,12 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 .fac-back:active { transform:scale(.98); }
 .fac-fade { animation:facFade .28s ease; }
 @keyframes facFade { from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);} }
+/* entrada escalonada de las cards del hub (deleite sutil) */
+.fac-acc { animation:facFadeUp .3s ease backwards; }
+@keyframes facFadeUp { from{opacity:0; transform:translateY(7px);} to{opacity:1; transform:none;} }
+.fac-grid button:nth-of-type(2){animation-delay:.04s} .fac-grid button:nth-of-type(3){animation-delay:.08s}
+.fac-grid button:nth-of-type(4){animation-delay:.12s} .fac-grid button:nth-of-type(5){animation-delay:.16s}
+.fac-grid button:nth-of-type(6){animation-delay:.2s} .fac-grid button:nth-of-type(n+7){animation-delay:.24s}
 @media(max-width:560px){ .fac-grid{ grid-template-columns:repeat(2,1fr); } }
 
 /* ── Separator ──────────────────────────────────────────── */
@@ -4509,7 +4515,13 @@ window.abrirFacturacion = async function () {
 };
 // Navegación del hub: 'inicio' = Balanza; el resto son secciones que se abren desde las cards.
 function _facTab(t) {
-  sndTap(); haptic(12); _facState.tab = t; _facState.resultado = null; _facRender();
+  sndTap(); haptic(12);
+  const S = _facState, prev = S.tab;
+  // limpiar borradores de la sección anterior (evita token/edición stale, ej. Ajustes)
+  S.resultado = null; S.anularId = null; S.cfgEdit = {}; S.svcEdit = null; S.serieEdit = null; S.corrEdit = null;
+  // si salimos de "Subir" con la IA en curso, cortar su timer (no dejar timer huérfano)
+  if (prev === 'subir' && t !== 'subir' && S._iaTimer) { clearInterval(S._iaTimer); S._iaTimer = null; }
+  S.tab = t; _facRender();
   if (t === 'inicio') _facLoadTrib();
   else if (t === 'historial') _facLoadHist();
   else if (t === 'anulaciones') _facLoadAnul();
@@ -4977,12 +4989,13 @@ function _tribBalanzaBody(S) {
     <div class="trib-scale">
       <div class="trib-beam-wrap">
         <div class="trib-beam" id="trib-beam"><span class="knob"></span></div>
-        <div class="trib-pan left" id="trib-pan-l"><div class="trib-string"></div><div class="trib-plate" style="background:linear-gradient(90deg,#e0544e,#8f2636)"></div><div class="trib-panlabel">Ventas · débito</div><div class="trib-panval" style="color:#f87171" id="trib-vd">S/ 0.00</div></div>
-        <div class="trib-pan right" id="trib-pan-r"><div class="trib-string"></div><div class="trib-plate" style="background:linear-gradient(90deg,#3fb27f,#1e5c43)"></div><div class="trib-panlabel">Compras · crédito</div><div class="trib-panval" style="color:#4ade80" id="trib-vc">S/ 0.00</div></div>
+        <div class="trib-pan left" id="trib-pan-l"><div class="trib-string"></div><div class="trib-plate" style="background:linear-gradient(90deg,#e0544e,#8f2636)"></div><div class="trib-panlabel">Cobraste · IGV que debes</div><div class="trib-panval" style="color:#f87171" id="trib-vd">S/ 0.00</div></div>
+        <div class="trib-pan right" id="trib-pan-r"><div class="trib-string"></div><div class="trib-plate" style="background:linear-gradient(90deg,#3fb27f,#1e5c43)"></div><div class="trib-panlabel">Compraste · IGV a favor</div><div class="trib-panval" style="color:#4ade80" id="trib-vc">S/ 0.00</div></div>
       </div>
       <div class="trib-fulcrum"></div>
     </div>
     <div style="text-align:center;margin-top:4px"><span class="trib-chip" style="background:${tot <= 0 ? 'rgba(255,255,255,0.06)' : (inclina ? 'rgba(224,84,78,0.16)' : 'rgba(63,178,127,0.16)')};color:${tot <= 0 ? 'var(--text-muted)' : (inclina ? '#f87171' : '#4ade80')}">${tot <= 0 ? 'Sin movimiento este periodo' : (inclina ? '⚖️ Se inclina a pagar · sube más compras para equilibrar' : '✓ Tu crédito cubre bien el IGV')}</span></div>
+    ${inclina ? `<button onclick="_facTab('subir')" style="width:100%;margin-top:10px;padding:11px;border:none;border-radius:11px;background:linear-gradient(135deg,#8f2636,#56070c);color:#fff;font-weight:800;font-size:13px;cursor:pointer;min-height:44px">📸 Subir una compra y bajar el pago</button>` : ''}
   </div>
   <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">
     <div class="trib-glass" style="flex:1;min-width:180px;text-align:center">
@@ -5011,19 +5024,40 @@ function _tribBalanzaBody(S) {
 function _facHome(S) {
   const pend = (S.solicitudes && S.solicitudes.length) || 0;
   const card = (tab, ico, t, d, extra) => `<button onclick="_facTab('${tab}')" class="fac-acc"><div class="ico">${ico}</div><div class="t">${t}</div><div class="d">${d}</div>${extra || ''}</button>`;
-  const primary = `<button onclick="_facTab('emitir')" class="fac-acc primary"><div class="ico">🧾</div><div><div class="t">Emitir CPE</div><div class="d">Boleta · Factura · Exportación 0% → abre el layout de emisión</div></div></button>`;
+  const primary = `<button onclick="_facTab('emitir')" class="fac-acc primary"><div class="ico">🧾</div><div><div class="t">Emitir CPE</div><div class="d">Boleta · Factura · Exportación 0% · emite en segundos</div></div></button>`;
+  const grp = txt => `<div style="grid-column:1/-1;font-size:9px;letter-spacing:1.2px;font-weight:800;color:var(--text-muted);text-align:left;margin-top:10px">${txt}</div>`;
   const anulBadge = pend ? `<span class="badge">${pend}</span>` : '';
+  // Hero: la cifra + fecha que un no-contable quiere ver primero.
+  const t = S.tributos || {};
+  const totalMes = (Number(t.igv_por_pagar) || 0) + (Number(t.renta_pago_cuenta) || 0);
+  const pp = (S.periodoTrib || '').split('-').map(Number);
+  let hero = '';
+  if (pp[0] && pp[1]) {
+    const venc = new Date(pp[0], pp[1], 18);   // día 18 del mes siguiente al período
+    const dLeft = Math.ceil((venc - new Date()) / 864e5);
+    const fmtV = venc.toLocaleDateString('es-PE', { day: '2-digit', month: 'short' });
+    hero = `<div class="trib-glass" style="text-align:center;padding:15px;margin-bottom:10px">
+      <div style="font-size:10px;letter-spacing:.5px;color:var(--text-muted)">A PAGAR ESTE MES (IGV + Renta)</div>
+      <div style="font-weight:900;font-size:31px;color:var(--gold);line-height:1.1;margin:2px 0">${S.cargandoTrib ? '···' : _tribMoney(totalMes)}</div>
+      ${dLeft > 0 ? `<div style="font-size:11px;font-weight:700;color:${dLeft <= 5 ? '#f87171' : 'var(--text-muted)'}">vence ${fmtV} · en ${dLeft} día${dLeft === 1 ? '' : 's'}</div>` : `<div style="font-size:11px;color:var(--text-muted)">${fmtV}</div>`}
+    </div>`;
+  }
   return `
-  <div style="text-align:center;font-size:11.5px;color:var(--text-muted);margin-bottom:10px;line-height:1.5">Tu situación tributaria del mes de un vistazo — <b style="color:var(--gold)">sube compras y el pago de este mes baja</b>. Debajo tienes todo el módulo a un toque.</div>
+  ${hero}
+  <div style="text-align:center;font-size:11.5px;color:var(--text-muted);margin-bottom:10px;line-height:1.5"><b style="color:var(--gold)">Sube tus compras y este pago baja.</b> Abajo tienes todo a un toque.</div>
   ${_tribBalanzaBody(S)}
   <div class="fac-grid">
+    ${grp('VENTAS')}
     ${primary}
-    ${card('subir', '📸', 'Subir compra', 'IA lee el IGV')}
     ${card('historial', '📜', 'Historial', 'CPE emitidos')}
+    ${grp('IMPUESTOS')}
+    ${card('subir', '📸', 'Subir compra', 'IA lee el IGV')}
     ${card('compras', '🧾', 'Compras', 'crédito fiscal')}
     ${card('renta', '📈', 'Renta', 'proyección')}
+    ${grp('CONTROL')}
     ${card('conciliacion', '⚖', 'Conciliar', 'zarpe ↔ CPE')}
     ${card('calendario', '🗓️', 'Calendario', 'vencimientos')}
+    ${grp('CONFIGURACIÓN')}
     ${card('servicios', '🏷', 'Servicios', 'catálogo')}
     ${card('ajustes', '⚙', 'Ajustes', 'NubeFact · series')}
     ${card('anulaciones', '⊘', 'Anular', 'solicitudes', anulBadge)}
@@ -5164,6 +5198,7 @@ function _tribAfterRender(ov) {
       const pr = ov.querySelector('#trib-pan-r'); if (pr) pr.style.transform = 'translateY(' + (-drop).toFixed(1) + 'px)';
       const bar = ov.querySelector('#trib-cobbar'); if (bar) bar.style.width = cob + '%';
       const ring = ov.querySelector('#trib-ring'); if (ring) { ring.style.setProperty('--rp', cob); ring.style.setProperty('--rc', g.color); }
+      setTimeout(() => { try { haptic(6); } catch (e) {} }, 520);   // "asentar" cuando la viga termina de inclinarse
     });
   } else if (sub === 'renta' && !S.cargandoRenta) {
     const r = S.renta || {}, t = S.tributos || {};
@@ -7540,7 +7575,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.18.0';
+const APP_VERSION = '1.18.1';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
