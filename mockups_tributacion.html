@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PS · Módulo Tributación — Balanza Comercial (mockups)</title>
+<style>
+  :root{--guinda:#7B2030;--guinda2:#56070c;--gold:#C9A84C;--gold2:#e6c869;--bg:#0c0608;--panel:#170d10;--panel2:#20131a;--line:#3a2530;--tx:#f4ece3;--mut:#b79aa0;--ok:#3fb27f;--warn:#e0a63a;--bad:#e0544e;--info:#5aa9e6}
+  *{box-sizing:border-box;font-family:'Segoe UI',system-ui,Arial,sans-serif}
+  body{margin:0;background:radial-gradient(1200px 700px at 50% -15%,#22111a,var(--bg));color:var(--tx);padding-bottom:60px}
+  header{padding:20px 24px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#2011173a,transparent)}
+  h1{margin:0;font-size:21px}h1 span{color:var(--gold)}
+  .sub{color:var(--mut);font-size:13px;margin-top:3px}
+  .wrap{display:flex;gap:20px;max-width:1180px;margin:20px auto;padding:0 18px;align-items:flex-start}
+  nav{position:sticky;top:14px;min-width:210px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:8px;flex-shrink:0}
+  nav a{display:flex;align-items:center;gap:9px;padding:10px 12px;border-radius:11px;color:var(--tx);text-decoration:none;font-size:13.5px;font-weight:600;cursor:pointer;border:1px solid transparent}
+  nav a:hover{background:var(--panel2)}
+  nav a.on{background:linear-gradient(90deg,var(--guinda),transparent);border-color:var(--line)}
+  main{flex:1;min-width:0}
+  .screen{display:none;animation:fade .35s}.screen.on{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  .stitle{font-size:19px;font-weight:800;margin:0 0 3px}.sdesc{color:var(--mut);font-size:13px;margin:0 0 16px;max-width:720px;line-height:1.5}
+  .glass{background:linear-gradient(160deg,#ffffff10,#ffffff05);backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:18px;padding:16px}
+  .row{display:flex;gap:16px;flex-wrap:wrap}
+  .big{font-size:34px;font-weight:900;letter-spacing:-.5px}
+  .mut{color:var(--mut);font-size:12px}
+  .pill{font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px}
+  .p-ok{background:#123a2a;color:var(--ok)}.p-bad{background:#3a1614;color:var(--bad)}.p-warn{background:#3a2e12;color:var(--warn)}.p-info{background:#122a3a;color:var(--info)}.p-gold{background:#3a3212;color:var(--gold)}
+  .bar{height:12px;border-radius:8px;background:#241419;overflow:hidden;margin-top:6px}.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--gold),var(--gold2))}
+  .kpi{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #241419;font-size:13.5px}
+  .fx{background:var(--panel);border:1px dashed var(--line);border-radius:14px;padding:13px;font-size:12px;color:var(--mut);width:300px}
+  .fx h4{margin:0 0 8px;color:var(--gold);font-size:12px}.fx div{padding:3px 0;border-bottom:1px dashed #241419}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}th{text-align:left;color:var(--gold);font-size:10px;text-transform:uppercase;letter-spacing:.5px;padding:7px 6px;border-bottom:1px solid var(--line)}td{padding:9px 6px;border-bottom:1px solid #241419}
+  .btn{display:inline-block;padding:12px 16px;border-radius:12px;border:none;font-weight:800;font-size:14px;cursor:pointer;background:linear-gradient(180deg,var(--gold2),var(--gold));color:#2a1206}
+  .btn.g{background:linear-gradient(180deg,#8f2636,var(--guinda2));color:#fff}
+  /* balanza (gauge) */
+  .scale{display:flex;align-items:flex-end;gap:0;justify-content:center;height:150px;position:relative;margin:6px 0}
+  .pan{flex:1;text-align:center}
+  .pan .plate{height:14px;border-radius:8px;margin:0 12px}
+  .beam{position:absolute;top:12px;left:12%;right:12%;height:6px;background:linear-gradient(90deg,var(--ok),var(--bad));border-radius:6px;transform:rotate(-4deg);transform-origin:center}
+  .drop{border:2px dashed #6b4a2e;border-radius:16px;padding:26px;text-align:center;background:linear-gradient(160deg,#3a2e1210,#fff0);cursor:pointer}
+  .thumb{width:42px;height:42px;border-radius:9px;background:linear-gradient(135deg,#3a2530,#20131a);display:inline-flex;align-items:center;justify-content:center;font-size:18px}
+  .note{background:linear-gradient(90deg,#241419,transparent);border-left:3px solid var(--gold);border-radius:0 10px 10px 0;padding:10px 12px;margin:10px 0;font-size:12.5px}.note b{color:var(--gold2)}
+  .seg{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:11px;overflow:hidden;width:fit-content}
+  .seg div{padding:7px 14px;font-size:12.5px;font-weight:700;color:var(--mut);cursor:pointer}.seg div.on{background:var(--guinda);color:#fff}
+  .ring{width:120px;height:120px;border-radius:50%;background:conic-gradient(var(--gold) 0 62%,#241419 62% 100%);display:flex;align-items:center;justify-content:center;position:relative}
+  .ring::before{content:'';position:absolute;inset:12px;border-radius:50%;background:var(--panel)}
+  .ring span{position:relative;font-weight:900;font-size:22px}
+</style></head>
+<body>
+<header><h1>PS · Módulo <span>Tributación</span> — Balanza Comercial</h1>
+<div class="sub">Cuánto vas a pagar de IGV y Renta, en tiempo real · sube tus compras y la IA suma tu crédito · empresa de turismo, Régimen General</div></header>
+<div class="wrap">
+  <nav id="nav">
+    <a data-s="s1" class="on">⚖️ Balanza comercial</a>
+    <a data-s="s2">📸 Subir compra (IA)</a>
+    <a data-s="s3">🧾 Compras registradas</a>
+    <a data-s="s4">📈 Proyección Renta</a>
+    <a data-s="s5">🗓️ Calendario tributario</a>
+    <a data-s="s6">★ Efectos & lógica</a>
+  </nav>
+  <main>
+
+  <!-- 1 BALANZA -->
+  <section class="screen on" id="s1">
+    <div class="seg" style="margin-bottom:14px"><div class="on">Julio 2026</div><div>Junio</div><div>Año 2026</div></div>
+    <div class="stitle">⚖️ Tu balanza del mes</div>
+    <p class="sdesc">De un vistazo: lo que te genera impuesto (ventas) vs lo que te lo baja (compras). La aguja se inclina según cómo vas.</p>
+    <div class="row">
+      <div class="glass" style="flex:2;min-width:340px">
+        <div class="scale">
+          <div class="beam"></div>
+          <div class="pan"><div class="plate" style="background:linear-gradient(90deg,#e0544e,#8f2636)"></div><div class="mut" style="margin-top:8px">Ventas (débito)</div><div class="big" style="font-size:22px;color:var(--bad)">S/ 4,820</div><div class="mut">IGV de tus CPE</div></div>
+          <div class="pan"><div class="plate" style="background:linear-gradient(90deg,#3fb27f,#1e5c43)"></div><div class="mut" style="margin-top:8px">Compras (crédito)</div><div class="big" style="font-size:22px;color:var(--ok)">S/ 2,310</div><div class="mut">IGV de tus facturas</div></div>
+        </div>
+        <div style="text-align:center;margin-top:8px"><span class="pill p-warn">La balanza se inclina a pagar · sube más compras para equilibrar</span></div>
+      </div>
+      <div class="glass" style="flex:1;min-width:230px;text-align:center">
+        <div class="mut">IGV A PAGAR (este mes)</div>
+        <div class="big" style="color:var(--gold2)">S/ 2,510</div>
+        <div class="bar"><i style="width:48%"></i></div>
+        <div class="mut" style="margin-top:5px">48% cubierto con compras</div>
+        <hr style="border-color:#241419;margin:14px 0">
+        <div class="mut">RENTA estimada (pago a cuenta)</div>
+        <div class="big" style="font-size:26px;color:#fff">S/ 402</div>
+        <div class="mut">1.5% de ingresos · S/ 26,800</div>
+      </div>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <div class="glass" style="flex:1"><div class="kpi"><span>💧 Saldo a favor exportador</span><b style="color:var(--info)">S/ 640</b></div><div class="kpi"><span>🏦 Detracciones en cuenta BN</span><b>S/ 1,180</b></div><div class="kpi" style="border:none"><span>📥 Retenciones que te hicieron</span><b>S/ 210</b></div></div>
+      <div class="glass" style="flex:1;display:flex;align-items:center;gap:16px">
+        <div class="ring"><span>B</span></div>
+        <div><div style="font-weight:800;font-size:15px">Salud tributaria: <span style="color:var(--gold)">Buena</span></div><div class="mut" style="max-width:220px;margin-top:4px">Vas al día. Si subes 3 compras más (~S/900 IGV) bajas el pago a S/1,610.</div></div>
+      </div>
+    </div>
+    <div class="note">💡 <b>Total a desembolsar en julio ≈ S/ 2,912</b> (IGV 2,510 + Renta 402). Vence el <b>18-ago</b> según tu último dígito de RUC.</div>
+  </section>
+
+  <!-- 2 SUBIR COMPRA IA -->
+  <section class="screen" id="s2">
+    <div class="stitle">📸 Subir compra — la IA lee el IGV a favor</div>
+    <p class="sdesc">Toma foto o arrastra la factura/boleta de compra (combustible, mantenimiento, insumos…). Se guarda en Supabase Storage y la IA extrae RUC, base e IGV. Revisas y guardas — tu crédito sube al instante.</p>
+    <div class="row">
+      <div class="glass" style="flex:1.3;min-width:320px">
+        <div class="drop">📷 <b>Tomar / arrastrar factura de compra</b><div class="mut" style="margin-top:6px">JPG · PNG · PDF · o varias a la vez</div></div>
+        <div style="margin-top:14px"><span class="pill p-info">🤖 IA leyendo… ▓▓▓▓▓▓▓░ 84%</span></div>
+        <div class="mut" style="margin:14px 0 6px;font-weight:700;color:var(--gold)">DATOS EXTRAÍDOS (edita si hace falta)</div>
+        <div class="glass" style="background:#0e0709">
+          <div class="kpi"><span>Proveedor</span><b>PRIMAX ESTACIÓN S.A.</b></div>
+          <div class="kpi"><span>RUC</span><b>20501234567</b></div>
+          <div class="kpi"><span>F. emisión · Doc</span><b>12-07-2026 · F001-8842</b></div>
+          <div class="kpi"><span>Base imponible</span><b>S/ 254.24</b></div>
+          <div class="kpi"><span style="color:var(--ok)">IGV (crédito)</span><b style="color:var(--ok)">S/ 45.76</b></div>
+          <div class="kpi" style="border:none"><span>Total</span><b>S/ 300.00</b></div>
+        </div>
+        <button class="btn" style="width:100%;margin-top:12px">Guardar compra · +S/45.76 de crédito</button>
+      </div>
+      <div class="fx">
+        <h4>Qué pasa aquí</h4>
+        <div>☁️ Foto → <b>Supabase Storage</b> (bucket compras, privado)</div>
+        <div>🤖 Edge <code>extraer-compra</code> (Claude vision, patrón zarpe)</div>
+        <div>🧠 Extrae RUC · fecha · serie/nº · base · <b>IGV</b> · total</div>
+        <div>✍️ Revisión humana antes de guardar (evita error)</div>
+        <div>📊 IGV → <b>crédito</b>; base → <b>gasto deducible</b> de Renta</div>
+        <div>🔁 anti-duplicado por RUC+serie+número</div>
+        <div>💥 efecto contador "+S/45.76" + la balanza se re-equilibra</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 COMPRAS -->
+  <section class="screen" id="s3">
+    <div class="stitle">🧾 Compras registradas — Julio 2026</div>
+    <p class="sdesc">Todo el crédito fiscal del mes, con su foto. Filtra, edita o descarta lo no deducible.</p>
+    <div class="glass">
+      <table>
+        <tr><th></th><th>Proveedor</th><th>Documento</th><th>Base</th><th>IGV</th><th>Total</th><th></th></tr>
+        <tr><td><span class="thumb">⛽</span></td><td>PRIMAX ESTACIÓN</td><td>F001-8842</td><td>254.24</td><td style="color:var(--ok)">45.76</td><td>300.00</td><td>👁</td></tr>
+        <tr><td><span class="thumb">🔧</span></td><td>MOTORES MARINOS SAC</td><td>F002-1190</td><td>677.97</td><td style="color:var(--ok)">122.03</td><td>800.00</td><td>👁</td></tr>
+        <tr><td><span class="thumb">🧴</span></td><td>DISTRIBUIDORA XYZ</td><td>B001-4521</td><td>127.12</td><td style="color:var(--ok)">22.88</td><td>150.00</td><td>👁</td></tr>
+      </table>
+      <div class="kpi" style="border:none;margin-top:6px;font-size:15px"><b>Crédito IGV acumulado (julio)</b><b style="color:var(--ok)">S/ 2,310.00</b></div>
+    </div>
+    <div class="note">🔎 La IA marca en <span class="pill p-warn">ámbar</span> las compras dudosas (¿es gasto de la empresa? ¿RUC válido?) para que las revises antes del cierre.</div>
+  </section>
+
+  <!-- 4 RENTA -->
+  <section class="screen" id="s4">
+    <div class="stitle">📈 Proyección de Renta (Impuesto a la Renta)</div>
+    <p class="sdesc">Régimen General. Cada mes pagas un adelanto (pago a cuenta); al cierre del año se calcula el 29.5% sobre tu utilidad y se descuentan los adelantos.</p>
+    <div class="row">
+      <div class="glass" style="flex:1">
+        <div class="mut" style="font-weight:700;color:var(--gold);margin-bottom:6px">PAGO A CUENTA MENSUAL (julio)</div>
+        <div class="kpi"><span>Ingresos netos del mes</span><b>S/ 26,800</b></div>
+        <div class="kpi"><span>Método (el mayor)</span><b>1.5% vs coeficiente</b></div>
+        <div class="kpi" style="border:none"><span><b>Pago a cuenta</b></span><span class="big" style="font-size:22px">S/ 402</span></div>
+      </div>
+      <div class="glass" style="flex:1">
+        <div class="mut" style="font-weight:700;color:var(--gold);margin-bottom:6px">PROYECCIÓN ANUAL 2026</div>
+        <div class="kpi"><span>Ingresos acumulados</span><b>S/ 178,400</b></div>
+        <div class="kpi"><span>Gastos deducibles (compras)</span><b style="color:var(--ok)">− S/ 92,100</b></div>
+        <div class="kpi"><span>Utilidad estimada</span><b>S/ 86,300</b></div>
+        <div class="kpi"><span>Renta 29.5%</span><b>S/ 25,458</b></div>
+        <div class="kpi" style="border:none"><span>− adelantos pagados</span><b style="color:var(--ok)">− S/ 2,814</b></div>
+      </div>
+    </div>
+    <div class="note">💡 <b>Sube más compras deducibles</b> y baja la utilidad → baja la Renta anual. La IA te dice cuánto ahorras por cada factura que registras. <span class="pill p-info">turismo receptivo 0% no paga IGV pero sí Renta</span></div>
+  </section>
+
+  <!-- 5 CALENDARIO -->
+  <section class="screen" id="s5">
+    <div class="stitle">🗓️ Calendario tributario</div>
+    <p class="sdesc">Vencimientos según tu RUC. Avisos antes de cada fecha para que nunca pagues multa.</p>
+    <div class="glass">
+      <div class="kpi"><span>🔴 <b>IGV + Renta julio</b> · PDT 621</span><span><span class="pill p-bad">vence 18-ago · en 12 días</span></span></div>
+      <div class="kpi"><span>🟡 <b>SIRE</b> · Registro de ventas y compras</span><span><span class="pill p-warn">15-ago</span></span></div>
+      <div class="kpi"><span>🟢 Detracciones · depósito BN</span><span><span class="pill p-ok">al día</span></span></div>
+      <div class="kpi" style="border:none"><span>📅 Declaración anual Renta 2026</span><span><span class="pill p-info">mar-2027</span></span></div>
+    </div>
+    <div class="note">🔔 El sistema te avisa (campanita + WhatsApp opcional) <b>5 días antes</b> de cada vencimiento, con el monto exacto a pagar ya calculado.</div>
+  </section>
+
+  <!-- 6 EFECTOS -->
+  <section class="screen" id="s6">
+    <div class="stitle">★ Efectos, lógica y por qué es moderno</div>
+    <div class="row">
+      <div class="fx" style="width:330px"><h4>🎬 Efectos</h4><div>⚖️ balanza que se inclina animada según débito/crédito</div><div>🔢 contadores que suben (count-up) al cargar</div><div>💥 "+S/XX" al guardar una compra + re-equilibrio</div><div>◔ anillo de "salud tributaria" (A/B/C)</div><div>📊 barras de cobertura animadas</div></div>
+      <div class="fx" style="width:330px"><h4>🧮 Lógica IGV</h4><div>Débito = Σ IGV de tus CPE de venta</div><div>Crédito = Σ IGV de compras (IA)</div><div>Por pagar = débito − crédito (si &lt;0 = saldo a favor arrastrable)</div><div>+ detracciones BN, retenciones 3%, SFE export</div></div>
+      <div class="fx" style="width:330px"><h4>🧮 Lógica Renta</h4><div>Mensual: pago a cuenta = mayor(1.5%×ingresos, coef.)</div><div>Anual: 29.5% × (ingresos − gastos deducibles)</div><div>− adelantos ya pagados</div><div>Turismo: export 0% IGV pero SÍ Renta</div></div>
+      <div class="fx" style="width:330px"><h4>🤖 IA (Claude vision)</h4><div>Edge <code>extraer-compra</code> lee la foto</div><div>RUC · fecha · doc · base · IGV · total</div><div>foto en Storage privado (respaldo SUNAT)</div><div>marca dudosas en ámbar</div></div>
+      <div class="fx" style="width:330px"><h4>🛡️ Confianza</h4><div>"sabes cuánto pagarás, sin sorpresas"</div><div>guarda la foto = sustento ante fiscalización</div><div>avisos antes del vencimiento = cero multas</div></div>
+      <div class="fx" style="width:330px"><h4>🔗 Reusa lo que ya hay</h4><div>ventas ← CPE ya emitidos (balance_tributos)</div><div>compras ← tabla compras + registrar_compra</div><div>patrón IA ← extraer-zarpe</div></div>
+    </div>
+  </section>
+
+  </main>
+</div>
+<script>
+  const nav=document.getElementById('nav');
+  nav.addEventListener('click',e=>{const a=e.target.closest('a[data-s]');if(!a)return;
+    document.querySelectorAll('nav a').forEach(x=>x.classList.remove('on'));a.classList.add('on');
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
+    document.getElementById(a.dataset.s).classList.add('on');window.scrollTo({top:0,behavior:'smooth'});});
+</script>
+</body></html>
