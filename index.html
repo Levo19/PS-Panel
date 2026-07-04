@@ -4548,8 +4548,8 @@ window._facMountModule = async function (el) {
 window._facRetryModule = function () { const el = _facTargetEl; if (el) { _facState = null; _facMountModule(el); } };
 // Reactivación (keep-alive): re-apunta el destino y refresca sin recargar todo.
 window._facActivateModule = function (el) {
+  if (_facMounting) return;   // mount en curso: NO tocar _facTargetEl (o el guard del mount aborta el render)
   _facMode = 'module'; _facTargetEl = el;
-  if (_facMounting) return;                          // el mount en curso pintará solo
   if (_facState) { _facRender(); if (_facState.tab === 'inicio') _facLoadTrib(); }
   else _facMountModule(el);
 };
@@ -7728,7 +7728,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.19.2';
+const APP_VERSION = '1.19.3';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
