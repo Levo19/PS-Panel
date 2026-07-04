@@ -962,6 +962,47 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 .fac-grid button:nth-of-type(6){animation-delay:.2s} .fac-grid button:nth-of-type(n+7){animation-delay:.24s}
 @media(max-width:560px){ .fac-grid{ grid-template-columns:repeat(2,1fr); } }
 
+/* ── Facturación · MÓDULO de primer nivel (full-page) ── */
+.fac-module { min-height:100%; }
+.fac-mod-loading { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; padding:90px 20px; color:var(--text-muted); font-size:13px; }
+.fac-mod-shell { animation:facModIn .42s cubic-bezier(.22,1,.36,1); padding-bottom:24px; }
+@keyframes facModIn { from{opacity:0; transform:translateY(12px);} to{opacity:1; transform:none;} }
+.fac-mod-head { display:flex; align-items:center; justify-content:space-between; gap:18px; flex-wrap:wrap;
+  background:linear-gradient(135deg, rgba(123,32,48,0.42), rgba(62,15,23,0.55)); border:1px solid var(--border);
+  border-radius:22px; padding:18px 22px; margin-bottom:18px; position:relative; overflow:hidden;
+  box-shadow:0 14px 38px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.05); }
+.fac-mod-head::before { content:''; position:absolute; inset:0; background:radial-gradient(130% 150% at 100% 0%, rgba(201,168,76,0.20), transparent 62%); pointer-events:none; }
+.fac-mod-head::after { content:''; position:absolute; top:-40%; left:-30%; width:60%; height:180%; background:linear-gradient(90deg, transparent, rgba(255,255,255,.07), transparent); transform:skewX(-20deg); animation:facHeadShine 6s ease-in-out infinite; pointer-events:none; }
+@keyframes facHeadShine { 0%,72%{ transform:translateX(-40%) skewX(-20deg); opacity:0; } 82%{ opacity:1; } 100%{ transform:translateX(320%) skewX(-20deg); opacity:0; } }
+.fac-mod-head-l { display:flex; align-items:center; gap:15px; position:relative; z-index:1; }
+.fac-mod-ico { font-size:36px; filter:drop-shadow(0 3px 9px rgba(201,168,76,.45)); animation:facIcoFloat 3.6s ease-in-out infinite; }
+@keyframes facIcoFloat { 0%,100%{ transform:translateY(0) rotate(-3deg);} 50%{ transform:translateY(-5px) rotate(3deg);} }
+.fac-mod-title { font-size:23px; font-weight:900; letter-spacing:-.5px; background:linear-gradient(90deg,var(--gold-light),var(--gold),var(--gold-light)); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+.fac-mod-sub { font-size:12px; color:var(--gold-pale); opacity:.75; margin-top:3px; }
+.fac-mod-hero { text-align:right; position:relative; z-index:1; }
+.fac-mod-hero .lbl { font-size:10px; letter-spacing:.7px; color:var(--gold-pale); opacity:.85; font-weight:700; text-transform:uppercase; }
+.fac-mod-hero .val { font-size:32px; font-weight:900; color:var(--gold); line-height:1.05; text-shadow:0 2px 18px rgba(201,168,76,.4); }
+.fac-mod-hero .venc { font-size:11px; font-weight:700; margin-top:2px; }
+.fac-mod-cols { display:grid; grid-template-columns:minmax(320px, 1.05fr) 1.35fr; gap:20px; align-items:start; }
+.fac-mod-col-l { position:sticky; top:0; animation:facColIn .45s ease backwards; }
+.fac-mod-col-r { animation:facColIn .45s .07s ease backwards; }
+@keyframes facColIn { from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:none;} }
+.fac-mod-hint { text-align:center; font-size:12px; color:var(--text-muted); line-height:1.5; margin-bottom:12px; }
+.fac-mod-hint b { color:var(--gold); }
+.fac-mod-col-r .fac-grid { grid-template-columns:repeat(2,1fr); margin-top:0; }
+.fac-mod-section { max-width:660px; margin:0 auto; animation:facFade .3s ease; }
+@media(max-width:900px){
+  .fac-mod-cols { grid-template-columns:1fr; }
+  .fac-mod-col-l { position:static; }
+  .fac-mod-hero { text-align:left; }
+}
+@media(max-width:560px){
+  .fac-mod-head { padding:15px 16px; border-radius:18px; }
+  .fac-mod-hero .val { font-size:25px; }
+  .fac-mod-title { font-size:19px; }
+  .fac-mod-ico { font-size:30px; }
+}
+
 /* ── Separator ──────────────────────────────────────────── */
 .sep { height: 1px; background: var(--border); margin: 16px 0; opacity: 0.5; }
 
@@ -1435,7 +1476,7 @@ select.config-input option { background: #1e0a10; color: var(--text); }
         </header>
 
         <div class="content-area">
-          <keep-alive include="ViewLanchas,ViewFinanzas">
+          <keep-alive include="ViewLanchas,ViewFinanzas,ViewFacturacion">
             <component :is="currentView" :data="moduleData" :loading="moduleLoading" @action="handleAction" />
           </keep-alive>
         </div>
@@ -1480,7 +1521,7 @@ select.config-input option { background: #1e0a10; color: var(--text); }
           </div>
         </nav>
         <div class="landscape-content">
-          <keep-alive include="ViewLanchas,ViewFinanzas">
+          <keep-alive include="ViewLanchas,ViewFinanzas,ViewFacturacion">
             <component :is="currentView" :data="moduleData" :loading="moduleLoading" @action="handleAction" />
           </keep-alive>
         </div>
@@ -1500,9 +1541,6 @@ select.config-input option { background: #1e0a10; color: var(--text); }
             <div class="user-menu-sep"></div>
             <button v-if="isAdminRoot" class="user-menu-item" @click="goModule('catalogos'); showUserMenu=false">
               <span class="mi-icon">📚</span> Catálogos
-            </button>
-            <button v-if="session.rol === 'Administrador'" class="user-menu-item" @click="abrirFacturacion(); showUserMenu=false">
-              <span class="mi-icon">🧾</span> Facturación
             </button>
             <button v-if="session.rol === 'Administrador'" class="user-menu-item" @click="goModule('empleados'); showUserMenu=false">
               <span class="mi-icon">🧑‍✈️</span> Empleados
@@ -4459,6 +4497,54 @@ async function _siEliminar(cid) {
 
 // ════════════════ FACTURACIÓN (panel · solo Administrador) ════════════════
 let _facState = null;
+// Destino de render: 'module' (módulo de primer nivel, pinta en _facTargetEl) o 'modal' (overlay #fac-ov legacy/muelle)
+let _facMode = 'modal';
+let _facTargetEl = null;
+let _facMounting = false;
+// Contenedor de render según modo. En módulo pinta en el <div> del componente ViewFacturacion.
+function _facRoot() { return _facMode === 'module' ? _facTargetEl : document.getElementById('fac-ov'); }
+// Estado inicial compartido por modal y módulo.
+function _facInitState(ses, servicios, muelleOn, facCfg) {
+  return { tab: 'inicio', ses, servicios, muelleOn, facCfg, cfgEdit: {}, comprobantes: [], cargandoHist: false,
+    tipo: 2, facModo: 'boleta', exportacion: false, medioPago: '', lookupState: 'idle',
+    docTipo: '1', doc: '', nombre: '', email: '', tel: '', dir: '', esExtranjero: false,
+    items: [], resultado: null, shake: false, svcEdit: null, solicitudes: [], cargandoAnul: false,
+    tributos: null, cargandoTrib: true, periodoTrib: (_tribPeriodos()[0] || {}).p || '', compraEdit: {}, concilia: [], cargandoConcilia: false,
+    tribSub: 'balanza', renta: null, cargandoRenta: false, anioTrib: new Date().getFullYear(),
+    compras: [], cargandoCompras: false, ia: null };
+}
+async function _facCargarBase() {
+  let servicios = [], muelleOn = false, facCfg = {};
+  try {
+    const [sR, mR, cR] = await Promise.all([apiGet('listar_servicios'), apiGet('get_facturacion_muelle'), apiGet('get_facturacion_config')]);
+    servicios = (sR.ok && sR.data) || []; muelleOn = !!(mR.ok && mR.data); facCfg = (cR.ok && cR.data) || {};
+  } catch (e) {}
+  return { servicios, muelleOn, facCfg };
+}
+// Monta el HUB de facturación DENTRO del contenedor del módulo (full-page, no overlay).
+window._facMountModule = async function (el) {
+  if (_facMounting) return;
+  const ses = JSON.parse(localStorage.getItem('ps_session') || '{}');
+  if (ses.rol !== 'Administrador') { el.innerHTML = '<div class="fac-mod-loading">Solo administradores.</div>'; return; }
+  _facMounting = true;
+  _facMode = 'module'; _facTargetEl = el;
+  el.innerHTML = '<div class="fac-mod-loading"><div class="spin"></div>Cargando facturación…</div>';
+  try {
+    const base = await _facCargarBase();
+    _facState = _facInitState(ses, base.servicios, base.muelleOn, base.facCfg);
+  } finally { _facMounting = false; }
+  if (_facTargetEl !== el) return;   // el usuario navegó fuera mientras cargaba
+  _facRender();
+  _facLoadTrib();   // Balanza con count-up
+  _facLoadAnul();   // badge de solicitudes
+};
+// Reactivación (keep-alive): re-apunta el destino y refresca sin recargar todo.
+window._facActivateModule = function (el) {
+  _facMode = 'module'; _facTargetEl = el;
+  if (_facMounting) return;                          // el mount en curso pintará solo
+  if (_facState) { _facRender(); if (_facState.tab === 'inicio') _facLoadTrib(); }
+  else _facMountModule(el);
+};
 const _FAC_DOCS = [['1', 'DNI'], ['6', 'RUC'], ['4', 'CE'], ['7', 'Pasaporte'], ['0', 'Varios']];
 const _facEsc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 function _facSerie() { const c = _facState.facCfg || {}; return _facState.tipo === 1 ? (c.serie_factura || 'F002') : (c.serie_boleta || 'B002'); }
@@ -4493,22 +4579,13 @@ window.abrirFacturacion = async function () {
   const ses = JSON.parse(localStorage.getItem('ps_session') || '{}');
   if (ses.rol !== 'Administrador') return;
   sndTap(); haptic(10);
+  _facMode = 'modal'; _facTargetEl = null;
   let ov = document.getElementById('fac-ov');
   if (!ov) { ov = document.createElement('div'); ov.id = 'fac-ov'; ov.className = 'modal-overlay'; document.body.appendChild(ov); ov.addEventListener('click', e => { if (e.target === ov) cerrarFacturacion(); }); }
   ov.style.display = 'flex';
   ov.innerHTML = '<div class="modal-box glass-strong" style="max-width:560px;width:94vw"><div style="text-align:center;padding:36px;color:var(--text-muted)"><div class="spin" style="margin:0 auto 12px"></div>Cargando…</div></div>';
-  let servicios = [], muelleOn = false, facCfg = {};
-  try {
-    const [sR, mR, cR] = await Promise.all([apiGet('listar_servicios'), apiGet('get_facturacion_muelle'), apiGet('get_facturacion_config')]);
-    servicios = (sR.ok && sR.data) || []; muelleOn = !!(mR.ok && mR.data); facCfg = (cR.ok && cR.data) || {};
-  } catch (e) {}
-  _facState = { tab: 'inicio', ses, servicios, muelleOn, facCfg, cfgEdit: {}, comprobantes: [], cargandoHist: false,
-    tipo: 2, facModo: 'boleta', exportacion: false, medioPago: '', lookupState: 'idle',
-    docTipo: '1', doc: '', nombre: '', email: '', tel: '', dir: '', esExtranjero: false,
-    items: [], resultado: null, shake: false, svcEdit: null, solicitudes: [], cargandoAnul: false,
-    tributos: null, cargandoTrib: true, periodoTrib: (_tribPeriodos()[0] || {}).p || '', compraEdit: {}, concilia: [], cargandoConcilia: false,
-    tribSub: 'balanza', renta: null, cargandoRenta: false, anioTrib: new Date().getFullYear(),
-    compras: [], cargandoCompras: false, ia: null };
+  const base = await _facCargarBase();
+  _facState = _facInitState(ses, base.servicios, base.muelleOn, base.facCfg);
   _facRender();
   _facLoadTrib();   // pinta la Balanza (inicio) con count-up
   _facLoadAnul();   // precarga el badge de solicitudes pendientes
@@ -4699,7 +4776,7 @@ async function _facAlinear(serie) {
   else _facErr((r.error || 'No se pudo alinear').replace(/^.*?:\s*/, ''));
 }
 function _facRender() {
-  const ov = document.getElementById('fac-ov'); if (!ov || !_facState) return;
+  const ov = _facRoot(); if (!ov || !_facState) return;
   const S = _facState, tot = _facTotales();
   let body = '';
   if (S.tab === 'emitir') {
@@ -4854,7 +4931,7 @@ function _facRender() {
         </div>`).join('') :
         '<div style="padding:22px;text-align:center;color:var(--text-muted);font-size:12px">No hay solicitudes pendientes. ✓</div>'));
   } else if (S.tab === 'inicio') {
-    body = _facHome(S);
+    body = (_facMode === 'module') ? _facHomeModule(S) : _facHome(S);
   } else if (S.tab === 'subir') {
     body = _tribSubirBody(S);
   } else if (S.tab === 'compras') {
@@ -4882,7 +4959,28 @@ function _facRender() {
   const secNames = { emitir: 'Emitir CPE', subir: 'Subir compra', historial: 'Historial', compras: 'Compras', renta: 'Renta', conciliacion: 'Conciliación', calendario: 'Calendario', servicios: 'Servicios', ajustes: 'Ajustes', anulaciones: 'Anulaciones' };
   const headSub = S.tab === 'inicio' ? 'Balanza comercial · IGV · Renta' : (secNames[S.tab] || 'Boletas / facturas · NubeFact');
   const back = S.tab === 'inicio' ? '' : `<div class="fac-back" onclick="_facTab('inicio')">← Volver a la balanza</div>`;
-  ov.innerHTML = `<div class="modal-box glass-strong${S.shake?' si-shake':''}" style="max-width:${S.tab==='inicio'?'660':'560'}px;width:94vw;max-height:90vh;overflow-y:auto">
+  if (_facMode === 'module') {
+    // MÓDULO full-page: header con hero "A pagar este mes" prominente + 2 columnas en inicio.
+    const t = S.tributos || {};
+    const totalMes = (Number(t.igv_por_pagar) || 0) + (Number(t.renta_pago_cuenta) || 0);
+    const bodyWrap = S.tab === 'inicio' ? body : `<div class="fac-mod-section">${body}</div>`;
+    ov.innerHTML = `<div class="fac-mod-shell${S.shake ? ' si-shake' : ''}">
+      <header class="fac-mod-head">
+        <div class="fac-mod-head-l">
+          <div class="fac-mod-ico">🧾</div>
+          <div><div class="fac-mod-title">Facturación</div><div class="fac-mod-sub">${headSub}</div></div>
+        </div>
+        <div class="fac-mod-hero">
+          <div class="lbl">A pagar este mes · IGV + Renta</div>
+          <div class="val">${S.cargandoTrib ? '···' : _tribMoney(totalMes)}</div>
+          ${_facHeroVenc(S)}
+        </div>
+      </header>
+      ${back}
+      <div class="fac-fade fac-mod-body">${bodyWrap}</div>
+    </div>`;
+  } else {
+    ov.innerHTML = `<div class="modal-box glass-strong${S.shake?' si-shake':''}" style="max-width:${S.tab==='inicio'?'660':'560'}px;width:94vw;max-height:90vh;overflow-y:auto">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
       <div style="font-size:24px">🧾</div><div style="flex:1"><div class="modal-title" style="margin:0">Facturación</div><div style="font-size:11px;color:var(--text-muted)">${headSub}</div></div>
       <button onclick="cerrarFacturacion()" style="font-size:24px;color:var(--text-muted);background:none;border:none;padding:2px 8px">×</button>
@@ -4890,6 +4988,7 @@ function _facRender() {
     ${back}
     <div class="fac-fade">${body}</div>
   </div>`;
+  }
   // listeners
   const bind = (id, key) => { const el = ov.querySelector('#' + id); if (el) el.oninput = e => { _facState[key] = e.target.value; }; };
   bind('fac-nombre', 'nombre'); bind('fac-email', 'email'); bind('fac-tel', 'tel'); bind('fac-dir', 'dir');
@@ -5020,14 +5119,43 @@ function _tribBalanzaBody(S) {
   </div>
   <div class="trib-note">💡 <b>Total a desembolsar ≈ ${_tribMoney(totalMes)}</b> (IGV ${_tribMoney(t.igv_por_pagar)} + Renta ${_tribMoney(t.renta_pago_cuenta)}). Sabes cuánto pagarás, sin sorpresas.</div>`;
 }
-// ── HUB / Inicio del módulo: Balanza (reusada, compacta) + grid de accesos ──
-function _facHome(S) {
+// ── Chip de vencimiento (día 18 del mes siguiente al período) — reusado por hero modal y header módulo ──
+function _facHeroVenc(S) {
+  const pp = (S.periodoTrib || '').split('-').map(Number);
+  if (!(pp[0] && pp[1])) return '';
+  const venc = new Date(pp[0], pp[1], 18);
+  const dLeft = Math.ceil((venc - new Date()) / 864e5);
+  const fmtV = venc.toLocaleDateString('es-PE', { day: '2-digit', month: 'short' });
+  return dLeft > 0
+    ? `<div class="venc" style="color:${dLeft <= 5 ? '#f87171' : 'var(--gold-pale)'}">vence ${fmtV} · en ${dLeft} día${dLeft === 1 ? '' : 's'}</div>`
+    : `<div class="venc" style="color:var(--text-muted)">${fmtV}</div>`;
+}
+// ── Grid de accesos (reusado por el hub modal y el módulo full-page) ──
+function _facAccGrid(S) {
   const pend = (S.solicitudes && S.solicitudes.length) || 0;
   const card = (tab, ico, t, d, extra) => `<button onclick="_facTab('${tab}')" class="fac-acc"><div class="ico">${ico}</div><div class="t">${t}</div><div class="d">${d}</div>${extra || ''}</button>`;
   const primary = `<button onclick="_facTab('emitir')" class="fac-acc primary"><div class="ico">🧾</div><div><div class="t">Emitir CPE</div><div class="d">Boleta · Factura · Exportación 0% · emite en segundos</div></div></button>`;
   const grp = txt => `<div style="grid-column:1/-1;font-size:9px;letter-spacing:1.2px;font-weight:800;color:var(--text-muted);text-align:left;margin-top:10px">${txt}</div>`;
   const anulBadge = pend ? `<span class="badge">${pend}</span>` : '';
-  // Hero: la cifra + fecha que un no-contable quiere ver primero.
+  return `<div class="fac-grid">
+    ${grp('VENTAS')}
+    ${primary}
+    ${card('historial', '📜', 'Historial', 'CPE emitidos')}
+    ${grp('IMPUESTOS')}
+    ${card('subir', '📸', 'Subir compra', 'IA lee el IGV')}
+    ${card('compras', '🧾', 'Compras', 'crédito fiscal')}
+    ${card('renta', '📈', 'Renta', 'proyección')}
+    ${grp('CONTROL')}
+    ${card('conciliacion', '⚖', 'Conciliar', 'zarpe ↔ CPE')}
+    ${card('calendario', '🗓️', 'Calendario', 'vencimientos')}
+    ${grp('CONFIGURACIÓN')}
+    ${card('servicios', '🏷', 'Servicios', 'catálogo')}
+    ${card('ajustes', '⚙', 'Ajustes', 'NubeFact · series')}
+    ${card('anulaciones', '⊘', 'Anular', 'solicitudes', anulBadge)}
+  </div>`;
+}
+// ── HUB / Inicio (modal): hero + Balanza (reusada) + grid de accesos ──
+function _facHome(S) {
   const t = S.tributos || {};
   const totalMes = (Number(t.igv_por_pagar) || 0) + (Number(t.renta_pago_cuenta) || 0);
   const pp = (S.periodoTrib || '').split('-').map(Number);
@@ -5046,21 +5174,16 @@ function _facHome(S) {
   ${hero}
   <div style="text-align:center;font-size:11.5px;color:var(--text-muted);margin-bottom:10px;line-height:1.5"><b style="color:var(--gold)">Sube tus compras y este pago baja.</b> Abajo tienes todo a un toque.</div>
   ${_tribBalanzaBody(S)}
-  <div class="fac-grid">
-    ${grp('VENTAS')}
-    ${primary}
-    ${card('historial', '📜', 'Historial', 'CPE emitidos')}
-    ${grp('IMPUESTOS')}
-    ${card('subir', '📸', 'Subir compra', 'IA lee el IGV')}
-    ${card('compras', '🧾', 'Compras', 'crédito fiscal')}
-    ${card('renta', '📈', 'Renta', 'proyección')}
-    ${grp('CONTROL')}
-    ${card('conciliacion', '⚖', 'Conciliar', 'zarpe ↔ CPE')}
-    ${card('calendario', '🗓️', 'Calendario', 'vencimientos')}
-    ${grp('CONFIGURACIÓN')}
-    ${card('servicios', '🏷', 'Servicios', 'catálogo')}
-    ${card('ajustes', '⚙', 'Ajustes', 'NubeFact · series')}
-    ${card('anulaciones', '⊘', 'Anular', 'solicitudes', anulBadge)}
+  ${_facAccGrid(S)}`;
+}
+// ── HUB / Inicio (módulo full-page): 2 columnas — Balanza fija a la izq · accesos a la der ──
+function _facHomeModule(S) {
+  return `<div class="fac-mod-cols">
+    <div class="fac-mod-col-l">${_tribBalanzaBody(S)}</div>
+    <div class="fac-mod-col-r">
+      <div class="fac-mod-hint"><b>Sube tus compras y este pago baja.</b> Todo a un toque.</div>
+      ${_facAccGrid(S)}
+    </div>
   </div>`;
 }
 // ── 2 · Subir compra (IA) — la estrella ──
@@ -5227,8 +5350,8 @@ function _tribCountUp(el, to, opts) {
 }
 function _tribFly(amount) {
   try {
-    const ov = document.getElementById('fac-ov'); if (!ov) return;
-    const btn = ov.querySelector('#trib-guardar-compra') || ov.querySelector('.modal-box');
+    const ov = _facRoot(); if (!ov) return;
+    const btn = ov.querySelector('#trib-guardar-compra') || ov.querySelector('.modal-box') || ov.querySelector('.fac-mod-shell');
     const r = (btn || ov).getBoundingClientRect();
     const el = document.createElement('div'); el.className = 'trib-float'; el.textContent = '+ ' + _tribMoney(amount);
     el.style.left = (r.left + r.width / 2) + 'px'; el.style.top = r.top + 'px';
@@ -7275,9 +7398,20 @@ const ViewEmpleados = {
   `
 };
 
+// ── Facturación como MÓDULO de primer nivel (full-page) ──────
+// Host Vue liviano: el HUB se pinta imperativamente dentro del contenedor via el
+// bridge _facMountModule/_facActivateModule (reutiliza _facState/_facRender/_facHome/bodies).
+const ViewFacturacion = {
+  name: 'ViewFacturacion',
+  props: ['data', 'loading'],
+  template: `<div class="fac-module" ref="root"></div>`,
+  mounted()   { try { window._facMountModule && window._facMountModule(this.$refs.root); } catch (e) {} },
+  activated() { try { window._facActivateModule && window._facActivateModule(this.$refs.root); } catch (e) {} }
+};
+
 // ── Main app ─────────────────────────────────────────────────
 createApp({
-  components: { ViewDashboard, ViewLanchas, ViewHotel, ViewFinanzas, ViewConfig, ViewCatalogos, ViewEmpleados },
+  components: { ViewDashboard, ViewLanchas, ViewHotel, ViewFinanzas, ViewFacturacion, ViewConfig, ViewCatalogos, ViewEmpleados },
 
   setup() {
     const session        = ref(JSON.parse(localStorage.getItem('ps_session') || 'null'));
@@ -7324,24 +7458,30 @@ createApp({
     const toast = ref({ show: false, msg: '' });
     let toastTimer = null;
 
-    // Nav modules (config removed — accessible via user avatar)
-    const navModules = [
-      { id: 'dashboard', label: 'Inicio'   },
-      { id: 'lanchas',   label: 'Lanchas'  },
-      { id: 'hotel',     label: 'Hotel'    },
-      { id: 'finanzas',  label: 'Finanzas' }
-    ];
+    // Nav modules (config removed — accessible via user avatar).
+    // Facturación es módulo de primer nivel, solo para Administrador.
+    const navModules = computed(() => {
+      const base = [
+        { id: 'dashboard', label: 'Inicio'   },
+        { id: 'lanchas',   label: 'Lanchas'  },
+        { id: 'hotel',     label: 'Hotel'    },
+        { id: 'finanzas',  label: 'Finanzas' }
+      ];
+      if (session.value && session.value.rol === 'Administrador') base.push({ id: 'facturacion', label: 'Facturación' });
+      return base;
+    });
 
     const NAV_ICONS = {
       dashboard: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>`,
       lanchas:   `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="8" x2="12" y2="22"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>`,
       hotel:     `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="18" rx="2"/><path d="M2 9h20"/><path d="M9 21V9"/><rect x="13" y="13" width="4" height="8"/></svg>`,
-      finanzas:  `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>`
+      finanzas:  `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>`,
+      facturacion: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v18l2.5-1.5L10 21l2-1.5L14 21l2.5-1.5L19 21V3l-2.5 1.5L14 3l-2 1.5L10 3 7.5 4.5 5 3z"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="9" y1="12" x2="15" y2="12"/></svg>`
     };
     function navIcon(id) { return NAV_ICONS[id] || ''; }
 
     const currentView = computed(() => {
-      const map = { dashboard: 'ViewDashboard', lanchas: 'ViewLanchas', hotel: 'ViewHotel', finanzas: 'ViewFinanzas', config: 'ViewConfig', catalogos: 'ViewCatalogos', empleados: 'ViewEmpleados' };
+      const map = { dashboard: 'ViewDashboard', lanchas: 'ViewLanchas', hotel: 'ViewHotel', finanzas: 'ViewFinanzas', facturacion: 'ViewFacturacion', config: 'ViewConfig', catalogos: 'ViewCatalogos', empleados: 'ViewEmpleados' };
       return map[currentModule.value] || 'ViewDashboard';
     });
 
@@ -7462,6 +7602,11 @@ createApp({
             moduleData.value = { hoy: kpiR.ok ? kpiR.data : null };
             break;
           }
+          case 'facturacion': {
+            // El componente ViewFacturacion carga su propio estado (bridge _facMountModule).
+            moduleData.value = { _ts: Date.now() };
+            break;
+          }
           case 'config': {
             const pmR = await apiGet('listar_personal');
             moduleData.value = { personal: pmR.ok ? pmR.data : [] };
@@ -7575,7 +7720,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.18.1';
+const APP_VERSION = '1.19.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
