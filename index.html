@@ -7128,12 +7128,12 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.16.1';
+const APP_VERSION = '1.16.2';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
 (function() {
-  let _reg = null, _waitingWorker = null;
+  let _reg = null, _waitingWorker = null, _psRefreshing = false;
 
   function _showOverlay() {
     const el = document.getElementById('psUpdateOverlay');
@@ -7154,16 +7154,22 @@ console.log('%c PS Panel %c v' + APP_VERSION + ' ',
     const b = document.getElementById('psUpdateBanner');
     if (b) b.classList.remove('visible');
   }
-  // Solo molesta al usuario si de verdad hay versión NUEVA (version.json != APP_VERSION).
-  // Si un SW quedó "waiting" pero la versión ya coincide, lo activa en silencio (no banner) → mata el loop.
+  // AUTOMÁTICO: cuando hay un SW nuevo listo, se activa y recarga solo. NO borra data (localStorage/sesión se conservan en un reload).
+  function _autoApply(worker) {
+    if (_psRefreshing) return;
+    _showOverlay();  // breve "Actualizando…"
+    if (worker) worker.postMessage('SKIP_WAITING');
+    // controllerchange dispara el reload; fallback por si iOS no lo emite
+    setTimeout(() => { if (!_psRefreshing) { _psRefreshing = true; window.location.reload(); } }, 1800);
+  }
   function _maybeUpdate(worker) {
     fetch('./version.json?t=' + Date.now(), { cache: 'no-store' })
       .then(r => r.json())
       .then(v => {
-        if (v.version && v.version !== APP_VERSION) { _showBanner(worker); }
-        else if (worker) { worker.postMessage('SKIP_WAITING'); }
+        if (v.version && v.version !== APP_VERSION) { _autoApply(worker); }   // hay versión nueva → aplica solo, sin botón
+        else if (worker) { worker.postMessage('SKIP_WAITING'); }              // versión igual → activa SW en silencio
       })
-      .catch(() => { if (worker) _showBanner(worker); });
+      .catch(() => {});
   }
 
   window._psApplyUpdate = function() {
@@ -7185,15 +7191,14 @@ console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   };
   window._psDismissUpdate = function() { _hideBanner(); };
 
-  let _bannerShown = false;
   function _pollVersion() {
-    if (_bannerShown) return;
+    if (_psRefreshing) return;
     fetch('./version.json?t=' + Date.now(), { cache: 'no-store' })
       .then(r => r.json())
       .then(v => {
-        if (!_bannerShown && v.version && v.version !== APP_VERSION) {
-          _bannerShown = true;
-          _showBanner(null);
+        if (v.version && v.version !== APP_VERSION) {
+          if (_reg && _reg.waiting) { _autoApply(_reg.waiting); }   // ya hay SW nuevo listo → aplícalo solo
+          else if (_reg) { _reg.update().catch(() => {}); }          // busca el SW nuevo (NO recarga en vano → sin loop)
         }
       })
       .catch(() => {});
@@ -7210,9 +7215,8 @@ console.log('%c PS Panel %c v' + APP_VERSION + ' ',
     _pollVersion(); setInterval(_pollVersion, 5 * 60 * 1000); return;
   }
 
-  navigator.serviceWorker.register('./sw.js').then(reg => {
+  navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then(reg => {
     _reg = reg;
-    let _psRefreshing = false;  // guard: un solo reload, nunca en bucle
     navigator.serviceWorker.addEventListener('controllerchange', () => { if (_psRefreshing) return; _psRefreshing = true; window.location.reload(); });
     if (reg.waiting) { _maybeUpdate(reg.waiting); }
     reg.addEventListener('updatefound', () => {
