@@ -2433,6 +2433,10 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 .insight-card.locked { opacity:0.5; cursor:not-allowed; }
 .insight-card.locked:hover { border-color:var(--border); box-shadow:none; }
 .insight-ic { width:48px; height:48px; border-radius:13px; display:flex; align-items:center; justify-content:center; font-size:24px; flex-shrink:0; background:linear-gradient(135deg, rgba(201,168,76,0.2), rgba(123,32,48,0.28)); }
+/* Variante fila de .ps-acc para el hub de Insights (ícono izq + texto) */
+.ps-acc.ins-row { min-height:auto; flex-direction:row; gap:14px; text-align:left; justify-content:flex-start; padding:14px 16px; }
+.ps-acc.ins-row .t { font-size:15px; font-weight:800; margin:0; }
+.ps-acc.ins-row .d { font-size:12px; margin-top:2px; }
 
 /* ── Aliados: barras divergentes ────────────────────────── */
 .dv-row { display:grid; grid-template-columns:90px 1fr 52px; align-items:center; gap:8px; padding:5px 0; }
@@ -10186,8 +10190,32 @@ const ViewFinanzas = {
     // Sub-navegación: caja | insights
     const tab = ref('caja');
     const openInsight = ref(null);
-    function goInsight(id) { openInsight.value = id; sndTap(); }
-    function backInsight() { openInsight.value = null; sndTap(); }
+    function goInsight(id) { openInsight.value = id; try { sndTap(); haptic(8); } catch(e){} }
+    function backInsight() { openInsight.value = null; try { sndTap(); haptic(6); } catch(e){} }
+
+    // ── Segmented control (ps-tabbar): lozenge deslizante al tab activo ──
+    const tabbarEl    = ref(null);
+    const tabIndStyle = ref({ opacity: 0 });
+    function moveTabInd() {
+      const bar = tabbarEl.value; if (!bar) return;
+      const on = bar.querySelector('.ps-tab.on');
+      if (!on) { tabIndStyle.value = { opacity: 0 }; return; }
+      tabIndStyle.value = {
+        opacity: 1,
+        width:  on.offsetWidth  + 'px',
+        height: on.offsetHeight + 'px',
+        transform: 'translate(' + on.offsetLeft + 'px,' + on.offsetTop + 'px)'
+      };
+    }
+    function switchTab(t) {
+      if (tab.value === t) return;
+      tab.value = t;
+      try { sndTap(); haptic(8); } catch(e){}
+    }
+    watch(tab, () => nextTick(moveTabInd));
+    const _onResizeTabInd = () => nextTick(moveTabInd);
+    window.addEventListener('resize', _onResizeTabInd);
+    onUnmounted(() => window.removeEventListener('resize', _onResizeTabInd));
 
     // ── Caja: feed vertical tipo banco ──
     const feed = ref(null), feedErr = ref(''), expDay = ref({}), selectedCaja = ref(null);
@@ -10258,26 +10286,45 @@ const ViewFinanzas = {
       if (!feed.value) loadFeed();
       refreshInterval = setInterval(() => loadFeed({ silent:true }), 60000);
       preloadInsAli('todo'); preloadInsAg('todo');
+      nextTick(moveTabInd);
     });
-    onActivated(() => { if (!feed.value) loadFeed(); if (!refreshInterval) refreshInterval = setInterval(() => loadFeed({ silent:true }), 60000); });
+    onActivated(() => { if (!feed.value) loadFeed(); if (!refreshInterval) refreshInterval = setInterval(() => loadFeed({ silent:true }), 60000); nextTick(moveTabInd); });
     onDeactivated(() => { clearInterval(refreshInterval); refreshInterval = null; });
 
     return { fmt, tab, openInsight, goInsight, backInsight,
+             tabbarEl, tabIndStyle, switchTab, moveTabInd,
              feed, feedErr, expDay, selectedCaja, loadFeed, toggleDay, fmtDiaCaja,
              METODOS, CATS, contactos, reg, regCat, contactosFiltrados, abrirReg, enviarReg };
   },
   template: `
     <div>
-      <div class="fin-tabs">
-        <button class="fin-tab" :class="{ active: tab==='caja' }" @click="tab='caja'">💵 Caja</button>
-        <button class="fin-tab" :class="{ active: tab==='insights' }" @click="tab='insights'">📊 Insights</button>
+      <!-- Cabecera iOS -->
+      <div class="ps-head">
+        <div class="ps-head-l">
+          <div class="ps-head-ico">💵</div>
+          <div>
+            <div class="ps-head-title">Finanzas</div>
+            <div class="ps-head-sub">Caja · Insights</div>
+          </div>
+        </div>
       </div>
 
+      <!-- Tabs (segmented control con lozenge deslizante) -->
+      <div class="ps-tabbar" ref="tabbarEl">
+        <span class="ps-tab-ind" :style="tabIndStyle"></span>
+        <button class="ps-tab" :class="{on: tab==='caja'}" @click="switchTab('caja')">💵 Caja</button>
+        <button class="ps-tab" :class="{on: tab==='insights'}" @click="switchTab('insights')">📊 Insights</button>
+      </div>
+
+      <!-- Slot animado (spring al cambiar de tab) -->
+      <div class="ps-slot">
+      <div class="ps-slot-anim" :key="tab">
+
       <!-- ══════ CAJA ══════ -->
-      <div v-show="tab==='caja'">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:10px;">
+      <div v-if="tab==='caja'">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px;">
           <div style="font-size:13px;font-weight:800;">💵 Movimientos de caja</div>
-          <button @click="abrirReg()" style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:800;color:#0e0608;background:linear-gradient(135deg,#C9A84C,#e0c46a);border:none;padding:8px 14px;border-radius:11px;box-shadow:0 2px 10px rgba(201,168,76,0.3);">+ Registrar</button>
+          <button class="ps-btn ps-btn-primary" @click="abrirReg()">＋ Registrar</button>
         </div>
 
         <div v-if="!feed && !feedErr" style="display:flex;justify-content:center;padding:50px 0;"><div class="spin"></div></div>
@@ -10289,23 +10336,21 @@ const ViewFinanzas = {
         <div v-else-if="!feed.length" class="empty-state"><div class="empty-icon">💰</div><p>Sin movimientos de caja</p></div>
 
         <template v-else>
-          <div v-for="D in feed" :key="D.fecha" class="caja-day">
-            <div class="caja-day-hdr" @click="toggleDay(D.fecha)">
+          <div v-for="D in feed" :key="D.fecha" class="ps-list-group">
+            <div class="ps-row" style="cursor:pointer;justify-content:space-between;" @click="toggleDay(D.fecha)">
               <div style="min-width:0;">
                 <div style="font-size:13px;font-weight:800;text-transform:capitalize;">{{ fmtDiaCaja(D.fecha) }}</div>
                 <div style="font-size:10px;color:var(--text-muted);">▲ S/ {{ fmt(D.ingresos) }} · ▼ S/ {{ fmt(D.egresos) }} · {{ D.items.length }} mov</div>
+                <div style="font-size:10px;color:var(--text-muted);margin-top:1px;">💵 {{ fmt(D.efectivo) }} · 💳 {{ fmt(D.digital) }}</div>
               </div>
-              <div style="text-align:right;flex-shrink:0;display:flex;align-items:center;gap:8px;">
-                <div>
-                  <div style="font-size:15px;font-weight:900;" :style="{ color: D.balance>=0 ? '#4ade80' : '#f87171' }">{{ D.balance>=0?'+':'−' }}S/ {{ fmt(Math.abs(D.balance)) }}</div>
-                  <div style="font-size:10px;color:var(--text-muted);">💵 {{ fmt(D.efectivo) }} · 💳 {{ fmt(D.digital) }}</div>
-                </div>
-                <span style="color:var(--text-muted);font-size:13px;transition:transform .2s;" :style="{ transform: expDay[D.fecha] ? 'rotate(-90deg)' : 'none' }">▾</span>
+              <div style="flex-shrink:0;display:flex;align-items:center;gap:9px;">
+                <span class="ps-chip" :class="D.balance>=0 ? 'green' : 'red'">{{ D.balance>=0?'+':'−' }}S/ {{ fmt(Math.abs(D.balance)) }}</span>
+                <span style="color:var(--text-muted);font-size:13px;transition:transform .25s cubic-bezier(.34,1.56,.64,1);" :style="{ transform: expDay[D.fecha] ? 'rotate(-90deg)' : 'none' }">▾</span>
               </div>
             </div>
-            <div v-if="!expDay[D.fecha]" class="caja-day-body">
-              <div v-for="it in D.items" :key="it.id" class="caja-item" @click="selectedCaja=it">
-                <div class="mov-pill" :style="{ background: it.esIngreso?'rgba(74,222,128,0.16)':'rgba(248,113,113,0.16)', color: it.esIngreso?'#4ade80':'#f87171', minWidth:'76px' }">{{ it.esIngreso?'+':'−' }}S/{{ fmt(it.monto) }}</div>
+            <div v-if="!expDay[D.fecha]" style="display:flex;flex-direction:column;gap:6px;padding:2px 0 4px;">
+              <div v-for="it in D.items" :key="it.id" class="ps-row" style="cursor:pointer;" @click="selectedCaja=it">
+                <span class="ps-chip" :class="it.esIngreso ? 'green' : 'red'" style="min-width:74px;justify-content:center;font-size:12px;">{{ it.esIngreso?'+':'−' }}S/{{ fmt(it.monto) }}</span>
                 <div style="flex:1;min-width:0;">
                   <div class="mov-meta1">{{ it.label }}<template v-if="it.contacto"> · {{ it.contacto }}</template></div>
                   <div class="mov-meta2">{{ it.metodo }}<template v-if="it.operador"> · {{ it.operador }}</template> · {{ it.hora }}</div>
@@ -10318,59 +10363,62 @@ const ViewFinanzas = {
       </div><!-- /caja -->
 
       <!-- ══════ INSIGHTS (Paracas Insights) ══════ -->
-      <div v-show="tab==='insights'">
-        <div v-if="!openInsight" style="display:flex;flex-direction:column;gap:10px;">
-          <div style="font-size:11px;color:var(--text-muted);font-weight:700;letter-spacing:.05em;margin:2px 2px 4px;">📊 PARACAS INSIGHTS · ANÁLISIS</div>
-          <div class="insight-card" @click="goInsight('aliados')">
-            <div class="insight-ic">🤝</div>
-            <div style="flex:1;min-width:0;">
-              <div style="font-weight:800;font-size:15px;">Aliados</div>
-              <div style="font-size:12px;color:var(--text-muted);">Balance de pases entre empresas (pax)</div>
+      <div v-else>
+        <div v-if="!openInsight">
+          <div style="font-size:11px;color:var(--text-muted);font-weight:700;letter-spacing:.05em;margin:2px 2px 12px;">📊 PARACAS INSIGHTS · ANÁLISIS</div>
+          <div class="ps-stagger" style="display:flex;flex-direction:column;gap:10px;">
+            <div class="ps-acc ins-row" @click="goInsight('aliados')">
+              <div class="insight-ic">🤝</div>
+              <div style="flex:1;min-width:0;">
+                <div class="t">Aliados</div>
+                <div class="d">Balance de pases entre empresas (pax)</div>
+              </div>
+              <span style="color:var(--text-muted);font-size:18px;">›</span>
             </div>
-            <span style="color:var(--text-muted);font-size:18px;">›</span>
-          </div>
-          <div class="insight-card" @click="goInsight('agencias')">
-            <div class="insight-ic">🏢</div>
-            <div style="flex:1;min-width:0;">
-              <div style="font-weight:800;font-size:15px;">Agencias</div>
-              <div style="font-size:12px;color:var(--text-muted);">Cuenta corriente en soles (te deben / le debes)</div>
+            <div class="ps-acc ins-row" @click="goInsight('agencias')">
+              <div class="insight-ic">🏢</div>
+              <div style="flex:1;min-width:0;">
+                <div class="t">Agencias</div>
+                <div class="d">Cuenta corriente en soles (te deben / le debes)</div>
+              </div>
+              <span style="color:var(--text-muted);font-size:18px;">›</span>
             </div>
-            <span style="color:var(--text-muted);font-size:18px;">›</span>
-          </div>
-          <div class="insight-card locked">
-            <div class="insight-ic">💸</div>
-            <div style="flex:1;min-width:0;">
-              <div style="font-weight:800;font-size:15px;">Comisionados</div>
-              <div style="font-size:12px;color:var(--text-muted);">Comisiones por pagar (S/) · próximamente</div>
+            <div class="ps-acc ins-row" style="opacity:.5;cursor:not-allowed;">
+              <div class="insight-ic">💸</div>
+              <div style="flex:1;min-width:0;">
+                <div class="t">Comisionados</div>
+                <div class="d">Comisiones por pagar (S/) · próximamente</div>
+              </div>
+              <span style="font-size:13px;color:var(--text-muted);">🔒</span>
             </div>
-            <span style="font-size:13px;color:var(--text-muted);">🔒</span>
           </div>
         </div>
         <insight-aliados v-else-if="openInsight==='aliados'" @back="backInsight()" />
         <insight-agencias v-else-if="openInsight==='agencias'" @back="backInsight()" />
       </div>
 
+      </div><!-- /ps-slot-anim -->
+      </div><!-- /ps-slot -->
+
       <!-- Caja item detail -->
       <teleport to="body">
-        <div v-if="selectedCaja" style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:200;background:rgba(0,0,0,0.65);display:flex;align-items:center;justify-content:center;padding:24px;" @click.self="selectedCaja=null">
-          <div class="reveal-pop" style="background:var(--bg2);border:1px solid rgba(201,168,76,0.35);border-radius:var(--radius);width:100%;max-width:340px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.7);">
-            <div :style="{ background: selectedCaja.esIngreso?'rgba(74,222,128,0.12)':'rgba(239,68,68,0.1)', borderBottom:'1px solid var(--border)' }" style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
-              <div style="font-weight:800;font-size:15px;">{{ selectedCaja.label }}</div>
-              <button @click="selectedCaja=null" style="font-size:18px;color:var(--text-muted);">✕</button>
+        <div v-if="selectedCaja" class="ps-sheet-overlay" @click.self="selectedCaja=null">
+          <div class="ps-sheet" style="max-width:400px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:14px;">
+              <div style="font-weight:800;font-size:16px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ selectedCaja.label }}</div>
+              <button @click="selectedCaja=null" style="font-size:20px;color:var(--text-muted);line-height:1;flex-shrink:0;">✕</button>
             </div>
-            <div style="padding:16px;display:flex;flex-direction:column;gap:12px;">
-              <div style="text-align:center;padding:6px 0;">
-                <div style="font-size:11px;color:var(--text-muted);">{{ selectedCaja.esIngreso?'INGRESO':'SALIDA' }}</div>
-                <div style="font-size:30px;font-weight:900;" :style="{ color: selectedCaja.esIngreso?'#4ade80':'#f87171' }">{{ selectedCaja.esIngreso?'+':'−' }}S/ {{ fmt(selectedCaja.monto) }}</div>
-                <div style="font-size:12px;color:var(--text-muted);">{{ selectedCaja.metodo }}</div>
-              </div>
-              <div style="display:flex;flex-direction:column;gap:7px;font-size:13px;">
-                <div v-if="selectedCaja.contacto" style="display:flex;justify-content:space-between;gap:8px;"><span style="color:var(--text-muted);">Contacto</span><span style="font-weight:600;text-align:right;">{{ selectedCaja.contacto }}</span></div>
-                <div style="display:flex;justify-content:space-between;gap:8px;"><span style="color:var(--text-muted);">Categoría</span><span>{{ selectedCaja.categoria }}</span></div>
-                <div v-if="selectedCaja.operador" style="display:flex;justify-content:space-between;gap:8px;"><span style="color:var(--text-muted);">Operador</span><span>{{ selectedCaja.operador }}</span></div>
-                <div v-if="selectedCaja.hora" style="display:flex;justify-content:space-between;gap:8px;"><span style="color:var(--text-muted);">🕐 Hora</span><span>{{ selectedCaja.hora }}</span></div>
-                <div v-if="selectedCaja.id_mov" style="display:flex;justify-content:space-between;gap:8px;"><span style="color:var(--text-muted);">Mov. ref.</span><span style="font-size:11px;color:var(--text-muted);">{{ selectedCaja.id_mov }}</span></div>
-              </div>
+            <div style="text-align:center;padding:2px 0 14px;">
+              <div style="font-size:11px;color:var(--text-muted);letter-spacing:.05em;">{{ selectedCaja.esIngreso?'INGRESO':'SALIDA' }}</div>
+              <div style="font-size:32px;font-weight:900;" :style="{ color: selectedCaja.esIngreso?'#4ade80':'#f87171' }">{{ selectedCaja.esIngreso?'+':'−' }}S/ {{ fmt(selectedCaja.monto) }}</div>
+              <div style="font-size:12px;color:var(--text-muted);">{{ selectedCaja.metodo }}</div>
+            </div>
+            <div class="ps-card" style="padding:14px;display:flex;flex-direction:column;gap:8px;font-size:13px;">
+              <div v-if="selectedCaja.contacto" style="display:flex;justify-content:space-between;gap:8px;"><span style="color:var(--text-muted);">Contacto</span><span style="font-weight:600;text-align:right;">{{ selectedCaja.contacto }}</span></div>
+              <div style="display:flex;justify-content:space-between;gap:8px;"><span style="color:var(--text-muted);">Categoría</span><span>{{ selectedCaja.categoria }}</span></div>
+              <div v-if="selectedCaja.operador" style="display:flex;justify-content:space-between;gap:8px;"><span style="color:var(--text-muted);">Operador</span><span>{{ selectedCaja.operador }}</span></div>
+              <div v-if="selectedCaja.hora" style="display:flex;justify-content:space-between;gap:8px;"><span style="color:var(--text-muted);">🕐 Hora</span><span>{{ selectedCaja.hora }}</span></div>
+              <div v-if="selectedCaja.id_mov" style="display:flex;justify-content:space-between;gap:8px;"><span style="color:var(--text-muted);">Mov. ref.</span><span style="font-size:11px;color:var(--text-muted);">{{ selectedCaja.id_mov }}</span></div>
             </div>
           </div>
         </div>
@@ -10378,45 +10426,44 @@ const ViewFinanzas = {
 
       <!-- Registrar pago/cobro -->
       <teleport to="body">
-        <div v-if="reg.show" style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:210;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;padding:20px;" @click.self="reg.show=false">
-          <div class="reveal-pop" style="background:var(--bg2);border:1px solid rgba(201,168,76,0.4);border-radius:18px;width:100%;max-width:380px;max-height:88vh;overflow-y:auto;-webkit-overflow-scrolling:touch;box-shadow:0 20px 60px rgba(0,0,0,0.7);">
-            <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
-              <span style="font-weight:800;font-size:15px;color:var(--gold);">{{ reg.titulo }}</span>
-              <button @click="reg.show=false" style="font-size:18px;color:var(--text-muted);">✕</button>
+        <div v-if="reg.show" class="ps-sheet-overlay" @click.self="reg.show=false">
+          <div class="ps-sheet" style="max-width:420px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+              <span style="font-weight:800;font-size:16px;color:var(--gold);">{{ reg.titulo }}</span>
+              <button @click="reg.show=false" style="font-size:20px;color:var(--text-muted);line-height:1;">✕</button>
             </div>
-            <div style="padding:16px;display:flex;flex-direction:column;gap:13px;">
+            <div style="display:flex;flex-direction:column;gap:13px;">
               <div>
-                <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:5px;">TIPO</div>
+                <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:5px;letter-spacing:.03em;">TIPO</div>
                 <select v-model.number="reg.idx" :disabled="reg.lock" class="reg-input">
                   <option v-for="(c,ci) in CATS" :key="ci" :value="ci">{{ c.label }}</option>
                 </select>
               </div>
               <div v-if="regCat.need">
-                <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:5px;">{{ regCat.need.toUpperCase() }}</div>
+                <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:5px;letter-spacing:.03em;">{{ regCat.need.toUpperCase() }}</div>
                 <select v-model="reg.id_contacto" :disabled="reg.lock" class="reg-input">
                   <option value="">— Seleccionar —</option>
                   <option v-for="c in contactosFiltrados" :key="c.id" :value="c.id">{{ c.nombre }}</option>
                 </select>
               </div>
               <div>
-                <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:5px;">MONTO (S/)</div>
+                <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:5px;letter-spacing:.03em;">MONTO (S/)</div>
                 <input v-model="reg.monto" type="number" inputmode="decimal" placeholder="0.00" class="reg-input" style="font-size:18px;font-weight:800;" />
               </div>
               <div>
-                <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:5px;">MÉTODO</div>
+                <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:5px;letter-spacing:.03em;">MÉTODO</div>
                 <div style="display:flex;gap:6px;">
                   <button v-for="m in METODOS" :key="m" @click="reg.metodo=m"
-                    :style="{ flex:'1', padding:'8px 4px', borderRadius:'9px', fontSize:'11px', fontWeight:'700', border:'1px solid var(--border)', background: reg.metodo===m?'rgba(201,168,76,0.22)':'transparent', color: reg.metodo===m?'var(--gold)':'var(--text-muted)' }">{{ m }}</button>
+                    :style="{ flex:'1', minHeight:'40px', padding:'8px 4px', borderRadius:'11px', fontSize:'11.5px', fontWeight:'700', border:'1px solid '+(reg.metodo===m?'rgba(201,168,76,0.5)':'var(--border)'), background: reg.metodo===m?'rgba(201,168,76,0.22)':'rgba(255,255,255,0.03)', color: reg.metodo===m?'var(--gold)':'var(--text-muted)', transition:'all .15s' }">{{ m }}</button>
                 </div>
               </div>
               <div>
-                <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:5px;">NOTA (opcional)</div>
+                <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:5px;letter-spacing:.03em;">NOTA (opcional)</div>
                 <input v-model="reg.nota" type="text" placeholder="ej. transferencia BCP" class="reg-input" />
               </div>
-              <div v-if="reg.err" style="font-size:11px;color:#f87171;font-weight:600;text-align:center;">{{ reg.err }}</div>
-              <button @click="enviarReg()" :disabled="reg.sending" :style="{ opacity: reg.sending?0.6:1 }"
-                style="margin-top:4px;padding:12px;border:none;border-radius:12px;font-size:15px;font-weight:800;color:#0e0608;background:linear-gradient(135deg,#16a34a,#4ade80);box-shadow:0 4px 16px rgba(74,222,128,0.3);">
-                {{ reg.sending ? 'Registrando…' : 'Registrar' }}
+              <div v-if="reg.err" class="ps-fb err" style="font-size:12px;">⚠️ {{ reg.err }}</div>
+              <button class="ps-btn ps-btn-primary" @click="enviarReg()" :disabled="reg.sending" :style="{ opacity: reg.sending?0.6:1 }" style="width:100%;margin-top:4px;">
+                {{ reg.sending ? 'Registrando…' : '✓ Registrar' }}
               </button>
             </div>
           </div>
@@ -11697,7 +11744,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.40.0';
+const APP_VERSION = '1.41.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
