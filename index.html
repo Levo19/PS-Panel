@@ -5405,7 +5405,7 @@ function _facSectionBody(S) {
             <div style="font-weight:800;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${anu?'text-decoration:line-through':''}">${_facEsc(c.cliente_nombre||'Sin nombre')}</div>
             <div style="font-size:10px;color:var(--text-muted);display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap">${c.serie}-${String(c.numero).padStart(6,'0')} · ${_facEsc(String(c.creado||''))} ${_facChipEstado(c)}</div>
           </div>
-          <span style="font-weight:800;font-size:13px;color:var(--gold);white-space:nowrap">S/ ${(c.total||0)}</span>
+          <span style="font-weight:800;font-size:13px;color:var(--gold);white-space:nowrap">S/ ${_facMoney(c.total)}</span>
           <button onclick="_facAbrirPDFById('${c.id}')" title="Ver / imprimir / enviar PDF" style="cursor:pointer;flex:0 0 auto;background:${real?'rgba(74,222,128,0.12)':'rgba(201,168,76,0.12)'};border:1px solid ${real?'rgba(74,222,128,0.32)':'rgba(201,168,76,0.3)'};border-radius:8px;padding:5px 8px;font-size:15px;line-height:1">📄</button>
           ${anu?'':`<button onclick="_facAnular('${c.id}')" title="Anular" style="cursor:pointer;flex:0 0 auto;${S.anularId===c.id?'color:#fff;background:#f87171;border:none;border-radius:7px;padding:3px 8px;font-size:10px;font-weight:800':'color:#f87171;background:none;border:none;font-size:14px'}">${S.anularId===c.id?'¿Anular?':'⊘'}</button>`}</div>`}).join('')}</div>` :
         '<div style="padding:18px;text-align:center;color:var(--text-muted);font-size:12px">Sin comprobantes en los meses elegidos.</div>'));
@@ -5416,7 +5416,7 @@ function _facSectionBody(S) {
        (S.solicitudes.length ? S.solicitudes.map(c=>`<div style="border:1px solid var(--border);border-radius:12px;padding:11px;margin-bottom:9px">
           <div style="display:flex;justify-content:space-between;gap:8px;align-items:start">
             <div style="min-width:0"><div style="font-weight:800;font-size:13px">${c.serie}-${String(c.numero).padStart(6,'0')} · ${_facEsc(c.cliente_nombre||'')}</div><div style="font-size:10px;color:var(--text-muted)">${c.solicitada} · pidió: ${_facEsc(c.anulacion_por||'—')}</div></div>
-            <span style="font-weight:800;font-size:12px;color:var(--gold);white-space:nowrap">S/ ${(c.total||0)}</span>
+            <span style="font-weight:800;font-size:12px;color:var(--gold);white-space:nowrap">S/ ${_facMoney(c.total)}</span>
           </div>
           <div style="margin:8px 0;padding:7px 9px;background:rgba(220,38,38,0.07);border-radius:8px;font-size:12px;color:var(--text)"><b style="color:#dc2626">Motivo:</b> ${_facEsc(c.anulacion_motivo||'—')}</div>
           <div style="display:flex;gap:8px">
@@ -5770,20 +5770,26 @@ function _facPdfItems(c) {
   if (!it.length) it = [{ descripcion: 'Servicio', cantidad: 1, precio: Number((c && c.total) || 0) }];
   return it;
 }
-// Totales: usa desglose del objeto si viene; si no, deriva del total (IGV 18% salvo export/inafecto=0).
+// Totales del IMPRESO: usa los montos REALES del CPE (listar_comprobantes ya proyecta el desglose).
+// NUNCA inventa IGV — un comprobante exonerado/inafecto/exportación se imprime con IGV 0 real.
+// Solo re-deriva como último recurso para comprobantes legacy sin desglose.
 function _facPdfTotales(c) {
   const items = _facPdfItems(c);
   const totItems = items.reduce((s, i) => s + i.cantidad * i.precio, 0);
   const total = Number((c && c.total) != null ? c.total : totItems) || 0;
-  let grav = Number(c && (c.gravada || c.total_gravada));
-  let igv = Number(c && c.igv);
-  const cero = (c && (c.exportacion || c.es_extranjero)) || false;
-  if (!(grav > 0) && !(igv >= 0 && grav === 0)) {
-    if (cero) { grav = 0; igv = 0; } else { grav = Math.round(total / 1.18 * 100) / 100; igv = Math.round((total - grav) * 100) / 100; }
-  }
-  if (isNaN(grav)) grav = cero ? 0 : Math.round(total / 1.18 * 100) / 100;
-  if (isNaN(igv)) igv = cero ? 0 : Math.round((total - grav) * 100) / 100;
-  return { items, total, grav, igv, inafecta: cero ? total : 0, cero };
+  const grav = Number(c && (c.total_gravada != null ? c.total_gravada : c.gravada)) || 0;
+  const noGrav = (Number(c && c.total_exonerada) || 0) + (Number(c && c.total_inafecta) || 0) + (Number(c && c.total_exportacion) || 0);
+  const esExport = !!(c && (c.exportacion || c.es_extranjero)) || (Number(c && c.total_exportacion) || 0) > 0;
+  // ¿el backend mandó desglose tributario? (los CPE actuales sí)
+  const hayDesglose = !!(c && (c.total_igv != null || c.total_gravada != null || c.total_exonerada != null || c.total_inafecta != null || c.total_exportacion != null));
+  let igv;
+  if (hayDesglose) igv = Number(c && (c.total_igv != null ? c.total_igv : c.igv)) || 0;   // IGV REAL del CPE
+  else if (esExport || noGrav > 0) igv = 0;                                                // legacy 0%
+  else igv = Math.round((total - total / 1.18) * 100) / 100;                               // legacy gravado 18%
+  if (isNaN(igv)) igv = 0;
+  const inafecta = noGrav > 0 ? noGrav : ((grav <= 0 && igv === 0) ? total : 0);
+  const cero = grav <= 0 && igv === 0;   // documento sin porción gravada (export/exonerado/inafecto)
+  return { items, total, grav, igv, inafecta, noGrav, cero, moneda: (c && c.moneda) || 'PEN' };
 }
 const _facMoney = v => (Number(v) || 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 function _facNumFmt(c) { return (c.serie || '') + '-' + String(c.numero || 0).padStart(8, '0'); }
@@ -5959,6 +5965,7 @@ window._facAbrirPDF = function (c) {
     contact: { email: String(c.cliente_email || '').trim(), tel: String(c.cliente_tel || c.cliente_telefono || '').trim() } };
   let ov = document.getElementById('fac-pdf-modal');
   if (!ov) { ov = document.createElement('div'); ov.id = 'fac-pdf-modal'; ov.className = 'fac-emit-ov'; document.body.appendChild(ov); ov.addEventListener('click', e => { if (e.target === ov) _facCerrarPDF(); }); }
+  ov.dataset.closing = '';   // P2.3: cancela un remove pendiente si se reabre rápido
   ov.style.display = 'flex';
   _facRenderPDF();
   requestAnimationFrame(() => ov.classList.add('visible'));
@@ -5967,7 +5974,7 @@ window._facAbrirPDF = function (c) {
 };
 window._facCerrarPDF = function () {
   const ov = document.getElementById('fac-pdf-modal');
-  if (ov) { ov.classList.remove('visible'); setTimeout(() => { if (ov.parentNode) ov.remove(); }, 260); }
+  if (ov) { ov.dataset.closing = '1'; ov.classList.remove('visible'); setTimeout(() => { if (ov.dataset.closing === '1' && ov.parentNode) ov.remove(); }, 260); }
   if (_facState) _facState._pdf = null;
   try { haptic(8); } catch (e) {}
   // NO se re-renderiza el shell del módulo → la balanza de la izquierda no se toca.
@@ -9150,7 +9157,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.25.0';
+const APP_VERSION = '1.25.1';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
