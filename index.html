@@ -10516,6 +10516,7 @@ const ViewCatalogos = {
       catch (e) {} finally { svcLoading.value = false; }
     }
     function openSvcModal(item = null) {
+      try { sndTap(); haptic(8); } catch (e) {}
       svcModal.value = { show: true, mode: item ? 'editar' : 'crear', saving: false, deleting: false, error: '',
         id: item?.id || '', nombre: item?.nombre || '', descripcion: item?.descripcion || '',
         precio: item ? String(item.precio || '') : '', unidad: item?.unidad || 'NIU' };
@@ -10559,6 +10560,7 @@ const ViewCatalogos = {
     };
 
     function openHub() {
+      try { haptic(6); } catch (e) {}
       view.value = 'hub';
       search.value = '';
       // Refresca silenciosamente si ya hay cache
@@ -10568,12 +10570,14 @@ const ViewCatalogos = {
     }
 
     function openCat(type) {
+      try { sndTap(); haptic(8); } catch (e) {}
       view.value = type;
       search.value = '';
       if (type === 'servicios') loadServicios();
     }
 
     function openCatModal(type, item = null) {
+      try { sndTap(); haptic(8); } catch (e) {}
       catModal.value = {
         show: true, type, saving: false, error: '',
         mode: item ? 'editar' : 'crear',
@@ -10715,181 +10719,209 @@ const ViewCatalogos = {
              servicios, svcLoading, svcModal, openSvcModal, guardarSvc, eliminarSvc, bumpSvc, catCount };
   },
   template: `
-    <div>
+    <div class="ps-enter">
 
       <!-- ── HUB ─────────────────────────────────────────── -->
       <div v-if="view==='hub'" style="padding-bottom:32px;">
-        <div style="font-size:11px;color:var(--text-muted);letter-spacing:.1em;text-transform:uppercase;padding:14px 4px 10px;font-weight:700;">
-          Datos maestros
-        </div>
-        <div v-for="c in cards" :key="c.id" @click="openCat(c.id)"
-          style="display:flex;align-items:center;gap:14px;padding:14px;background:var(--bg2);border:1px solid var(--border);border-radius:14px;margin-bottom:10px;cursor:pointer;">
-          <div style="width:48px;height:48px;border-radius:12px;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.25);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">{{ c.icon }}</div>
-          <div style="flex:1;min-width:0;">
-            <div style="font-weight:800;font-size:15px;color:var(--text);">{{ c.label }}</div>
-            <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">
-              <span style="color:var(--gold);font-weight:700;">{{ catCount(c.id) }}</span> {{ c.unit }} · {{ c.hint }}
+        <div class="ps-head">
+          <div class="ps-head-l">
+            <div class="ps-head-ico">📚</div>
+            <div>
+              <div class="ps-head-title">Catálogo</div>
+              <div class="ps-head-sub">Datos maestros</div>
             </div>
           </div>
-          <span style="color:var(--gold);font-size:20px;flex-shrink:0;">›</span>
+        </div>
+        <div class="ps-stagger">
+          <div v-for="c in cards" :key="c.id" @click="openCat(c.id)" class="ps-acc primary" style="margin-bottom:10px;">
+            <div class="ico">{{ c.icon }}</div>
+            <div style="flex:1;min-width:0;">
+              <div class="t">{{ c.label }}</div>
+              <div class="d">
+                <span style="color:var(--gold);font-weight:800;">{{ catCount(c.id) }}</span> {{ c.unit }} · {{ c.hint }}
+              </div>
+            </div>
+            <span style="color:var(--gold);font-size:22px;flex-shrink:0;line-height:1;">›</span>
+          </div>
         </div>
       </div>
 
       <!-- ── EMBARCACIONES ──────────────────────────────── -->
       <div v-else-if="view==='embarcaciones'" style="padding-bottom:32px;">
-        <div style="display:flex;align-items:center;gap:10px;padding:12px 4px 14px;">
-          <button @click="openHub()" style="background:transparent;border:1px solid var(--border);color:var(--text-muted);width:34px;height:34px;border-radius:9px;font-size:18px;cursor:pointer;">←</button>
-          <div style="flex:1;font-weight:800;font-size:16px;">🛥 Embarcaciones</div>
-          <button @click="openCatModal('embarcaciones')" style="background:var(--gold);color:#1a0a05;border:none;padding:7px 14px;border-radius:9px;font-weight:800;font-size:13px;cursor:pointer;">+ Nuevo</button>
+        <div class="ps-head">
+          <div class="ps-head-l">
+            <button @click="openHub()" class="ps-btn ps-btn-ghost" style="width:38px;height:38px;min-height:38px;padding:0;font-size:20px;flex-shrink:0;">‹</button>
+            <div class="ps-head-ico" style="font-size:30px;">🛥</div>
+            <div><div class="ps-head-title" style="font-size:20px;">Embarcaciones</div></div>
+          </div>
+          <button @click="openCatModal('embarcaciones')" class="ps-btn ps-btn-primary">＋ Nuevo</button>
         </div>
         <div v-if="!lists.embarcaciones.length" style="text-align:center;padding:40px 20px;color:var(--text-muted);">Sin embarcaciones</div>
-        <div v-for="e in lists.embarcaciones" :key="e.id" @click="openCatModal('embarcaciones', e)"
-          style="display:flex;align-items:center;gap:12px;padding:13px;background:var(--bg2);border:1px solid var(--border);border-radius:11px;margin-bottom:8px;cursor:pointer;">
-          <div style="width:38px;height:38px;border-radius:10px;background:rgba(96,165,250,0.12);display:flex;align-items:center;justify-content:center;font-size:18px;">⛵</div>
-          <div style="flex:1;min-width:0;">
-            <div style="font-weight:800;font-size:14px;">{{ e.nombre }}</div>
-            <div style="font-size:11px;color:var(--text-muted);margin-top:1px;">
-              <span style="color:var(--gold);">{{ e.id }}</span>
-              <template v-if="e.capacidad_pax"> · {{ e.capacidad_pax }} pax</template>
-              <template v-if="e.matricula"> · {{ e.matricula }}</template>
+        <div class="ps-stagger">
+          <div v-for="e in lists.embarcaciones" :key="e.id" @click="openCatModal('embarcaciones', e)" class="ps-row">
+            <div style="width:38px;height:38px;border-radius:10px;background:rgba(96,165,250,0.12);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">⛵</div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-weight:800;font-size:14px;">{{ e.nombre }}</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                <span class="ps-chip gold">{{ e.id }}</span>
+                <span v-if="e.capacidad_pax" class="ps-chip blue">{{ e.capacidad_pax }} pax</span>
+                <span v-if="e.matricula" class="ps-chip">{{ e.matricula }}</span>
+              </div>
             </div>
+            <span style="color:var(--text-muted);flex-shrink:0;">›</span>
           </div>
-          <span style="color:var(--text-muted);">›</span>
         </div>
       </div>
 
       <!-- ── PERSONAL ────────────────────────────────────── -->
       <div v-else-if="view==='personal'" style="padding-bottom:32px;">
-        <div style="display:flex;align-items:center;gap:10px;padding:12px 4px 10px;">
-          <button @click="openHub()" style="background:transparent;border:1px solid var(--border);color:var(--text-muted);width:34px;height:34px;border-radius:9px;font-size:18px;cursor:pointer;">←</button>
-          <div style="flex:1;font-weight:800;font-size:16px;">👥 Personal</div>
-          <button @click="openCatModal('personal')" style="background:var(--gold);color:#1a0a05;border:none;padding:7px 14px;border-radius:9px;font-weight:800;font-size:13px;cursor:pointer;">+ Nuevo</button>
+        <div class="ps-head">
+          <div class="ps-head-l">
+            <button @click="openHub()" class="ps-btn ps-btn-ghost" style="width:38px;height:38px;min-height:38px;padding:0;font-size:20px;flex-shrink:0;">‹</button>
+            <div class="ps-head-ico" style="font-size:30px;">👥</div>
+            <div><div class="ps-head-title" style="font-size:20px;">Personal</div></div>
+          </div>
+          <button @click="openCatModal('personal')" class="ps-btn ps-btn-primary">＋ Nuevo</button>
         </div>
         <div style="display:flex;gap:6px;padding:0 4px 14px;">
           <button v-for="f in [{k:'todos',l:'Todos'},{k:'activos',l:'Activos'},{k:'inactivos',l:'Inactivos'}]" :key="f.k"
             @click="personalFilter=f.k"
             :style="personalFilter===f.k
-              ? 'flex:1;padding:7px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;background:rgba(201,168,76,0.18);border:1.5px solid var(--gold);color:var(--gold);'
-              : 'flex:1;padding:7px;border-radius:8px;font-size:12px;cursor:pointer;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);'">
+              ? 'flex:1;min-height:38px;padding:8px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;background:rgba(201,168,76,0.18);border:1.5px solid var(--gold);color:var(--gold);'
+              : 'flex:1;min-height:38px;padding:8px;border-radius:10px;font-size:12px;cursor:pointer;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);'">
             {{ f.l }}
           </button>
         </div>
         <template v-for="(items, rolKey) in personalGrouped" :key="rolKey">
-          <div v-if="items.length" style="font-size:10px;font-weight:900;letter-spacing:.12em;color:var(--text-muted);text-transform:uppercase;padding:14px 6px 8px;">
-            {{ rolKey === 'Capitan' ? '⚓ Capitanes' : rolKey === 'Guia' ? '🧭 Guías' : rolKey === 'Operador' ? '💼 Operadores' : rolKey }} ({{ items.length }})
-          </div>
-          <div v-for="p in items" :key="p.id" @click="openCatModal('personal', p)"
-            style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg2);border:1px solid var(--border);border-radius:11px;margin-bottom:6px;cursor:pointer;"
-            :style="String(p.estado).toLowerCase()!=='activo' ? 'opacity:0.55;' : ''">
-            <div style="width:36px;height:36px;border-radius:50%;background:rgba(201,168,76,0.15);color:var(--gold);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;">
-              {{ p.nombre.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase() }}
+          <div v-if="items.length" class="ps-list-group">
+            <div class="ps-list-head">
+              {{ rolKey === 'Capitan' ? '⚓ Capitanes' : rolKey === 'Guia' ? '🧭 Guías' : rolKey === 'Operador' ? '💼 Operadores' : rolKey }} ({{ items.length }})
             </div>
-            <div style="flex:1;min-width:0;">
-              <div style="font-weight:700;font-size:14px;">{{ p.nombre }}</div>
-              <div style="font-size:11px;color:var(--text-muted);margin-top:1px;">
-                {{ p.rol }}<template v-if="p.tarifa_fija"> · S/ {{ fmt(p.tarifa_fija) }}</template>
-                <template v-if="String(p.estado).toLowerCase()!=='activo'"> · <span style="color:#f87171;">{{ p.estado }}</span></template>
+            <div v-for="p in items" :key="p.id" @click="openCatModal('personal', p)" class="ps-row"
+              :style="String(p.estado).toLowerCase()!=='activo' ? 'opacity:0.55;' : ''">
+              <div style="width:36px;height:36px;border-radius:50%;background:rgba(201,168,76,0.15);color:var(--gold);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0;">
+                {{ p.nombre.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase() }}
               </div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-weight:700;font-size:14px;">{{ p.nombre }}</div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                  <span class="ps-chip">{{ p.rol }}</span>
+                  <span v-if="p.tarifa_fija" class="ps-chip gold">S/ {{ fmt(p.tarifa_fija) }}</span>
+                  <span v-if="String(p.estado).toLowerCase()!=='activo'" class="ps-chip red">{{ p.estado }}</span>
+                </div>
+              </div>
+              <span style="color:var(--text-muted);flex-shrink:0;">›</span>
             </div>
-            <span style="color:var(--text-muted);">›</span>
           </div>
         </template>
       </div>
 
       <!-- ── CONTACTOS ───────────────────────────────────── -->
       <div v-else-if="view==='contactos'" style="padding-bottom:32px;">
-        <div style="display:flex;align-items:center;gap:10px;padding:12px 4px 10px;">
-          <button @click="openHub()" style="background:transparent;border:1px solid var(--border);color:var(--text-muted);width:34px;height:34px;border-radius:9px;font-size:18px;cursor:pointer;">←</button>
-          <div style="flex:1;font-weight:800;font-size:16px;">📇 Contactos</div>
-          <button @click="openCatModal('contactos')" style="background:var(--gold);color:#1a0a05;border:none;padding:7px 14px;border-radius:9px;font-weight:800;font-size:13px;cursor:pointer;">+ Nuevo</button>
+        <div class="ps-head">
+          <div class="ps-head-l">
+            <button @click="openHub()" class="ps-btn ps-btn-ghost" style="width:38px;height:38px;min-height:38px;padding:0;font-size:20px;flex-shrink:0;">‹</button>
+            <div class="ps-head-ico" style="font-size:30px;">📇</div>
+            <div><div class="ps-head-title" style="font-size:20px;">Contactos</div></div>
+          </div>
+          <button @click="openCatModal('contactos')" class="ps-btn ps-btn-primary">＋ Nuevo</button>
         </div>
         <input v-model="search" placeholder="🔍 Buscar contacto..."
-          style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:11px 13px;font-size:16px;color:var(--text);margin-bottom:10px;-webkit-appearance:none;outline:none;" />
-        <div style="display:flex;gap:5px;padding:0 0 12px;flex-wrap:wrap;">
+          style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px;font-size:16px;color:var(--text);margin-bottom:10px;-webkit-appearance:none;outline:none;box-sizing:border-box;" />
+        <div style="display:flex;gap:6px;padding:0 0 14px;flex-wrap:wrap;">
           <button v-for="f in ['todos','Agencia','Aliado','Comisionado','Libre']" :key="f"
             @click="contactosFilter=f"
             :style="contactosFilter===f
-              ? 'padding:8px 12px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;background:rgba(201,168,76,0.18);border:1.5px solid var(--gold);color:var(--gold);min-height:36px;'
-              : 'padding:8px 12px;border-radius:8px;font-size:12px;cursor:pointer;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);min-height:36px;'">
+              ? 'padding:8px 13px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;background:rgba(201,168,76,0.18);border:1.5px solid var(--gold);color:var(--gold);min-height:38px;'
+              : 'padding:8px 13px;border-radius:10px;font-size:12px;cursor:pointer;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);min-height:38px;'">
             {{ f === 'todos' ? 'Todos' : f }}
           </button>
         </div>
         <template v-for="(items, tipo) in contactosGrouped" :key="tipo">
-          <div style="font-size:10px;font-weight:900;letter-spacing:.12em;color:var(--text-muted);text-transform:uppercase;padding:14px 6px 8px;">
-            {{ tipo === 'Agencia' ? '🏢 Agencias' : tipo === 'Aliado' ? '🤝 Aliados' : tipo === 'Comisionado' ? '💼 Comisionados' : tipo === 'Libre' ? '🆓 Libre' : tipo }} ({{ items.length }})
-          </div>
-          <div v-for="c in items" :key="c.id" @click="openCatModal('contactos', c)"
-            style="display:flex;align-items:center;gap:10px;padding:13px;background:var(--bg2);border:1px solid var(--border);border-radius:11px;margin-bottom:6px;cursor:pointer;min-height:56px;">
-            <div style="flex:1;min-width:0;">
-              <div style="font-weight:700;font-size:14px;">{{ c.nombre }}</div>
-              <div style="font-size:11px;color:var(--text-muted);margin-top:1px;">
-                <span style="color:var(--gold);">{{ c.id }}</span>
-                <template v-if="c.tipo==='Aliado'"> · solo PAX</template>
-                <template v-else-if="c.precio>0"> · S/ {{ fmt(c.precio) }}/pax</template>
-              </div>
+          <div class="ps-list-group">
+            <div class="ps-list-head">
+              {{ tipo === 'Agencia' ? '🏢 Agencias' : tipo === 'Aliado' ? '🤝 Aliados' : tipo === 'Comisionado' ? '💼 Comisionados' : tipo === 'Libre' ? '🆓 Libre' : tipo }} ({{ items.length }})
             </div>
-            <span style="color:var(--text-muted);">›</span>
+            <div v-for="c in items" :key="c.id" @click="openCatModal('contactos', c)" class="ps-row" style="min-height:56px;">
+              <div style="flex:1;min-width:0;">
+                <div style="font-weight:700;font-size:14px;">{{ c.nombre }}</div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                  <span class="ps-chip gold">{{ c.id }}</span>
+                  <span v-if="c.tipo==='Aliado'" class="ps-chip blue">solo PAX</span>
+                  <span v-else-if="c.precio>0" class="ps-chip">S/ {{ fmt(c.precio) }}/pax</span>
+                </div>
+              </div>
+              <span style="color:var(--text-muted);flex-shrink:0;">›</span>
+            </div>
           </div>
         </template>
       </div>
 
       <!-- ── IMPUESTOS ───────────────────────────────────── -->
       <div v-else-if="view==='impuestos'" style="padding-bottom:32px;">
-        <div style="display:flex;align-items:center;gap:10px;padding:12px 4px 14px;">
-          <button @click="openHub()" style="background:transparent;border:1px solid var(--border);color:var(--text-muted);width:34px;height:34px;border-radius:9px;font-size:18px;cursor:pointer;">←</button>
-          <div style="flex:1;font-weight:800;font-size:16px;">🧾 Impuestos / Adicionales</div>
-          <button @click="openCatModal('impuestos')" style="background:var(--gold);color:#1a0a05;border:none;padding:7px 14px;border-radius:9px;font-weight:800;font-size:13px;cursor:pointer;">+ Nuevo</button>
+        <div class="ps-head">
+          <div class="ps-head-l">
+            <button @click="openHub()" class="ps-btn ps-btn-ghost" style="width:38px;height:38px;min-height:38px;padding:0;font-size:20px;flex-shrink:0;">‹</button>
+            <div class="ps-head-ico" style="font-size:30px;">🧾</div>
+            <div><div class="ps-head-title" style="font-size:19px;">Impuestos</div><div class="ps-head-sub">Adicionales</div></div>
+          </div>
+          <button @click="openCatModal('impuestos')" class="ps-btn ps-btn-primary">＋ Nuevo</button>
         </div>
         <div v-if="!lists.impuestos.length" style="text-align:center;padding:40px 20px;color:var(--text-muted);">Sin impuestos</div>
-        <div v-for="i in lists.impuestos" :key="i.id" @click="openCatModal('impuestos', i)"
-          style="display:flex;align-items:center;gap:12px;padding:13px;background:var(--bg2);border:1px solid var(--border);border-radius:11px;margin-bottom:8px;cursor:pointer;">
-          <div style="width:38px;height:38px;border-radius:10px;background:rgba(201,168,76,0.1);display:flex;align-items:center;justify-content:center;font-size:18px;">🧾</div>
-          <div style="flex:1;min-width:0;">
-            <div style="font-weight:800;font-size:14px;">{{ i.nombre }}</div>
-            <div style="font-size:11px;color:var(--text-muted);margin-top:1px;">{{ i.id }}</div>
+        <div class="ps-stagger">
+          <div v-for="i in lists.impuestos" :key="i.id" @click="openCatModal('impuestos', i)" class="ps-row">
+            <div style="width:38px;height:38px;border-radius:10px;background:rgba(201,168,76,0.1);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🧾</div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-weight:800;font-size:14px;">{{ i.nombre }}</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:2px;"><span class="ps-chip gold">{{ i.id }}</span></div>
+            </div>
+            <div style="font-size:15px;font-weight:900;color:var(--gold);flex-shrink:0;">S/ {{ fmt(i.monto) }}</div>
           </div>
-          <div style="font-size:15px;font-weight:900;color:var(--gold);">S/ {{ fmt(i.monto) }}</div>
         </div>
       </div>
 
       <!-- ── SERVICIOS DE FACTURACIÓN ────────────────────── -->
       <div v-else-if="view==='servicios'" style="padding-bottom:32px;">
-        <div style="display:flex;align-items:center;gap:10px;padding:12px 4px 14px;">
-          <button @click="openHub()" style="background:transparent;border:1px solid var(--border);color:var(--text-muted);width:34px;height:34px;border-radius:9px;font-size:18px;cursor:pointer;">←</button>
-          <div style="flex:1;font-weight:800;font-size:16px;">🏷 Servicios de facturación</div>
-          <button @click="openSvcModal()" style="background:var(--gold);color:#1a0a05;border:none;padding:7px 14px;border-radius:9px;font-weight:800;font-size:13px;cursor:pointer;">+ Nuevo</button>
+        <div class="ps-head">
+          <div class="ps-head-l">
+            <button @click="openHub()" class="ps-btn ps-btn-ghost" style="width:38px;height:38px;min-height:38px;padding:0;font-size:20px;flex-shrink:0;">‹</button>
+            <div class="ps-head-ico" style="font-size:30px;">🏷</div>
+            <div><div class="ps-head-title" style="font-size:19px;">Servicios</div><div class="ps-head-sub">Facturación</div></div>
+          </div>
+          <button @click="openSvcModal()" class="ps-btn ps-btn-primary">＋ Nuevo</button>
         </div>
-        <div style="font-size:11px;color:var(--text-muted);padding:0 4px 12px;line-height:1.5;">Los servicios que aparecen al emitir un CPE (boleta / factura) y en el paquete de zarpe (Paseo · Guiado).</div>
+        <div style="font-size:11px;color:var(--text-muted);padding:0 4px 14px;line-height:1.5;">Los servicios que aparecen al emitir un CPE (boleta / factura) y en el paquete de zarpe (Paseo · Guiado).</div>
         <div v-if="svcLoading && !servicios.length" style="text-align:center;padding:40px 20px;color:var(--text-muted);"><span class="spin" style="display:inline-block;width:22px;height:22px;"></span></div>
         <div v-else-if="!servicios.length" style="text-align:center;padding:40px 20px;color:var(--text-muted);">Sin servicios. Agrega el primero.</div>
-        <div v-for="s in servicios" :key="s.id" @click="openSvcModal(s)"
-          style="display:flex;align-items:center;gap:12px;padding:13px;background:var(--bg2);border:1px solid var(--border);border-radius:11px;margin-bottom:8px;cursor:pointer;"
-          :style="s.activo===false ? 'opacity:0.55;' : ''">
-          <div style="width:38px;height:38px;border-radius:10px;background:rgba(201,168,76,0.1);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🏷</div>
-          <div style="flex:1;min-width:0;">
-            <div style="font-weight:800;font-size:14px;">{{ s.nombre }}</div>
-            <div style="font-size:11px;color:var(--text-muted);margin-top:1px;">
-              {{ s.unidad==='ZZ' ? 'Servicio (ZZ)' : 'Unidad (NIU)' }}
-              <template v-if="s.descripcion"> · {{ s.descripcion }}</template>
-              <template v-if="s.activo===false"> · <span style="color:#f87171;">inactivo</span></template>
+        <div class="ps-stagger">
+          <div v-for="s in servicios" :key="s.id" @click="openSvcModal(s)" class="ps-row"
+            :style="s.activo===false ? 'opacity:0.55;' : ''">
+            <div style="width:38px;height:38px;border-radius:10px;background:rgba(201,168,76,0.1);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🏷</div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-weight:800;font-size:14px;">{{ s.nombre }}</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                <span class="ps-chip">{{ s.unidad==='ZZ' ? 'Servicio (ZZ)' : 'Unidad (NIU)' }}</span>
+                <span v-if="s.descripcion" style="color:var(--text-muted);">{{ s.descripcion }}</span>
+                <span v-if="s.activo===false" class="ps-chip red">inactivo</span>
+              </div>
             </div>
+            <div style="font-size:15px;font-weight:900;color:var(--gold);flex-shrink:0;">S/ {{ fmt(s.precio) }}</div>
           </div>
-          <div style="font-size:15px;font-weight:900;color:var(--gold);flex-shrink:0;">S/ {{ fmt(s.precio) }}</div>
         </div>
       </div>
 
       <!-- ── MODAL SERVICIOS ─────────────────────────────── -->
       <teleport to="body">
-        <div v-if="svcModal.show" class="date-picker-overlay" @click.self="svcModal.show=false">
-          <div style="background:var(--bg2);border:1px solid rgba(201,168,76,0.25);border-radius:16px;width:92%;max-width:380px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,0.85);">
-            <div style="background:linear-gradient(135deg,rgba(90,23,34,0.9),rgba(22,10,13,0.97));padding:14px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(201,168,76,0.15);">
+        <div v-if="svcModal.show" class="ps-sheet-overlay" @click.self="svcModal.show=false">
+          <div class="ps-sheet" style="max-width:420px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
               <div>
                 <div style="font-size:10px;letter-spacing:.1em;color:var(--gold);text-transform:uppercase;margin-bottom:2px;">{{ svcModal.mode==='crear' ? 'Nuevo' : 'Editar' }}</div>
-                <div style="font-size:14px;font-weight:800;color:var(--text);">Servicio de facturación</div>
+                <div style="font-size:17px;font-weight:800;color:var(--text);">Servicio de facturación</div>
               </div>
-              <button @click="svcModal.show=false" style="font-size:20px;color:var(--text-muted);line-height:1;padding:2px 6px;">✕</button>
+              <button @click="svcModal.show=false" class="ps-btn ps-btn-ghost" style="width:38px;height:38px;min-height:38px;padding:0;font-size:17px;flex-shrink:0;">✕</button>
             </div>
-            <div style="padding:16px;display:flex;flex-direction:column;gap:14px;max-height:72vh;overflow-y:auto;-webkit-overflow-scrolling:touch;">
+            <div style="display:flex;flex-direction:column;gap:14px;">
               <div style="display:flex;flex-direction:column;gap:6px;">
                 <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;font-weight:700;">Nombre *</span>
                 <input v-model="svcModal.nombre" type="text" autocomplete="off" autocapitalize="words" placeholder="ej. Tour Islas Ballestas"
@@ -10925,16 +10957,15 @@ const ViewCatalogos = {
               <div v-if="svcModal.error"
                 style="padding:11px 13px;border-radius:9px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);font-size:13px;color:#f87171;">⚠ {{ svcModal.error }}</div>
               <button v-if="svcModal.mode==='editar'" @click="eliminarSvc()" :disabled="svcModal.deleting || svcModal.saving" type="button"
-                style="min-height:42px;padding:10px;border-radius:10px;background:transparent;border:1px solid rgba(239,68,68,0.4);font-size:13px;font-weight:700;color:#f87171;cursor:pointer;">
+                class="ps-btn" style="border-color:rgba(239,68,68,0.4);color:#f87171;background:transparent;">
                 {{ svcModal.deleting ? 'Eliminando…' : '🗑 Eliminar servicio' }}
               </button>
               <div style="display:flex;gap:10px;padding-top:4px;">
-                <button @click="svcModal.show=false" type="button"
-                  style="flex:1;min-height:46px;padding:12px;border-radius:11px;background:transparent;border:1px solid var(--border);font-size:14px;cursor:pointer;color:var(--text-muted);">Cancelar</button>
+                <button @click="svcModal.show=false" type="button" class="ps-btn" style="flex:1;color:var(--text-muted);">Cancelar</button>
                 <button @click="guardarSvc()" :disabled="svcModal.saving || svcModal.deleting" type="button"
-                  style="flex:2;min-height:46px;padding:12px;border-radius:11px;background:var(--gold);border:none;font-size:15px;font-weight:800;color:#1a0a05;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;"
+                  class="ps-btn ps-btn-primary" style="flex:2;"
                   :style="(svcModal.saving||svcModal.deleting)?'opacity:0.6;cursor:default':''">
-                  <span v-if="svcModal.saving" class="spin" style="width:15px;height:15px;border-color:rgba(26,10,5,0.3);border-top-color:#1a0a05;"></span>
+                  <span v-if="svcModal.saving" class="spin" style="width:15px;height:15px;border-color:rgba(255,255,255,0.3);border-top-color:var(--gold-pale);"></span>
                   {{ svcModal.saving ? 'Guardando…' : (svcModal.mode==='crear' ? 'Registrar' : 'Guardar') }}
                 </button>
               </div>
@@ -10945,22 +10976,22 @@ const ViewCatalogos = {
 
       <!-- ── MODAL UNIFICADO ─────────────────────────────── -->
       <teleport to="body">
-        <div v-if="catModal.show" class="date-picker-overlay" @click.self="catModal.show=false">
-          <div style="background:var(--bg2);border:1px solid rgba(201,168,76,0.25);border-radius:16px;width:92%;max-width:380px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,0.85);">
+        <div v-if="catModal.show" class="ps-sheet-overlay" @click.self="catModal.show=false">
+          <div class="ps-sheet" style="max-width:420px;">
 
-            <div style="background:linear-gradient(135deg,rgba(90,23,34,0.9),rgba(22,10,13,0.97));padding:14px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(201,168,76,0.15);">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
               <div>
                 <div style="font-size:10px;letter-spacing:.1em;color:var(--gold);text-transform:uppercase;margin-bottom:2px;">
                   {{ catModal.mode==='crear' ? 'Nuevo' : 'Editar' }}
                 </div>
-                <div style="font-size:14px;font-weight:800;color:var(--text);">
+                <div style="font-size:17px;font-weight:800;color:var(--text);">
                   {{ catModal.type==='embarcaciones' ? 'Embarcación' : catModal.type==='personal' ? 'Personal' : catModal.type==='contactos' ? 'Contacto' : 'Impuesto' }}
                 </div>
               </div>
-              <button @click="catModal.show=false" style="font-size:20px;color:var(--text-muted);line-height:1;padding:2px 6px;">✕</button>
+              <button @click="catModal.show=false" class="ps-btn ps-btn-ghost" style="width:38px;height:38px;min-height:38px;padding:0;font-size:17px;flex-shrink:0;">✕</button>
             </div>
 
-            <div style="padding:16px;display:flex;flex-direction:column;gap:14px;max-height:72vh;overflow-y:auto;-webkit-overflow-scrolling:touch;">
+            <div style="display:flex;flex-direction:column;gap:14px;">
 
               <!-- Nombre (común) -->
               <div style="display:flex;flex-direction:column;gap:6px;">
@@ -11080,14 +11111,13 @@ const ViewCatalogos = {
 
               <!-- Botones -->
               <div style="display:flex;gap:10px;padding-top:4px;">
-                <button @click="catModal.show=false" type="button"
-                  style="flex:1;min-height:46px;padding:12px;border-radius:11px;background:transparent;border:1px solid var(--border);font-size:14px;cursor:pointer;color:var(--text-muted);">
+                <button @click="catModal.show=false" type="button" class="ps-btn" style="flex:1;color:var(--text-muted);">
                   Cancelar
                 </button>
                 <button @click="guardarCat()" :disabled="catModal.saving" type="button"
-                  style="flex:2;min-height:46px;padding:12px;border-radius:11px;background:var(--gold);border:none;font-size:15px;font-weight:800;color:#1a0a05;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;"
+                  class="ps-btn ps-btn-primary" style="flex:2;"
                   :style="catModal.saving?'opacity:0.6;cursor:default':''">
-                  <span v-if="catModal.saving" class="spin" style="width:15px;height:15px;border-color:rgba(26,10,5,0.3);border-top-color:#1a0a05;"></span>
+                  <span v-if="catModal.saving" class="spin" style="width:15px;height:15px;border-color:rgba(255,255,255,0.3);border-top-color:var(--gold-pale);"></span>
                   {{ catModal.saving ? 'Guardando…' : (catModal.mode==='crear' ? 'Registrar' : 'Guardar') }}
                 </button>
               </div>
@@ -11744,7 +11774,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.41.0';
+const APP_VERSION = '1.42.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
