@@ -1359,8 +1359,25 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 .fac-cli-seg:active { transform:scale(.95); }
 .fac-cli-manual-save { width:100%; padding:11px; border-radius:12px; border:none; cursor:pointer; font-size:13px; font-weight:800; background:linear-gradient(180deg,var(--gold),#b8963f); color:#2a1206; -webkit-tap-highlight-color:transparent; transition:transform .14s; }
 .fac-cli-manual-save:active { transform:scale(.97); }
+
+/* Opción rápida "Clientes varios" (casillero vacío) + chip Varios seleccionado */
+#fac-cli-default:empty { display:none; }
+.fac-cli-varios {
+  width:100%; box-sizing:border-box; margin-top:8px; display:flex; align-items:center; gap:11px; padding:12px 13px;
+  border-radius:14px; cursor:pointer; text-align:left; -webkit-tap-highlight-color:transparent;
+  border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.04);
+  transition:background .14s, border-color .14s, transform .1s;
+}
+.fac-cli-varios:hover { background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.2); }
+.fac-cli-varios:active { transform:scale(.985); background:rgba(201,168,76,.08); }
+.fac-cli-varios-ico { font-size:19px; flex:0 0 auto; }
+.fac-cli-varios-main { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.fac-cli-varios-t { font-size:13px; font-weight:700; color:var(--text); }
+.fac-cli-varios-s { font-size:10.5px; color:var(--text-muted); }
+.fac-cli-varios-go { font-size:18px; color:var(--text-muted); flex:0 0 auto; }
+.fac-cli-chip.varios { border-color:rgba(255,255,255,.16); background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)); }
 @media (prefers-reduced-motion: reduce){
-  .fac-cli-btn, .fac-cli-drop, .fac-cli-chip, .fac-cli-manual, .fac-cli-row, .fac-cli-x, .fac-cli-seg, .fac-cli-manual-save { animation:none !important; transition:none !important; }
+  .fac-cli-btn, .fac-cli-drop, .fac-cli-chip, .fac-cli-manual, .fac-cli-row, .fac-cli-x, .fac-cli-seg, .fac-cli-manual-save, .fac-cli-varios { animation:none !important; transition:none !important; }
 }
 
 /* ── Alerta flotante de anulaciones = BOTÓN FLOTANTE tipo SIRENA (FAB fijo) ── */
@@ -5427,7 +5444,15 @@ function _facTab(t) {
 }
 // Segmento Boleta / Factura / Exportación
 function _facSetModo(m) {
-  sndTap(); haptic(8); const S = _facState;
+  const S = _facState;
+  // LEGAL (money-crítico): el cliente Varios (docTipo '0') es SOLO para boletas. Al pasar a Factura/Exportación
+  // se limpia el cliente (esos comprobantes exigen RUC o pasaporte real, nunca "varios").
+  if ((m === 'factura' || m === 'export') && S.cliSel && S.docTipo === '0') {
+    S.cliSel = false; S.cliQuery = ''; S.cliResults = []; S.doc = ''; S.nombre = ''; S.dir = ''; S.email = ''; S.tel = ''; S.esExtranjero = false;
+    S.shake = true; setTimeout(() => { if (_facState) { _facState.shake = false; _facRender(); } }, 450);
+    try { sndErr(); haptic([60, 30, 60]); } catch (e) {}
+    if (typeof showToast === 'function') showToast('⚠️ Factura / Exportación exigen RUC o pasaporte — elige un cliente');
+  } else { try { sndTap(); haptic(8); } catch (e) {} }
   S.facModo = m;
   if (m === 'boleta') { S.tipo = 2; S.exportacion = false; S.esExtranjero = false; }
   else if (m === 'factura') { S.tipo = 1; S.exportacion = false; S.esExtranjero = false; if (S.docTipo === '1' || S.docTipo === '0') S.docTipo = '6'; }
@@ -5439,7 +5464,13 @@ function _facSetModo(m) {
 function _facReglas() {
   const S = _facState, tot = _facTotales();
   const doc = String(S.doc || '').trim(), nom = String(S.nombre || '').trim(), dir = String(S.dir || '').trim();
+  const esVarios = S.docTipo === '0';
   const R = [];
+  // LEGAL: cliente Varios (docTipo '0') NO puede facturar ni exportar (esos exigen RUC / pasaporte).
+  if (esVarios && S.tipo !== 2) {
+    R.push({ label: 'Cliente Varios solo en boletas — Factura / Exportación exigen RUC o pasaporte', ok: false, hard: true });
+    return R;
+  }
   if (S.exportacion) {
     R.push({ label: 'Pasaporte del turista', ok: S.docTipo === '7' && doc.length > 0, hard: true });
     R.push({ label: 'Paquete de 2 o más servicios', ok: S.items.length >= 2, hard: true });
@@ -5448,7 +5479,9 @@ function _facReglas() {
     R.push({ label: 'Razón social', ok: nom.length > 0, hard: true });
     R.push({ label: 'Dirección fiscal', ok: dir.length > 0, hard: true });
   } else {
-    if (tot.total > 700) R.push({ label: 'Identificar cliente (boleta mayor a S/700)', ok: S.docTipo !== '0' && doc.length > 0 && nom.length > 0, hard: true });
+    // Boleta: cliente Varios permitido solo hasta S/700; por encima hay que identificar al cliente.
+    if (esVarios && tot.total > 700) R.push({ label: 'Cliente Varios solo en boletas hasta S/700 — identifica al cliente', ok: false, hard: true });
+    else if (tot.total > 700) R.push({ label: 'Identificar cliente (boleta mayor a S/700)', ok: S.docTipo !== '0' && doc.length > 0 && nom.length > 0, hard: true });
   }
   if (!S.exportacion && tot.total >= 2000) R.push({ label: 'Medio de pago (total 2000 o más)', ok: !!S.medioPago, hard: true });
   return R;
@@ -5588,9 +5621,30 @@ function _facCliManualHTML(S) {
     <button class="fac-cli-manual-save" onclick="_facCliManualGuardar()">💾 Guardar cliente</button>
   </div>`;
 }
-// Componente único: renderiza el estado correcto (chip seleccionado vs búsqueda+dropdown+manual).
+// Opción rápida "Clientes varios" — visible SOLO con el casillero vacío (sin query, sin cajón manual).
+function _facCliDefaultHTML(S) {
+  const empty = !(S.cliQuery || '').trim() && !S.cliManual;
+  if (!empty) return '';
+  return `<button class="fac-cli-varios" onclick="_facCliSetVarios()" aria-label="Clientes varios sin documento">
+    <span class="fac-cli-varios-ico">👥</span>
+    <span class="fac-cli-varios-main"><span class="fac-cli-varios-t">Clientes varios · sin documento</span><span class="fac-cli-varios-s">Boleta simple hasta S/700</span></span>
+    <span class="fac-cli-varios-go">›</span>
+  </button>`;
+}
+// Componente único: renderiza el estado correcto (chip seleccionado vs búsqueda+dropdown+manual+varios).
 function _facCliBox(S) {
   if (S.cliSel) {
+    const esVarios = S.docTipo === '0';
+    if (esVarios) {
+      return `<div class="fac-cli-chip varios" data-cli="sel">
+        <div class="fac-cli-chip-ico">👥</div>
+        <div class="fac-cli-chip-main">
+          <div class="fac-cli-chip-t"><span class="fac-cli-tag">Varios</span></div>
+          <div class="fac-cli-chip-n">Clientes varios · sin documento</div>
+        </div>
+        <button class="fac-cli-x" onclick="_facCliClear()" aria-label="Cambiar cliente" title="Cambiar cliente">×</button>
+      </div>`;
+    }
     const esRuc = S.docTipo === '6';
     const dir = (esRuc && S.dir) ? `<div class="fac-cli-chip-dir">📍 ${_facEsc(S.dir)}</div>` : '';
     return `<div class="fac-cli-chip" data-cli="sel">
@@ -5611,6 +5665,7 @@ function _facCliBox(S) {
     </div>
     <div class="fac-cli-drop" id="fac-cli-drop">${_facCliDropHTML(S)}</div>
     <div id="fac-cli-manual">${S.cliManual ? _facCliManualHTML(S) : ''}</div>
+    <div id="fac-cli-default">${_facCliDefaultHTML(S)}</div>
   </div>`;
 }
 // Refresco en SITIO del dropdown + botones (sin re-render global → conserva foco/caret del input).
@@ -5618,6 +5673,7 @@ function _facCliRefreshDrop() {
   const S = _facState; if (!S) return;
   const d = document.getElementById('fac-cli-drop'); if (d) d.innerHTML = _facCliDropHTML(S);
   const a = document.getElementById('fac-cli-actions'); if (a) a.innerHTML = _facCliActionsHTML(S);
+  const dv = document.getElementById('fac-cli-default'); if (dv) dv.innerHTML = _facCliDefaultHTML(S);
 }
 // Tecleo en el casillero: deselecciona, reinicia timer de lupa (3s) y dispara búsqueda interna con debounce.
 function _facCliInput(v) {
@@ -5642,6 +5698,25 @@ function _facCliArmLupa() {
   S.cliShowLupa = true;
   const a = document.getElementById('fac-cli-actions'); if (a) a.innerHTML = _facCliActionsHTML(S);
 }
+// Guard LEGAL reusable: si el cliente es Varios (docTipo '0') y NO estamos en boleta → fuerza boleta (no factura ni exporta).
+function _facVariosGuard(S) {
+  if (S.docTipo === '0' && (S.tipo !== 2 || S.exportacion)) {
+    S.facModo = 'boleta'; S.tipo = 2; S.exportacion = false; S.esExtranjero = false;
+    if (typeof showToast === 'function') showToast('Cliente Varios → boleta (Factura / Exportación exigen RUC)');
+    return true;
+  }
+  return false;
+}
+// Selecciona el cliente Varios (docTipo '0'): emite boleta simple sin documento (el emit ya manda doc vacío para '0').
+function _facCliSetVarios() {
+  const S = _facState;
+  try { sndOk(); haptic([10, 20, 10]); } catch (e) {}
+  S.doc = '00000000'; S.nombre = 'VARIOS'; S.docTipo = '0'; S.dir = ''; S.email = ''; S.tel = ''; S.esExtranjero = false;
+  S.cliSel = true; S.cliShowLupa = false; S.cliManual = false; S.cliResults = []; S.cliQuery = '';
+  clearTimeout(S._cliTimer); clearTimeout(S._cliDebounce);
+  _facVariosGuard(S);
+  _facRender();
+}
 // Elegir una coincidencia → llena el estado y muestra el chip seleccionado (la lupa desaparece, la "X" queda).
 function _facCliPick(i) {
   const S = _facState; const c = (S.cliResults || [])[i]; if (!c) return;
@@ -5650,6 +5725,7 @@ function _facCliPick(i) {
   S.dir = String(c.direccion || ''); S.email = String(c.email || ''); S.tel = String(c.telefono || ''); S.esExtranjero = !!c.es_extranjero;
   S.cliSel = true; S.cliShowLupa = false; S.cliManual = false; S.cliResults = [];
   clearTimeout(S._cliTimer); clearTimeout(S._cliDebounce);
+  _facVariosGuard(S);   // si eligieron VARIOS del dropdown estando en factura/export → revierte a boleta
   _facRender();
 }
 // Búsqueda externa (la lupa): 8 díg → RENIEC (dni), 11 díg → SUNARP (ruc). Si encuentra → llena + GUARDA. Si no → cajón manual.
@@ -5731,6 +5807,9 @@ async function _facEmitir() {
   if (S._emitiendo) return;   // P1: emisión en vuelo — flag de ESTADO (sobrevive al re-render; el disabled del DOM no) → evita CPE duplicado
   if (!S.nombre.trim()) return _facErr('Falta el nombre / razón social');
   if (S.docTipo !== '0' && !S.doc.trim()) return _facErr('Falta el número de documento');
+  // LEGAL (money-crítico): cliente Varios (docTipo '0') solo aplica a BOLETA ≤ S/700 — es documento tributario, no debe pasar.
+  if (S.docTipo === '0' && S.tipo !== 2) return _facErr('Cliente Varios solo en boletas — Factura / Exportación exigen RUC o pasaporte');
+  if (S.docTipo === '0' && tot.total > 700) return _facErr('Cliente Varios solo en boletas hasta S/700 — identifica al cliente');
   if (!S.items.length || tot.total <= 0) return _facErr('Agrega al menos un servicio con monto');
   if (S.items.some(i => !String(i.descripcion).trim())) return _facErr('Hay un ítem sin descripción');
   // Reglas SUNAT en vivo (previene los rechazos server-side)
@@ -10824,7 +10903,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.33.0';
+const APP_VERSION = '1.34.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
