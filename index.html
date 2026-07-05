@@ -1173,10 +1173,91 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 }
 /* Respeta preferencia de menos movimiento */
 @media (prefers-reduced-motion: reduce){
-  .fac-mod-shell2, .fac-mod-l, .fac-mod-r, .fac-tabbar, .fac-slot, .fac-slot.fac-slot-anim { animation:none; }
+  .fac-mod-shell2, .fac-mod-l, .fac-mod-r, .fac-tabbar, .fac-slot, .fac-slot.fac-slot-anim, .fac-emit-cta, .fac-emit-box { animation:none; }
   .fac-mesh::before { animation:none; }
-  .fac-tb, .facb-cta, .facb-bar, .fac-tab-ind, .fac-slot button { transition:none; }
+  .fac-tb, .facb-cta, .facb-bar, .fac-tab-ind, .fac-slot button, .fac-chip, .fac-car-arw, .fac-emit-ov, .fac-emit-box, .fac-emit-cta { transition:none; }
+  .fac-car-track { scroll-behavior:auto; }
 }
+
+/* ── FASE 1 · Botón "＋ Emitir CPE" (CTA guinda con glow) ───────────────── */
+.fac-emit-cta {
+  width:100%; margin-bottom:14px; padding:14px; border:none; border-radius:16px;
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  background:linear-gradient(135deg,#b3324a,#7B2030); color:#fff;
+  font-weight:800; font-size:14.5px; letter-spacing:-.1px; cursor:pointer; min-height:50px;
+  box-shadow:0 8px 26px rgba(123,32,48,.5), 0 0 24px rgba(176,41,94,.28), inset 0 1px 0 rgba(255,255,255,.18);
+  transition:transform .2s cubic-bezier(.34,1.56,.64,1), box-shadow .25s;
+  -webkit-tap-highlight-color:transparent;
+  animation:facRise .55s cubic-bezier(.34,1.56,.64,1) both; animation-delay:.09s;
+}
+.fac-emit-cta:hover { transform:translateY(-1px); box-shadow:0 12px 34px rgba(176,41,94,.6), 0 0 30px rgba(176,41,94,.4), inset 0 1px 0 rgba(255,255,255,.22); }
+.fac-emit-cta:active { transform:scale(.975); }
+
+/* ── FASE 1 · Carrusel de meses (flechas + swipe) ──────────────────────── */
+.fac-car { display:flex; align-items:center; gap:6px; margin-bottom:14px; }
+.fac-car-arw {
+  flex:0 0 auto; width:26px; height:32px; border-radius:10px;
+  border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.05); color:var(--gold);
+  font-size:17px; font-weight:800; line-height:1; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  -webkit-tap-highlight-color:transparent; transition:transform .15s, background .15s;
+}
+.fac-car-arw:hover { background:rgba(201,168,76,.16); }
+.fac-car-arw:active { transform:scale(.88); }
+.fac-car-track {
+  flex:1 1 auto; min-width:0; display:flex; gap:6px; padding:3px 1px;
+  overflow-x:auto; scroll-behavior:smooth; -webkit-overflow-scrolling:touch;
+  scrollbar-width:none; -ms-overflow-style:none;
+}
+.fac-car-track::-webkit-scrollbar { display:none; }
+.fac-chip {
+  flex:0 0 auto; display:inline-flex; align-items:center; gap:6px;
+  padding:6px 13px; border-radius:999px;
+  border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.05); color:var(--text-muted);
+  font-size:12px; font-weight:700; letter-spacing:-.1px; text-transform:capitalize;
+  cursor:pointer; white-space:nowrap; -webkit-tap-highlight-color:transparent;
+  transition:transform .2s cubic-bezier(.34,1.56,.64,1), background .2s, border-color .2s, color .2s;
+}
+.fac-chip:active { transform:scale(.92); }
+.fac-chip.on { border-color:var(--gold); background:rgba(201,168,76,.18); color:var(--gold); box-shadow:0 4px 14px rgba(201,168,76,.22); }
+.fac-chip-dot { width:7px; height:7px; border-radius:50%; background:transparent; flex:0 0 auto; transition:background .35s, box-shadow .35s; }
+.fac-chip.sem-ok .fac-chip-dot { background:#34c759; box-shadow:0 0 8px rgba(52,199,89,.8); }
+.fac-chip.sem-bad .fac-chip-dot { background:#ff453a; box-shadow:0 0 8px rgba(255,69,58,.8); }
+
+/* ── FASE 1 · Modal flotante Emitir CPE (glass + backdrop blur) ─────────── */
+.fac-emit-ov {
+  position:fixed; inset:0; z-index:900; display:none; align-items:center; justify-content:center; padding:20px;
+  background:rgba(10,4,7,.62);
+  -webkit-backdrop-filter:blur(14px) saturate(140%); backdrop-filter:blur(14px) saturate(140%);
+  opacity:0; transition:opacity .24s ease;
+}
+.fac-emit-ov.visible { opacity:1; }
+.fac-emit-box {
+  width:100%; max-width:520px; max-height:90vh; overflow:hidden; display:flex; flex-direction:column;
+  border-radius:26px; background:rgba(38,18,24,.82); border:1px solid rgba(255,255,255,.14);
+  box-shadow:0 24px 70px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.22);
+  -webkit-backdrop-filter:blur(34px) saturate(180%); backdrop-filter:blur(34px) saturate(180%);
+  transform:translateY(16px) scale(.97); opacity:0;
+  transition:transform .34s cubic-bezier(.34,1.56,.64,1), opacity .26s;
+}
+.fac-emit-ov.visible .fac-emit-box { transform:none; opacity:1; }
+.fac-emit-head { display:flex; align-items:center; gap:10px; padding:18px 20px 12px; }
+.fac-emit-title { font-size:18px; font-weight:800; letter-spacing:-.3px; }
+.fac-emit-sub { font-size:11px; color:var(--text-muted); margin-top:1px; }
+.fac-emit-x {
+  width:34px; height:34px; border-radius:50%; flex:0 0 auto;
+  border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.06); color:var(--text-muted);
+  font-size:20px; line-height:1; cursor:pointer; -webkit-tap-highlight-color:transparent;
+  transition:transform .15s, background .15s, color .15s;
+}
+.fac-emit-x:hover { background:rgba(255,255,255,.12); color:var(--text); }
+.fac-emit-x:active { transform:scale(.9); }
+.fac-emit-box-inner { overflow-y:auto; padding:4px 20px 22px; -webkit-overflow-scrolling:touch; }
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .fac-emit-ov { background:rgba(10,4,7,.92); }
+  .fac-emit-box { background:rgba(40,18,24,.98); }
+}
+@media(max-width:600px){ .fac-emit-box { max-height:94vh; border-radius:22px; } .fac-emit-box-inner { padding:4px 16px 20px; } }
 
 /* ── Separator ──────────────────────────────────────────── */
 .sep { height: 1px; background: var(--border); margin: 16px 0; opacity: 0.5; }
@@ -4695,7 +4776,9 @@ function _facInitState(ses, servicios, muelleOn, facCfg) {
     items: [], resultado: null, shake: false, svcEdit: null, solicitudes: [], cargandoAnul: false,
     tributos: null, cargandoTrib: true, _tribPeriodoLoaded: null, periodoTrib: (_tribPeriodos()[0] || {}).p || '', compraEdit: {}, concilia: [], cargandoConcilia: false,
     tribSub: 'balanza', renta: null, cargandoRenta: false, anioTrib: new Date().getFullYear(),
-    compras: [], cargandoCompras: false, ia: null };
+    compras: [], cargandoCompras: false, ia: null,
+    // Fase 1: carrusel de meses (multi-select en historial) + semáforo por mes (balanza) + modal Emitir
+    histMeses: [(_tribPeriodos()[0] || {}).p].filter(Boolean), _balMes: {}, _emitOpen: false };
 }
 async function _facCargarBase() {
   let servicios = [], muelleOn = false, facCfg = {};
@@ -4725,11 +4808,12 @@ async function _facEnsureState(el) {
 function _facPaint(el) {
   if (!el || !_facState) return;
   _facMode = 'module'; _facTargetEl = el;
-  // El módulo ya no tiene tab 'inicio' (la balanza vive fija a la izquierda). Default = Emitir.
-  if (_facState.tab === 'inicio' || !_FAC_MOD_TAB_IDS.includes(_facState.tab)) _facState.tab = 'emitir';
+  // El módulo ya no tiene tab 'inicio' ni 'emitir' (la balanza vive fija a la izquierda; Emitir es botón→modal). Default = Historial.
+  if (_facState.tab === 'inicio' || !_FAC_MOD_TAB_IDS.includes(_facState.tab)) _facState.tab = 'historial';
   _facRender();          // shell persistente (balanza izq + tabbar/slot der)
   _facLoadTrib();        // balanza con count-up (cache por período; no re-pide si ya está)
   _facLoadAnul();        // badge de solicitudes
+  if (_facState.tab === 'historial') _facLoadHist();   // vista por defecto = historial
 }
 window._facMountModule = async function (el) {
   if (!el) return;
@@ -5114,14 +5198,25 @@ function _facSectionBody(S) {
         <button onclick="_facAlinear('${s}')" style="flex:0 0 auto;padding:7px 12px;border-radius:9px;border:1px solid var(--gold);background:rgba(201,168,76,0.14);color:var(--gold);font-weight:800;font-size:12px;cursor:pointer">Fijar</button>
       </div>`).join('') || '<div style="font-size:11px;color:var(--text-muted)">Sin series.</div>'}`;
   } else if (S.tab === 'historial') {
-    body = `<div style="font-size:11px;font-weight:800;color:var(--gold);margin-bottom:8px">COMPROBANTES EMITIDOS</div>` +
+    const sel = S.histMeses || [];
+    const list = !sel.length ? S.comprobantes : S.comprobantes.filter(c => { const p = _facCompPeriodo(c); return !p || sel.includes(p); });
+    const header = `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">
+        <div style="font-size:11px;font-weight:800;color:var(--gold);letter-spacing:.04em">COMPROBANTES EMITIDOS</div>
+        <div style="font-size:10px;color:var(--text-muted)">${list.length} en ${sel.length || _tribPeriodos().length} mes${(sel.length || _tribPeriodos().length) === 1 ? '' : 'es'}</div>
+      </div>
+      <div style="font-size:10px;color:var(--text-muted);margin-bottom:6px">Toca uno o varios meses:</div>
+      ${_facCarouselHTML('hist', _facHistChips(S))}`;
+    body = header +
       (S.cargandoHist ? '<div style="text-align:center;padding:24px"><div class="spin" style="display:inline-block"></div></div>' :
-       (S.comprobantes.length ? `<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">${S.comprobantes.map(c=>{const real=/^https?:\/\//.test(String(c.enlace_pdf||''));const anu=c.estado==='anulada';return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 10px;border-bottom:1px solid var(--border);${anu?'opacity:.55':''}">
-          <div style="min-width:0;flex:1"><div style="font-weight:700;font-size:12px;${anu?'text-decoration:line-through':''}">${c.serie}-${String(c.numero).padStart(6,'0')} · ${_facEsc(c.cliente_nombre||'')}</div><div style="font-size:10px;color:var(--text-muted);display:flex;align-items:center;gap:6px;margin-top:2px">${c.creado} ${_facChipEstado(c)}</div></div>
-          <span style="font-weight:800;font-size:12px;color:var(--gold)">S/ ${(c.total||0)}</span>
-          ${real?`<a href="${_facEsc(c.enlace_pdf)}" target="_blank" rel="noopener" onclick="sndTap()" title="PDF" style="text-decoration:none;font-size:14px">📄</a>`:''}
-          ${anu?'':`<button onclick="_facAnular('${c.id}')" title="Anular" style="cursor:pointer;${S.anularId===c.id?'color:#fff;background:#f87171;border:none;border-radius:7px;padding:3px 8px;font-size:10px;font-weight:800':'color:#f87171;background:none;border:none;font-size:13px'}">${S.anularId===c.id?'¿Anular?':'⊘'}</button>`}</div>`}).join('')}</div>` :
-        '<div style="padding:18px;text-align:center;color:var(--text-muted);font-size:12px">Aún no hay comprobantes.</div>'));
+       (list.length ? `<div style="border:1px solid var(--border);border-radius:14px;overflow:hidden">${list.map(c=>{const real=/^https?:\/\//.test(String(c.enlace_pdf||''));const anu=c.estado==='anulada';return `<div style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-bottom:1px solid var(--border);${anu?'opacity:.55':''}">
+          <div style="min-width:0;flex:1">
+            <div style="font-weight:800;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${anu?'text-decoration:line-through':''}">${_facEsc(c.cliente_nombre||'Sin nombre')}</div>
+            <div style="font-size:10px;color:var(--text-muted);display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap">${c.serie}-${String(c.numero).padStart(6,'0')} · ${_facEsc(String(c.creado||''))} ${_facChipEstado(c)}</div>
+          </div>
+          <span style="font-weight:800;font-size:13px;color:var(--gold);white-space:nowrap">S/ ${(c.total||0)}</span>
+          ${real?`<a href="${_facEsc(c.enlace_pdf)}" target="_blank" rel="noopener" onclick="sndTap()" title="PDF" style="text-decoration:none;font-size:16px">📄</a>`:''}
+          ${anu?'':`<button onclick="_facAnular('${c.id}')" title="Anular" style="cursor:pointer;flex:0 0 auto;${S.anularId===c.id?'color:#fff;background:#f87171;border:none;border-radius:7px;padding:3px 8px;font-size:10px;font-weight:800':'color:#f87171;background:none;border:none;font-size:14px'}">${S.anularId===c.id?'¿Anular?':'⊘'}</button>`}</div>`}).join('')}</div>` :
+        '<div style="padding:18px;text-align:center;color:var(--text-muted);font-size:12px">Sin comprobantes en los meses elegidos.</div>'));
   } else if (S.tab === 'anulaciones') {
     body = `<div style="font-size:11px;font-weight:800;color:var(--gold);margin-bottom:8px">SOLICITUDES DE ANULACIÓN</div>
       <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;line-height:1.5">Los operadores del muelle piden anular desde su historial. Tú revisas el motivo y apruebas (recién ahí se anula en SUNAT) o rechazas.</div>` +
@@ -5168,9 +5263,9 @@ function _facSectionBody(S) {
 }
 
 // ═══ MÓDULO (full-page): shell PERSISTENTE = balanza fina fija (izq) + tabbar/slot (der) ═══
+// Fase 1: 'emitir' pasó a botón→modal; 'subir'/'compras' se retiran del tabbar (Fase 2 van a la izquierda).
 const _FAC_MOD_TABS = [
-  ['emitir', '🧾', 'Emitir'], ['subir', '📸', 'Subir'], ['historial', '📜', 'Historial'],
-  ['compras', '🧾', 'Compras'], ['renta', '📈', 'Renta'], ['conciliacion', '⚖', 'Conciliar'],
+  ['historial', '📜', 'Historial'], ['renta', '📈', 'Renta'], ['conciliacion', '⚖', 'Conciliar'],
   ['servicios', '🏷', 'Servicios'], ['ajustes', '⚙', 'Ajustes'], ['anulaciones', '⊘', 'Anular']
 ];
 const _FAC_MOD_TAB_IDS = _FAC_MOD_TABS.map(t => t[0]);
@@ -5228,7 +5323,7 @@ function _facMoveTabInd(bar, instant) {
 if (!window._facTabIndResize) { window._facTabIndResize = true; window.addEventListener('resize', () => { if (_facMode === 'module' && _facState) _facMoveTabInd(null, true); }); }
 // BALANZA FINA (estilo C): viga delgada gradiente rojo→dorado→verde que rota según ratio, poste dorado, 2 puntos.
 function _facBalanzaFinaHTML(S) {
-  const chips = `<div class="facb-chips">${_tribPeriodChips(S)}</div>`;
+  const chips = _facCarouselHTML('bal', _facBalChips(S));
   if (S.cargandoTrib) return `${chips}<div style="text-align:center;padding:56px 0"><div class="spin" style="display:inline-block"></div></div>`;
   const t = S.tributos || {};
   const deb = Number(t.igv_debito) || 0, cre = Number(t.igv_credito) || 0, tot = deb + cre;
@@ -5270,6 +5365,7 @@ function _facAfterBalanza(panel) {
     const bar = panel.querySelector('#facb-bar'); if (bar) bar.style.transform = 'rotate(' + ang.toFixed(2) + 'deg)';
     setTimeout(() => { try { haptic(6); } catch (e) {} }, 520);   // "asentar" al terminar la inclinación
   });
+  _facLoadBalMeses();   // semáforo por chip (lazy-fetch + cache por mes)
 }
 // Swap del slot (sección activa) dentro de un contenedor: fade + re-bind + refresca tabbar. NO toca la balanza.
 function _facSwapSlot(ov) {
@@ -5294,6 +5390,7 @@ function _facBuildShellInto(ov) {
     <div class="fac-mod-cols2">
       <div class="fac-mod-l" id="fac-balanza-panel"></div>
       <div class="fac-mod-r">
+        <button class="fac-emit-cta" onclick="_facOpenEmit()"><span style="font-size:17px;line-height:1">＋</span> Emitir CPE</button>
         <div class="fac-tabbar" id="fac-tabbar"><span class="fac-tab-ind" id="fac-tab-ind"></span>${_facTabbarHTML(S)}</div>
         <div class="fac-slot" id="fac-slot"></div>
       </div>
@@ -5314,8 +5411,126 @@ function _facRenderModuleShell() {
     }
   });
 }
+// ═══ FASE 1 · Carrusel de meses reusable (flechas + swipe táctil) ═══
+// Carril horizontal sin scrollbar; el swipe es scroll nativo (touch), las flechas mueven ±70% del ancho.
+function _facCarouselHTML(id, chipsHTML) {
+  return `<div class="fac-car" data-car="${id}">
+    <button class="fac-car-arw l" onclick="_facCarScroll(this,-1)" aria-label="Meses anteriores" tabindex="-1">‹</button>
+    <div class="fac-car-track">${chipsHTML}</div>
+    <button class="fac-car-arw r" onclick="_facCarScroll(this,1)" aria-label="Meses siguientes" tabindex="-1">›</button>
+  </div>`;
+}
+// Scroll relativo al carril del botón (robusto para multi-instancia portrait+landscape).
+window._facCarScroll = function (btn, dir) {
+  const car = btn && btn.closest('.fac-car'); if (!car) return;
+  const t = car.querySelector('.fac-car-track'); if (!t) return;
+  const amt = Math.max(120, Math.round(t.clientWidth * 0.7));
+  try { t.scrollBy({ left: dir * amt, behavior: 'smooth' }); } catch (e) { t.scrollLeft += dir * amt; }
+  try { sndTap(); haptic(6); } catch (e) {}
+};
+// ── Chips de la BALANZA (izq): single-select + semáforo (verde a favor / rojo debes / neutro sin datos) ──
+function _facSemColor(bal) { if (!bal || (!bal.deb && !bal.cre)) return null; return bal.cre >= bal.deb ? 'ok' : 'bad'; }
+function _facBalChips(S) {
+  return _tribPeriodos().map(o => {
+    const on = S.periodoTrib === o.p; const sem = _facSemColor((S._balMes || {})[o.p]);
+    const cls = 'fac-chip' + (on ? ' on' : '') + (sem === 'ok' ? ' sem-ok' : (sem === 'bad' ? ' sem-bad' : ''));
+    return `<button class="${cls}" data-p="${o.p}" onclick="_tribSetPeriodo('${o.p}')"><span class="fac-chip-dot"></span>${o.label}</button>`;
+  }).join('');
+}
+// Repinta el semáforo de un chip (todas las instancias) sin re-render completo.
+function _facPaintChipSem(p) {
+  const sem = _facSemColor((_facState._balMes || {})[p]);
+  _facRenderRoots().forEach(ov => ov.querySelectorAll('.fac-chip[data-p="' + p + '"]').forEach(el => {
+    if (el.closest('.fac-car') && el.querySelector('.fac-chip-dot')) {
+      el.classList.remove('sem-ok', 'sem-bad');
+      if (sem === 'ok') el.classList.add('sem-ok'); else if (sem === 'bad') el.classList.add('sem-bad');
+    }
+  }));
+}
+// Lazy-fetch del balance de cada mes visible (1 request/mes, cacheado). Colorea cuando llega.
+async function _facLoadBalMeses() {
+  if (_facMode !== 'module') return;
+  const S = _facState; if (!S) return; S._balMes = S._balMes || {};
+  // Sembrar el mes activo con el balance ya cargado (cero request extra).
+  if (S.tributos && S._tribPeriodoLoaded) { const t = S.tributos; S._balMes[S._tribPeriodoLoaded] = { deb: Number(t.igv_debito) || 0, cre: Number(t.igv_credito) || 0 }; _facPaintChipSem(S._tribPeriodoLoaded); }
+  if (S._balMesRunning) return; S._balMesRunning = true;
+  try {
+    for (const o of _tribPeriodos()) {
+      const p = o.p;
+      if (S._balMes[p]) { _facPaintChipSem(p); continue; }
+      try { const r = await apiGet('balance_tributos', { periodo: p }); const t = (r.ok && r.data) || {}; S._balMes[p] = { deb: Number(t.igv_debito) || 0, cre: Number(t.igv_credito) || 0 }; }
+      catch (e) { S._balMes[p] = { deb: 0, cre: 0 }; }
+      _facPaintChipSem(p);
+    }
+  } finally { S._balMesRunning = false; }
+}
+// ── Chips del HISTORIAL (der): multi-select (por defecto el mes actual) ──
+function _facHistChips(S) {
+  const sel = S.histMeses || [];
+  return _tribPeriodos().map(o => `<button class="fac-chip${sel.includes(o.p) ? ' on' : ''}" data-p="${o.p}" onclick="_facToggleHistMes('${o.p}')">${o.label}</button>`).join('');
+}
+window._facToggleHistMes = function (p) {
+  const S = _facState; if (!S) return; try { sndTap(); haptic(8); } catch (e) {}
+  S.histMeses = S.histMeses || [];
+  const i = S.histMeses.indexOf(p);
+  if (i >= 0) { if (S.histMeses.length > 1) S.histMeses.splice(i, 1); }   // deja siempre ≥1 seleccionado
+  else S.histMeses.push(p);
+  if (_facMode === 'module') _facRenderSlot(); else _facRender();
+};
+// Deriva el período YYYY-MM de un comprobante (para filtrar por meses seleccionados). Si no se puede, no lo oculta.
+function _facCompPeriodo(c) {
+  const raw = String((c && (c.periodo || c.fecha || c.creado)) || '');
+  let m = raw.match(/(\d{4})-(\d{2})/); if (m) return m[1] + '-' + m[2];
+  m = raw.match(/(\d{2})\/(\d{2})\/(\d{4})/); if (m) return m[3] + '-' + m[2];
+  return null;
+}
+// ═══ FASE 1 · MODAL flotante "Emitir CPE" (reusa el form de la sección 'emitir') ═══
+window._facOpenEmit = function () {
+  const S = _facState; if (!S) return; try { sndTap(); haptic(10); } catch (e) {}
+  // Form fresco en cada apertura.
+  S.resultado = null; S.facModo = 'boleta'; S.tipo = 2; S.exportacion = false; S.esExtranjero = false;
+  S.docTipo = '1'; S.doc = ''; S.nombre = ''; S.email = ''; S.tel = ''; S.dir = ''; S.items = []; S.medioPago = ''; S.lookupState = 'idle';
+  S._emitOpen = true;
+  let ov = document.getElementById('fac-emit-modal');
+  if (!ov) { ov = document.createElement('div'); ov.id = 'fac-emit-modal'; ov.className = 'fac-emit-ov'; document.body.appendChild(ov); ov.addEventListener('click', e => { if (e.target === ov) _facCloseEmit(); }); }
+  ov.innerHTML = `<div class="fac-emit-box" role="dialog" aria-modal="true">
+    <div class="fac-emit-head">
+      <div style="font-size:22px">🧾</div>
+      <div style="flex:1;min-width:0"><div class="fac-emit-title">Emitir CPE</div><div class="fac-emit-sub">Boleta · Factura · Exportación — NubeFact</div></div>
+      <button class="fac-emit-x" onclick="_facCloseEmit()" aria-label="Cerrar">×</button>
+    </div>
+    <div class="fac-emit-box-inner"></div>
+  </div>`;
+  ov.style.display = 'flex';
+  _facRenderEmit();
+  requestAnimationFrame(() => ov.classList.add('visible'));
+};
+window._facCloseEmit = function () {
+  const S = _facState; if (S) S._emitOpen = false;
+  const ov = document.getElementById('fac-emit-modal');
+  if (ov) { ov.classList.remove('visible'); setTimeout(() => { if (!(_facState && _facState._emitOpen) && ov.parentNode) ov.remove(); }, 260); }
+  try { haptic(8); } catch (e) {}
+  if (_facMode === 'module' && _facState) {
+    _facRenderModuleShell();
+    if (_facState.tab === 'historial') _facLoadHist();   // refresca el historial por si emitió
+    _facState._balMes = {}; _facLoadTrib(true);           // el IGV cambió: refresca balanza + semáforos
+  }
+};
+// Pinta/re-pinta el cuerpo del modal Emitir (contexto tab='emitir' aislado del tab persistente del módulo).
+function _facRenderEmit() {
+  const box = document.querySelector('#fac-emit-modal .fac-emit-box-inner'); if (!box || !_facState) return;
+  const S = _facState; const prev = S.tab; S.tab = 'emitir';
+  box.innerHTML = _facSectionBody(S);
+  _facBindSlot(box);
+  S.tab = prev;
+}
 function _facRender() {
-  if (_facMode === 'module') { if (_facState) _facRenderModuleShell(); return; }
+  if (_facMode === 'module') {
+    if (!_facState) return;
+    if (_facState._emitOpen) { _facRenderEmit(); }   // modal Emitir abierto: refresca SOLO el modal (no toca balanza/slot detrás)
+    else _facRenderModuleShell();
+    return;
+  }
   const ov = _facRoot(); if (!ov || !_facState) return;
   // ── MODAL (legacy · muelle): caja con header + hub balanza + secciones ──
   const S = _facState;
@@ -5353,7 +5568,7 @@ function _facBindSlot(ov) {
       if (g) g.textContent = 'S/ ' + (_facState.exportacion ? t.total : t.grav).toFixed(2); if (ig) ig.textContent = 'S/ ' + t.igv.toFixed(2); if (tt) tt.textContent = 'S/ ' + t.total.toFixed(2);
     };
     // al salir del campo, re-render de la sección para refrescar semáforo/medio-pago si cruzó S/700 o S/2000
-    el.onchange = () => { if (_facState.tab === 'emitir' && !_facState.resultado) _facRender(); };
+    el.onchange = () => { if ((_facState.tab === 'emitir' || _facState._emitOpen) && !_facState.resultado) _facRender(); };
   });
   const sn = ov.querySelector('#svc-nombre'); if (sn) sn.oninput = e => { _facState.svcEdit = Object.assign({}, _facState.svcEdit, { nombre: e.target.value }); };
   const sp = ov.querySelector('#svc-precio'); if (sp) sp.oninput = e => { _facState.svcEdit = Object.assign({}, _facState.svcEdit, { precio: e.target.value }); };
@@ -8078,7 +8293,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.22.0';
+const APP_VERSION = '1.23.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
