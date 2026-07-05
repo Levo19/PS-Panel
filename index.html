@@ -6241,14 +6241,14 @@ window._facVerFotoLB = async function (path) {
   let ov = document.getElementById('fac-lb-modal');
   if (!ov) { ov = document.createElement('div'); ov.id = 'fac-lb-modal'; ov.className = 'fac-lb-ov'; document.body.appendChild(ov); ov.addEventListener('click', e => { if (e.target === ov || (e.target.classList && e.target.classList.contains('fac-lb-x'))) _facCerrarLB(); }); }
   ov.innerHTML = `<button class="fac-lb-x" aria-label="Cerrar">×</button><div class="fac-lb-spin"><div class="spin" style="display:inline-block"></div> abriendo…</div>`;
-  ov.style.display = 'flex'; requestAnimationFrame(() => ov.classList.add('visible'));
+  ov.dataset.closing = ''; ov.style.display = 'flex'; requestAnimationFrame(() => ov.classList.add('visible'));
   try {
     const { data, error } = await sbClient.storage.from('compras-fotos').createSignedUrl(path, 3600);
     if (error || !data || !data.signedUrl) throw new Error('no foto');
     if (document.getElementById('fac-lb-modal') === ov && ov.style.display !== 'none') ov.innerHTML = `<button class="fac-lb-x" aria-label="Cerrar">×</button><img src="${data.signedUrl}" class="fac-lb-img" alt="Factura de compra">`;
   } catch (e) { ov.innerHTML = `<button class="fac-lb-x" aria-label="Cerrar">×</button><div class="fac-lb-spin">No se pudo abrir la foto</div>`; }
 };
-window._facCerrarLB = function () { const ov = document.getElementById('fac-lb-modal'); if (ov) { ov.classList.remove('visible'); setTimeout(() => { if (ov.parentNode) ov.remove(); }, 260); } try { haptic(6); } catch (e) {} };
+window._facCerrarLB = function () { const ov = document.getElementById('fac-lb-modal'); if (ov) { ov.dataset.closing = '1'; ov.classList.remove('visible'); setTimeout(() => { if (ov.dataset.closing === '1' && ov.parentNode) ov.remove(); }, 260); } try { haptic(6); } catch (e) {} };
 
 // ── Re-leer OCR de una compra (✗) — MISMO id, no crea fila ──
 window._facReleerCompra = async function (id) {
@@ -6292,6 +6292,7 @@ window._facAbrirSubir = function () {
     </div>
     <div class="fac-subir-inner"></div>
   </div>`;
+  ov.dataset.closing = '';   // P2.2: cancela un remove pendiente si se reabre rápido
   ov.style.display = 'flex';
   _facRenderSubir();
   requestAnimationFrame(() => ov.classList.add('visible'));
@@ -6300,7 +6301,7 @@ window._facCerrarSubir = function () {
   const S = _facState; const ov = document.getElementById('fac-subir-modal');
   try { if (S && S._subirTimer) { clearInterval(S._subirTimer); S._subirTimer = null; } if (S && S.subir && S.subir.previewUrl) URL.revokeObjectURL(S.subir.previewUrl); } catch (e) {}
   if (S) S.subir = null;
-  if (ov) { ov.classList.remove('visible'); setTimeout(() => { if (ov.parentNode) ov.remove(); }, 300); }
+  if (ov) { ov.dataset.closing = '1'; ov.classList.remove('visible'); setTimeout(() => { if (ov.dataset.closing === '1' && ov.parentNode) ov.remove(); }, 300); }
   try { haptic(8); } catch (e) {}
 };
 window._facSubirReset = function () {
@@ -6391,9 +6392,8 @@ async function _facSubirProcess(file) {
   if (S.subir !== st) return;   // el usuario cerró/reinició
   // 2) crear fila mínima (foto → pendiente)
   st.phase = 'creating'; st.progress = Math.max(st.progress, 26); _facRenderSubir();
-  let signedUrl = '';
-  try { if (st.path) { const { data } = await sbClient.storage.from('compras-fotos').createSignedUrl(st.path, 3600); signedUrl = (data && data.signedUrl) || ''; } } catch (e) {}
-  const rc = await apiPost({ accion: 'crear_compra_foto', periodo: perView, foto_path: st.path || null, foto_url: signedUrl || null });
+  // P2.4: NO persistir signed URL (expira en 1h → link muerto en BD); guardamos solo foto_path y re-firmamos on-demand.
+  const rc = await apiPost({ accion: 'crear_compra_foto', periodo: perView, foto_path: st.path || null, foto_url: null });
   if (S.subir !== st) return;
   if (!rc.ok || !rc.data || !rc.data.id) { st.phase = 'fallo'; st.error = (rc.error || 'No se pudo guardar la compra').replace(/^.*?:\s*/, ''); sndDown(); _facRenderSubir(); return; }
   st.id = rc.data.id;
@@ -8726,7 +8726,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.24.0';
+const APP_VERSION = '1.24.1';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
