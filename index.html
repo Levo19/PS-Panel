@@ -4995,6 +4995,7 @@ async function _facAnular(id) {
 }
 async function _facEmitir() {
   const S = _facState; const tot = _facTotales();
+  if (S._emitiendo) return;   // P1: emisión en vuelo — flag de ESTADO (sobrevive al re-render; el disabled del DOM no) → evita CPE duplicado
   if (!S.nombre.trim()) return _facErr('Falta el nombre / razón social');
   if (S.docTipo !== '0' && !S.doc.trim()) return _facErr('Falta el número de documento');
   if (!S.items.length || tot.total <= 0) return _facErr('Agrega al menos un servicio con monto');
@@ -5003,19 +5004,28 @@ async function _facEmitir() {
   const faltan = _facReglas().filter(r => r.hard && !r.ok);
   if (faltan.length) return _facErr('Requisito SUNAT: ' + faltan[0].label);
   const btn = document.getElementById('fac-emitir'); if (btn) { btn.disabled = true; btn.textContent = 'Emitiendo…'; }
-  const r = await apiPost({ accion: 'emitir_comprobante', tipo: S.tipo, serie: _facSerie(),
-    cliente_doc_tipo: S.docTipo, cliente_doc: S.docTipo === '0' ? '' : S.doc.trim(), cliente_nombre: S.nombre.trim(),
-    cliente_email: S.email.trim(), cliente_tel: S.tel.trim(), cliente_dir: S.dir.trim(), es_extranjero: S.esExtranjero,
-    items: S.items.map(i => ({ descripcion: i.descripcion, cantidad: parseFloat(i.cantidad) || 0, precio: parseFloat(i.precio) || 0 })),
-    exportacion: !!S.exportacion, medio_pago: S.medioPago || null,
-    moneda: 'PEN', operador: (S.ses && S.ses.nombre) || 'PS',
-    localId: 'fac-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) });
+  // P1: localId ESTABLE por apertura del modal → un doble-click manda el MISMO local_id y el backend dedupea (no duplica CPE).
+  if (!S._emitLocalId) S._emitLocalId = 'fac-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+  S._emitiendo = true;
+  let r;
+  try {
+    r = await apiPost({ accion: 'emitir_comprobante', tipo: S.tipo, serie: _facSerie(),
+      cliente_doc_tipo: S.docTipo, cliente_doc: S.docTipo === '0' ? '' : S.doc.trim(), cliente_nombre: S.nombre.trim(),
+      cliente_email: S.email.trim(), cliente_tel: S.tel.trim(), cliente_dir: S.dir.trim(), es_extranjero: S.esExtranjero,
+      items: S.items.map(i => ({ descripcion: i.descripcion, cantidad: parseFloat(i.cantidad) || 0, precio: parseFloat(i.precio) || 0 })),
+      exportacion: !!S.exportacion, medio_pago: S.medioPago || null,
+      moneda: 'PEN', operador: (S.ses && S.ses.nombre) || 'PS',
+      localId: S._emitLocalId });
+  } finally { S._emitiendo = false; }
   if (r.ok && r.data) {
     sndOk(); haptic([15, 40, 15]);
+    S._emitLocalId = null;   // consumido → el próximo comprobante genera un localId nuevo
+    S._emitioAlgo = true;    // cerrar el modal refresca balanza/historial SOLO si de verdad emitió
     S.resultado = Object.assign({}, r.data, { _tel: S.tel.trim(), _email: S.email.trim(), _nombre: S.nombre.trim() });
     S.items = []; S.doc = ''; S.nombre = ''; S.email = ''; S.tel = ''; S.dir = ''; S.medioPago = ''; S.lookupState = 'idle';
     _facRender();
   } else { _facErr((r.error || 'No se pudo emitir').replace(/^.*?:\s*/, '')); if (btn) { btn.disabled = false; btn.textContent = '🧾 Emitir comprobante'; } }
+  // en error se CONSERVA S._emitLocalId → un reintento del mismo comprobante dedupea si el 1er intento llegó al server
 }
 async function _facLoadHist() {
   _facState.cargandoHist = true; _facRender();
@@ -5479,7 +5489,7 @@ window._facToggleHistMes = function (p) {
 };
 // Deriva el período YYYY-MM de un comprobante (para filtrar por meses seleccionados). Si no se puede, no lo oculta.
 function _facCompPeriodo(c) {
-  const raw = String((c && (c.periodo || c.fecha || c.creado)) || '');
+  const raw = String((c && (c.periodo || c.creado_at || c.fecha || c.creado)) || '');
   let m = raw.match(/(\d{4})-(\d{2})/); if (m) return m[1] + '-' + m[2];
   m = raw.match(/(\d{2})\/(\d{2})\/(\d{4})/); if (m) return m[3] + '-' + m[2];
   return null;
@@ -5491,6 +5501,8 @@ window._facOpenEmit = function () {
   S.resultado = null; S.facModo = 'boleta'; S.tipo = 2; S.exportacion = false; S.esExtranjero = false;
   S.docTipo = '1'; S.doc = ''; S.nombre = ''; S.email = ''; S.tel = ''; S.dir = ''; S.items = []; S.medioPago = ''; S.lookupState = 'idle';
   S._emitOpen = true;
+  S._emitLocalId = 'fac-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);   // P1: un localId por apertura
+  S._emitiendo = false; S._emitioAlgo = false;
   let ov = document.getElementById('fac-emit-modal');
   if (!ov) { ov = document.createElement('div'); ov.id = 'fac-emit-modal'; ov.className = 'fac-emit-ov'; document.body.appendChild(ov); ov.addEventListener('click', e => { if (e.target === ov) _facCloseEmit(); }); }
   ov.innerHTML = `<div class="fac-emit-box" role="dialog" aria-modal="true">
@@ -5512,8 +5524,11 @@ window._facCloseEmit = function () {
   try { haptic(8); } catch (e) {}
   if (_facMode === 'module' && _facState) {
     _facRenderModuleShell();
-    if (_facState.tab === 'historial') _facLoadHist();   // refresca el historial por si emitió
-    _facState._balMes = {}; _facLoadTrib(true);           // el IGV cambió: refresca balanza + semáforos
+    if (_facState._emitioAlgo) {   // P2.1: solo refresca si de verdad emitió → evita ~5 requests y tirar la caché del semáforo al cancelar
+      _facState._emitioAlgo = false;
+      if (_facState.tab === 'historial') _facLoadHist();
+      _facState._balMes = {}; _facLoadTrib(true);   // el IGV cambió: refresca balanza + semáforos
+    }
   }
 };
 // Pinta/re-pinta el cuerpo del modal Emitir (contexto tab='emitir' aislado del tab persistente del módulo).
@@ -8293,7 +8308,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.23.0';
+const APP_VERSION = '1.23.1';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
