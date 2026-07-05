@@ -1057,6 +1057,10 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 }
 .fac-mod-l > * { position:relative; z-index:1; }
 .fac-mod-r { min-width:0; }
+/* Acciones bajo la balanza (columna izq): Emitir CPE + switch muelle, separados por un hairline */
+.fac-l-actions { margin-top:18px; padding-top:18px; border-top:1px solid rgba(255,255,255,.10); }
+.fac-l-actions .fac-emit-cta { margin-bottom:12px; }
+.fac-l-actions #fac-muelle-row > div { margin-bottom:0 !important; }
 /* Entrada coreografiada (stagger spring): balanza → tabbar → contenido */
 @keyframes facRise { from{opacity:0; transform:translateY(16px) scale(.98);} to{opacity:1; transform:none;} }
 /* ── Tabbar = segmented control iOS con lozenge deslizante ── */
@@ -5669,20 +5673,6 @@ function _facSectionBody(S) {
       </div>` : ''; })()}
       <button id="fac-emitir" onclick="_facEmitir()" class="btn-primary" ${_facReglasOk()?'':'disabled'} style="width:100%;padding:13px;font-size:14px;font-weight:800;${_facReglasOk()?'':'opacity:.5;cursor:not-allowed'}">${_facReglasOk()?'🧾 Emitir comprobante':'⛔ Faltan requisitos SUNAT'}</button>`;
     }
-  } else if (S.tab === 'servicios') {
-    const e = S.svcEdit;
-    body = `<div style="font-size:11px;font-weight:800;color:var(--gold);margin-bottom:6px">CATÁLOGO DE SERVICIOS</div>
-      <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:12px">
-        ${S.servicios.length ? S.servicios.map(s=>`<div style="display:flex;align-items:center;gap:8px;padding:9px 10px;border-bottom:1px solid var(--border)">
-          <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:13px">${_facEsc(s.nombre)}</div><div style="font-size:10px;color:var(--text-muted)">S/ ${s.precio} · ${s.unidad}</div></div>
-          <button onclick='_facState.svcEdit=${JSON.stringify(s).replace(/'/g,"&#39;")};_facRender()' style="color:var(--gold);background:none;border:none;font-size:13px;cursor:pointer">✎</button>
-          <button onclick="_facDelServicio('${s.id}')" style="color:#f87171;background:none;border:none;font-size:13px;cursor:pointer">🗑</button>
-        </div>`).join('') : '<div style="padding:12px;text-align:center;color:var(--text-muted);font-size:12px">Sin servicios. Agrega el primero.</div>'}
-      </div>
-      <div style="font-size:11px;font-weight:800;color:var(--gold);margin-bottom:6px">${e&&e.id?'EDITAR':'NUEVO'} SERVICIO</div>
-      <input id="svc-nombre" class="config-input" style="margin-bottom:8px" placeholder="Nombre (ej. Tour Islas Ballestas)" value="${_facEsc(e?e.nombre:'')}">
-      <div style="display:flex;gap:8px"><input id="svc-precio" type="number" inputmode="decimal" class="config-input" style="flex:1" placeholder="Precio S/" value="${e?(e.precio||''):''}">
-      <button onclick="_facGuardarServicio()" class="btn-primary" style="flex:0 0 auto;padding:0 20px;font-weight:800">${e&&e.id?'Guardar':'Agregar'}</button></div>`;
   } else if (S.tab === 'ajustes') {
     const cf = S.facCfg || {};
     const chip = (ok, txt) => `<span style="font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px;background:${ok?'rgba(74,222,128,0.15)':'rgba(248,113,113,0.12)'};color:${ok?'#4ade80':'#f87171'}">${ok?'✓ ':'○ '}${txt}</span>`;
@@ -5794,8 +5784,7 @@ function _facSectionBody(S) {
 // ═══ MÓDULO (full-page): shell PERSISTENTE = balanza fina fija (izq) + tabbar/slot (der) ═══
 // Fase 1: 'emitir' pasó a botón→modal; 'subir'/'compras' se retiran del tabbar (Fase 2 van a la izquierda).
 const _FAC_MOD_TABS = [
-  ['historial', '📜', 'Historial'],
-  ['servicios', '🏷', 'Servicios']
+  ['historial', '📜', 'Historial']
 ];
 const _FAC_MOD_TAB_IDS = _FAC_MOD_TABS.map(t => t[0]);
 function _facTabbarHTML(S) {
@@ -5925,7 +5914,6 @@ function _facSwapSlot(ov) {
   slot.innerHTML = _facSectionBody(_facState);
   slot.classList.remove('fac-slot-anim'); void slot.offsetWidth; slot.classList.add('fac-slot-anim');
   _facBindSlot(ov);
-  _facSyncTabbar(ov.querySelector('#fac-tabbar'));
 }
 // Re-pinta SOLO el panel izquierdo (balanza) en TODAS las instancias. Al cargar tributos / cambiar mes / registrar compra.
 function _facRenderBalanza() {
@@ -5941,18 +5929,20 @@ function _facBuildShellInto(ov) {
     <div class="fac-mesh" aria-hidden="true"></div>
     <div class="fac-anul-alert-wrap" id="fac-anul-alert"></div>
     <div class="fac-mod-cols2">
-      <div class="fac-mod-l" id="fac-balanza-panel"></div>
+      <div class="fac-mod-l">
+        <div id="fac-balanza-panel"></div>
+        <div class="fac-l-actions">
+          <button class="fac-emit-cta" onclick="_facOpenEmit()"><span style="font-size:17px;line-height:1">＋</span> Emitir CPE</button>
+          <div id="fac-muelle-row">${_facMuelleSwitchHTML(S)}</div>
+        </div>
+      </div>
       <div class="fac-mod-r">
-        <button class="fac-emit-cta" onclick="_facOpenEmit()"><span style="font-size:17px;line-height:1">＋</span> Emitir CPE</button>
-        <div id="fac-muelle-row">${_facMuelleSwitchHTML(S)}</div>
-        <div class="fac-tabbar" id="fac-tabbar"><span class="fac-tab-ind" id="fac-tab-ind"></span>${_facTabbarHTML(S)}</div>
         <div class="fac-slot" id="fac-slot"></div>
       </div>
     </div>
   </div>`;
   const panel = ov.querySelector('#fac-balanza-panel'); if (panel) { panel.innerHTML = _facBalanzaFinaHTML(S); _facAfterBalanza(panel); }
   const slot = ov.querySelector('#fac-slot'); if (slot) { slot.innerHTML = _facSectionBody(S); _facBindSlot(ov); }
-  _facMoveTabInd(ov.querySelector('#fac-tabbar'), true);
   _facRenderAlerta();
 }
 // Alerta flotante de anulaciones: BOTÓN SIRENA (FAB fijo, pulso rojo) — solo si hay solicitudes.
@@ -9377,8 +9367,57 @@ const ViewCatalogos = {
       { id: 'embarcaciones', icon: '🛥',  label: 'Embarcaciones',   unit: 'botes',     hint: 'Flota disponible' },
       { id: 'personal',      icon: '👥', label: 'Personal',        unit: 'personas',  hint: 'Capitanes · Guías · Operadores' },
       { id: 'contactos',     icon: '📇', label: 'Contactos',       unit: 'contactos', hint: 'Agencias · Aliados · Comisionados · Libre' },
-      { id: 'impuestos',     icon: '🧾', label: 'Impuestos / Adicionales', unit: 'items', hint: 'Muelle, Adulto, etc.' }
+      { id: 'impuestos',     icon: '🧾', label: 'Impuestos / Adicionales', unit: 'items', hint: 'Muelle, Adulto, etc.' },
+      { id: 'servicios',     icon: '🏷', label: 'Servicios de facturación', unit: 'servicios', hint: 'Paseo · Guiado · Tours · CPE' }
     ];
+
+    // ── Servicios de facturación (estado propio · RPCs listar/set/eliminar_servicio) ──
+    const servicios  = ref([]);
+    const svcLoading  = ref(false);
+    let   svcLoaded   = false;
+    const svcModal = ref({ show: false, mode: 'crear', saving: false, deleting: false, error: '',
+      id: '', nombre: '', descripcion: '', precio: '', unidad: 'NIU' });
+    async function loadServicios(force) {
+      if (svcLoaded && !force) return;
+      svcLoading.value = true;
+      try { const r = await apiGet('listar_servicios'); servicios.value = (r.ok && r.data) || []; svcLoaded = true; }
+      catch (e) {} finally { svcLoading.value = false; }
+    }
+    function openSvcModal(item = null) {
+      svcModal.value = { show: true, mode: item ? 'editar' : 'crear', saving: false, deleting: false, error: '',
+        id: item?.id || '', nombre: item?.nombre || '', descripcion: item?.descripcion || '',
+        precio: item ? String(item.precio || '') : '', unidad: item?.unidad || 'NIU' };
+    }
+    function bumpSvc(delta) {
+      const v = parseFloat(svcModal.value.precio) || 0;
+      svcModal.value.precio = Math.max(0, v + delta).toFixed(2);
+    }
+    async function guardarSvc() {
+      const m = svcModal.value;
+      if (!m.nombre.trim()) { m.error = 'Nombre requerido'; return; }
+      m.saving = true; m.error = '';
+      try {
+        const r = await apiPost({ accion: 'set_servicio', id: m.id || '', nombre: m.nombre.trim(),
+          descripcion: m.descripcion || '', precio: parseFloat(m.precio) || 0, unidad: m.unidad || 'NIU', activo: true });
+        if (!r.ok) throw new Error(r.error || 'Error');
+        svcModal.value.show = false;
+        await loadServicios(true);
+        emit('action', { type: 'toast', msg: m.mode === 'crear' ? '✅ Registrado' : '✅ Guardado' });
+      } catch (e) { m.saving = false; m.error = (e && e.message) || 'No se pudo guardar'; }
+    }
+    async function eliminarSvc() {
+      const m = svcModal.value;
+      if (!m.id) { svcModal.value.show = false; return; }
+      m.deleting = true; m.error = '';
+      try {
+        const r = await apiPost({ accion: 'eliminar_servicio', id: m.id });
+        if (!r.ok) throw new Error(r.error || 'Error');
+        svcModal.value.show = false;
+        await loadServicios(true);
+        emit('action', { type: 'toast', msg: '🗑 Eliminado' });
+      } catch (e) { m.deleting = false; m.error = (e && e.message) || 'No se pudo eliminar'; }
+    }
+    function catCount(id) { return id === 'servicios' ? servicios.value.length : ((lists[id] || []).length); }
 
     const ENDPOINTS = {
       impuestos:     { crear: 'crear_impuesto',      editar: 'actualizar_impuesto' },
@@ -9393,11 +9432,13 @@ const ViewCatalogos = {
       // Refresca silenciosamente si ya hay cache
       if (catalogosCache.loaded) preloadCatalogos();
       else preloadCatalogos();
+      loadServicios();   // para el contador de la card (silencioso)
     }
 
     function openCat(type) {
       view.value = type;
       search.value = '';
+      if (type === 'servicios') loadServicios();
     }
 
     function openCatModal(type, item = null) {
@@ -9538,7 +9579,8 @@ const ViewCatalogos = {
 
     return { view, lists, search, personalFilter, contactosFilter,
              catModal, cards, openHub, openCat, openCatModal, guardarCat,
-             personalGrouped, contactosGrouped, fmt, bump, bumpInt };
+             personalGrouped, contactosGrouped, fmt, bump, bumpInt,
+             servicios, svcLoading, svcModal, openSvcModal, guardarSvc, eliminarSvc, bumpSvc, catCount };
   },
   template: `
     <div>
@@ -9554,7 +9596,7 @@ const ViewCatalogos = {
           <div style="flex:1;min-width:0;">
             <div style="font-weight:800;font-size:15px;color:var(--text);">{{ c.label }}</div>
             <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">
-              <span style="color:var(--gold);font-weight:700;">{{ lists[c.id].length }}</span> {{ c.unit }} · {{ c.hint }}
+              <span style="color:var(--gold);font-weight:700;">{{ catCount(c.id) }}</span> {{ c.unit }} · {{ c.hint }}
             </div>
           </div>
           <span style="color:var(--gold);font-size:20px;flex-shrink:0;">›</span>
@@ -9677,6 +9719,97 @@ const ViewCatalogos = {
           <div style="font-size:15px;font-weight:900;color:var(--gold);">S/ {{ fmt(i.monto) }}</div>
         </div>
       </div>
+
+      <!-- ── SERVICIOS DE FACTURACIÓN ────────────────────── -->
+      <div v-else-if="view==='servicios'" style="padding-bottom:32px;">
+        <div style="display:flex;align-items:center;gap:10px;padding:12px 4px 14px;">
+          <button @click="openHub()" style="background:transparent;border:1px solid var(--border);color:var(--text-muted);width:34px;height:34px;border-radius:9px;font-size:18px;cursor:pointer;">←</button>
+          <div style="flex:1;font-weight:800;font-size:16px;">🏷 Servicios de facturación</div>
+          <button @click="openSvcModal()" style="background:var(--gold);color:#1a0a05;border:none;padding:7px 14px;border-radius:9px;font-weight:800;font-size:13px;cursor:pointer;">+ Nuevo</button>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);padding:0 4px 12px;line-height:1.5;">Los servicios que aparecen al emitir un CPE (boleta / factura) y en el paquete de zarpe (Paseo · Guiado).</div>
+        <div v-if="svcLoading && !servicios.length" style="text-align:center;padding:40px 20px;color:var(--text-muted);"><span class="spin" style="display:inline-block;width:22px;height:22px;"></span></div>
+        <div v-else-if="!servicios.length" style="text-align:center;padding:40px 20px;color:var(--text-muted);">Sin servicios. Agrega el primero.</div>
+        <div v-for="s in servicios" :key="s.id" @click="openSvcModal(s)"
+          style="display:flex;align-items:center;gap:12px;padding:13px;background:var(--bg2);border:1px solid var(--border);border-radius:11px;margin-bottom:8px;cursor:pointer;"
+          :style="s.activo===false ? 'opacity:0.55;' : ''">
+          <div style="width:38px;height:38px;border-radius:10px;background:rgba(201,168,76,0.1);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🏷</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:800;font-size:14px;">{{ s.nombre }}</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:1px;">
+              {{ s.unidad==='ZZ' ? 'Servicio (ZZ)' : 'Unidad (NIU)' }}
+              <template v-if="s.descripcion"> · {{ s.descripcion }}</template>
+              <template v-if="s.activo===false"> · <span style="color:#f87171;">inactivo</span></template>
+            </div>
+          </div>
+          <div style="font-size:15px;font-weight:900;color:var(--gold);flex-shrink:0;">S/ {{ fmt(s.precio) }}</div>
+        </div>
+      </div>
+
+      <!-- ── MODAL SERVICIOS ─────────────────────────────── -->
+      <teleport to="body">
+        <div v-if="svcModal.show" class="date-picker-overlay" @click.self="svcModal.show=false">
+          <div style="background:var(--bg2);border:1px solid rgba(201,168,76,0.25);border-radius:16px;width:92%;max-width:380px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,0.85);">
+            <div style="background:linear-gradient(135deg,rgba(90,23,34,0.9),rgba(22,10,13,0.97));padding:14px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(201,168,76,0.15);">
+              <div>
+                <div style="font-size:10px;letter-spacing:.1em;color:var(--gold);text-transform:uppercase;margin-bottom:2px;">{{ svcModal.mode==='crear' ? 'Nuevo' : 'Editar' }}</div>
+                <div style="font-size:14px;font-weight:800;color:var(--text);">Servicio de facturación</div>
+              </div>
+              <button @click="svcModal.show=false" style="font-size:20px;color:var(--text-muted);line-height:1;padding:2px 6px;">✕</button>
+            </div>
+            <div style="padding:16px;display:flex;flex-direction:column;gap:14px;max-height:72vh;overflow-y:auto;-webkit-overflow-scrolling:touch;">
+              <div style="display:flex;flex-direction:column;gap:6px;">
+                <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;font-weight:700;">Nombre *</span>
+                <input v-model="svcModal.nombre" type="text" autocomplete="off" autocapitalize="words" placeholder="ej. Tour Islas Ballestas"
+                  style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 13px;font-size:16px;color:var(--text);outline:none;-webkit-appearance:none;width:100%;box-sizing:border-box;" />
+              </div>
+              <div style="display:flex;flex-direction:column;gap:6px;">
+                <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;font-weight:700;">Descripción</span>
+                <input v-model="svcModal.descripcion" type="text" autocomplete="off" placeholder="opcional"
+                  style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 13px;font-size:16px;color:var(--text);outline:none;-webkit-appearance:none;width:100%;box-sizing:border-box;" />
+              </div>
+              <div style="display:flex;flex-direction:column;gap:6px;">
+                <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;font-weight:700;">Precio (S/)</span>
+                <div style="display:flex;align-items:stretch;border:1px solid var(--border);border-radius:11px;overflow:hidden;background:var(--surface);">
+                  <button @click="bumpSvc(-1)" type="button"
+                    style="width:50px;background:rgba(201,168,76,0.05);border:none;color:var(--gold);font-size:24px;font-weight:700;cursor:pointer;flex-shrink:0;border-right:1px solid var(--border);">−</button>
+                  <input v-model="svcModal.precio" type="number" min="0" step="0.01" inputmode="decimal"
+                    style="flex:1;background:transparent;border:none;padding:0 8px;font-size:20px;font-weight:800;color:var(--gold);text-align:center;height:48px;outline:none;-webkit-appearance:none;min-width:0;" />
+                  <button @click="bumpSvc(1)" type="button"
+                    style="width:50px;background:rgba(201,168,76,0.05);border:none;color:var(--gold);font-size:24px;font-weight:700;cursor:pointer;flex-shrink:0;border-left:1px solid var(--border);">+</button>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:7px;">
+                <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;font-weight:700;">Unidad SUNAT</span>
+                <div style="display:flex;gap:6px;">
+                  <button v-for="u in [{k:'NIU',l:'NIU · Unidad'},{k:'ZZ',l:'ZZ · Servicio'}]" :key="u.k" @click="svcModal.unidad=u.k" type="button"
+                    :style="svcModal.unidad===u.k
+                      ? 'flex:1;min-height:44px;padding:10px 4px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(201,168,76,0.2);border:1.5px solid var(--gold);color:var(--gold);'
+                      : 'flex:1;min-height:44px;padding:10px 4px;border-radius:10px;font-size:13px;cursor:pointer;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);'">
+                    {{ u.l }}
+                  </button>
+                </div>
+              </div>
+              <div v-if="svcModal.error"
+                style="padding:11px 13px;border-radius:9px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);font-size:13px;color:#f87171;">⚠ {{ svcModal.error }}</div>
+              <button v-if="svcModal.mode==='editar'" @click="eliminarSvc()" :disabled="svcModal.deleting || svcModal.saving" type="button"
+                style="min-height:42px;padding:10px;border-radius:10px;background:transparent;border:1px solid rgba(239,68,68,0.4);font-size:13px;font-weight:700;color:#f87171;cursor:pointer;">
+                {{ svcModal.deleting ? 'Eliminando…' : '🗑 Eliminar servicio' }}
+              </button>
+              <div style="display:flex;gap:10px;padding-top:4px;">
+                <button @click="svcModal.show=false" type="button"
+                  style="flex:1;min-height:46px;padding:12px;border-radius:11px;background:transparent;border:1px solid var(--border);font-size:14px;cursor:pointer;color:var(--text-muted);">Cancelar</button>
+                <button @click="guardarSvc()" :disabled="svcModal.saving || svcModal.deleting" type="button"
+                  style="flex:2;min-height:46px;padding:12px;border-radius:11px;background:var(--gold);border:none;font-size:15px;font-weight:800;color:#1a0a05;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;"
+                  :style="(svcModal.saving||svcModal.deleting)?'opacity:0.6;cursor:default':''">
+                  <span v-if="svcModal.saving" class="spin" style="width:15px;height:15px;border-color:rgba(26,10,5,0.3);border-top-color:#1a0a05;"></span>
+                  {{ svcModal.saving ? 'Guardando…' : (svcModal.mode==='crear' ? 'Registrar' : 'Guardar') }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </teleport>
 
       <!-- ── MODAL UNIFICADO ─────────────────────────────── -->
       <teleport to="body">
@@ -10460,7 +10593,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.31.0';
+const APP_VERSION = '1.32.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
