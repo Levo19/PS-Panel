@@ -1259,6 +1259,125 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 }
 @media(max-width:600px){ .fac-emit-box { max-height:94vh; border-radius:22px; } .fac-emit-box-inner { padding:4px 16px 20px; } }
 
+/* ── JALAR ZARPE → CPEs (sub-flujo dentro del modal Emitir) ─────────────── */
+.fac-z-dash {
+  width:100%; padding:12px; border:1px dashed var(--gold); border-radius:13px;
+  background:rgba(201,168,76,.08); color:#e6c869; font-weight:800; font-size:13px;
+  cursor:pointer; margin-bottom:10px; -webkit-tap-highlight-color:transparent;
+  transition:transform .16s cubic-bezier(.34,1.56,.64,1), background .16s, box-shadow .2s;
+  box-shadow:0 4px 16px rgba(201,168,76,.14);
+}
+.fac-z-dash:hover { background:rgba(201,168,76,.15); box-shadow:0 6px 22px rgba(201,168,76,.22); }
+.fac-z-dash:active { transform:scale(.98); }
+.fac-z-or { text-align:center; font-size:11px; color:var(--text-muted); margin:0 0 12px; }
+.fac-z-view { animation:facZView .34s cubic-bezier(.34,1.56,.64,1) both; }
+@keyframes facZView { from{opacity:0;transform:translateX(16px)} to{opacity:1;transform:none} }
+.fac-z-back, .fac-z-back2 { -webkit-tap-highlight-color:transparent; }
+.fac-z-back { background:none; border:none; color:var(--gold); font-weight:700; font-size:12.5px; cursor:pointer; padding:2px 0 10px; display:block; transition:transform .14s; }
+.fac-z-back:active { transform:scale(.96); }
+.fac-z-h { font-weight:800; font-size:15px; margin-bottom:10px; letter-spacing:-.2px; }
+.fac-z-chips { display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap; }
+.fac-z-list { display:flex; flex-direction:column; gap:8px; }
+.fac-z-card {
+  display:flex; gap:10px; align-items:center; padding:9px; border:1px solid var(--border);
+  border-radius:14px; background:rgba(255,255,255,.03); cursor:pointer; -webkit-tap-highlight-color:transparent;
+  transition:transform .16s cubic-bezier(.34,1.56,.64,1), border-color .16s, background .16s;
+}
+.fac-z-card:hover { border-color:var(--gold); background:rgba(201,168,76,.06); }
+.fac-z-card:active { transform:scale(.985); }
+.fac-z-thumb {
+  width:54px; height:54px; border-radius:11px; flex:0 0 auto; object-fit:cover; border:1px solid var(--border);
+  background:linear-gradient(135deg,#3a2530,#241419); display:flex; align-items:center; justify-content:center;
+  font-size:22px; cursor:zoom-in; transition:transform .16s;
+}
+.fac-z-thumb:hover { transform:scale(1.04); }
+.fac-z-thumb.ph { cursor:default; }
+.fac-z-card-n { flex:1; min-width:0; }
+.fac-z-card-t { font-weight:800; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fac-z-card-s { font-size:11px; color:var(--text-muted); margin-top:2px; }
+.fac-z-pill { font-size:9.5px; font-weight:800; padding:3px 9px; border-radius:999px; flex:0 0 auto; white-space:nowrap; }
+.fac-z-pill.warn { background:rgba(201,168,76,.16); color:#e6c869; }
+.fac-z-pill.ok { background:rgba(52,199,89,.16); color:#4ade80; }
+/* lightbox */
+.fac-z-lb {
+  position:fixed; inset:0; z-index:1100; display:none; align-items:center; justify-content:center; padding:24px;
+  background:rgba(6,3,5,.72); -webkit-backdrop-filter:blur(18px) saturate(140%); backdrop-filter:blur(18px) saturate(140%);
+  opacity:0; transition:opacity .24s ease; cursor:zoom-out;
+}
+.fac-z-lb.visible { opacity:1; }
+.fac-z-lb img { max-width:94vw; max-height:86vh; border-radius:16px; box-shadow:0 24px 70px rgba(0,0,0,.7); transform:scale(.9); transition:transform .3s cubic-bezier(.34,1.56,.64,1); }
+.fac-z-lb.visible img { transform:none; }
+.fac-z-lb-x { position:absolute; top:16px; right:18px; width:40px; height:40px; border-radius:50%; border:1px solid rgba(255,255,255,.2); background:rgba(255,255,255,.1); color:#fff; font-size:22px; line-height:1; cursor:pointer; }
+/* ocr */
+.fac-z-ocr { text-align:center; padding:30px 10px; }
+.fac-z-ocr-ico { font-size:42px; margin-bottom:10px; animation:facZPulse 1.4s ease-in-out infinite; }
+@keyframes facZPulse { 0%,100%{transform:scale(1);opacity:.9} 50%{transform:scale(1.12);opacity:1} }
+.fac-z-ocr-t { font-weight:800; font-size:15px; margin-bottom:4px; }
+.fac-z-ocr-m { font-size:12.5px; color:var(--text-muted); margin-top:10px; }
+.fac-z-ocr-sub { font-size:10.5px; color:var(--text-muted); margin-top:5px; opacity:.85; }
+.fac-z-bar { height:12px; border-radius:8px; background:rgba(255,255,255,.06); overflow:hidden; border:1px solid var(--border); }
+.fac-z-bar>i { display:block; height:100%; border-radius:8px; transition:width .6s cubic-bezier(.34,1.4,.64,1); }
+.fac-z-bar>i.ind { width:40%!important; animation:facZInd 1.1s ease-in-out infinite; }
+@keyframes facZInd { 0%{margin-left:-42%} 100%{margin-left:102%} }
+/* tablilla */
+.fac-z-tab-h { margin-bottom:8px; }
+.fac-z-tab-t { font-weight:800; font-size:14px; }
+.fac-z-tab-s { font-size:11px; color:var(--text-muted); margin-top:2px; }
+.fac-z-rows { border:1px solid var(--border); border-radius:12px; overflow:hidden; margin-bottom:6px; }
+.fac-z-row { display:flex; align-items:center; gap:8px; padding:9px 10px; border-bottom:1px solid var(--border); position:relative; transition:opacity .2s, background .35s, transform .2s; }
+.fac-z-row:last-child { border-bottom:none; }
+.fac-z-row.omit { opacity:.5; }
+.fac-z-row.emit-ok { background:rgba(52,199,89,.13); animation:facZCheck .5s ease; }
+.fac-z-row.emit-ok::after { content:'✓'; position:absolute; right:11px; top:50%; transform:translateY(-50%); color:#4ade80; font-weight:900; font-size:16px; animation:facZPop .4s cubic-bezier(.34,1.8,.64,1) both; }
+.fac-z-row.emit-fail { background:rgba(248,113,113,.13); }
+@keyframes facZCheck { 0%{transform:scale(1)} 40%{transform:scale(1.012)} 100%{transform:scale(1)} }
+@keyframes facZPop { from{opacity:0;transform:translateY(-50%) scale(.4)} to{opacity:1;transform:translateY(-50%) scale(1)} }
+.fac-z-row-n { flex:1; min-width:0; }
+.fac-z-row-t { font-weight:700; font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fac-z-row-d { font-size:10.5px; color:var(--text-muted); margin-top:1px; }
+.fac-z-svc { flex:0 0 auto; max-width:120px; font-size:11px; padding:5px 6px; border-radius:9px; background:rgba(255,255,255,.05); border:1px solid var(--border); color:var(--text); cursor:pointer; }
+.fac-z-step { display:flex; align-items:center; gap:5px; flex:0 0 auto; }
+.fac-z-step button { width:27px; height:27px; border-radius:8px; border:1px solid var(--border); background:rgba(255,255,255,.05); color:var(--text); font-weight:800; font-size:15px; line-height:1; cursor:pointer; -webkit-tap-highlight-color:transparent; transition:transform .12s; }
+.fac-z-step button:active { transform:scale(.82); }
+.fac-z-step .q { width:22px; text-align:center; font-weight:800; font-size:14px; }
+.fac-z-step .q.z { color:#f87171; }
+/* conciliación */
+.fac-z-conc { border-radius:13px; padding:11px 13px; margin:6px 0 12px; border:1px solid; transition:background .45s, border-color .45s; }
+.fac-z-conc.bad { background:rgba(248,113,113,.09); border-color:rgba(248,113,113,.32); }
+.fac-z-conc.ok { background:rgba(52,199,89,.1); border-color:rgba(52,199,89,.34); }
+.fac-z-conc-top { display:flex; justify-content:space-between; font-size:13px; }
+.fac-z-conc .fac-z-bar { margin-top:7px; }
+.fac-z-conc.bad .fac-z-bar>i { background:linear-gradient(90deg,var(--gold),#f87171); }
+.fac-z-conc.ok .fac-z-bar>i { background:linear-gradient(90deg,var(--gold),#4ade80); }
+.fac-z-conc-m { font-size:11px; color:var(--text-muted); margin-top:6px; }
+/* CTA + resultado */
+.fac-z-cta {
+  width:100%; padding:13px; border:none; border-radius:14px; background:linear-gradient(135deg,#b3324a,#7B2030);
+  color:#fff; font-weight:800; font-size:14px; cursor:pointer; -webkit-tap-highlight-color:transparent;
+  box-shadow:0 8px 22px rgba(176,41,94,.4); transition:transform .18s cubic-bezier(.34,1.56,.64,1), box-shadow .2s;
+}
+.fac-z-cta:active { transform:scale(.98); }
+.fac-z-cta[disabled] { box-shadow:none; }
+.fac-z-cta.gold { background:linear-gradient(135deg,#8a6d1e,var(--gold)); color:#2a1e05; box-shadow:0 8px 22px rgba(201,168,76,.32); }
+.fac-z-foot { font-size:10.5px; color:var(--text-muted); text-align:center; margin-top:7px; }
+.fac-z-done { text-align:center; padding:16px; border-radius:16px; margin-bottom:10px; background:rgba(255,255,255,.04); border:1px solid var(--border); animation:facZView .4s cubic-bezier(.34,1.56,.64,1) both; }
+.fac-z-done-t { font-weight:800; font-size:15px; margin-top:4px; }
+.fac-z-done-s { font-size:11px; color:var(--text-muted); margin-top:2px; }
+.fac-z-cpes { margin-top:10px; border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+.fac-z-cpe { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:9px 11px; border-bottom:1px solid var(--border); cursor:pointer; transition:background .15s; -webkit-tap-highlight-color:transparent; }
+.fac-z-cpe:last-child { border-bottom:none; }
+.fac-z-cpe:hover { background:rgba(255,255,255,.04); }
+.fac-z-cpe:active { background:rgba(255,255,255,.07); }
+.fac-z-cpe-n { font-weight:700; font-size:12px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fac-z-res-btns { display:flex; flex-direction:column; gap:8px; margin-top:12px; }
+.fac-z-back2 { background:none; border:1px solid var(--border); border-radius:12px; color:var(--text-muted); font-weight:700; font-size:12.5px; padding:10px; cursor:pointer; transition:transform .14s, background .15s; }
+.fac-z-back2:active { transform:scale(.98); background:rgba(255,255,255,.04); }
+@media (prefers-reduced-motion: reduce) {
+  .fac-z-view, .fac-z-done, .fac-z-ocr-ico, .fac-z-row.emit-ok, .fac-z-row.emit-ok::after { animation:none; }
+  .fac-z-dash, .fac-z-card, .fac-z-thumb, .fac-z-step button, .fac-z-cta, .fac-z-back, .fac-z-back2, .fac-z-lb, .fac-z-lb img, .fac-z-bar>i, .fac-z-conc { transition:none; }
+  .fac-z-bar>i.ind { animation:none; }
+}
+
 /* ── FASE 3 · Layout/Modal PDF del comprobante (80mm / A4) ──────────────── */
 .fpdf-box { max-width:640px; }
 .fpdf-seg { position:relative; display:flex; gap:0; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1); border-radius:13px; padding:4px; margin:2px 0 14px; }
@@ -2331,7 +2450,12 @@ const PS_GET = {
   balance_tributos:       p => _psRpc('balance_tributos',   { p_periodo: p.periodo || null }),
   proyeccion_renta:       p => _psRpc('proyeccion_renta',   { p_anio: p.anio || (new Date().getFullYear()) }),
   listar_compras:         p => _psRpc('listar_compras', { p_periodo: (p && p.periodo) || null }),
-  conciliacion_zarpe:     p => _psRpc('conciliacion_zarpe', { p_fecha: p.fecha || null })
+  conciliacion_zarpe:     p => _psRpc('conciliacion_zarpe', { p_fecha: p.fecha || null }),
+  // ── Jalar zarpe → CPEs (params posicionales, NO {p:{}}) ──
+  listar_zarpes_pendientes: p => _psRpc('listar_zarpes_pendientes', { p_desde: p.desde || null, p_hasta: p.hasta || null }),
+  listar_zarpe_pax:         p => _psRpc('listar_zarpe_pax', { p_operacion: p.operacion }),
+  conciliacion_zarpe_op:    p => _psRpc('conciliacion_zarpe_op', { p_operacion: p.operacion }),
+  listar_paquete_zarpe:     () => _psRpc('listar_paquete_zarpe')
 };
 const PS_POST = {
   registrar_pago: b => _psRpc('registrar_transaccion', { p_op: b.id_operacion || null, p_contacto: b.id_contacto || null, p_categoria: b.categoria || 'Cobro', p_monto: parseFloat(b.monto) || 0, p_metodo: b.metodo_pago || 'Efectivo', p_comentarios: b.comentarios || null, p_foto_url: null, p_operador: b.operador || 'PS', p_mov: b.id_movimiento || null, p_local_id: b.localId || null }).then(id => ({ id })),
@@ -2345,6 +2469,11 @@ const PS_POST = {
     p_creado_por: b.operador || 'PS', p_local_id: b.localId || null, p_cliente_tel: b.cliente_tel || null,
     p_cliente_dir: b.cliente_dir || null, p_es_extranjero: !!b.es_extranjero,
     p_medio_pago: b.medio_pago || null, p_exportacion: !!b.exportacion }),
+  // ── Jalar zarpe → CPEs (escritura; devuelven objetos, nunca arrays) ──
+  registrar_zarpe_ocr:        b => _psRpc('registrar_zarpe_ocr', { p_operacion: b.operacion, p_pax: b.pax || [], p_por: b.por || 'PS' }),
+  guardar_zarpe_tablilla:     b => _psRpc('guardar_zarpe_tablilla', { p_operacion: b.operacion, p_filas: b.filas || [] }),
+  cerrar_zarpe:               b => _psRpc('cerrar_zarpe', { p_operacion: b.operacion, p_cerrar: b.cerrar !== false }),
+  marcar_zarpe_pax_facturado: b => _psRpc('marcar_zarpe_pax_facturado', { p_id: b.id, p_id_comprobante: b.id_comprobante }),
   registrar_compra: b => _psRpc('registrar_compra', { p: { ruc_proveedor: String(b.ruc_proveedor || '').trim(), razon_social: b.razon_social || null, base: parseFloat(b.base) || 0, igv: parseFloat(b.igv) || 0, total: parseFloat(b.total) || 0, fecha: b.fecha || null, serie: b.serie || null, numero: b.numero || null, foto_path: b.foto_path || null, periodo: b.periodo || null } }),
   // ── Facturación · Fase 2: subir compra + OCR stateful (fila con foto → OCR ✓/✗ sobre el MISMO id) ──
   crear_compra_foto:       b => _psRpc('crear_compra_foto', { p: { periodo: b.periodo || null, foto_path: b.foto_path || null, foto_url: b.foto_url || null } }),
@@ -5361,6 +5490,8 @@ function _facSectionBody(S) {
     } else {
       const segBtn = (m, label) => { const on = S.facModo === m; return `<button onclick="_facSetModo('${m}')" style="flex:1;padding:9px 4px;border-radius:10px;font-weight:800;font-size:12px;cursor:pointer;border:1px solid ${on?'var(--gold)':'var(--border)'};background:${on?'rgba(201,168,76,0.16)':'transparent'};color:${on?'var(--gold)':'var(--text-muted)'}">${label}</button>`; };
       body = `
+      ${S._emitOpen ? `<button class="fac-z-dash" onclick="_facZarpeAbrir()">📸 Jalar zarpe con IA — facturar el grupo</button>
+      <div class="fac-z-or">— o emite a un cliente suelto —</div>` : ''}
       <div style="display:flex;gap:6px;margin-bottom:12px">
         ${segBtn('boleta', 'Boleta · ' + ((S.facCfg&&S.facCfg.serie_boleta)||'B002'))}
         ${segBtn('factura', 'Factura · ' + ((S.facCfg&&S.facCfg.serie_factura)||'F002'))}
@@ -5530,7 +5661,7 @@ function _facSectionBody(S) {
 // ═══ MÓDULO (full-page): shell PERSISTENTE = balanza fina fija (izq) + tabbar/slot (der) ═══
 // Fase 1: 'emitir' pasó a botón→modal; 'subir'/'compras' se retiran del tabbar (Fase 2 van a la izquierda).
 const _FAC_MOD_TABS = [
-  ['historial', '📜', 'Historial'], ['conciliacion', '⚖', 'Conciliar'],
+  ['historial', '📜', 'Historial'],
   ['servicios', '🏷', 'Servicios'], ['anulaciones', '⊘', 'Anular']
 ];
 const _FAC_MOD_TAB_IDS = _FAC_MOD_TABS.map(t => t[0]);
@@ -5780,6 +5911,7 @@ window._facOpenEmit = function () {
   S.resultado = null; S.facModo = 'boleta'; S.tipo = 2; S.exportacion = false; S.esExtranjero = false;
   S.docTipo = '1'; S.doc = ''; S.nombre = ''; S.email = ''; S.tel = ''; S.dir = ''; S.items = []; S.medioPago = ''; S.lookupState = 'idle';
   S._emitOpen = true;
+  S._zarpe = null;   // el modal abre en el form suelto; "Jalar zarpe" activa el sub-flujo
   S._emitLocalId = 'fac-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);   // P1: un localId por apertura
   S._emitiendo = false; S._emitioAlgo = false;
   let ov = document.getElementById('fac-emit-modal');
@@ -5797,7 +5929,9 @@ window._facOpenEmit = function () {
   requestAnimationFrame(() => ov.classList.add('visible'));
 };
 window._facCloseEmit = function () {
-  const S = _facState; if (S) S._emitOpen = false;
+  const S = _facState; if (S) { S._emitOpen = false; S._zarpe = null; }
+  try { clearTimeout(_facZarpeSaveTO); } catch (e) {}
+  try { _facZarpeLightboxClose(); } catch (e) {}
   const ov = document.getElementById('fac-emit-modal');
   if (ov) { ov.classList.remove('visible'); setTimeout(() => { if (!(_facState && _facState._emitOpen) && ov.parentNode) ov.remove(); }, 260); }
   try { haptic(8); } catch (e) {}
@@ -5813,11 +5947,389 @@ window._facCloseEmit = function () {
 // Pinta/re-pinta el cuerpo del modal Emitir (contexto tab='emitir' aislado del tab persistente del módulo).
 function _facRenderEmit() {
   const box = document.querySelector('#fac-emit-modal .fac-emit-box-inner'); if (!box || !_facState) return;
-  const S = _facState; const prev = S.tab; S.tab = 'emitir';
+  const S = _facState;
+  if (S._zarpe) { box.innerHTML = _facZarpeBody(S); _facZarpeBind(box); _facZarpeAfter(box); return; }
+  const prev = S.tab; S.tab = 'emitir';
   box.innerHTML = _facSectionBody(S);
   _facBindSlot(box);
   S.tab = prev;
 }
+// ═══════════════════════════════════════════════════════════════════════════
+// JALAR ZARPE → CPEs · sub-flujo dentro del modal Emitir (100% Supabase)
+// picker (fotos+fecha) → OCR (extraer-zarpe) → tablilla (servicio+cantidad+conciliación) → emisión en lote → resultado
+// ═══════════════════════════════════════════════════════════════════════════
+let _facZarpeSaveTO = null;
+const _facZarpeMeses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+function _facZarpeFecha(raw) {
+  const m = String(raw || '').match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return String(raw || '');
+  return parseInt(m[3], 10) + ' ' + (_facZarpeMeses[parseInt(m[2], 10) - 1] || '');
+}
+function _facZarpeDocLabel(f) {
+  const t = String(f.tipo_doc || '');
+  const tn = t === '6' ? 'RUC' : (t === '7' ? 'Pasaporte' : (t === '4' ? 'CE' : 'DNI'));
+  const emp = f.empresa ? ' · factura' : '';
+  return (f.documento ? tn + ' ' + f.documento : 'sin doc') + emp;
+}
+function _facZarpeRangoFechas(rango, custom) {
+  const hoy = new Date(Date.now() - new Date().getTimezoneOffset() * 60000);
+  const iso = d => d.toISOString().slice(0, 10);
+  if (rango === 'hoy') { const h = iso(hoy); return { desde: h, hasta: h }; }
+  if (rango === 'ayer') { const a = new Date(hoy); a.setDate(a.getDate() - 1); const s = iso(a); return { desde: s, hasta: s }; }
+  if (rango === 'semana') { const a = new Date(hoy); a.setDate(a.getDate() - 6); return { desde: iso(a), hasta: iso(hoy) }; }
+  if (rango === 'fecha' && custom) return { desde: custom, hasta: custom };
+  return { desde: null, hasta: null };
+}
+// ── Cuerpo (sub-vistas) ──
+function _facZarpeBody(S) {
+  const Z = S._zarpe; if (!Z) return '';
+  let inner;
+  if (Z.view === 'picker') inner = `<button class="fac-z-back" onclick="_facZarpeVolverEmit()">← volver a emitir suelto</button>` + _facZarpePicker(S);
+  else if (Z.view === 'ocr') inner = _facZarpeOCR(S);
+  else if (Z.view === 'tablilla') inner = `<button class="fac-z-back" onclick="_facZarpeToPicker()">← elegir otro zarpe</button>` + _facZarpeTablilla(S);
+  else if (Z.view === 'resultado') inner = _facZarpeResultado(S);
+  else inner = '';
+  return `<div class="fac-z-view" data-v="${Z.view}">${inner}</div>`;
+}
+function _facZarpePicker(S) {
+  const Z = S._zarpe;
+  const chips = [['hoy', 'Hoy'], ['ayer', 'Ayer'], ['semana', 'Semana'], ['fecha', '📅']].map(([k, l]) =>
+    `<button class="fac-chip${Z.rango === k ? ' on' : ''}" onclick="_facZarpeRango('${k}')">${l}</button>`).join('');
+  const fechaInput = Z.rango === 'fecha' ? `<input type="date" id="fac-z-fecha" class="config-input" style="margin:0 0 10px" value="${_facEsc(Z.fechaCustom || '')}">` : '';
+  let list;
+  if (Z.cargando) list = '<div style="text-align:center;padding:34px"><div class="spin" style="display:inline-block"></div><div style="margin-top:8px;font-size:12px;color:var(--text-muted)">Buscando zarpes…</div></div>';
+  else if (!Z.zarpes.length) list = '<div style="padding:26px;text-align:center;color:var(--text-muted);font-size:12.5px">No hay zarpes por facturar en este rango.<br>Los 100% facturados desaparecen de la lista.</div>';
+  else list = Z.zarpes.map(z => _facZarpeCard(z)).join('');
+  return `<div class="fac-z-h">📸 Zarpes por facturar</div>
+    <div class="fac-z-chips">${chips}</div>${fechaInput}
+    <div class="fac-z-list">${list}</div>`;
+}
+function _facZarpeCard(z) {
+  const dec = Number(z.pax_declarado) || 0, fact = Number(z.pax_facturado) || 0;
+  const pill = z.jalado ? `<span class="fac-z-pill ok">jalado · ${fact}/${dec}</span>` : `<span class="fac-z-pill warn">sin jalar</span>`;
+  const thumb = z.foto_zarpe_url
+    ? `<img class="fac-z-thumb" src="${_facEsc(z.foto_zarpe_url)}" onclick="event.stopPropagation();_facZarpeLightbox('${_facEsc(z.foto_zarpe_url)}')" alt="foto zarpe" loading="lazy">`
+    : `<div class="fac-z-thumb ph">🖼️</div>`;
+  return `<div class="fac-z-card" onclick="_facZarpePick('${_facEsc(z.id)}')">${thumb}
+    <div class="fac-z-card-n">
+      <div class="fac-z-card-t">${_facEsc(z.bote || 'Lancha')}${z.hora_salida ? ' · ' + _facEsc(z.hora_salida) : ''}</div>
+      <div class="fac-z-card-s">${_facZarpeFecha(z.fecha)} · ${dec} PAX declarados</div>
+    </div>${pill}</div>`;
+}
+function _facZarpeOCR(S) {
+  const Z = S._zarpe; const done = !!Z._ocrDone;
+  return `<div class="fac-z-ocr">
+    <div class="fac-z-ocr-ico">🤖</div>
+    <div class="fac-z-ocr-t">${done ? 'Pasajeros leídos' : 'Leyendo pasajeros…'}</div>
+    <div class="fac-z-bar" style="max-width:230px;margin:12px auto"><i class="${done ? '' : 'ind'}" style="width:${done ? 100 : 40}%;background:linear-gradient(90deg,var(--gold),#e6c869)"></i></div>
+    ${done
+      ? `<div class="fac-z-ocr-m">Rescatados <b style="color:var(--gold)">${Z.leidos}</b> de <b>${Z.declarados}</b> declarados</div>`
+      : `<div class="fac-z-ocr-m">${_facEsc(Z.ocrMsg || 'Analizando letra manuscrita del zarpe…')}</div>`}
+    <div class="fac-z-ocr-sub">Los ilegibles quedan como "revisar" para completarlos a mano.</div>
+  </div>`;
+}
+function _facZarpeTablilla(S) {
+  const Z = S._zarpe;
+  const dec = Z.declarados || Number(Z.sel && Z.sel.pax_declarado) || 0;
+  const sum = Z.filas.reduce((a, f) => a + (Number(f.cantidad) || 0), 0);
+  const ok = sum === dec && dec > 0;
+  const pct = dec > 0 ? Math.min(100, Math.round(sum / dec * 100)) : (sum > 0 ? 100 : 0);
+  const nEmit = Z.filas.filter(f => (Number(f.cantidad) || 0) > 0 && f.estado !== 'facturado').length;
+  const rows = Z.filas.length ? Z.filas.map((f, i) => _facZarpeFila(f, i, Z)).join('')
+    : '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:12px">Sin pasajeros leídos. Vuelve y reintenta el OCR.</div>';
+  const paqN = (Z.paquete[0] && Z.paquete[0].nombre) || 'Paquete';
+  return `<div class="fac-z-tab-h">
+     <div class="fac-z-tab-t">${_facEsc(Z.sel ? (Z.sel.bote || 'Zarpe') : 'Zarpe')} · ${dec} PAX</div>
+     <div class="fac-z-tab-s">Paquete por defecto: 🎫 ${_facEsc(paqN)}${Z.paquete.length > 1 ? ' (' + Z.paquete.length + ' serv.)' : ''}</div>
+   </div>
+   <div class="fac-z-rows">${rows}</div>
+   <div class="fac-z-conc ${ok ? 'ok' : 'bad'}" id="fac-z-conc">
+     <div class="fac-z-conc-top"><span style="font-weight:800">Conciliación</span><span style="font-weight:800" id="fac-z-conc-n">${sum} / ${dec} PAX</span></div>
+     <div class="fac-z-bar"><i id="fac-z-conc-bar" style="width:${pct}%"></i></div>
+     <div class="fac-z-conc-m" id="fac-z-conc-m">${ok ? '✓ Cuadra: Σ cantidad = PAX del zarpe.' : ('Faltan ' + Math.abs(dec - sum) + ' PAX por facturar u omitir.')}</div>
+   </div>
+   <button class="fac-z-cta" id="fac-z-emit" onclick="_facZarpeEmitir()" ${nEmit ? '' : 'disabled style="opacity:.5;cursor:not-allowed"'}>⚡ Emitir ${nEmit} CPE${nEmit === 1 ? '' : 's'} de este zarpe</button>
+   <div class="fac-z-foot">1 CPE por fila con cantidad&gt;0 · con RUC/empresa = factura, resto = boleta.</div>`;
+}
+function _facZarpeFila(f, i, Z) {
+  const q = Number(f.cantidad) || 0, omit = q <= 0, facturado = f.estado === 'facturado';
+  const key = f._svcKey || 'PAQ';
+  const svcSel = `<select class="fac-z-svc" onchange="_facZarpeSvc(${i},this.value)">
+    <option value="PAQ"${key === 'PAQ' ? ' selected' : ''}>🎫 Paquete${Z.paquete.length > 1 ? ' (' + Z.paquete.length + ')' : ''}</option>
+    ${Z.paquete.map(p => `<option value="${_facEsc(p.id)}"${key === String(p.id) ? ' selected' : ''}>${_facEsc(p.nombre)}</option>`).join('')}
+  </select>`;
+  return `<div class="fac-z-row${omit ? ' omit' : ''}${facturado ? ' done' : ''}" data-zrow="${i}">
+    <div class="fac-z-row-n">
+      <div class="fac-z-row-t">${_facEsc(f.nombre || '(revisar)')}</div>
+      <div class="fac-z-row-d">${_facEsc(_facZarpeDocLabel(f))}</div>
+    </div>
+    ${facturado
+      ? `<span class="fac-z-pill ok">✓ ${_facEsc((f.serie || '') + (f.numero ? '-' + f.numero : ''))}</span>`
+      : `${svcSel}<div class="fac-z-step">
+      <button onclick="_facZarpeQty(${i},-1)" aria-label="menos">−</button>
+      <span class="q${omit ? ' z' : ''}" id="fac-z-q-${i}">${q}</span>
+      <button onclick="_facZarpeQty(${i},1)" aria-label="más">+</button>
+    </div>`}
+  </div>`;
+}
+function _facZarpeResultado(S) {
+  const Z = S._zarpe, c = Z.concilia || {};
+  const dec = Number(c.pax_declarado) || Z.declarados || 0;
+  const fact = Number(c.pax_facturado) || Z.filas.reduce((a, f) => a + (f.estado === 'facturado' ? (Number(f.cantidad) || 0) : 0), 0);
+  const omit = Math.max(0, dec - fact);
+  const concilia = (c.concilia != null) ? !!c.concilia : (fact === dec && dec > 0);
+  const emit = Z.filas.map((f, i) => ({ f, i })).filter(o => o.f.estado === 'facturado');
+  const n = emit.length;
+  const pct = dec > 0 ? Math.min(100, Math.round(fact / dec * 100)) : (fact > 0 ? 100 : 0);
+  const cpes = emit.map(({ f, i }) => `<div class="fac-z-cpe" onclick="_facZarpeAbrirCPE(${i})">
+      <span class="fac-z-cpe-n">${_facEsc((f.serie || '') + (f.numero ? '-' + String(f.numero).padStart(6, '0') : '')) || 'CPE'} · ${_facEsc(f.nombre || f.empresa || '')}</span>
+      <span class="fac-z-pill ok">📄</span></div>`).join('');
+  return `<div class="fac-z-done">
+      <div style="font-size:34px">✅</div>
+      <div class="fac-z-done-t">${n} CPE${n === 1 ? '' : 's'} emitido${n === 1 ? '' : 's'}</div>
+      <div class="fac-z-done-s">Anexados a: ${_facEsc(Z.sel ? (Z.sel.bote || '') : '')} · ${_facZarpeFecha(Z.sel && Z.sel.fecha)}</div>
+    </div>
+    <div class="fac-z-conc ${concilia ? 'ok' : 'bad'}">
+      <div class="fac-z-conc-top"><span style="font-weight:800">${concilia ? 'Conciliado' : 'Parcial'}</span><span style="font-weight:800">${fact} / ${dec} · ${omit} omitidos</span></div>
+      <div class="fac-z-bar"><i style="width:${pct}%"></i></div>
+    </div>
+    <div class="fac-z-cpes">${cpes || '<div style="padding:14px;text-align:center;color:var(--text-muted);font-size:12px">Sin CPEs emitidos.</div>'}</div>
+    <div class="fac-z-res-btns">
+      <button class="fac-z-cta gold" onclick="_facZarpeCerrar()">✓ Cerrar zarpe</button>
+      <button class="fac-z-back2" onclick="_facZarpeToPicker()">Elegir otro zarpe</button>
+    </div>`;
+}
+// ── Bind + post-render (anima barra de conciliación) ──
+function _facZarpeBind(box) {
+  const S = _facState, Z = S._zarpe; if (!Z) return;
+  const df = box.querySelector('#fac-z-fecha');
+  if (df) df.onchange = e => { Z.fechaCustom = e.target.value; if (e.target.value) _facZarpeCargar(); };
+}
+function _facZarpeAfter(box) {
+  const S = _facState, Z = S._zarpe; if (!Z) return;
+  if (Z.view === 'tablilla') {
+    const bar = box.querySelector('#fac-z-conc-bar');
+    if (bar) { const w = bar.style.width; bar.style.width = '0%'; requestAnimationFrame(() => requestAnimationFrame(() => { bar.style.width = w; })); }
+  }
+}
+// ── Navegación ──
+window._facZarpeAbrir = function () {
+  const S = _facState; if (!S) return; try { sndTap(); haptic(10); } catch (e) {}
+  S._zarpe = { view: 'picker', rango: 'hoy', fechaCustom: '', zarpes: [], cargando: false, sel: null,
+    ocrMsg: '', _ocrDone: false, paquete: [], filas: [], leidos: 0, declarados: 0,
+    emitiendo: false, progreso: { done: 0, total: 0, fail: [] }, concilia: null };
+  _facZarpeSetHead(true);
+  _facRenderEmit();
+  _facZarpeCargar();
+};
+window._facZarpeVolverEmit = function () {
+  const S = _facState; if (!S) return; try { sndTap(); haptic(8); } catch (e) {}
+  S._zarpe = null;
+  _facZarpeSetHead(false);
+  _facRenderEmit();
+};
+window._facZarpeToPicker = function () {
+  const S = _facState, Z = S._zarpe; if (!Z) return; try { sndTap(); haptic(8); } catch (e) {}
+  Z.view = 'picker'; Z.sel = null; Z.filas = []; Z.concilia = null; Z._ocrDone = false;
+  _facZarpeSetHead(true);
+  _facRenderEmit();
+  _facZarpeCargar();
+};
+window._facZarpeRango = function (k) {
+  const S = _facState, Z = S._zarpe; if (!Z) return; try { sndTap(); haptic(8); } catch (e) {}
+  Z.rango = k;
+  if (k === 'fecha') { _facRenderEmit(); return; }   // espera a que elija la fecha
+  _facZarpeCargar();
+};
+function _facZarpeSetHead(on) {
+  const box = document.querySelector('#fac-emit-modal .fac-emit-box'); if (!box) return;
+  const t = box.querySelector('.fac-emit-title'), s = box.querySelector('.fac-emit-sub');
+  if (t) t.textContent = on ? 'Jalar zarpe → CPEs' : 'Emitir CPE';
+  if (s) s.textContent = on ? 'IA lee el zarpe · factura al grupo' : 'Boleta · Factura · Exportación — NubeFact';
+}
+// ── Carga del picker ──
+async function _facZarpeCargar() {
+  const S = _facState, Z = S._zarpe; if (!Z) return;
+  Z.cargando = true; _facRenderEmit();
+  const { desde, hasta } = _facZarpeRangoFechas(Z.rango, Z.fechaCustom);
+  try { const r = await apiGet('listar_zarpes_pendientes', { desde, hasta }); Z.zarpes = (r.ok && Array.isArray(r.data)) ? r.data : []; }
+  catch (e) { Z.zarpes = []; }
+  Z.cargando = false;
+  if (S._zarpe === Z && Z.view === 'picker') _facRenderEmit();
+}
+// ── OCR + carga de tablilla ──
+window._facZarpePick = async function (id) {
+  const S = _facState, Z = S._zarpe; if (!Z) return;
+  const z = Z.zarpes.find(x => String(x.id) === String(id)); if (!z) return;
+  try { sndTap(); haptic(10); } catch (e) {}
+  Z.sel = z; Z.view = 'ocr'; Z._ocrDone = false; Z.leidos = 0; Z.declarados = Number(z.pax_declarado) || 0;
+  Z.ocrMsg = 'Leyendo pasajeros…'; _facRenderEmit();
+  let pax = [];
+  try {
+    const { data: j, error } = await sbClient.functions.invoke('extraer-zarpe', { body: { imagen_url: z.foto_zarpe_url } });
+    if (!error && j && j.ok && Array.isArray(j.pasajeros)) pax = j.pasajeros;
+  } catch (e) {}
+  if (!(S._zarpe === Z)) return;
+  Z.ocrMsg = 'Guardando lo leído…'; _facRenderEmit();
+  try {
+    const rr = await apiPost({ accion: 'registrar_zarpe_ocr', operacion: z.id, pax, por: (S.ses && S.ses.nombre) || 'PS' });
+    if (rr.ok && rr.data) Z.leidos = Number(rr.data.leidos) || pax.length;
+    else Z.leidos = pax.length;
+  } catch (e) { Z.leidos = pax.length; }
+  Z._ocrDone = true; _facRenderEmit();           // muestra "Rescatados N de M" un instante
+  await new Promise(r => setTimeout(r, 950));
+  if (!(S._zarpe === Z)) return;
+  await _facZarpeLoadTablilla(z.id);
+  if (!(S._zarpe === Z)) return;
+  Z.view = 'tablilla';
+  try { sndOk(); haptic([12, 30, 12]); } catch (e) {}
+  _facRenderEmit();
+};
+async function _facZarpeLoadTablilla(op) {
+  const S = _facState, Z = S._zarpe; if (!Z) return;
+  try {
+    const [pr, pq] = await Promise.all([apiGet('listar_zarpe_pax', { operacion: op }), apiGet('listar_paquete_zarpe')]);
+    Z.paquete = (pq.ok && Array.isArray(pq.data)) ? pq.data : [];
+    Z.filas = (pr.ok && Array.isArray(pr.data)) ? pr.data.map(f => {
+      const o = Object.assign({}, f, { cantidad: Number(f.cantidad) || 0 });
+      // servicios de la fila: si vienen del backend úsalos; si no, clona el paquete default
+      if (!Array.isArray(o.servicios) || !o.servicios.length) { o.servicios = Z.paquete.map(p => ({ nombre: p.nombre, precio: p.precio, unidad: p.unidad })); o._svcKey = 'PAQ'; }
+      else { o._svcKey = (o.servicios.length === 1 && Z.paquete.length > 1) ? 'PAQ' : 'PAQ'; }
+      return o;
+    }) : [];
+  } catch (e) { Z.filas = Z.filas || []; Z.paquete = Z.paquete || []; }
+}
+// ── Tablilla: interacción ──
+window._facZarpeSvc = function (i, val) {
+  const S = _facState, Z = S._zarpe, f = Z && Z.filas[i]; if (!f) return;
+  try { sndTap(); haptic(6); } catch (e) {}
+  f._svcKey = val;
+  if (val === 'PAQ') f.servicios = Z.paquete.map(p => ({ nombre: p.nombre, precio: p.precio, unidad: p.unidad }));
+  else { const p = Z.paquete.find(x => String(x.id) === String(val)); if (p) f.servicios = [{ nombre: p.nombre, precio: p.precio, unidad: p.unidad }]; }
+  _facZarpeGuardarDebounced();
+};
+window._facZarpeQty = function (i, d) {
+  const S = _facState, Z = S._zarpe, f = Z && Z.filas[i]; if (!f) return;
+  const nv = Math.max(0, (Number(f.cantidad) || 0) + d); f.cantidad = nv;
+  try { sndTap(); haptic(d > 0 ? 8 : 6); } catch (e) {}
+  const qEl = document.getElementById('fac-z-q-' + i); if (qEl) { qEl.textContent = nv; qEl.classList.toggle('z', nv <= 0); }
+  const row = document.querySelector('[data-zrow="' + i + '"]'); if (row) row.classList.toggle('omit', nv <= 0);
+  _facZarpeUpdateConc(); _facZarpeUpdateEmitBtn(); _facZarpeGuardarDebounced();
+};
+function _facZarpeUpdateConc() {
+  const S = _facState, Z = S._zarpe; if (!Z) return;
+  const dec = Z.declarados || 0, sum = Z.filas.reduce((a, f) => a + (Number(f.cantidad) || 0), 0);
+  const ok = sum === dec && dec > 0, pct = dec > 0 ? Math.min(100, Math.round(sum / dec * 100)) : (sum > 0 ? 100 : 0);
+  const conc = document.getElementById('fac-z-conc'); if (conc) { conc.classList.toggle('ok', ok); conc.classList.toggle('bad', !ok); }
+  const bar = document.getElementById('fac-z-conc-bar'); if (bar) bar.style.width = pct + '%';
+  const n = document.getElementById('fac-z-conc-n'); if (n) n.textContent = sum + ' / ' + dec + ' PAX';
+  const m = document.getElementById('fac-z-conc-m'); if (m) m.textContent = ok ? '✓ Cuadra: Σ cantidad = PAX del zarpe.' : ('Faltan ' + Math.abs(dec - sum) + ' PAX por facturar u omitir.');
+}
+function _facZarpeUpdateEmitBtn() {
+  const S = _facState, Z = S._zarpe; if (!Z) return;
+  const n = Z.filas.filter(f => (Number(f.cantidad) || 0) > 0 && f.estado !== 'facturado').length;
+  const b = document.getElementById('fac-z-emit'); if (!b) return;
+  b.textContent = '⚡ Emitir ' + n + ' CPE' + (n === 1 ? '' : 's') + ' de este zarpe';
+  b.disabled = !n; b.style.opacity = n ? '' : '.5'; b.style.cursor = n ? '' : 'not-allowed';
+}
+function _facZarpeGuardarDebounced() { clearTimeout(_facZarpeSaveTO); _facZarpeSaveTO = setTimeout(_facZarpeGuardar, 700); }
+async function _facZarpeGuardar() {
+  const S = _facState, Z = S._zarpe; if (!Z || !Z.sel) return;
+  const filas = Z.filas.map(f => ({ id: f.id, cantidad: Number(f.cantidad) || 0, servicios: f.servicios || null }));
+  try { await apiPost({ accion: 'guardar_zarpe_tablilla', operacion: Z.sel.id, filas }); } catch (e) {}
+}
+// ── Emisión en lote (cascada de checks) ──
+async function _facZarpeEmitir() {
+  const S = _facState, Z = S._zarpe; if (!Z || Z.emitiendo) return;
+  const pend = Z.filas.map((f, i) => ({ f, i })).filter(o => (Number(o.f.cantidad) || 0) > 0 && o.f.estado !== 'facturado');
+  if (!pend.length) return;
+  Z.emitiendo = true; Z.progreso = { done: 0, total: pend.length, fail: [] };
+  try { sndTap(); haptic(12); } catch (e) {}
+  clearTimeout(_facZarpeSaveTO); await _facZarpeGuardar();   // vuelca ediciones pendientes
+  const btn = document.getElementById('fac-z-emit'); if (btn) { btn.disabled = true; btn.style.opacity = '.7'; btn.textContent = 'Emitiendo… 0/' + pend.length; }
+  for (const { f, i } of pend) {
+    const q = Number(f.cantidad) || 0;
+    const svcs = (Array.isArray(f.servicios) && f.servicios.length) ? f.servicios : Z.paquete;
+    const items = svcs.map(s => ({ descripcion: s.nombre, cantidad: q, precio: Number(s.precio) || 0 }));
+    const esFactura = !!(f.empresa || String(f.tipo_doc) === '6');
+    const tipo = esFactura ? 1 : 2;
+    const serie = esFactura ? ((S.facCfg && S.facCfg.serie_factura) || 'F002') : ((S.facCfg && S.facCfg.serie_boleta) || 'B002');
+    let r;
+    try {
+      r = await apiPost({ accion: 'emitir_comprobante', tipo, serie,
+        cliente_doc_tipo: f.tipo_doc || (esFactura ? '6' : '1'), cliente_doc: String(f.documento || '').trim(),
+        cliente_nombre: f.nombre || f.empresa || 'Cliente', items, moneda: 'PEN',
+        operador: (S.ses && S.ses.nombre) || 'PS', localId: 'zarpe-' + f.id });
+    } catch (e) { r = { ok: false, error: (e && e.message) || 'error' }; }
+    if (r && r.ok && r.data) {
+      f.estado = 'facturado'; f.id_comprobante = r.data.id; f.serie = r.data.serie; f.numero = r.data.numero;
+      f._comp = Object.assign({ id: r.data.id, serie: r.data.serie, numero: r.data.numero, total: r.data.total,
+        estado: r.data.estado, enlace_pdf: r.data.pdf || r.data.enlace_pdf || '',
+        cliente_nombre: f.nombre || f.empresa || 'Cliente', cliente_doc: f.documento || '', cliente_doc_tipo: f.tipo_doc || '',
+        cliente_email: '', cliente_tel: '', items }, r.data);
+      try { await apiPost({ accion: 'marcar_zarpe_pax_facturado', id: f.id, id_comprobante: r.data.id }); } catch (e) {}
+      Z.progreso.done++; S._emitioAlgo = true;
+      _facZarpeMarkRow(i, true);
+      try { haptic(10); } catch (e) {}
+    } else {
+      Z.progreso.fail.push({ i: i, err: (r && r.error) || 'error' });
+      _facZarpeMarkRow(i, false);
+      try { sndErr(); haptic([40, 20, 40]); } catch (e) {}
+    }
+    if (btn) btn.textContent = 'Emitiendo… ' + Z.progreso.done + '/' + pend.length;
+    await new Promise(rs => setTimeout(rs, 200));   // stagger de la cascada
+  }
+  Z.emitiendo = false;
+  if (!(S._zarpe === Z)) return;
+  if (Z.progreso.fail.length) {
+    try { sndErr(); } catch (e) {}
+    _facRenderEmit();
+    if (typeof showToast === 'function') showToast('⚠️ ' + Z.progreso.fail.length + ' fila(s) fallaron — reintenta (no duplica)');
+  } else {
+    try { sndOk(); haptic([15, 45, 15]); } catch (e) {}
+    await _facZarpeLoadConcilia();
+    if (!(S._zarpe === Z)) return;
+    Z.view = 'resultado';
+    _facRenderEmit();
+  }
+}
+function _facZarpeMarkRow(i, ok) {
+  const row = document.querySelector('[data-zrow="' + i + '"]'); if (!row) return;
+  row.classList.remove('emit-ok', 'emit-fail'); void row.offsetWidth;
+  row.classList.add(ok ? 'emit-ok' : 'emit-fail');
+}
+async function _facZarpeLoadConcilia() {
+  const S = _facState, Z = S._zarpe; if (!Z || !Z.sel) return;
+  try { const r = await apiGet('conciliacion_zarpe_op', { operacion: Z.sel.id }); Z.concilia = (r.ok && r.data) || null; } catch (e) { Z.concilia = null; }
+}
+window._facZarpeAbrirCPE = function (i) {
+  const S = _facState, Z = S._zarpe, f = Z && Z.filas[i]; if (!f) return;
+  if (f._comp) window._facAbrirPDF(Object.assign({}, f._comp, { id: f._comp.id || f.id_comprobante }));
+  else if (f.id_comprobante) _facAbrirPDFById(f.id_comprobante);
+};
+async function _facZarpeCerrar() {
+  const S = _facState, Z = S._zarpe; if (!Z || !Z.sel) return;
+  try { sndTap(); haptic(12); } catch (e) {}
+  try { await apiPost({ accion: 'cerrar_zarpe', operacion: Z.sel.id, cerrar: true }); } catch (e) {}
+  try { sndOk(); haptic([15, 45, 15]); } catch (e) {}
+  if (typeof showToast === 'function') showToast('✓ Zarpe cerrado');
+  S._emitioAlgo = true;
+  _facZarpeToPicker();   // el zarpe cerrado desaparece de la lista de pendientes
+}
+// ── Lightbox de la foto del zarpe (blur + zoom) ──
+window._facZarpeLightbox = function (url) {
+  try { sndTap(); haptic(8); } catch (e) {}
+  let ov = document.getElementById('fac-z-lightbox');
+  if (!ov) { ov = document.createElement('div'); ov.id = 'fac-z-lightbox'; ov.className = 'fac-z-lb'; document.body.appendChild(ov); ov.addEventListener('click', () => _facZarpeLightboxClose()); }
+  ov.innerHTML = `<img src="${_facEsc(url)}" alt="zarpe"><button class="fac-z-lb-x" aria-label="Cerrar">×</button>`;
+  ov.style.display = 'flex';
+  requestAnimationFrame(() => ov.classList.add('visible'));
+};
+window._facZarpeLightboxClose = function () {
+  const ov = document.getElementById('fac-z-lightbox');
+  if (ov) { ov.classList.remove('visible'); setTimeout(() => { if (ov.parentNode) ov.remove(); }, 240); }
+  try { haptic(6); } catch (e) {}
+};
 
 // ═══════════════════════════════════════════════════════════════════════════
 // FASE 3 · Layout/Modal PDF del comprobante (80mm / A4) + Imprimir/Descargar/WhatsApp/Correo
@@ -9438,7 +9950,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.27.0';
+const APP_VERSION = '1.28.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
