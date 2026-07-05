@@ -5734,7 +5734,7 @@ function _facRenderEmit() {
 // (cuando NubeFact esté activo) vive en enlace_pdf. Todo el envío/guardado va por Supabase (cero GAS).
 // ═══════════════════════════════════════════════════════════════════════════
 // Identidad del emisor para la representación impresa. Edita RUC cuando lo tengas.
-const _FAC_EMISOR = { razon: 'GRUPO PS · PARACAS SIGHTS', ruc: '', direccion: 'Paracas, Ica — Perú', web: 'paracas' };
+const _FAC_EMISOR = { marca: 'PARACAS SIGHTS & TOURS', razon: 'PARACAS SIGHTS & TOURS AGENCIA DE VIAJES Y TURISMO S.A.C.', ruc: '20494562716', direccion: 'Paracas, Ica — Perú', web: 'paracas' };
 // Carga jsPDF de forma perezosa (no bloquea el arranque del panel).
 let _facJsPDFPromise = null;
 function _facEnsureJsPDF() {
@@ -5749,6 +5749,15 @@ function _facEnsureJsPDF() {
     document.head.appendChild(s);
   });
   return _facJsPDFPromise;
+}
+// Logo (Paracas Sights & Tours) → dataURL cacheado para incrustar en el PDF con jsPDF.
+let _facLogoPromise = null;
+function _facLoadLogo() {
+  if (_facLogoPromise) return _facLogoPromise;
+  _facLogoPromise = fetch('./logo.png').then(r => r.ok ? r.blob() : Promise.reject(new Error('no logo')))
+    .then(b => new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = () => rej(new Error('logo')); fr.readAsDataURL(b); }))
+    .catch(() => null);
+  return _facLogoPromise;
 }
 // Deduce el tipo de documento SUNAT a partir del número (el listado no lo trae desglosado).
 function _facInferDocTipo(c) {
@@ -5817,7 +5826,9 @@ function _facPdfPreviewHTML(c, fmt) {
   const oficial = /^https?:\/\//.test(String(c.enlace_pdf || ''));
   return `<div class="fpdf-paper ${esA4 ? 'a4' : 'mm80'}">
     <div style="text-align:center">
-      <div class="fpdf-brand" style="font-size:${brandSize}">${_facEsc(_FAC_EMISOR.razon)}</div>
+      <img src="./logo.png" alt="" style="height:${esA4 ? '54px' : '38px'};display:block;margin:0 auto 4px" onerror="this.style.display='none'">
+      <div class="fpdf-brand" style="font-size:${brandSize}">${_facEsc(_FAC_EMISOR.marca)}</div>
+      <div style="font-size:${esA4 ? '9px' : '7px'};color:#333;font-weight:600;margin-top:1px">${_facEsc(_FAC_EMISOR.razon)}</div>
       <div style="font-size:${esA4 ? '10px' : '8.5px'};color:#555;margin-top:2px">${rucLine} · ${_facEsc(_FAC_EMISOR.direccion)}</div>
     </div>
     <div class="fpdf-hr-solid"></div>
@@ -5853,6 +5864,7 @@ function _facPdfPreviewHTML(c, fmt) {
 // ── Generación del PDF REAL con jsPDF (mismo diseño, 80mm angosto / A4 completo) ──
 async function _facGenPDF(c) {
   const jsPDF = await _facEnsureJsPDF();
+  const logo = await _facLoadLogo();
   const fmt = (_facState._pdf && _facState._pdf.fmt) || '80mm';
   const T = _facPdfTotales(c);
   const num = _facNumFmt(c);
@@ -5863,10 +5875,15 @@ async function _facGenPDF(c) {
   if (fmt === 'a4') {
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     const W = 210, M = 16; let y = 20;
-    doc.setTextColor(...guinda); doc.setFont('helvetica', 'bold'); doc.setFontSize(18);
-    doc.text(_FAC_EMISOR.razon, M, y); y += 6;
-    doc.setTextColor(...gray); doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
-    doc.text(rucLine + '  ·  ' + _FAC_EMISOR.direccion, M, y);
+    if (logo) { try { doc.addImage(logo, 'PNG', M, 11, 26, 22); } catch (e) {} }
+    const hx = logo ? M + 30 : M;
+    doc.setTextColor(...guinda); doc.setFont('helvetica', 'bold'); doc.setFontSize(17);
+    doc.text(_FAC_EMISOR.marca, hx, y); y += 5;
+    doc.setTextColor(...ink); doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+    const rzL = doc.splitTextToSize(_FAC_EMISOR.razon, 128 - hx);
+    doc.text(rzL, hx, y); y += 3.6 * rzL.length + 1;
+    doc.setTextColor(...gray); doc.setFontSize(9);
+    doc.text(rucLine + '  ·  ' + _FAC_EMISOR.direccion, hx, y);
     // Recuadro documento (derecha)
     doc.setDrawColor(...guinda); doc.setLineWidth(0.5); doc.rect(W - M - 62, 14, 62, 22);
     doc.setTextColor(...guinda); doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
@@ -5910,11 +5927,15 @@ async function _facGenPDF(c) {
 
   // ── 80mm (ticket térmico, alto dinámico) ──
   const w = 80, mm = 5, cw = w - 2 * mm;
-  const est = 62 + T.items.length * 9 + 40;   // alto estimado
+  const est = 92 + T.items.length * 10 + 44;   // alto estimado (incluye logo + razón social legal + margen wrap)
   const doc = new jsPDF({ unit: 'mm', format: [w, est] });
   let y = 8;
   const center = (txt, size, bold, color) => { doc.setFont('helvetica', bold ? 'bold' : 'normal'); doc.setFontSize(size); doc.setTextColor(...(color || ink)); doc.text(txt, w / 2, y, { align: 'center', maxWidth: cw }); };
-  center(_FAC_EMISOR.razon, 10, true, guinda); y += 4.5;
+  if (logo) { try { doc.addImage(logo, 'PNG', (w - 24) / 2, y, 24, 20); y += 22; } catch (e) {} }
+  center(_FAC_EMISOR.marca, 11, true, guinda); y += 4.2;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.6); doc.setTextColor(...ink);
+  doc.splitTextToSize(_FAC_EMISOR.razon, cw).forEach(ln => { doc.text(ln, w / 2, y, { align: 'center' }); y += 2.9; });
+  y += 0.8;
   center(rucLine, 7, false, gray); y += 3.4;
   center(_FAC_EMISOR.direccion, 7, false, gray); y += 4;
   doc.setDrawColor(...guinda); doc.setLineWidth(0.5); doc.line(mm, y, w - mm, y); y += 5;
@@ -6076,7 +6097,7 @@ function _facPdfWhatsApp() {
   const oficial = /^https?:\/\//.test(String(c.enlace_pdf || ''));
   let msg = 'Hola ' + (c.cliente_nombre || '') + ' 👋\n\nTe compartimos tu ' + (Number(c.tipo) === 1 ? 'factura' : 'boleta') + ' electrónica *' + _facNumFmt(c) + '* por un total de *S/ ' + _facMoney(T.total) + '*.';
   if (oficial) msg += '\n\nPDF oficial: ' + c.enlace_pdf;
-  msg += '\n\n' + _FAC_EMISOR.razon + '. ¡Gracias por tu preferencia! 🌊';
+  msg += '\n\n' + _FAC_EMISOR.marca + '. ¡Gracias por tu preferencia! 🌊';
   window.open('https://wa.me/' + tel + '?text=' + encodeURIComponent(msg), '_blank', 'noopener');
   _facPdfGuardarContacto(c);
 }
@@ -9157,7 +9178,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.25.1';
+const APP_VERSION = '1.25.2';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
