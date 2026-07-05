@@ -1103,6 +1103,25 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 /* Cambio de sección: slide + fade con spring (visible, no un fade tímido) */
 .fac-slot.fac-slot-anim { animation:facSlotIn .44s cubic-bezier(.34,1.56,.64,1); }
 @keyframes facSlotIn { from{opacity:0; transform:translateX(16px) scale(.985);} to{opacity:1; transform:none;} }
+/* ── Historial · badge de tipo (pill glass) + acordeón NC ── */
+.fac-tp { display:inline-flex; align-items:center; gap:3px; font-size:9px; font-weight:800; letter-spacing:.02em; padding:2px 8px; border-radius:999px; line-height:1.3; white-space:nowrap; backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); border:1px solid transparent; }
+.fac-tp-f { background:rgba(59,130,246,.16); color:#60a5fa; border-color:rgba(96,165,250,.35); }
+.fac-tp-b { background:rgba(52,211,153,.15); color:#34d399; border-color:rgba(52,211,153,.32); }
+.fac-tp-nc { background:rgba(251,191,36,.16); color:#fbbf24; border-color:rgba(251,191,36,.36); }
+.fac-hist-head { display:flex; align-items:center; gap:8px; min-width:0; flex:1; -webkit-tap-highlight-color:transparent; }
+.fac-hist-head.tap { cursor:pointer; }
+.fac-hist-head.tap:active { transform:scale(.985); }
+.fac-hist-head { transition:transform .16s cubic-bezier(.34,1.56,.64,1); }
+.fac-hist-tri { flex:0 0 auto; font-size:11px; line-height:1; color:var(--gold); transform:rotate(0deg); transition:transform .34s cubic-bezier(.34,1.56,.64,1); }
+.fac-hist-tri.open { transform:rotate(180deg); animation:facTriSpin .42s cubic-bezier(.34,1.56,.64,1); }
+@keyframes facTriSpin { from{transform:rotate(0deg);} to{transform:rotate(180deg);} }
+.fac-hist-acc { overflow:hidden; }
+.fac-hist-acc.open { animation:facAccIn .32s cubic-bezier(.22,1,.36,1); }
+@keyframes facAccIn { from{opacity:0; max-height:0; transform:translateY(-6px);} to{opacity:1; max-height:520px; transform:none;} }
+.fac-hist-nc { background:rgba(251,191,36,.05); border-left:2px solid rgba(251,191,36,.4); }
+@media (prefers-reduced-motion: reduce){
+  .fac-hist-tri, .fac-hist-tri.open, .fac-hist-acc.open, .fac-hist-head { transition:none; animation:none; }
+}
 /* Tap feedback marcado en todo lo interactivo del slot */
 .fac-slot button { transition:transform .16s cubic-bezier(.34,1.56,.64,1); }
 .fac-slot button:active { transform:scale(.95); }
@@ -5205,7 +5224,7 @@ function _facInitState(ses, servicios, muelleOn, facCfg) {
     tribSub: 'balanza', renta: null, cargandoRenta: false, anioTrib: new Date().getFullYear(),
     compras: [], cargandoCompras: false, ia: null,
     // Fase 1: carrusel de meses (multi-select en historial) + semáforo por mes (balanza) + modal Emitir
-    histMeses: [(_tribPeriodos()[0] || {}).p].filter(Boolean), _balMes: {}, _emitOpen: false };
+    histMeses: [(_tribPeriodos()[0] || {}).p].filter(Boolean), _balMes: {}, _emitOpen: false, _histOpen: {} };
 }
 async function _facCargarBase() {
   let servicios = [], muelleOn = false, facCfg = {};
@@ -5710,16 +5729,22 @@ function _facSectionBody(S) {
       </div>
       <div style="font-size:10px;color:var(--text-muted);margin-bottom:6px">Toca uno o varios meses:</div>
       ${_facCarouselHTML('hist', _facHistChips(S))}`;
+    // Anida cada Nota de Crédito (tipo=3) bajo el comprobante que modifica (si está en la lista filtrada).
+    const _histKey = (t, s, n) => Number(t) + '|' + String(s) + '|' + Number(n);
+    const _histIn = {}; list.forEach(c => { _histIn[_histKey(c.tipo, c.serie, c.numero)] = c; });
+    const _histNC = {}; const _histNested = {};
+    list.forEach(c => {
+      if (Number(c.tipo) === 3 && c.doc_modifica_serie) {
+        const pk = _histKey(c.doc_modifica_tipo, c.doc_modifica_serie, c.doc_modifica_numero);
+        if (_histIn[pk]) { (_histNC[pk] = _histNC[pk] || []).push(c); _histNested[String(c.id)] = 1; }
+      }
+    });
     body = header +
       (S.cargandoHist ? '<div style="text-align:center;padding:24px"><div class="spin" style="display:inline-block"></div></div>' :
-       (list.length ? `<div style="border:1px solid var(--border);border-radius:14px;overflow:hidden">${list.map(c=>{const real=/^https?:\/\//.test(String(c.enlace_pdf||''));const anu=c.estado==='anulada';return `<div style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-bottom:1px solid var(--border);${anu?'opacity:.55':''}">
-          <div style="min-width:0;flex:1">
-            <div style="font-weight:800;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${anu?'text-decoration:line-through':''}">${_facEsc(c.cliente_nombre||'Sin nombre')}</div>
-            <div style="font-size:10px;color:var(--text-muted);display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap">${c.serie}-${String(c.numero).padStart(6,'0')} · ${_facEsc(String(c.creado||''))} ${_facChipEstado(c)}</div>
-          </div>
-          <span style="font-weight:800;font-size:13px;color:var(--gold);white-space:nowrap">S/ ${_facMoney(c.total)}</span>
-          <button onclick="_facAbrirPDFById('${c.id}')" title="Ver / imprimir / enviar PDF" style="cursor:pointer;flex:0 0 auto;background:${real?'rgba(74,222,128,0.12)':'rgba(201,168,76,0.12)'};border:1px solid ${real?'rgba(74,222,128,0.32)':'rgba(201,168,76,0.3)'};border-radius:8px;padding:5px 8px;font-size:15px;line-height:1">📄</button>
-          ${anu?'':`<button onclick="_facAnular('${c.id}')" title="Anular" style="cursor:pointer;flex:0 0 auto;${S.anularId===c.id?'color:#fff;background:#f87171;border:none;border-radius:7px;padding:3px 8px;font-size:10px;font-weight:800':'color:#f87171;background:none;border:none;font-size:14px'}">${S.anularId===c.id?'¿Anular?':'⊘'}</button>`}</div>`}).join('')}</div>` :
+       (list.length ? `<div style="border:1px solid var(--border);border-radius:14px;overflow:hidden">${list.map(c => {
+          if (_histNested[String(c.id)]) return '';   // se pinta anidada bajo su padre
+          return _facHistCardHTML(c, S, { ncs: _histNC[_histKey(c.tipo, c.serie, c.numero)] });
+        }).join('')}</div>` :
         '<div style="padding:18px;text-align:center;color:var(--text-muted);font-size:12px">Sin comprobantes en los meses elegidos.</div>'));
   } else if (S.tab === 'anulaciones') {
     body = `<div style="font-size:11px;font-weight:800;color:var(--gold);margin-bottom:8px">SOLICITUDES DE ANULACIÓN</div>
@@ -6536,6 +6561,80 @@ function _facTipoSlug(c) {
   if (t === 4) return 'nota-debito';
   return 'boleta';
 }
+// Badge/pill de TIPO para las cards del historial (glass, color por documento).
+function _facTipoBadge(c) {
+  var t = Number(c && c.tipo);
+  if (t === 1) return '<span class="fac-tp fac-tp-f">Factura</span>';
+  if (t === 3) return '<span class="fac-tp fac-tp-nc">N. Crédito</span>';
+  if (t === 4) return '<span class="fac-tp fac-tp-nc">N. Débito</span>';
+  return '<span class="fac-tp fac-tp-b">Boleta</span>';
+}
+// Palabra del documento que una Nota de Crédito modifica (por doc_modifica_tipo): 1=FACTURA · 2=BOLETA.
+function _facDocModWord(t) {
+  var n = Number(t);
+  if (n === 1) return 'FACTURA';
+  if (n === 2) return 'BOLETA';
+  if (n === 4) return 'NOTA DE DÉBITO';
+  return 'COMPROBANTE';
+}
+// Datos legales de una Nota de Crédito (tipo=3): a qué doc modifica + motivo. null si no es NC.
+function _facNCLegal(c) {
+  if (Number(c && c.tipo) !== 3) return null;
+  var serie = String(c.doc_modifica_serie || '').trim();
+  var num = (c.doc_modifica_numero != null && c.doc_modifica_numero !== '') ? String(c.doc_modifica_numero).padStart(8, '0') : '';
+  var ref = (serie || num) ? (_facDocModWord(c.doc_modifica_tipo) + ' ' + serie + (num ? '-' + num : '')) : '';
+  return { ref: ref, motivo: String(c.nc_motivo || '').trim() };
+}
+// Bloque legal (HTML) para el preview del PDF de una NC. '' si no aplica. compact=true → 80mm.
+function _facNCLegalHTML(c, compact) {
+  var L = _facNCLegal(c); if (!L) return '';
+  var pad = compact ? '5px 8px' : '7px 11px';
+  var fs = compact ? '8.5px' : '9.5px';
+  return '<div style="margin:' + (compact ? '5px 0' : '9px 0') + ';padding:' + pad + ';border:1px solid #C9A84C;background:#FBF4E0;border-radius:6px;line-height:1.35">' +
+    '<div style="font-weight:900;color:#7B2030;font-size:' + fs + ';letter-spacing:.02em">MODIFICA A: ' + _facEsc(L.ref || '—') + '</div>' +
+    '<div style="font-size:' + (compact ? '8px' : '9px') + ';color:#333;font-weight:600;margin-top:2px">MOTIVO: ' + _facEsc(L.motivo || '—') + '</div></div>';
+}
+// Card del historial (fila + acordeón de NCs anidadas). opts.ncs = NCs hijas · opts.nested = fila anidada.
+function _facHistCardHTML(c, S, opts) {
+  opts = opts || {};
+  var ncs = opts.ncs || null;
+  var nested = !!opts.nested;
+  var real = /^https?:\/\//.test(String(c.enlace_pdf || ''));
+  var anu = c.estado === 'anulada';
+  var hasNC = !!(ncs && ncs.length);
+  var open = hasNC && !!(S._histOpen && S._histOpen[c.id]);
+  var tri = hasNC ? '<span class="fac-hist-tri' + (open ? ' open' : '') + '" aria-hidden="true">▾</span>' : '';
+  var arrow = nested ? '<span style="flex:0 0 auto;color:#fbbf24;font-size:12px;font-weight:800;line-height:1">↳</span>' : '';
+  var headClick = hasNC ? ' onclick="_facHistToggle(\'' + c.id + '\')" role="button" aria-expanded="' + open + '"' : '';
+  var num6 = String(c.numero).padStart(6, '0');
+  var pdfBtn = '<button onclick="_facAbrirPDFById(\'' + c.id + '\')" title="Ver / imprimir / enviar PDF" style="cursor:pointer;flex:0 0 auto;background:' + (real ? 'rgba(74,222,128,0.12)' : 'rgba(201,168,76,0.12)') + ';border:1px solid ' + (real ? 'rgba(74,222,128,0.32)' : 'rgba(201,168,76,0.3)') + ';border-radius:8px;padding:5px 8px;font-size:15px;line-height:1">📄</button>';
+  var anulBtn = anu ? '' : '<button onclick="_facAnular(\'' + c.id + '\')" title="Anular" style="cursor:pointer;flex:0 0 auto;' + (S.anularId === c.id ? 'color:#fff;background:#f87171;border:none;border-radius:7px;padding:3px 8px;font-size:10px;font-weight:800' : 'color:#f87171;background:none;border:none;font-size:14px') + '">' + (S.anularId === c.id ? '¿Anular?' : '⊘') + '</button>';
+  var row = '<div class="' + (nested ? 'fac-hist-nc' : '') + '" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-bottom:1px solid var(--border);' + (nested ? 'padding-left:16px;' : '') + (anu ? 'opacity:.6' : '') + '">' +
+      '<div class="fac-hist-head' + (hasNC ? ' tap' : '') + '"' + headClick + '>' +
+        arrow + tri +
+        '<div style="min-width:0;flex:1">' +
+          '<div style="display:flex;align-items:center;gap:6px;min-width:0">' +
+            '<span style="font-weight:800;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;' + (anu ? 'text-decoration:line-through' : '') + '">' + _facEsc(c.cliente_nombre || 'Sin nombre') + '</span>' +
+            _facTipoBadge(c) +
+          '</div>' +
+          '<div style="font-size:10px;color:var(--text-muted);display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap">' + c.serie + '-' + num6 + ' · ' + _facEsc(String(c.creado || '')) + ' ' + _facChipEstado(c) + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<span style="font-weight:800;font-size:13px;color:var(--gold);white-space:nowrap">S/ ' + _facMoney(c.total) + '</span>' +
+      pdfBtn + anulBtn +
+    '</div>';
+  if (!hasNC) return row;
+  var acc = '<div class="fac-hist-acc' + (open ? ' open' : '') + '"' + (open ? '' : ' style="display:none"') + '>' + ncs.map(function (nc) { return _facHistCardHTML(nc, S, { nested: true }); }).join('') + '</div>';
+  return row + acc;
+}
+// Toggle del acordeón de una card (padre con NCs) — re-pinta el slot/modal conservando estado.
+window._facHistToggle = function (id) {
+  var S = _facState; if (!S) return;
+  try { sndTap(); haptic(8); } catch (e) {}
+  S._histOpen = S._histOpen || {};
+  S._histOpen[id] = !S._histOpen[id];
+  if (_facMode === 'module') _facRenderSlot(); else _facRender();
+};
 // ── Monto en LETRAS (documento tributario): "SON: CIENTO DIECIOCHO CON 00/100 SOLES" ──
 function _facEnteroLetras(n) {
   n = Math.floor(Math.abs(Number(n) || 0));
@@ -6690,6 +6789,7 @@ function _facPdfPreviewHTML(c, fmt) {
         <div class="fpdf-a4-metacol"><div><span class="lbl">CLIENTE</span> ${nomCli}</div><div><span class="lbl">DOCUMENTO</span> ${docCli}</div></div>
         <div class="fpdf-a4-metacol r"><div><span class="lbl">FECHA</span> ${fecha || '—'}</div><div><span class="lbl">MONEDA</span> ${_facEsc(c.moneda || 'PEN')}</div></div>
       </div>
+      ${_facNCLegalHTML(c)}
       <div class="fpdf-a4-body">
         <table class="fpdf-tbl fpdf-a4-tbl">
           <thead><tr><th>Descripción</th><th class="num">Cant</th><th class="num">P. Unit</th><th class="num">Importe</th></tr></thead>
@@ -6735,6 +6835,7 @@ function _facPdfPreviewHTML(c, fmt) {
       <div><b>Moneda:</b> ${_facEsc(c.moneda || 'PEN')}</div>
     </div>
     <div style="font-size:10px;margin-top:4px"><b>Cliente:</b> ${nomCli}<br><b>Doc:</b> ${docCli}</div>
+    ${_facNCLegalHTML(c, true)}
     <div class="fpdf-hr"></div>
     <table class="fpdf-tbl">
       <thead><tr><th>Descripción</th><th class="num">Cant</th><th class="num">Importe</th></tr></thead>
@@ -6760,6 +6861,7 @@ async function _facGenPDF(c, fmtOverride) {
   const fmt = fmtOverride || (_facState._pdf && _facState._pdf.fmt) || 'a4';
   const T = _facPdfTotales(c);
   const num = _facNumFmt(c);
+  const ncL = _facNCLegal(c);   // bloque legal SUNAT si es Nota de Crédito
   const guinda = [123, 32, 48], ink = [26, 26, 26], gray = [110, 110, 110];
   const fecha = String(c.creado || c.fecha || c.creado_at || '').slice(0, 16);
   const rucLine = _FAC_EMISOR.ruc ? ('R.U.C. ' + _FAC_EMISOR.ruc) : 'R.U.C. —';
@@ -6805,8 +6907,21 @@ async function _facGenPDF(c, fmtOverride) {
     doc.setTextColor(...ink); doc.setFont('helvetica', 'normal'); doc.text(fecha || '—', bx + 24, hy);
     doc.setTextColor(...gray); doc.setFont('helvetica', 'bold'); doc.text('MONEDA', bx, hy + 6.5);
     doc.setTextColor(...ink); doc.setFont('helvetica', 'normal'); doc.text(String(c.moneda || 'PEN'), bx + 24, hy + 6.5);
+    // ── Bloque legal Nota de Crédito (SUNAT): a qué doc modifica + motivo ──
+    let ncExtra = 0;
+    if (ncL) {
+      const ly = hy + 13;
+      doc.setFillColor(250, 244, 224); doc.setDrawColor(...guinda); doc.setLineWidth(0.4);
+      doc.roundedRect(M, ly, 194 - M, 13, 1.8, 1.8, 'FD');
+      doc.setTextColor(...guinda); doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+      doc.text('MODIFICA A: ' + (ncL.ref || '—'), M + 4, ly + 5.3);
+      doc.setTextColor(...ink); doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
+      const mL = doc.splitTextToSize('MOTIVO: ' + (ncL.motivo || '—'), 194 - M - 8);
+      doc.text(mL[0] || '', M + 4, ly + 10.2);
+      ncExtra = 16;
+    }
     // ── Zona de cuerpo: tabla de ítems (izq, ancha) + bloque de totales (der) ──
-    const topY = hy + 15;
+    const topY = hy + 15 + ncExtra;
     const tblR = 194, colCant = 132, colPU = 162, colImp = tblR - 2;   // tabla ocupa M..tblR
     // Cabecera tabla
     doc.setFillColor(...guinda); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
@@ -6862,7 +6977,7 @@ async function _facGenPDF(c, fmtOverride) {
 
   // ── 80mm (ticket térmico, alto dinámico) ──
   const w = 80, mm = 5, cw = w - 2 * mm;
-  const est = 92 + T.items.length * 10 + 44 + 40;   // alto estimado (incluye logo + razón social + letras + QR 22mm + margen wrap)
+  const est = 92 + T.items.length * 10 + 44 + 40 + (ncL ? 16 : 0);   // alto estimado (incluye logo + razón social + letras + QR 22mm + margen wrap + bloque NC)
   const doc = new jsPDF({ unit: 'mm', format: [w, est] });
   let y = 8;
   const center = (txt, size, bold, color) => { doc.setFont('helvetica', bold ? 'bold' : 'normal'); doc.setFontSize(size); doc.setTextColor(...(color || ink)); doc.text(txt, w / 2, y, { align: 'center', maxWidth: cw }); };
@@ -6885,6 +7000,15 @@ async function _facGenPDF(c, fmtOverride) {
   const nomLines = doc.splitTextToSize('Cliente: ' + String(c.cliente_nombre || 'Cliente varios'), cw);
   doc.text(nomLines, mm, y); y += nomLines.length * 3.6;
   doc.text('Doc: ' + String(c.cliente_doc || '—'), mm, y); y += 4;
+  // ── Bloque legal Nota de Crédito (SUNAT) ──
+  if (ncL) {
+    doc.setDrawColor(...guinda); doc.setLineWidth(0.3); doc.setFillColor(250, 244, 224);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.2); doc.setTextColor(...guinda);
+    doc.splitTextToSize('MODIFICA A: ' + (ncL.ref || '—'), cw).forEach(ln => { doc.text(ln, mm, y); y += 3; });
+    doc.setFont('helvetica', 'normal'); doc.setTextColor(...ink); doc.setFontSize(6.8);
+    doc.splitTextToSize('MOTIVO: ' + (ncL.motivo || '—'), cw).forEach(ln => { doc.text(ln, mm, y); y += 2.8; });
+    y += 1;
+  }
   doc.setDrawColor(180, 180, 180); doc.setLineDashPattern([1, 1], 0); doc.line(mm, y, w - mm, y); doc.setLineDashPattern([], 0); y += 4;
   // Cabecera items
   doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(...guinda);
@@ -10233,7 +10357,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.29.0';
+const APP_VERSION = '1.30.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
