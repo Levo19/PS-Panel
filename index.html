@@ -1165,11 +1165,11 @@ select.config-input option { background: #1e0a10; color: var(--text); }
   .facb-beam { height:54px; }
   .fac-tabbar { flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; }
   .fac-tb { flex:0 0 auto; padding:9px 14px; }
-  /* KPIs como mini-grid en móvil */
-  .facb-kpis { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; background:transparent; border:none; padding:0; margin-top:14px; }
-  .facb-kpi { flex-direction:column; align-items:flex-start; gap:4px; padding:11px 10px; border-bottom:none; font-size:11px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08); border-radius:14px; }
-  .facb-kpi span { font-size:10px; line-height:1.15; opacity:.85; }
-  .facb-kpi b { font-size:13.5px; }
+  /* KPIs como mini-grid en móvil (variante clásica; la variante desplegable .facb-kpis-acc queda como lista) */
+  .facb-kpis:not(.facb-kpis-acc) { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; background:transparent; border:none; padding:0; margin-top:14px; }
+  .facb-kpis:not(.facb-kpis-acc) .facb-kpi { flex-direction:column; align-items:flex-start; gap:4px; padding:11px 10px; border-bottom:none; font-size:11px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08); border-radius:14px; }
+  .facb-kpis:not(.facb-kpis-acc) .facb-kpi span { font-size:10px; line-height:1.15; opacity:.85; }
+  .facb-kpis:not(.facb-kpis-acc) .facb-kpi b { font-size:13.5px; }
 }
 /* Respeta preferencia de menos movimiento */
 @media (prefers-reduced-motion: reduce){
@@ -1260,7 +1260,7 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 @media(max-width:600px){ .fac-emit-box { max-height:94vh; border-radius:22px; } .fac-emit-box-inner { padding:4px 16px 20px; } }
 
 /* ── FASE 3 · Layout/Modal PDF del comprobante (80mm / A4) ──────────────── */
-.fpdf-box { max-width:560px; }
+.fpdf-box { max-width:640px; }
 .fpdf-seg { position:relative; display:flex; gap:0; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1); border-radius:13px; padding:4px; margin:2px 0 14px; }
 .fpdf-seg-ind { position:absolute; top:4px; bottom:4px; left:4px; width:calc(50% - 4px); border-radius:10px; background:linear-gradient(135deg,var(--guinda-light),var(--guinda-dark)); box-shadow:0 3px 12px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.22); transition:transform .38s cubic-bezier(.34,1.56,.64,1); }
 .fpdf-seg[data-fmt="a4"] .fpdf-seg-ind { transform:translateX(100%); }
@@ -1274,7 +1274,37 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 .fpdf-paper { background:#fff; color:#1a1a1a; box-shadow:0 10px 30px rgba(0,0,0,.4); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif; }
 .fpdf-paper.mm80 { width:280px; padding:16px 14px; border-radius:4px; font-size:11px; line-height:1.42; }
 .fpdf-paper.a4 { width:430px; max-width:100%; padding:26px 26px; border-radius:3px; font-size:12px; line-height:1.5; }
-@media(max-width:480px){ .fpdf-paper.a4 { width:100%; padding:18px 16px; } .fpdf-paper.mm80 { width:250px; } }
+/* A4 apaisado (landscape) — fiel al PDF */
+.fpdf-paper.a4l { width:100%; max-width:640px; padding:20px 22px; border-radius:3px; font-size:11px; line-height:1.45; }
+.fpdf-a4-top { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+.fpdf-a4-emisor { display:flex; align-items:flex-start; gap:11px; min-width:0; flex:1 1 auto; }
+.fpdf-a4-emisor > div { min-width:0; }
+.fpdf-a4-emisor img { height:46px; flex:0 0 auto; }
+.fpdf-a4-docbox { flex:0 0 auto; text-align:center; border:1px solid #7B2030; border-radius:5px; padding:8px 12px; width:150px; }
+.fpdf-a4-meta { display:flex; justify-content:space-between; gap:16px; font-size:10.5px; }
+.fpdf-a4-metacol { min-width:0; }
+.fpdf-a4-metacol > div { padding:1px 0; }
+.fpdf-a4-metacol.r { text-align:right; }
+.fpdf-a4-meta .lbl { color:#7B2030; font-weight:800; font-size:8.5px; letter-spacing:.04em; margin-right:4px; }
+.fpdf-a4-body { display:flex; gap:14px; align-items:flex-start; margin-top:11px; }
+.fpdf-a4-tbl { flex:1 1 auto; min-width:0; }
+.fpdf-a4-tot { flex:0 0 36%; max-width:220px; min-width:0; background:#faf6ef; border:1px solid #7B2030; border-radius:5px; padding:10px 12px; font-size:11px; }
+.fpdf-a4-tot .fpdf-tot-row span:first-child { min-width:0; }
+.fpdf-a4-tot b, .fpdf-a4-tot .fpdf-tot-grand span:last-child { white-space:nowrap; }
+@media(max-width:560px){
+  .fpdf-paper.a4 { width:100%; padding:18px 16px; } .fpdf-paper.mm80 { width:250px; }
+  .fpdf-paper.a4l { padding:13px 13px; font-size:9.5px; }
+  .fpdf-paper.a4l .fpdf-brand { font-size:13px !important; }
+  .fpdf-a4-emisor { gap:7px; } .fpdf-a4-emisor img { height:30px; }
+  .fpdf-a4-docbox { width:108px; padding:5px 6px; }
+  .fpdf-a4-docbox > div:first-child { font-size:8.5px !important; }
+  .fpdf-a4-docbox > div:last-child { font-size:10.5px !important; }
+  .fpdf-a4-body { gap:8px; }
+  .fpdf-a4-tot { flex-basis:41%; padding:8px 6px; font-size:9px; }
+  .fpdf-a4-tot .fpdf-tot-grand { font-size:10px; margin-top:3px; padding-top:4px; }
+  .fpdf-a4-tot .fpdf-tot-row { gap:4px; }
+  .fpdf-a4-tbl { font-size:9px; }
+}
 .fpdf-brand { font-weight:900; letter-spacing:-.4px; color:#7B2030; }
 .fpdf-gold { color:#8a6d1f; }
 .fpdf-hr { border:none; border-top:1px dashed #c9c1c1; margin:9px 0; }
@@ -1346,6 +1376,33 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 .facb-badge.ok.pop { animation:reveal-pop .4s cubic-bezier(.34,1.56,.64,1) both; }
 .facb-acc-empty { padding:18px 8px; text-align:center; color:var(--text-muted); font-size:11.5px; line-height:1.5; }
 .facb-relee-mini { width:13px; height:13px; border:2px solid rgba(255,69,58,.35); border-top-color:#FF453A; border-radius:50%; display:inline-block; animation:spin .7s linear infinite; }
+
+/* ── KPI de la balanza como filas desplegables/accionables (▾) ── */
+.facb-kpis-acc { display:block; background:rgba(255,255,255,.045); border:1px solid rgba(255,255,255,.07); border-radius:16px; padding:0 12px; margin-top:12px; }
+.facb-kpi-item { border-bottom:1px solid rgba(255,255,255,.07); }
+.facb-kpi-item:last-child { border-bottom:none; }
+.facb-kpi-hd {
+  width:100%; display:flex; align-items:center; gap:10px; padding:12px 2px; cursor:pointer;
+  background:none; border:none; color:var(--text); font-size:13px; text-align:left;
+  -webkit-tap-highlight-color:transparent; transition:transform .12s, opacity .2s;
+}
+.facb-kpi-hd:active { transform:scale(.985); opacity:.85; }
+.facb-kpi-lbl { flex:1 1 auto; opacity:.9; min-width:0; }
+.facb-kpi-hd b { font-weight:800; font-variant-numeric:tabular-nums; flex:0 0 auto; }
+.facb-kpi-chev { flex:0 0 auto; width:18px; text-align:center; color:var(--gold-pale,#e6cf8a); font-size:12px; font-weight:900; transition:transform .32s cubic-bezier(.34,1.4,.5,1); }
+.facb-kpi-hd.open .facb-kpi-chev { transform:rotate(180deg); }
+.facb-kpi-hd.nav .facb-kpi-chev { transform:rotate(-90deg); opacity:.8; }   /* Ventas: navega (flecha ▸) */
+.facb-kpi-hd.nav:hover .facb-kpi-chev { transform:rotate(-90deg) scale(1.15); }
+.facb-acc-subir {
+  width:100%; margin:2px 0 10px; padding:11px; border:none; border-radius:12px; cursor:pointer;
+  background:linear-gradient(135deg,#8f2636,#56070c); color:#fff; font-weight:800; font-size:12.5px;
+  min-height:44px; -webkit-tap-highlight-color:transparent; transition:transform .14s, filter .15s;
+}
+.facb-acc-subir:active { transform:scale(.96); }
+.facb-acc-subir:hover { filter:brightness(1.08); }
+/* Resalta la columna derecha (historial) al tocar Ventas ▾ en desktop */
+.fac-r-flash { animation:facRFlash 1.3s ease; }
+@keyframes facRFlash { 0%,100%{ box-shadow:none; } 22%{ box-shadow:0 0 0 2px rgba(201,168,76,.55), 0 10px 30px rgba(201,168,76,.25); border-radius:20px; } }
 
 /* ── FASE 2 · Modal Subir compra (sheet frosted, spring desde abajo) ────── */
 .fac-subir-ov {
@@ -5457,7 +5514,7 @@ function _facSectionBody(S) {
 // ═══ MÓDULO (full-page): shell PERSISTENTE = balanza fina fija (izq) + tabbar/slot (der) ═══
 // Fase 1: 'emitir' pasó a botón→modal; 'subir'/'compras' se retiran del tabbar (Fase 2 van a la izquierda).
 const _FAC_MOD_TABS = [
-  ['historial', '📜', 'Historial'], ['renta', '📈', 'Renta'], ['conciliacion', '⚖', 'Conciliar'],
+  ['historial', '📜', 'Historial'], ['conciliacion', '⚖', 'Conciliar'],
   ['servicios', '🏷', 'Servicios'], ['ajustes', '⚙', 'Ajustes'], ['anulaciones', '⊘', 'Anular']
 ];
 const _FAC_MOD_TAB_IDS = _FAC_MOD_TABS.map(t => t[0]);
@@ -5532,16 +5589,31 @@ function _facBalanzaFinaHTML(S) {
   </div>
   <div class="facb-lbls"><span class="deb">debes</span><span class="cre">a favor</span></div>
   <div style="text-align:center;margin:6px 0 12px"><span class="trib-chip" style="background:${tot <= 0 ? 'rgba(255,255,255,0.06)' : (inclina ? 'rgba(224,84,78,0.16)' : 'rgba(63,178,127,0.16)')};color:${tot <= 0 ? 'var(--text-muted)' : (inclina ? '#f87171' : '#4ade80')}">${tot <= 0 ? 'Sin movimiento este período' : (inclina ? '⚖️ Se inclina a pagar' : '✓ Tu crédito cubre el IGV')}</span></div>
-  <div class="facb-kpis">
-    <div class="facb-kpi"><span>🔴 Ventas (IGV)</span><b id="facb-kd" style="color:#f87171">S/ 0.00</b></div>
-    <div class="facb-kpi"><span>🟢 Compras (crédito)</span><b id="facb-kc" style="color:#4ade80">S/ 0.00</b></div>
-    <div class="facb-kpi" style="border-bottom:none"><span>📈 Renta</span><b id="facb-kr">S/ 0.00</b></div>
+  <div class="facb-kpis facb-kpis-acc">
+    <div class="facb-kpi-item">
+      <button class="facb-kpi-hd nav" onclick="_facKpiVentas()" aria-label="Ver historial de ventas">
+        <span class="facb-kpi-lbl">🔴 Ventas (IGV)</span>
+        <b id="facb-kd" style="color:#f87171">S/ 0.00</b>
+        <span class="facb-kpi-chev">▾</span>
+      </button>
+    </div>
+    <div class="facb-kpi-item">
+      <button class="facb-kpi-hd${S._compAccOpen ? ' open' : ''}" id="facb-comp-tog" onclick="_facToggleCompras()" aria-expanded="${S._compAccOpen ? 'true' : 'false'}" aria-label="Ver compras del mes y subir compra">
+        <span class="facb-kpi-lbl">🟢 Compras</span>
+        <b id="facb-kc" style="color:#4ade80">S/ 0.00</b>
+        <span class="facb-kpi-chev">▾</span>
+      </button>
+      <div class="facb-acc" id="facb-comp-acc"><div class="facb-acc-inner" id="facb-comp-inner">${_facComprasAccInner(S)}</div></div>
+    </div>
+    <div class="facb-kpi-item">
+      <button class="facb-kpi-hd${S._rentaAccOpen ? ' open' : ''}" id="facb-renta-tog" onclick="_facToggleRenta()" aria-expanded="${S._rentaAccOpen ? 'true' : 'false'}" aria-label="Ver detalle de renta">
+        <span class="facb-kpi-lbl">📈 Renta</span>
+        <b id="facb-kr">S/ 0.00</b>
+        <span class="facb-kpi-chev">▾</span>
+      </button>
+      <div class="facb-acc" id="facb-renta-acc"><div class="facb-acc-inner" id="facb-renta-inner">${_facRentaAccInner(S)}</div></div>
+    </div>
   </div>
-  <div class="facb-subir-row">
-    <button onclick="_facAbrirSubir()" class="facb-cta facb-subir-main">📸 Subir compra${inclina ? ' y bajar el pago' : ''}</button>
-    <button class="facb-subir-tog${S._compAccOpen ? ' open' : ''}" id="facb-comp-tog" onclick="_facToggleCompras()" aria-expanded="${S._compAccOpen ? 'true' : 'false'}" aria-label="Ver compras del mes"><span class="chev">▾</span></button>
-  </div>
-  <div class="facb-acc" id="facb-comp-acc"><div class="facb-acc-inner" id="facb-comp-inner">${_facComprasAccInner(S)}</div></div>
   ${inclina ? '' : `<div class="facb-hint">Sube tus compras y este pago baja</div>`}`;
 }
 // count-up + rotación de la balanza fina — corre UNA vez por cambio de datos (no en cada pestaña).
@@ -5564,6 +5636,8 @@ function _facAfterBalanza(panel) {
   // Fase 2: el panel se re-pintó → repobla + reabre el desplegable de compras si estaba abierto.
   _facPaintComprasAcc();
   if (S._compAccOpen) { _facLoadComprasBalanza(); _facSetAccHeight(true, true); }
+  _facPaintRentaAcc();
+  if (S._rentaAccOpen) { _facLoadRentaBalanza(); _facSetRentaHeight(true, true); }
 }
 // Swap del slot (sección activa) dentro de un contenedor: fade + re-bind + refresca tabbar. NO toca la balanza.
 function _facSwapSlot(ov) {
@@ -5812,60 +5886,100 @@ function _facPdfPreviewHTML(c, fmt) {
   const docCli = _facEsc(String(c.cliente_doc || '').trim() || '—');
   const nomCli = _facEsc(c.cliente_nombre || 'Cliente varios');
   const rucLine = _FAC_EMISOR.ruc ? ('R.U.C. ' + _facEsc(_FAC_EMISOR.ruc)) : 'R.U.C. —';
-  const rows = T.items.map(i => `<tr>
-      <td>${_facEsc(i.descripcion)}</td>
-      <td class="num">${i.cantidad}</td>
-      ${esA4 ? `<td class="num">${_facMoney(i.precio)}</td>` : ''}
-      <td class="num">${_facMoney(i.cantidad * i.precio)}</td>
-    </tr>`).join('');
-  const brandSize = esA4 ? '20px' : '15px';
-  const igvLbl = T.cero ? 'IGV (0% · exportación)' : 'IGV (18%)';
-  const opLbl = T.cero ? 'Op. Exportación / Inafecta' : 'Op. Gravada';
+  const igvLbl = T.cero ? 'IGV (0%)' : 'IGV (18%)';
+  const opLbl = T.cero ? 'Op. Export / Inafecta' : 'Op. Gravada';
   const opVal = T.cero ? T.inafecta : T.grav;
   const hash = _facEsc(String(c.hash || c.codigo_barras || '').slice(0, 40));
   const oficial = /^https?:\/\//.test(String(c.enlace_pdf || ''));
-  return `<div class="fpdf-paper ${esA4 ? 'a4' : 'mm80'}">
+  const footHtml = `Representación impresa de la ${Number(c.tipo) === 1 ? 'FACTURA' : 'BOLETA DE VENTA'} ELECTRÓNICA. Emitida mediante SUNAT · NubeFact.${hash ? ' · Hash: ' + hash : ''}${oficial ? '<br>PDF oficial disponible en el enlace del comprobante.' : ''}`;
+
+  if (esA4) {
+    // ── A4 HORIZONTAL (apaisado) — fiel al PDF: emisor izq, recuadro doc der, tabla ancha + totales a la derecha ──
+    const rows = T.items.map(i => `<tr>
+        <td>${_facEsc(i.descripcion)}</td>
+        <td class="num">${i.cantidad}</td>
+        <td class="num">${_facMoney(i.precio)}</td>
+        <td class="num">${_facMoney(i.cantidad * i.precio)}</td>
+      </tr>`).join('');
+    return `<div class="fpdf-paper a4l">
+      <div class="fpdf-a4-top">
+        <div class="fpdf-a4-emisor">
+          <img src="./logo.png" alt="" onerror="this.style.display='none'">
+          <div>
+            <div class="fpdf-brand" style="font-size:17px">${_facEsc(_FAC_EMISOR.marca)}</div>
+            <div style="font-size:8px;color:#333;font-weight:600;margin-top:1px;line-height:1.3">${_facEsc(_FAC_EMISOR.razon)}</div>
+            <div style="font-size:9px;color:#555;margin-top:2px">${rucLine} · ${_facEsc(_FAC_EMISOR.direccion)}</div>
+          </div>
+        </div>
+        <div class="fpdf-a4-docbox">
+          <div style="font-weight:900;color:#7B2030;font-size:10.5px;letter-spacing:.02em;line-height:1.15">${_facTituloDoc(c)}</div>
+          <div style="font-weight:800;font-size:14px;margin-top:4px">${_facEsc(num)}</div>
+        </div>
+      </div>
+      <div class="fpdf-hr-solid"></div>
+      <div class="fpdf-a4-meta">
+        <div class="fpdf-a4-metacol"><div><span class="lbl">CLIENTE</span> ${nomCli}</div><div><span class="lbl">DOCUMENTO</span> ${docCli}</div></div>
+        <div class="fpdf-a4-metacol r"><div><span class="lbl">FECHA</span> ${fecha || '—'}</div><div><span class="lbl">MONEDA</span> ${_facEsc(c.moneda || 'PEN')}</div></div>
+      </div>
+      <div class="fpdf-a4-body">
+        <table class="fpdf-tbl fpdf-a4-tbl">
+          <thead><tr><th>Descripción</th><th class="num">Cant</th><th class="num">P. Unit</th><th class="num">Importe</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <div class="fpdf-a4-tot">
+          <div class="fpdf-tot-row"><span>${opLbl}</span><b>S/ ${_facMoney(opVal)}</b></div>
+          <div class="fpdf-tot-row"><span>${igvLbl}</span><b>S/ ${_facMoney(T.igv)}</b></div>
+          <div class="fpdf-tot-row fpdf-tot-grand"><span>TOTAL</span><span>S/ ${_facMoney(T.total)}</span></div>
+        </div>
+      </div>
+      <div class="fpdf-foot" style="margin-top:14px;border-top:1px solid #ddd;padding-top:7px">${footHtml}</div>
+    </div>`;
+  }
+
+  // ── 80mm (ticket térmico, vertical — sin cambios) ──
+  const rows = T.items.map(i => `<tr>
+      <td>${_facEsc(i.descripcion)}</td>
+      <td class="num">${i.cantidad}</td>
+      <td class="num">${_facMoney(i.cantidad * i.precio)}</td>
+    </tr>`).join('');
+  return `<div class="fpdf-paper mm80">
     <div style="text-align:center">
-      <img src="./logo.png" alt="" style="height:${esA4 ? '54px' : '38px'};display:block;margin:0 auto 4px" onerror="this.style.display='none'">
-      <div class="fpdf-brand" style="font-size:${brandSize}">${_facEsc(_FAC_EMISOR.marca)}</div>
-      <div style="font-size:${esA4 ? '9px' : '7px'};color:#333;font-weight:600;margin-top:1px">${_facEsc(_FAC_EMISOR.razon)}</div>
-      <div style="font-size:${esA4 ? '10px' : '8.5px'};color:#555;margin-top:2px">${rucLine} · ${_facEsc(_FAC_EMISOR.direccion)}</div>
+      <img src="./logo.png" alt="" style="height:38px;display:block;margin:0 auto 4px" onerror="this.style.display='none'">
+      <div class="fpdf-brand" style="font-size:15px">${_facEsc(_FAC_EMISOR.marca)}</div>
+      <div style="font-size:7px;color:#333;font-weight:600;margin-top:1px">${_facEsc(_FAC_EMISOR.razon)}</div>
+      <div style="font-size:8.5px;color:#555;margin-top:2px">${rucLine} · ${_facEsc(_FAC_EMISOR.direccion)}</div>
     </div>
     <div class="fpdf-hr-solid"></div>
     <div style="text-align:center">
-      <div style="font-weight:900;color:#7B2030;font-size:${esA4 ? '13px' : '11px'};letter-spacing:.02em">${_facTituloDoc(c)}</div>
-      <div style="font-weight:800;font-size:${esA4 ? '14px' : '12px'};margin-top:2px">${_facEsc(num)}</div>
+      <div style="font-weight:900;color:#7B2030;font-size:11px;letter-spacing:.02em">${_facTituloDoc(c)}</div>
+      <div style="font-weight:800;font-size:12px;margin-top:2px">${_facEsc(num)}</div>
     </div>
     <div class="fpdf-hr"></div>
-    <div style="display:flex;justify-content:space-between;gap:8px;font-size:${esA4 ? '11px' : '10px'}">
+    <div style="display:flex;justify-content:space-between;gap:8px;font-size:10px">
       <div><b>Fecha:</b> ${fecha || '—'}</div>
       <div><b>Moneda:</b> ${_facEsc(c.moneda || 'PEN')}</div>
     </div>
-    <div style="font-size:${esA4 ? '11px' : '10px'};margin-top:4px"><b>Cliente:</b> ${nomCli}<br><b>Doc:</b> ${docCli}</div>
+    <div style="font-size:10px;margin-top:4px"><b>Cliente:</b> ${nomCli}<br><b>Doc:</b> ${docCli}</div>
     <div class="fpdf-hr"></div>
     <table class="fpdf-tbl">
-      <thead><tr><th>Descripción</th><th class="num">Cant</th>${esA4 ? '<th class="num">P.Unit</th>' : ''}<th class="num">Importe</th></tr></thead>
+      <thead><tr><th>Descripción</th><th class="num">Cant</th><th class="num">Importe</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
     <div class="fpdf-hr"></div>
-    <div style="font-size:${esA4 ? '12px' : '11px'}">
+    <div style="font-size:11px">
       <div class="fpdf-tot-row"><span>${opLbl}</span><b>S/ ${_facMoney(opVal)}</b></div>
       <div class="fpdf-tot-row"><span>${igvLbl}</span><b>S/ ${_facMoney(T.igv)}</b></div>
       <div class="fpdf-tot-row fpdf-tot-grand"><span>TOTAL</span><span>S/ ${_facMoney(T.total)}</span></div>
     </div>
-    <div class="fpdf-foot">
-      Representación impresa de la ${Number(c.tipo) === 1 ? 'FACTURA' : 'BOLETA DE VENTA'} ELECTRÓNICA.<br>
-      Emitida mediante SUNAT · NubeFact.${hash ? '<br>Hash: ' + hash : ''}
-      ${oficial ? '<br>PDF oficial disponible en el enlace del comprobante.' : ''}
-    </div>
+    <div class="fpdf-foot">${footHtml}</div>
   </div>`;
 }
 
 // ── Generación del PDF REAL con jsPDF (mismo diseño, 80mm angosto / A4 completo) ──
-async function _facGenPDF(c) {
+async function _facGenPDF(c, fmtOverride) {
   const jsPDF = await _facEnsureJsPDF();
   const logo = await _facLoadLogo();
-  const fmt = (_facState._pdf && _facState._pdf.fmt) || '80mm';
+  const fmt = fmtOverride || (_facState._pdf && _facState._pdf.fmt) || 'a4';
   const T = _facPdfTotales(c);
   const num = _facNumFmt(c);
   const guinda = [123, 32, 48], ink = [26, 26, 26], gray = [110, 110, 110];
@@ -5873,55 +5987,82 @@ async function _facGenPDF(c) {
   const rucLine = _FAC_EMISOR.ruc ? ('R.U.C. ' + _FAC_EMISOR.ruc) : 'R.U.C. —';
 
   if (fmt === 'a4') {
-    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-    const W = 210, M = 16; let y = 20;
-    if (logo) { try { doc.addImage(logo, 'PNG', M, 11, 26, 22); } catch (e) {} }
-    const hx = logo ? M + 30 : M;
-    doc.setTextColor(...guinda); doc.setFont('helvetica', 'bold'); doc.setFontSize(17);
-    doc.text(_FAC_EMISOR.marca, hx, y); y += 5;
-    doc.setTextColor(...ink); doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
-    const rzL = doc.splitTextToSize(_FAC_EMISOR.razon, 128 - hx);
-    doc.text(rzL, hx, y); y += 3.6 * rzL.length + 1;
-    doc.setTextColor(...gray); doc.setFontSize(9);
-    doc.text(rucLine + '  ·  ' + _FAC_EMISOR.direccion, hx, y);
-    // Recuadro documento (derecha)
-    doc.setDrawColor(...guinda); doc.setLineWidth(0.5); doc.rect(W - M - 62, 14, 62, 22);
-    doc.setTextColor(...guinda); doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
-    doc.text(_facTituloDoc(c), W - M - 31, 21, { align: 'center', maxWidth: 58 });
-    doc.setFontSize(13); doc.setTextColor(...ink); doc.text(num, W - M - 31, 31, { align: 'center' });
-    y += 8;
-    doc.setDrawColor(...guinda); doc.setLineWidth(0.8); doc.line(M, y, W - M, y); y += 7;
-    doc.setTextColor(...ink); doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
-    doc.text('Fecha: ' + (fecha || '—'), M, y); doc.text('Moneda: ' + (c.moneda || 'PEN'), W - M, y, { align: 'right' }); y += 6;
-    doc.setFont('helvetica', 'bold'); doc.text('Cliente: ', M, y); doc.setFont('helvetica', 'normal');
-    doc.text(String(c.cliente_nombre || 'Cliente varios'), M + 16, y); y += 5.5;
-    doc.setFont('helvetica', 'bold'); doc.text('Documento: ', M, y); doc.setFont('helvetica', 'normal');
-    doc.text(String(c.cliente_doc || '—'), M + 22, y); y += 8;
-    // Tabla
+    // ── A4 HORIZONTAL (apaisado · 297×210) — layout profesional que aprovecha el ancho ──
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const W = 297, H = 210, M = 16;
+    // Cabecera: logo + emisor (izq)
+    if (logo) { try { doc.addImage(logo, 'PNG', M, 13, 26, 22); } catch (e) {} }
+    const hx = logo ? M + 32 : M;
+    let y = 20;
+    doc.setTextColor(...guinda); doc.setFont('helvetica', 'bold'); doc.setFontSize(19);
+    doc.text(_FAC_EMISOR.marca, hx, y); y += 6;
+    doc.setTextColor(...ink); doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+    const rzL = doc.splitTextToSize(_FAC_EMISOR.razon, 150);
+    doc.text(rzL, hx, y); y += 3.8 * rzL.length + 1;
+    doc.setTextColor(...gray); doc.setFontSize(9.5);
+    doc.text(rucLine + '   ·   ' + _FAC_EMISOR.direccion, hx, y);
+    // Recuadro documento (arriba-derecha)
+    const bw = 76, bx = W - M - bw;
+    doc.setDrawColor(...guinda); doc.setLineWidth(0.7); doc.roundedRect(bx, 13, bw, 25, 2.5, 2.5);
+    doc.setTextColor(...guinda); doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
+    doc.text(_facTituloDoc(c), bx + bw / 2, 22, { align: 'center', maxWidth: bw - 6 });
+    doc.setFontSize(15); doc.setTextColor(...ink); doc.text(num, bx + bw / 2, 33, { align: 'center' });
+    // Línea divisoria
+    let hy = 44;
+    doc.setDrawColor(...guinda); doc.setLineWidth(0.9); doc.line(M, hy, W - M, hy); hy += 8;
+    // Datos del cliente (izq) + fecha/moneda (der)
+    doc.setFontSize(10);
+    doc.setTextColor(...gray); doc.setFont('helvetica', 'bold'); doc.text('CLIENTE', M, hy);
+    doc.setTextColor(...ink); doc.setFont('helvetica', 'normal'); doc.text(String(c.cliente_nombre || 'Cliente varios'), M + 24, hy);
+    doc.setTextColor(...gray); doc.setFont('helvetica', 'bold'); doc.text('DOCUMENTO', M, hy + 6.5);
+    doc.setTextColor(...ink); doc.setFont('helvetica', 'normal'); doc.text(String(c.cliente_doc || '—'), M + 24, hy + 6.5);
+    doc.setTextColor(...gray); doc.setFont('helvetica', 'bold'); doc.text('FECHA', bx, hy);
+    doc.setTextColor(...ink); doc.setFont('helvetica', 'normal'); doc.text(fecha || '—', bx + 24, hy);
+    doc.setTextColor(...gray); doc.setFont('helvetica', 'bold'); doc.text('MONEDA', bx, hy + 6.5);
+    doc.setTextColor(...ink); doc.setFont('helvetica', 'normal'); doc.text(String(c.moneda || 'PEN'), bx + 24, hy + 6.5);
+    // ── Zona de cuerpo: tabla de ítems (izq, ancha) + bloque de totales (der) ──
+    const topY = hy + 15;
+    const tblR = 194, colCant = 132, colPU = 162, colImp = tblR - 2;   // tabla ocupa M..tblR
+    // Cabecera tabla
     doc.setFillColor(...guinda); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
-    doc.rect(M, y - 4.5, W - 2 * M, 7, 'F');
-    doc.text('DESCRIPCIÓN', M + 2, y); doc.text('CANT', 128, y, { align: 'right' });
-    doc.text('P.UNIT', 158, y, { align: 'right' }); doc.text('IMPORTE', W - M - 2, y, { align: 'right' }); y += 6;
+    doc.rect(M, topY, tblR - M, 8, 'F');
+    let ry = topY + 5.4;
+    doc.text('DESCRIPCIÓN', M + 3, ry);
+    doc.text('CANT', colCant, ry, { align: 'right' });
+    doc.text('P. UNIT', colPU, ry, { align: 'right' });
+    doc.text('IMPORTE', colImp, ry, { align: 'right' });
+    ry = topY + 14;
     doc.setTextColor(...ink); doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
     T.items.forEach(i => {
-      const lines = doc.splitTextToSize(i.descripcion, 96);
-      doc.text(lines, M + 2, y);
-      doc.text(String(i.cantidad), 128, y, { align: 'right' });
-      doc.text(_facMoney(i.precio), 158, y, { align: 'right' });
-      doc.text(_facMoney(i.cantidad * i.precio), W - M - 2, y, { align: 'right' });
-      y += Math.max(6, lines.length * 5);
-      doc.setDrawColor(230, 230, 230); doc.setLineWidth(0.2); doc.line(M, y - 3.5, W - M, y - 3.5);
+      const lines = doc.splitTextToSize(String(i.descripcion), colCant - M - 12);
+      doc.text(lines, M + 3, ry);
+      doc.text(String(i.cantidad), colCant, ry, { align: 'right' });
+      doc.text(_facMoney(i.precio), colPU, ry, { align: 'right' });
+      doc.text(_facMoney(i.cantidad * i.precio), colImp, ry, { align: 'right' });
+      ry += Math.max(6.5, lines.length * 5);
+      doc.setDrawColor(232, 232, 232); doc.setLineWidth(0.2); doc.line(M, ry - 3.8, tblR, ry - 3.8);
     });
-    y += 4;
-    const tx = W - M - 60, tv = W - M;
-    const totRow = (lbl, val, bold, big) => { doc.setFont('helvetica', bold ? 'bold' : 'normal'); doc.setFontSize(big ? 13 : 10); doc.setTextColor(...(big ? guinda : ink)); doc.text(lbl, tx, y); doc.text('S/ ' + _facMoney(val), tv, y, { align: 'right' }); y += big ? 8 : 5.5; };
-    totRow(T.cero ? 'Op. Exportación/Inafecta' : 'Op. Gravada', T.cero ? T.inafecta : T.grav, false, false);
-    totRow(T.cero ? 'IGV (0%)' : 'IGV (18%)', T.igv, false, false);
-    doc.setDrawColor(...guinda); doc.setLineWidth(0.6); doc.line(tx, y - 2, tv, y - 2); y += 2;
-    totRow('TOTAL', T.total, true, true);
-    y += 6; doc.setTextColor(...gray); doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
-    const foot = doc.splitTextToSize('Representación impresa de la ' + (Number(c.tipo) === 1 ? 'FACTURA' : 'BOLETA DE VENTA') + ' ELECTRÓNICA. Emitida mediante SUNAT · NubeFact.' + (c.hash ? ' Hash: ' + c.hash : ''), W - 2 * M);
-    doc.text(foot, W / 2, Math.min(y, 280), { align: 'center' });
+    // Bloque de totales (derecha)
+    const gx = 205, gw = W - M - gx;
+    doc.setFillColor(250, 246, 239); doc.setDrawColor(...guinda); doc.setLineWidth(0.5);
+    doc.roundedRect(gx, topY, gw, 40, 2.5, 2.5, 'FD');
+    const glx = gx + 6, grx = gx + gw - 6; let gy = topY + 9;
+    const gRow = (lbl, val, big) => {
+      doc.setFont('helvetica', big ? 'bold' : 'normal'); doc.setFontSize(big ? 13 : 9.5);
+      doc.setTextColor(...(big ? guinda : ink));
+      doc.text(lbl, glx, gy); doc.text('S/ ' + _facMoney(val), grx, gy, { align: 'right' });
+      gy += big ? 10 : 7;
+    };
+    gRow(T.cero ? 'Op. Export/Inaf.' : 'Op. Gravada', T.cero ? T.inafecta : T.grav, false);
+    gRow(T.cero ? 'IGV (0%)' : 'IGV (18%)', T.igv, false);
+    doc.setDrawColor(...guinda); doc.setLineWidth(0.5); doc.line(glx, gy - 3.5, grx, gy - 3.5); gy += 1.5;
+    gRow('TOTAL', T.total, true);
+    // Pie SUNAT + hash (parte inferior de la página)
+    const footY = Math.min(Math.max(ry, topY + 46) + 12, H - 12);
+    doc.setDrawColor(220, 220, 220); doc.setLineWidth(0.3); doc.line(M, footY - 6, W - M, footY - 6);
+    doc.setTextColor(...gray); doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+    const foot = doc.splitTextToSize('Representación impresa de la ' + (Number(c.tipo) === 1 ? 'FACTURA' : 'BOLETA DE VENTA') + ' ELECTRÓNICA. Emitida mediante SUNAT · NubeFact.' + (c.hash ? '  Hash: ' + c.hash : ''), W - 2 * M);
+    doc.text(foot, W / 2, footY, { align: 'center' });
     return doc;
   }
 
@@ -5982,7 +6123,7 @@ window._facAbrirPDFById = function (id) {
 window._facAbrirPDF = function (c) {
   const S = _facState; if (!S || !c) return;
   try { sndTap(); haptic(10); } catch (e) {}
-  S._pdf = { comp: c, fmt: '80mm', sending: false,
+  S._pdf = { comp: c, fmt: 'a4', sending: false,
     contact: { email: String(c.cliente_email || '').trim(), tel: String(c.cliente_tel || c.cliente_telefono || '').trim() } };
   let ov = document.getElementById('fac-pdf-modal');
   if (!ov) { ov = document.createElement('div'); ov.id = 'fac-pdf-modal'; ov.className = 'fac-emit-ov'; document.body.appendChild(ov); ov.addEventListener('click', e => { if (e.target === ov) _facCerrarPDF(); }); }
@@ -6086,20 +6227,50 @@ async function _facPdfDescargar() {
   try { const doc = await _facGenPDF(c); doc.save(_facPdfFilename(c)); try { sndOk(); } catch (e) {} }
   catch (e) { _facErr((e && e.message) || 'No se pudo generar el PDF'); }
 }
-function _facPdfWhatsApp() {
+async function _facPdfWhatsApp() {
   const c = _facPdfComp(); if (!c) return;
-  const ct = (_facState._pdf && _facState._pdf.contact) || {};
+  const S = _facState;
+  const ct = (S._pdf && S._pdf.contact) || {};
   let tel = String(ct.tel || '').replace(/\D/g, '');
   if (!tel) { _facErr('Escribe el WhatsApp del cliente (9 dígitos)'); const el = document.getElementById('fpdf-tel'); if (el) el.focus(); return; }
   if (tel.length === 9) tel = '51' + tel;   // prefijo Perú
+  if (tel.length !== 11) { _facErr('El WhatsApp debe tener 9 dígitos'); const el = document.getElementById('fpdf-tel'); if (el) el.focus(); return; }
+  if (S._pdf && S._pdf.sending) return;
+  if (S._pdf) S._pdf.sending = true;
   try { sndOk(); haptic([15, 40, 15]); } catch (e) {}
+  // Reserva la ventana DENTRO del gesto del usuario (la subida tarda ~1-2s → evita el bloqueo de popups).
+  const waWin = window.open('', '_blank');
   const T = _facPdfTotales(c);
   const oficial = /^https?:\/\//.test(String(c.enlace_pdf || ''));
-  let msg = 'Hola ' + (c.cliente_nombre || '') + ' 👋\n\nTe compartimos tu ' + (Number(c.tipo) === 1 ? 'factura' : 'boleta') + ' electrónica *' + _facNumFmt(c) + '* por un total de *S/ ' + _facMoney(T.total) + '*.';
-  if (oficial) msg += '\n\nPDF oficial: ' + c.enlace_pdf;
-  msg += '\n\n' + _FAC_EMISOR.marca + '. ¡Gracias por tu preferencia! 🌊';
-  window.open('https://wa.me/' + tel + '?text=' + encodeURIComponent(msg), '_blank', 'noopener');
-  _facPdfGuardarContacto(c);
+  const baseMsg = 'Hola ' + (c.cliente_nombre || '') + ' 👋\n\nTe compartimos tu ' + (Number(c.tipo) === 1 ? 'factura' : 'boleta') + ' electrónica *' + _facNumFmt(c) + '* por un total de *S/ ' + _facMoney(T.total) + '*.';
+  const firma = '\n\n' + _FAC_EMISOR.marca + '. ¡Gracias por tu preferencia! 🌊';
+  const btn = document.querySelector('#fac-pdf-modal .fpdf-act.wa');
+  const btnHtml = btn ? btn.innerHTML : '';
+  if (btn) { btn.setAttribute('aria-disabled', 'true'); btn.innerHTML = '🟢 Preparando PDF…'; }
+  // Sube NUESTRO PDF (siempre A4 para compartir) a Storage y genera un enlace firmado de larga duración. Cero-GAS.
+  let link = '';
+  try {
+    if (c.id != null && String(c.id).trim()) {
+      const doc = await _facGenPDF(c, 'a4');                     // A4 forzado (no cambia el formato que ve el usuario)
+      const blob = doc.output('blob');
+      const path = String(c.id) + '.pdf';                       // 1 archivo por comprobante → re-compartir NO duplica
+      const { error: upErr } = await sbClient.storage.from('comprobante-pdfs').upload(path, blob, { contentType: 'application/pdf', upsert: true });
+      if (upErr) throw upErr;
+      const { data: sd, error: sErr } = await sbClient.storage.from('comprobante-pdfs').createSignedUrl(path, 31536000);   // ~1 año
+      if (sErr || !sd || !sd.signedUrl) throw (sErr || new Error('sin URL firmada'));
+      link = sd.signedUrl;
+    }
+  } catch (e) { link = ''; }   // falla la subida → cae al comportamiento actual (link oficial NubeFact si existe)
+  let msg = baseMsg;
+  if (link) msg += '\n\nDescarga tu comprobante en PDF:\n' + link;
+  else if (oficial) msg += '\n\nPDF oficial: ' + c.enlace_pdf;
+  msg += firma;
+  if (btn) { btn.removeAttribute('aria-disabled'); btn.innerHTML = btnHtml || '🟢 WhatsApp'; }
+  if (S._pdf) S._pdf.sending = false;
+  const url = 'https://wa.me/' + tel + '?text=' + encodeURIComponent(msg);
+  if (waWin && !waWin.closed) { try { waWin.location.href = url; } catch (e) { window.open(url, '_blank', 'noopener'); } }
+  else window.open(url, '_blank', 'noopener');
+  _facPdfGuardarContacto(c);   // guarda el contacto igual
 }
 async function _facPdfCorreo() {
   const c = _facPdfComp(); if (!c) return;
@@ -6624,9 +6795,11 @@ async function _tribVerFoto(path) {
 
 // ── Desplegable de compras del mes (acordeón en la balanza) ──
 function _facComprasAccInner(S) {
-  if (S._comprasBalLoading && !(S.compras && S.compras.length)) return `<div class="facb-acc-empty"><div class="spin" style="display:inline-block"></div></div>`;
+  // Botón "Subir compra" integrado DENTRO del desplegable (abre el sheet cámara/galería).
+  const subirBtn = `<button onclick="_facAbrirSubir()" class="facb-acc-subir">📸 Subir compra</button>`;
+  if (S._comprasBalLoading && !(S.compras && S.compras.length)) return subirBtn + `<div class="facb-acc-empty"><div class="spin" style="display:inline-block"></div></div>`;
   const list = S.compras || [];
-  if (!list.length) return `<div class="facb-acc-empty">Aún no hay compras este mes.<br>Toca <b style="color:var(--gold)">📸 Subir compra</b> para empezar.</div>`;
+  if (!list.length) return subirBtn + `<div class="facb-acc-empty">Aún no hay compras este mes.<br>Toca <b style="color:var(--gold)">📸 Subir compra</b> para empezar.</div>`;
   const releeId = S._releeId;
   const rows = list.map(c => {
     const est = String(c.ocr_estado || 'ok').toLowerCase();
@@ -6651,7 +6824,7 @@ function _facComprasAccInner(S) {
     </div>`;
   }).join('');
   const totIgv = list.filter(c => String(c.ocr_estado || 'ok').toLowerCase() === 'ok').reduce((a, c) => a + (Number(c.igv) || 0), 0);
-  return `<div class="facb-acc-hd"><span>COMPRAS DE ESTE MES · ${list.length}</span><span style="color:#34C759">crédito ${_tribMoney(totIgv)}</span></div>${rows}`;
+  return subirBtn + `<div class="facb-acc-hd"><span>COMPRAS DE ESTE MES · ${list.length}</span><span style="color:#34C759">crédito ${_tribMoney(totIgv)}</span></div>${rows}`;
 }
 function _facCompAccEls() {
   const out = [];
@@ -6686,6 +6859,76 @@ window._facToggleCompras = function () {
   _facSetAccHeight(S._compAccOpen, false);
 };
 if (!window._facAccResize) { window._facAccResize = true; window.addEventListener('resize', () => { if (_facMode === 'module' && _facState && _facState._compAccOpen) _facSetAccHeight(true, true); }); }
+
+// ── Desplegable de RENTA (acordeón en la balanza) — detalle de proyección ──
+function _facRentaAccInner(S) {
+  if (S._rentaBalLoading && !S.renta) return `<div class="facb-acc-empty"><div class="spin" style="display:inline-block"></div></div>`;
+  return _tribRentaBody(S);
+}
+function _facRentaAccEls() {
+  const out = [];
+  _facRenderRoots().forEach(ov => { const acc = ov.querySelector('#facb-renta-acc'); if (acc) out.push({ acc, inner: ov.querySelector('#facb-renta-inner'), tog: ov.querySelector('#facb-renta-tog') }); });
+  return out;
+}
+function _facSetRentaHeight(open, instant) {
+  _facRentaAccEls().forEach(({ acc, inner, tog }) => {
+    if (tog) { tog.classList.toggle('open', !!open); tog.setAttribute('aria-expanded', open ? 'true' : 'false'); }
+    if (!acc || !inner) return;
+    const h = open ? (inner.scrollHeight + 'px') : '0px';
+    if (instant) { const p = acc.style.transition; acc.style.transition = 'none'; acc.style.height = h; requestAnimationFrame(() => { acc.style.transition = p || ''; }); }
+    else acc.style.height = h;
+  });
+  if (open) _facAnimRentaAcc();
+}
+function _facPaintRentaAcc() {
+  const S = _facState; if (!S) return;
+  _facRentaAccEls().forEach(({ acc, inner }) => { if (inner) inner.innerHTML = _facRentaAccInner(S); if (acc && inner && S._rentaAccOpen) acc.style.height = inner.scrollHeight + 'px'; });
+  _facAnimRentaAcc();
+}
+// Count-up del detalle de renta, scoped a cada instancia del acordeón (evita ids duplicados multi-instancia).
+function _facAnimRentaAcc() {
+  const S = _facState; if (!S || !S._rentaAccOpen || S._rentaBalLoading) return;
+  const r = S.renta || {}, t = S.tributos || {};
+  _facRentaAccEls().forEach(({ inner }) => {
+    if (!inner) return;
+    _tribCountUp(inner.querySelector('#trib-rpago'), Number(t.renta_pago_cuenta) || 0);
+    _tribCountUp(inner.querySelector('#trib-ra-ia'), Number(r.ingresos_anual) || 0);
+    _tribCountUp(inner.querySelector('#trib-ra-ga'), Number(r.gastos_anual) || 0, { pre: '− S/ ' });
+    _tribCountUp(inner.querySelector('#trib-ra-ut'), Number(r.utilidad) || 0);
+    _tribCountUp(inner.querySelector('#trib-ra-re'), Number(r.renta_anual) || 0);
+    _tribCountUp(inner.querySelector('#trib-ra-rr'), Number(r.renta_por_regularizar) || 0);
+  });
+}
+async function _facLoadRentaBalanza(force) {
+  const S = _facState; if (!S) return;
+  // Reusa la caché por año; la parte de tributos (pago a cuenta) ya la trae la balanza.
+  if (!force && S.renta && S._rentaLoadedAnio === S.anioTrib) { _facPaintRentaAcc(); return; }
+  S._rentaBalLoading = true; _facPaintRentaAcc();
+  try { const rr = await apiGet('proyeccion_renta', { anio: S.anioTrib }); if (rr.ok && rr.data) { S.renta = rr.data; S._rentaLoadedAnio = S.anioTrib; } }
+  catch (e) {}
+  S._rentaBalLoading = false; _facPaintRentaAcc();
+}
+window._facToggleRenta = function () {
+  const S = _facState; if (!S) return; try { sndTap(); haptic(10); } catch (e) {}
+  S._rentaAccOpen = !S._rentaAccOpen;
+  if (S._rentaAccOpen) _facLoadRentaBalanza();
+  _facSetRentaHeight(S._rentaAccOpen, false);
+};
+if (!window._facRentaAccResize) { window._facRentaAccResize = true; window.addEventListener('resize', () => { if (_facMode === 'module' && _facState && _facState._rentaAccOpen) _facSetRentaHeight(true, true); }); }
+// ── Ventas ▾ → historial de CPE (scroll en móvil, resalta en desktop) ──
+window._facKpiVentas = function () {
+  const S = _facState; if (!S) return; try { sndTap(); haptic(10); } catch (e) {}
+  if (S.tab !== 'historial') { _facTab('historial'); }
+  else if (!(S.comprobantes && S.comprobantes.length) && !S.cargandoHist) { _facLoadHist(); }
+  requestAnimationFrame(() => {
+    _facRenderRoots().forEach(ov => {
+      const col = ov.querySelector('.fac-mod-r'); if (!col || col.offsetParent === null) return;   // solo la instancia visible
+      try { col.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) {}
+      col.classList.remove('fac-r-flash'); void col.offsetWidth; col.classList.add('fac-r-flash');
+      setTimeout(() => { try { col.classList.remove('fac-r-flash'); } catch (e) {} }, 1400);
+    });
+  });
+};
 
 // ── Lightbox de foto (fondo blur) ──
 window._facVerFotoLB = async function (path) {
@@ -9178,7 +9421,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.25.2';
+const APP_VERSION = '1.26.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
