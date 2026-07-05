@@ -1259,6 +1259,46 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 }
 @media(max-width:600px){ .fac-emit-box { max-height:94vh; border-radius:22px; } .fac-emit-box-inner { padding:4px 16px 20px; } }
 
+/* ── FASE 3 · Layout/Modal PDF del comprobante (80mm / A4) ──────────────── */
+.fpdf-box { max-width:560px; }
+.fpdf-seg { position:relative; display:flex; gap:0; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1); border-radius:13px; padding:4px; margin:2px 0 14px; }
+.fpdf-seg-ind { position:absolute; top:4px; bottom:4px; left:4px; width:calc(50% - 4px); border-radius:10px; background:linear-gradient(135deg,var(--guinda-light),var(--guinda-dark)); box-shadow:0 3px 12px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.22); transition:transform .38s cubic-bezier(.34,1.56,.64,1); }
+.fpdf-seg[data-fmt="a4"] .fpdf-seg-ind { transform:translateX(100%); }
+.fpdf-seg button { position:relative; z-index:1; flex:1; padding:9px 4px; border:none; background:none; cursor:pointer; font-size:12.5px; font-weight:800; letter-spacing:.01em; color:var(--text-muted); transition:color .25s, transform .12s; -webkit-tap-highlight-color:transparent; }
+.fpdf-seg button.on { color:var(--gold-pale); }
+.fpdf-seg button:active { transform:scale(.94); }
+.fpdf-stage { background:rgba(0,0,0,.22); border:1px solid rgba(255,255,255,.08); border-radius:16px; padding:16px 10px; overflow-x:hidden; overflow-y:auto; max-height:46vh; display:flex; justify-content:center; -webkit-overflow-scrolling:touch; }
+.fpdf-anim { animation:fpdfSwap .34s cubic-bezier(.22,1,.36,1); }
+@keyframes fpdfSwap { from{opacity:0; transform:translateY(8px) scale(.99);} to{opacity:1; transform:none;} }
+/* Papel (representación impresa) */
+.fpdf-paper { background:#fff; color:#1a1a1a; box-shadow:0 10px 30px rgba(0,0,0,.4); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif; }
+.fpdf-paper.mm80 { width:280px; padding:16px 14px; border-radius:4px; font-size:11px; line-height:1.42; }
+.fpdf-paper.a4 { width:430px; max-width:100%; padding:26px 26px; border-radius:3px; font-size:12px; line-height:1.5; }
+@media(max-width:480px){ .fpdf-paper.a4 { width:100%; padding:18px 16px; } .fpdf-paper.mm80 { width:250px; } }
+.fpdf-brand { font-weight:900; letter-spacing:-.4px; color:#7B2030; }
+.fpdf-gold { color:#8a6d1f; }
+.fpdf-hr { border:none; border-top:1px dashed #c9c1c1; margin:9px 0; }
+.fpdf-hr-solid { border:none; border-top:1.5px solid #7B2030; margin:9px 0; }
+.fpdf-tbl { width:100%; border-collapse:collapse; }
+.fpdf-tbl th { text-align:left; font-size:9.5px; text-transform:uppercase; letter-spacing:.03em; color:#7B2030; border-bottom:1px solid #7B2030; padding:4px 2px; }
+.fpdf-tbl td { padding:4px 2px; border-bottom:1px solid #eee; vertical-align:top; }
+.fpdf-tbl .num { text-align:right; white-space:nowrap; }
+.fpdf-tot-row { display:flex; justify-content:space-between; gap:12px; padding:1.5px 0; }
+.fpdf-tot-grand { font-weight:900; font-size:14px; color:#7B2030; border-top:1.5px solid #7B2030; margin-top:4px; padding-top:5px; }
+.fpdf-foot { margin-top:10px; font-size:8.5px; color:#666; line-height:1.4; text-align:center; }
+.fpdf-actions { display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-top:16px; }
+.fpdf-act { display:flex; align-items:center; justify-content:center; gap:7px; padding:12px 8px; border-radius:13px; font-size:13px; font-weight:800; cursor:pointer; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.06); color:var(--text); transition:transform .13s, filter .15s, background .15s; -webkit-tap-highlight-color:transparent; text-decoration:none; }
+.fpdf-act:active { transform:scale(.95); }
+.fpdf-act.print { background:linear-gradient(135deg,var(--guinda-light),var(--guinda-dark)); color:var(--gold-pale); border-color:rgba(201,168,76,.3); }
+.fpdf-act.dl { background:rgba(201,168,76,.15); color:var(--gold); border-color:rgba(201,168,76,.35); }
+.fpdf-act.wa { background:#25D366; color:#062e16; border-color:transparent; }
+.fpdf-act.mail { background:rgba(255,255,255,.08); color:var(--text); }
+.fpdf-act[aria-disabled="true"] { opacity:.55; pointer-events:none; }
+.fpdf-contact { margin-top:14px; border:1px solid rgba(255,255,255,.09); border-radius:13px; padding:11px 12px; background:rgba(255,255,255,.03); }
+.fpdf-contact-lbl { font-size:10px; font-weight:800; letter-spacing:.04em; color:var(--gold); margin-bottom:7px; }
+.fpdf-contact .config-input { margin-bottom:7px; }
+@media (prefers-reduced-motion: reduce){ .fpdf-seg-ind, .fpdf-anim, .fpdf-act { transition:none; animation:none; } }
+
 /* ── FASE 2 · Botón "Subir compra" + desplegable de compras del mes ─────── */
 .facb-subir-row { display:flex; gap:8px; margin-top:14px; align-items:stretch; }
 .facb-subir-main { flex:1 1 auto; margin-top:0; }
@@ -2259,6 +2299,7 @@ const PS_POST = {
   set_facturacion_muelle: b => _psRpc('admin_set_facturacion_muelle', { p_on: !!b.on }).then(v => ({ on: v })),
   set_facturacion_config: b => _psRpc('admin_set_facturacion_config', { p_ruta: b.ruta || '', p_token: b.token || '', p_lookup_url: b.lookup_url || '', p_lookup_token: b.lookup_token || '', p_modo: b.modo || '', p_activo: typeof b.activo === 'boolean' ? b.activo : null }).then(() => ({ ok: true })),
   anular_comprobante: b => _psRpc('anular_comprobante', { p_id: b.id, p_motivo: b.motivo || 'Anulación' }),
+  actualizar_contacto_cliente: b => _psRpc('actualizar_contacto_cliente', { p: { doc_tipo: b.doc_tipo, doc_numero: b.doc_numero, email: b.email || null, telefono: b.telefono || null, nombre: b.nombre || null } }),
   resolver_anulacion: b => _psRpc('resolver_anulacion', { p_id: b.id, p_aprobar: !!b.aprobar, p_nota: b.nota || null }),
   alinear_correlativo: b => _psRpc('admin_alinear_correlativo', { p_serie: b.serie, p_numero: parseInt(b.numero) || 0 }).then(n => ({ correlativo: n })),
   set_series: b => _psRpc('admin_set_series', { p_boleta: b.boleta, p_factura: b.factura }),
@@ -5365,7 +5406,7 @@ function _facSectionBody(S) {
             <div style="font-size:10px;color:var(--text-muted);display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap">${c.serie}-${String(c.numero).padStart(6,'0')} · ${_facEsc(String(c.creado||''))} ${_facChipEstado(c)}</div>
           </div>
           <span style="font-weight:800;font-size:13px;color:var(--gold);white-space:nowrap">S/ ${(c.total||0)}</span>
-          ${real?`<a href="${_facEsc(c.enlace_pdf)}" target="_blank" rel="noopener" onclick="sndTap()" title="PDF" style="text-decoration:none;font-size:16px">📄</a>`:''}
+          <button onclick="_facAbrirPDFById('${c.id}')" title="Ver / imprimir / enviar PDF" style="cursor:pointer;flex:0 0 auto;background:${real?'rgba(74,222,128,0.12)':'rgba(201,168,76,0.12)'};border:1px solid ${real?'rgba(74,222,128,0.32)':'rgba(201,168,76,0.3)'};border-radius:8px;padding:5px 8px;font-size:15px;line-height:1">📄</button>
           ${anu?'':`<button onclick="_facAnular('${c.id}')" title="Anular" style="cursor:pointer;flex:0 0 auto;${S.anularId===c.id?'color:#fff;background:#f87171;border:none;border-radius:7px;padding:3px 8px;font-size:10px;font-weight:800':'color:#f87171;background:none;border:none;font-size:14px'}">${S.anularId===c.id?'¿Anular?':'⊘'}</button>`}</div>`}).join('')}</div>` :
         '<div style="padding:18px;text-align:center;color:var(--text-muted);font-size:12px">Sin comprobantes en los meses elegidos.</div>'));
   } else if (S.tab === 'anulaciones') {
@@ -5686,6 +5727,389 @@ function _facRenderEmit() {
   _facBindSlot(box);
   S.tab = prev;
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// FASE 3 · Layout/Modal PDF del comprobante (80mm / A4) + Imprimir/Descargar/WhatsApp/Correo
+// El PDF que genera este panel es una REPRESENTACIÓN IMPRESA de cortesía; el PDF oficial
+// (cuando NubeFact esté activo) vive en enlace_pdf. Todo el envío/guardado va por Supabase (cero GAS).
+// ═══════════════════════════════════════════════════════════════════════════
+// Identidad del emisor para la representación impresa. Edita RUC cuando lo tengas.
+const _FAC_EMISOR = { razon: 'GRUPO PS · PARACAS SIGHTS', ruc: '', direccion: 'Paracas, Ica — Perú', web: 'paracas' };
+// Carga jsPDF de forma perezosa (no bloquea el arranque del panel).
+let _facJsPDFPromise = null;
+function _facEnsureJsPDF() {
+  if (window.jspdf && window.jspdf.jsPDF) return Promise.resolve(window.jspdf.jsPDF);
+  if (_facJsPDFPromise) return _facJsPDFPromise;
+  _facJsPDFPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+    s.async = true;
+    s.onload = () => { (window.jspdf && window.jspdf.jsPDF) ? resolve(window.jspdf.jsPDF) : reject(new Error('jsPDF no cargó')); };
+    s.onerror = () => { _facJsPDFPromise = null; reject(new Error('No se pudo descargar jsPDF (sin red).')); };
+    document.head.appendChild(s);
+  });
+  return _facJsPDFPromise;
+}
+// Deduce el tipo de documento SUNAT a partir del número (el listado no lo trae desglosado).
+function _facInferDocTipo(c) {
+  if (c && c.cliente_doc_tipo) return String(c.cliente_doc_tipo);
+  const d = String((c && c.cliente_doc) || '').replace(/\D/g, '');
+  if (d.length === 11) return '6';   // RUC
+  if (d.length === 8) return '1';    // DNI
+  if (d.length) return '4';          // CE (numérico)
+  return '0';
+}
+// Título oficial del comprobante.
+function _facTituloDoc(c) { return Number(c && c.tipo) === 1 ? 'FACTURA ELECTRÓNICA' : 'BOLETA DE VENTA ELECTRÓNICA'; }
+// Normaliza los ítems (el listado puede no traerlos → 1 línea resumen con el total).
+function _facPdfItems(c) {
+  let it = (c && (c.items || c.detalle)) || [];
+  if (!Array.isArray(it)) it = [];
+  it = it.map(i => ({ descripcion: String(i.descripcion || i.desc || 'Servicio'), cantidad: Number(i.cantidad || i.cant || 1) || 1, precio: Number(i.precio || i.precio_unitario || i.pu || 0) || 0 }))
+    .filter(i => i.descripcion);
+  if (!it.length) it = [{ descripcion: 'Servicio', cantidad: 1, precio: Number((c && c.total) || 0) }];
+  return it;
+}
+// Totales: usa desglose del objeto si viene; si no, deriva del total (IGV 18% salvo export/inafecto=0).
+function _facPdfTotales(c) {
+  const items = _facPdfItems(c);
+  const totItems = items.reduce((s, i) => s + i.cantidad * i.precio, 0);
+  const total = Number((c && c.total) != null ? c.total : totItems) || 0;
+  let grav = Number(c && (c.gravada || c.total_gravada));
+  let igv = Number(c && c.igv);
+  const cero = (c && (c.exportacion || c.es_extranjero)) || false;
+  if (!(grav > 0) && !(igv >= 0 && grav === 0)) {
+    if (cero) { grav = 0; igv = 0; } else { grav = Math.round(total / 1.18 * 100) / 100; igv = Math.round((total - grav) * 100) / 100; }
+  }
+  if (isNaN(grav)) grav = cero ? 0 : Math.round(total / 1.18 * 100) / 100;
+  if (isNaN(igv)) igv = cero ? 0 : Math.round((total - grav) * 100) / 100;
+  return { items, total, grav, igv, inafecta: cero ? total : 0, cero };
+}
+const _facMoney = v => (Number(v) || 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function _facNumFmt(c) { return (c.serie || '') + '-' + String(c.numero || 0).padStart(8, '0'); }
+
+// ── PREVIEW (HTML) del comprobante en el formato elegido ──
+function _facPdfPreviewHTML(c, fmt) {
+  const T = _facPdfTotales(c);
+  const esA4 = fmt === 'a4';
+  const num = _facNumFmt(c);
+  const fecha = _facEsc(String(c.creado || c.fecha || c.creado_at || '').slice(0, 16));
+  const docCli = _facEsc(String(c.cliente_doc || '').trim() || '—');
+  const nomCli = _facEsc(c.cliente_nombre || 'Cliente varios');
+  const rucLine = _FAC_EMISOR.ruc ? ('R.U.C. ' + _facEsc(_FAC_EMISOR.ruc)) : 'R.U.C. —';
+  const rows = T.items.map(i => `<tr>
+      <td>${_facEsc(i.descripcion)}</td>
+      <td class="num">${i.cantidad}</td>
+      ${esA4 ? `<td class="num">${_facMoney(i.precio)}</td>` : ''}
+      <td class="num">${_facMoney(i.cantidad * i.precio)}</td>
+    </tr>`).join('');
+  const brandSize = esA4 ? '20px' : '15px';
+  const igvLbl = T.cero ? 'IGV (0% · exportación)' : 'IGV (18%)';
+  const opLbl = T.cero ? 'Op. Exportación / Inafecta' : 'Op. Gravada';
+  const opVal = T.cero ? T.inafecta : T.grav;
+  const hash = _facEsc(String(c.hash || c.codigo_barras || '').slice(0, 40));
+  const oficial = /^https?:\/\//.test(String(c.enlace_pdf || ''));
+  return `<div class="fpdf-paper ${esA4 ? 'a4' : 'mm80'}">
+    <div style="text-align:center">
+      <div class="fpdf-brand" style="font-size:${brandSize}">${_facEsc(_FAC_EMISOR.razon)}</div>
+      <div style="font-size:${esA4 ? '10px' : '8.5px'};color:#555;margin-top:2px">${rucLine} · ${_facEsc(_FAC_EMISOR.direccion)}</div>
+    </div>
+    <div class="fpdf-hr-solid"></div>
+    <div style="text-align:center">
+      <div style="font-weight:900;color:#7B2030;font-size:${esA4 ? '13px' : '11px'};letter-spacing:.02em">${_facTituloDoc(c)}</div>
+      <div style="font-weight:800;font-size:${esA4 ? '14px' : '12px'};margin-top:2px">${_facEsc(num)}</div>
+    </div>
+    <div class="fpdf-hr"></div>
+    <div style="display:flex;justify-content:space-between;gap:8px;font-size:${esA4 ? '11px' : '10px'}">
+      <div><b>Fecha:</b> ${fecha || '—'}</div>
+      <div><b>Moneda:</b> ${_facEsc(c.moneda || 'PEN')}</div>
+    </div>
+    <div style="font-size:${esA4 ? '11px' : '10px'};margin-top:4px"><b>Cliente:</b> ${nomCli}<br><b>Doc:</b> ${docCli}</div>
+    <div class="fpdf-hr"></div>
+    <table class="fpdf-tbl">
+      <thead><tr><th>Descripción</th><th class="num">Cant</th>${esA4 ? '<th class="num">P.Unit</th>' : ''}<th class="num">Importe</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="fpdf-hr"></div>
+    <div style="font-size:${esA4 ? '12px' : '11px'}">
+      <div class="fpdf-tot-row"><span>${opLbl}</span><b>S/ ${_facMoney(opVal)}</b></div>
+      <div class="fpdf-tot-row"><span>${igvLbl}</span><b>S/ ${_facMoney(T.igv)}</b></div>
+      <div class="fpdf-tot-row fpdf-tot-grand"><span>TOTAL</span><span>S/ ${_facMoney(T.total)}</span></div>
+    </div>
+    <div class="fpdf-foot">
+      Representación impresa de la ${Number(c.tipo) === 1 ? 'FACTURA' : 'BOLETA DE VENTA'} ELECTRÓNICA.<br>
+      Emitida mediante SUNAT · NubeFact.${hash ? '<br>Hash: ' + hash : ''}
+      ${oficial ? '<br>PDF oficial disponible en el enlace del comprobante.' : ''}
+    </div>
+  </div>`;
+}
+
+// ── Generación del PDF REAL con jsPDF (mismo diseño, 80mm angosto / A4 completo) ──
+async function _facGenPDF(c) {
+  const jsPDF = await _facEnsureJsPDF();
+  const fmt = (_facState._pdf && _facState._pdf.fmt) || '80mm';
+  const T = _facPdfTotales(c);
+  const num = _facNumFmt(c);
+  const guinda = [123, 32, 48], ink = [26, 26, 26], gray = [110, 110, 110];
+  const fecha = String(c.creado || c.fecha || c.creado_at || '').slice(0, 16);
+  const rucLine = _FAC_EMISOR.ruc ? ('R.U.C. ' + _FAC_EMISOR.ruc) : 'R.U.C. —';
+
+  if (fmt === 'a4') {
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const W = 210, M = 16; let y = 20;
+    doc.setTextColor(...guinda); doc.setFont('helvetica', 'bold'); doc.setFontSize(18);
+    doc.text(_FAC_EMISOR.razon, M, y); y += 6;
+    doc.setTextColor(...gray); doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+    doc.text(rucLine + '  ·  ' + _FAC_EMISOR.direccion, M, y);
+    // Recuadro documento (derecha)
+    doc.setDrawColor(...guinda); doc.setLineWidth(0.5); doc.rect(W - M - 62, 14, 62, 22);
+    doc.setTextColor(...guinda); doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
+    doc.text(_facTituloDoc(c), W - M - 31, 21, { align: 'center', maxWidth: 58 });
+    doc.setFontSize(13); doc.setTextColor(...ink); doc.text(num, W - M - 31, 31, { align: 'center' });
+    y += 8;
+    doc.setDrawColor(...guinda); doc.setLineWidth(0.8); doc.line(M, y, W - M, y); y += 7;
+    doc.setTextColor(...ink); doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+    doc.text('Fecha: ' + (fecha || '—'), M, y); doc.text('Moneda: ' + (c.moneda || 'PEN'), W - M, y, { align: 'right' }); y += 6;
+    doc.setFont('helvetica', 'bold'); doc.text('Cliente: ', M, y); doc.setFont('helvetica', 'normal');
+    doc.text(String(c.cliente_nombre || 'Cliente varios'), M + 16, y); y += 5.5;
+    doc.setFont('helvetica', 'bold'); doc.text('Documento: ', M, y); doc.setFont('helvetica', 'normal');
+    doc.text(String(c.cliente_doc || '—'), M + 22, y); y += 8;
+    // Tabla
+    doc.setFillColor(...guinda); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+    doc.rect(M, y - 4.5, W - 2 * M, 7, 'F');
+    doc.text('DESCRIPCIÓN', M + 2, y); doc.text('CANT', 128, y, { align: 'right' });
+    doc.text('P.UNIT', 158, y, { align: 'right' }); doc.text('IMPORTE', W - M - 2, y, { align: 'right' }); y += 6;
+    doc.setTextColor(...ink); doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+    T.items.forEach(i => {
+      const lines = doc.splitTextToSize(i.descripcion, 96);
+      doc.text(lines, M + 2, y);
+      doc.text(String(i.cantidad), 128, y, { align: 'right' });
+      doc.text(_facMoney(i.precio), 158, y, { align: 'right' });
+      doc.text(_facMoney(i.cantidad * i.precio), W - M - 2, y, { align: 'right' });
+      y += Math.max(6, lines.length * 5);
+      doc.setDrawColor(230, 230, 230); doc.setLineWidth(0.2); doc.line(M, y - 3.5, W - M, y - 3.5);
+    });
+    y += 4;
+    const tx = W - M - 60, tv = W - M;
+    const totRow = (lbl, val, bold, big) => { doc.setFont('helvetica', bold ? 'bold' : 'normal'); doc.setFontSize(big ? 13 : 10); doc.setTextColor(...(big ? guinda : ink)); doc.text(lbl, tx, y); doc.text('S/ ' + _facMoney(val), tv, y, { align: 'right' }); y += big ? 8 : 5.5; };
+    totRow(T.cero ? 'Op. Exportación/Inafecta' : 'Op. Gravada', T.cero ? T.inafecta : T.grav, false, false);
+    totRow(T.cero ? 'IGV (0%)' : 'IGV (18%)', T.igv, false, false);
+    doc.setDrawColor(...guinda); doc.setLineWidth(0.6); doc.line(tx, y - 2, tv, y - 2); y += 2;
+    totRow('TOTAL', T.total, true, true);
+    y += 6; doc.setTextColor(...gray); doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+    const foot = doc.splitTextToSize('Representación impresa de la ' + (Number(c.tipo) === 1 ? 'FACTURA' : 'BOLETA DE VENTA') + ' ELECTRÓNICA. Emitida mediante SUNAT · NubeFact.' + (c.hash ? ' Hash: ' + c.hash : ''), W - 2 * M);
+    doc.text(foot, W / 2, Math.min(y, 280), { align: 'center' });
+    return doc;
+  }
+
+  // ── 80mm (ticket térmico, alto dinámico) ──
+  const w = 80, mm = 5, cw = w - 2 * mm;
+  const est = 62 + T.items.length * 9 + 40;   // alto estimado
+  const doc = new jsPDF({ unit: 'mm', format: [w, est] });
+  let y = 8;
+  const center = (txt, size, bold, color) => { doc.setFont('helvetica', bold ? 'bold' : 'normal'); doc.setFontSize(size); doc.setTextColor(...(color || ink)); doc.text(txt, w / 2, y, { align: 'center', maxWidth: cw }); };
+  center(_FAC_EMISOR.razon, 10, true, guinda); y += 4.5;
+  center(rucLine, 7, false, gray); y += 3.4;
+  center(_FAC_EMISOR.direccion, 7, false, gray); y += 4;
+  doc.setDrawColor(...guinda); doc.setLineWidth(0.5); doc.line(mm, y, w - mm, y); y += 5;
+  center(_facTituloDoc(c), 8.5, true, guinda); y += 4.2;
+  center(num, 10, true, ink); y += 5;
+  doc.setDrawColor(180, 180, 180); doc.setLineDashPattern([1, 1], 0); doc.line(mm, y, w - mm, y); doc.setLineDashPattern([], 0); y += 4.5;
+  doc.setFontSize(8); doc.setTextColor(...ink); doc.setFont('helvetica', 'normal');
+  doc.text('Fecha: ' + (fecha || '—'), mm, y); y += 3.8;
+  const nomLines = doc.splitTextToSize('Cliente: ' + String(c.cliente_nombre || 'Cliente varios'), cw);
+  doc.text(nomLines, mm, y); y += nomLines.length * 3.6;
+  doc.text('Doc: ' + String(c.cliente_doc || '—'), mm, y); y += 4;
+  doc.setDrawColor(180, 180, 180); doc.setLineDashPattern([1, 1], 0); doc.line(mm, y, w - mm, y); doc.setLineDashPattern([], 0); y += 4;
+  // Cabecera items
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(...guinda);
+  doc.text('DESCRIPCIÓN', mm, y); doc.text('IMPORTE', w - mm, y, { align: 'right' }); y += 3.6;
+  doc.setFont('helvetica', 'normal'); doc.setTextColor(...ink); doc.setFontSize(8);
+  T.items.forEach(i => {
+    const lines = doc.splitTextToSize(i.descripcion, cw - 22);
+    doc.text(lines, mm, y);
+    doc.text(_facMoney(i.cantidad * i.precio), w - mm, y, { align: 'right' });
+    y += Math.max(3.6, lines.length * 3.4);
+    doc.setTextColor(...gray); doc.setFontSize(7); doc.text(i.cantidad + ' x ' + _facMoney(i.precio), mm, y); doc.setTextColor(...ink); doc.setFontSize(8); y += 3.8;
+  });
+  doc.setDrawColor(...guinda); doc.setLineWidth(0.4); doc.line(mm, y, w - mm, y); y += 4.2;
+  const trow = (lbl, val, bold, big) => { doc.setFont('helvetica', bold ? 'bold' : 'normal'); doc.setFontSize(big ? 11 : 8); doc.setTextColor(...(big ? guinda : ink)); doc.text(lbl, mm, y); doc.text('S/ ' + _facMoney(val), w - mm, y, { align: 'right' }); y += big ? 6 : 3.8; };
+  trow(T.cero ? 'Op. Export/Inaf.' : 'Op. Gravada', T.cero ? T.inafecta : T.grav, false, false);
+  trow(T.cero ? 'IGV (0%)' : 'IGV (18%)', T.igv, false, false);
+  y += 1; trow('TOTAL', T.total, true, true);
+  y += 3; doc.setTextColor(...gray); doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5);
+  const foot = doc.splitTextToSize('Representación impresa de la ' + (Number(c.tipo) === 1 ? 'FACTURA' : 'BOLETA') + ' ELECTRÓNICA. SUNAT · NubeFact.' + (c.hash ? ' Hash: ' + String(c.hash).slice(0, 28) : ''), cw);
+  doc.text(foot, w / 2, y, { align: 'center' });
+  return doc;
+}
+function _facPdfFilename(c) {
+  const tipo = Number(c.tipo) === 1 ? 'factura' : 'boleta';
+  return tipo + '-' + (c.serie || 'X') + '-' + String(c.numero || 0).padStart(6, '0') + '.pdf';
+}
+
+// ── Apertura del modal PDF ──
+window._facAbrirPDFById = function (id) {
+  const c = ((_facState && _facState.comprobantes) || []).find(x => String(x.id) === String(id));
+  if (c) window._facAbrirPDF(c);
+};
+window._facAbrirPDF = function (c) {
+  const S = _facState; if (!S || !c) return;
+  try { sndTap(); haptic(10); } catch (e) {}
+  S._pdf = { comp: c, fmt: '80mm', sending: false,
+    contact: { email: String(c.cliente_email || '').trim(), tel: String(c.cliente_tel || c.cliente_telefono || '').trim() } };
+  let ov = document.getElementById('fac-pdf-modal');
+  if (!ov) { ov = document.createElement('div'); ov.id = 'fac-pdf-modal'; ov.className = 'fac-emit-ov'; document.body.appendChild(ov); ov.addEventListener('click', e => { if (e.target === ov) _facCerrarPDF(); }); }
+  ov.style.display = 'flex';
+  _facRenderPDF();
+  requestAnimationFrame(() => ov.classList.add('visible'));
+  // Precarga contacto del cliente frecuente si no vino en el comprobante.
+  if (!S._pdf.contact.email || !S._pdf.contact.tel) _facPdfPrecargarContacto(c);
+};
+window._facCerrarPDF = function () {
+  const ov = document.getElementById('fac-pdf-modal');
+  if (ov) { ov.classList.remove('visible'); setTimeout(() => { if (ov.parentNode) ov.remove(); }, 260); }
+  if (_facState) _facState._pdf = null;
+  try { haptic(8); } catch (e) {}
+  // NO se re-renderiza el shell del módulo → la balanza de la izquierda no se toca.
+};
+async function _facPdfPrecargarContacto(c) {
+  try {
+    const dt = _facInferDocTipo(c), dn = String(c.cliente_doc || '').trim();
+    if (!dn || dt === '0') return;
+    const r = await apiGet('buscar_cliente', { doc_tipo: dt, doc: dn });
+    if (r && r.ok && r.data) {
+      const S = _facState; if (!S || !S._pdf || S._pdf.comp !== c) return;
+      if (!S._pdf.contact.email && r.data.email) S._pdf.contact.email = String(r.data.email).trim();
+      if (!S._pdf.contact.tel && r.data.telefono) S._pdf.contact.tel = String(r.data.telefono).trim();
+      _facRenderPDF();
+    }
+  } catch (e) {}
+}
+window._facPdfSetFmt = function (fmt) {
+  const S = _facState; if (!S || !S._pdf || S._pdf.fmt === fmt) return;
+  try { sndTap(); haptic(8); } catch (e) {}
+  S._pdf.fmt = fmt;
+  const seg = document.querySelector('#fac-pdf-modal .fpdf-seg'); if (seg) seg.setAttribute('data-fmt', fmt);
+  const stage = document.querySelector('#fac-pdf-modal .fpdf-stage');
+  if (stage) { stage.innerHTML = _facPdfPreviewHTML(S._pdf.comp, fmt); const p = stage.firstElementChild; if (p) { p.classList.remove('fpdf-anim'); void p.offsetWidth; p.classList.add('fpdf-anim'); } }
+  seg && seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.getAttribute('data-f') === fmt));
+};
+function _facRenderPDF() {
+  const ov = document.getElementById('fac-pdf-modal'); const S = _facState; if (!ov || !S || !S._pdf) return;
+  const c = S._pdf.comp, fmt = S._pdf.fmt, ct = S._pdf.contact;
+  const T = _facPdfTotales(c);
+  const needContact = true;
+  ov.innerHTML = `<div class="fac-emit-box fpdf-box" role="dialog" aria-modal="true">
+    <div class="fac-emit-head">
+      <div style="font-size:22px">📄</div>
+      <div style="flex:1;min-width:0"><div class="fac-emit-title">${_facTituloDoc(c)}</div><div class="fac-emit-sub">${_facEsc(_facNumFmt(c))} · S/ ${_facMoney(T.total)}</div></div>
+      <button class="fac-emit-x" onclick="_facCerrarPDF()" aria-label="Cerrar">×</button>
+    </div>
+    <div class="fac-emit-box-inner">
+      <div class="fpdf-seg" data-fmt="${fmt}">
+        <div class="fpdf-seg-ind"></div>
+        <button data-f="80mm" class="${fmt === '80mm' ? 'on' : ''}" onclick="_facPdfSetFmt('80mm')">🧾 Ticket 80mm</button>
+        <button data-f="a4" class="${fmt === 'a4' ? 'on' : ''}" onclick="_facPdfSetFmt('a4')">📄 A4</button>
+      </div>
+      <div class="fpdf-stage">${_facPdfPreviewHTML(c, fmt)}</div>
+      ${needContact ? `<div class="fpdf-contact">
+        <div class="fpdf-contact-lbl">CONTACTO DEL CLIENTE (para enviar)</div>
+        <input id="fpdf-email" class="config-input" type="email" inputmode="email" placeholder="Correo del cliente" value="${_facEsc(ct.email || '')}">
+        <input id="fpdf-tel" class="config-input" type="tel" inputmode="numeric" placeholder="WhatsApp (+51) — 9 dígitos" value="${_facEsc(ct.tel || '')}">
+        <div style="font-size:10px;color:var(--text-muted);line-height:1.4">Se guardan en clientes frecuentes al enviar, para autocompletar la próxima vez.</div>
+      </div>` : ''}
+      <div class="fpdf-actions">
+        <button class="fpdf-act print" onclick="_facPdfImprimir()">🖨️ Imprimir</button>
+        <button class="fpdf-act dl" onclick="_facPdfDescargar()">⬇️ Descargar</button>
+        <button class="fpdf-act wa" onclick="_facPdfWhatsApp()">🟢 WhatsApp</button>
+        <button class="fpdf-act mail" onclick="_facPdfCorreo()">✉️ Correo</button>
+      </div>
+    </div>
+  </div>`;
+  // Enlaza inputs de contacto al estado.
+  const bindC = (id, k) => { const el = ov.querySelector('#' + id); if (el) el.oninput = () => { if (_facState && _facState._pdf) _facState._pdf.contact[k] = el.value; }; };
+  bindC('fpdf-email', 'email'); bindC('fpdf-tel', 'tel');
+}
+function _facPdfComp() { return _facState && _facState._pdf && _facState._pdf.comp; }
+// Guarda el contacto en clientes frecuentes (best-effort, cero-GAS).
+async function _facPdfGuardarContacto(c) {
+  try {
+    const ct = (_facState && _facState._pdf && _facState._pdf.contact) || {};
+    const dt = _facInferDocTipo(c), dn = String(c.cliente_doc || '').trim();
+    if (!dn || dt === '0' || (!ct.email && !ct.tel)) return;
+    await apiPost({ accion: 'actualizar_contacto_cliente', doc_tipo: dt, doc_numero: dn, email: (ct.email || '').trim() || null, telefono: (ct.tel || '').replace(/\D/g, '') || null, nombre: c.cliente_nombre || null });
+  } catch (e) {}
+}
+async function _facPdfImprimir() {
+  const c = _facPdfComp(); if (!c) return;
+  try { sndTap(); haptic(10); } catch (e) {}
+  try {
+    const doc = await _facGenPDF(c);
+    try { doc.autoPrint(); } catch (e) {}
+    const url = doc.output('bloburl');
+    const w = window.open(url, '_blank');
+    if (!w) { doc.output('dataurlnewwindow'); }   // popup bloqueado → fallback
+    try { sndOk(); } catch (e) {}
+  } catch (e) { _facErr((e && e.message) || 'No se pudo generar el PDF'); }
+}
+async function _facPdfDescargar() {
+  const c = _facPdfComp(); if (!c) return;
+  try { sndTap(); haptic(10); } catch (e) {}
+  try { const doc = await _facGenPDF(c); doc.save(_facPdfFilename(c)); try { sndOk(); } catch (e) {} }
+  catch (e) { _facErr((e && e.message) || 'No se pudo generar el PDF'); }
+}
+function _facPdfWhatsApp() {
+  const c = _facPdfComp(); if (!c) return;
+  const ct = (_facState._pdf && _facState._pdf.contact) || {};
+  let tel = String(ct.tel || '').replace(/\D/g, '');
+  if (!tel) { _facErr('Escribe el WhatsApp del cliente (9 dígitos)'); const el = document.getElementById('fpdf-tel'); if (el) el.focus(); return; }
+  if (tel.length === 9) tel = '51' + tel;   // prefijo Perú
+  try { sndOk(); haptic([15, 40, 15]); } catch (e) {}
+  const T = _facPdfTotales(c);
+  const oficial = /^https?:\/\//.test(String(c.enlace_pdf || ''));
+  let msg = 'Hola ' + (c.cliente_nombre || '') + ' 👋\n\nTe compartimos tu ' + (Number(c.tipo) === 1 ? 'factura' : 'boleta') + ' electrónica *' + _facNumFmt(c) + '* por un total de *S/ ' + _facMoney(T.total) + '*.';
+  if (oficial) msg += '\n\nPDF oficial: ' + c.enlace_pdf;
+  msg += '\n\n' + _FAC_EMISOR.razon + '. ¡Gracias por tu preferencia! 🌊';
+  window.open('https://wa.me/' + tel + '?text=' + encodeURIComponent(msg), '_blank', 'noopener');
+  _facPdfGuardarContacto(c);
+}
+async function _facPdfCorreo() {
+  const c = _facPdfComp(); if (!c) return;
+  const ct = (_facState._pdf && _facState._pdf.contact) || {};
+  const to = String(ct.email || '').trim();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) { _facErr('Escribe un correo válido del cliente'); const el = document.getElementById('fpdf-email'); if (el) el.focus(); return; }
+  if (_facState._pdf.sending) return;
+  _facState._pdf.sending = true;
+  const btn = document.querySelector('#fac-pdf-modal .fpdf-act.mail'); if (btn) { btn.setAttribute('aria-disabled', 'true'); btn.innerHTML = '✉️ Enviando…'; }
+  try { sndTap(); haptic(10); } catch (e) {}
+  try {
+    const doc = await _facGenPDF(c);
+    const b64 = doc.output('datauristring').replace(/^data:.*?;base64,/, '');
+    const { data, error } = await sbClient.functions.invoke('enviar-comprobante', {
+      body: { to, nombre: c.cliente_nombre || '', subject: (Number(c.tipo) === 1 ? 'Factura' : 'Boleta') + ' electrónica ' + _facNumFmt(c), pdf_base64: b64, filename: _facPdfFilename(c) }
+    });
+    // La Edge devuelve 503 con RESEND_NO_CONFIG si aún no hay Resend configurado.
+    // supabase-js envuelve el no-2xx como FunctionsHttpError: el detalle vive en error.context (Response), no en el message.
+    let errBody = '';
+    if (error && error.context && typeof error.context.json === 'function') { try { const jb = await error.context.json(); errBody = String((jb && jb.error) || ''); } catch (e) { try { errBody = String(await error.context.text()); } catch (_) {} } }
+    const noConfig = /RESEND_NO_CONFIG/i.test(errBody) || (error && /503|RESEND_NO_CONFIG/i.test(String(error.message || error))) || (data && data.ok === false && /RESEND_NO_CONFIG/i.test(String(data.error || '')));
+    if (noConfig) {
+      if (typeof showToast === 'function') showToast('✉️ Correo aún no configurado (Resend). Usa Descargar o WhatsApp por ahora.');
+      try { sndTap(); } catch (e) {}
+    } else if (error || (data && data.ok === false)) {
+      _facErr('No se pudo enviar: ' + String(errBody || (data && data.error) || (error && error.message) || 'error').slice(0, 70));
+    } else {
+      if (typeof showToast === 'function') showToast('✓ Comprobante enviado a ' + to);
+      try { sndOk(); haptic([15, 40, 15]); } catch (e) {}
+      _facPdfGuardarContacto(c);
+    }
+  } catch (e) { _facErr((e && e.message) || 'No se pudo enviar el correo'); }
+  finally {
+    if (_facState && _facState._pdf) _facState._pdf.sending = false;
+    if (btn) { btn.removeAttribute('aria-disabled'); btn.innerHTML = '✉️ Correo'; }
+  }
+}
+
 function _facRender() {
   if (_facMode === 'module') {
     if (!_facState) return;
@@ -8726,7 +9150,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.24.1';
+const APP_VERSION = '1.25.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
