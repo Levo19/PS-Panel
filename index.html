@@ -1127,6 +1127,17 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 @media (prefers-reduced-motion: reduce){
   .fac-hist-acc, .fac-hist-acc.open, .fac-hist-tog, .fac-hist-tog.open, .fac-hist-head { transition:none !important; animation:none !important; }
 }
+/* ── Historial · adición en TIEMPO REAL: entrada spring + glow dorado que se desvanece (~1.2s) ── */
+.fac-hist-item { position:relative; }
+.fac-rt-enter { animation:facRtEnter .6s cubic-bezier(.22,1,.36,1) both, facRtGlow 1.2s ease-out both; }
+@keyframes facRtEnter { 0%{opacity:0; transform:translateY(-14px) scale(.985);} 60%{opacity:1;} 100%{opacity:1; transform:none;} }
+@keyframes facRtGlow { 0%{box-shadow:inset 0 0 0 9999px rgba(201,168,76,.15);} 100%{box-shadow:inset 0 0 0 9999px rgba(201,168,76,0);} }
+/* Cambio de estado en sitio (pendiente→aceptada / anulada): pulso verde suave */
+.fac-rt-flash { animation:facRtFlash 1.2s ease-out both; }
+@keyframes facRtFlash { 0%{box-shadow:inset 0 0 0 9999px rgba(74,222,128,.13);} 100%{box-shadow:inset 0 0 0 9999px rgba(74,222,128,0);} }
+@media (prefers-reduced-motion: reduce){
+  .fac-rt-enter, .fac-rt-flash { animation:none !important; }
+}
 /* ── Feedback de emisión: banner glass (éxito/error) + chips de emitidos en la sesión ── */
 .fac-fb { position:relative; display:flex; align-items:center; gap:11px; padding:12px 13px; border-radius:15px; margin:2px 0 12px; border:1px solid transparent; -webkit-backdrop-filter:blur(12px) saturate(160%); backdrop-filter:blur(12px) saturate(160%); box-shadow:0 8px 24px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.14); animation:facFbIn .52s cubic-bezier(.34,1.56,.64,1) both; }
 .fac-fb.ok  { background:linear-gradient(135deg,rgba(52,199,89,.20),rgba(48,160,80,.10)); border-color:rgba(74,222,128,.42); }
@@ -5399,7 +5410,8 @@ function _facPaint(el) {
   _facRender();          // shell persistente (balanza izq + tabbar/slot der)
   _facLoadTrib();        // balanza con count-up (cache por período; no re-pide si ya está)
   _facLoadAnul();        // badge de solicitudes
-  if (_facState.tab === 'historial') _facLoadHist();   // vista por defecto = historial
+  if (_facState.tab === 'historial') _facLoadHist();   // vista por defecto = historial (único spinner: 1ª carga)
+  _facRTSubscribe();     // historial EN VIVO en el fondo (adición suave); guard interno = una sola vez
 }
 window._facMountModule = async function (el) {
   if (!el) return;
@@ -5832,8 +5844,11 @@ async function _facAnular(id) {
   if (S.anularId !== id) { S.anularId = id; sndTap(); haptic(8); _facRender(); clearTimeout(S._anularTo); S._anularTo = setTimeout(() => { if (_facState) { _facState.anularId = null; _facRender(); } }, 3500); return; }
   S.anularId = null; clearTimeout(S._anularTo); sndTap(); haptic(12);
   const r = await apiPost({ accion: 'anular_comprobante', id, motivo: 'Anulación desde panel' });
-  if (r.ok) { sndDown(); if (typeof showToast === 'function') showToast('Comprobante anulado'); _facLoadHist(); }
-  else _facErr((r.error || 'No se pudo anular').replace(/^.*?:\s*/, ''));
+  if (r.ok) {
+    sndDown(); if (typeof showToast === 'function') showToast('Comprobante anulado');
+    var comp = (S.comprobantes || []).find(function (x) { return String(x.id) === String(id); });
+    if (comp) { comp.estado = 'anulada'; _facRebuildCard(id, true); } else _facLoadHist();   // EN SITIO (sin spinner); Realtime confirma
+  } else _facErr((r.error || 'No se pudo anular').replace(/^.*?:\s*/, ''));
 }
 async function _facEmitir() {
   const S = _facState; const tot = _facTotales();
@@ -5886,6 +5901,7 @@ async function _facEmitir() {
     S.items = []; S.doc = ''; S.nombre = ''; S.email = ''; S.tel = ''; S.dir = ''; S.medioPago = ''; S.lookupState = 'idle';
     S.cliQuery = ''; S.cliResults = []; S.cliSel = false; S.cliShowLupa = false; S.cliManual = false; S.manualDoc = ''; S.manualNombre = '';
     S._emitLocalId = 'fac-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);   // localId nuevo para el próximo
+    _facRTInsertLocal(comp);   // adición SUAVE al historial del fondo YA (sin esperar fetch); Realtime confirma (dedupe por id)
     _facRender();          // en módulo → _facRenderEmit (refresca SOLO el modal); banner + form reseteado entran animados
     _facEmitFeedAfter();   // marca "visto" (no re-anima en re-renders incidentales) + auto-desvanece el banner OK a los ~6s
   } else {
@@ -5972,6 +5988,174 @@ async function _facLoadHist() {
   _facState.cargandoHist = true; _facRender();
   try { const r = await apiGet('listar_comprobantes', {}); _facState.comprobantes = (r.ok && r.data) || []; } catch (e) {}
   _facState.cargandoHist = false; _facRender();
+}
+
+// ═══════════════ HISTORIAL EN TIEMPO REAL (Supabase Realtime · cero GAS) ═══════════════
+// El admin lee la tabla `comprobantes` (publicada en supabase_realtime + RLS es_admin()).
+// INSERT (panel o muelle) → adición SUAVE al tope, sin re-render de la lista → sin parpadeo.
+// UPDATE (estado) → refresca el chip EN SITIO. Fallback a poll silencioso si el canal falla.
+let _facRTChannel = null;
+let _facRTFallbackBound = false;
+function _facReduceMotion() { try { return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } }
+// creado_at (ISO) → "DD/MM/AAAA HH:MM" en TZ Perú (misma cara que el `creado` del RPC).
+function _facFmtCreado(raw) {
+  if (!raw) return '';
+  try {
+    var d = new Date(raw); if (isNaN(d.getTime())) return String(raw);
+    var g = {}; new Intl.DateTimeFormat('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(d).forEach(function (p) { g[p.type] = p.value; });
+    return g.day + '/' + g.month + '/' + g.year + ' ' + (g.hour === '24' ? '00' : g.hour) + ':' + g.minute;
+  } catch (e) { return String(raw); }
+}
+// Normaliza el ROW crudo de la tabla `comprobantes` (Realtime) a la forma del historial.
+function _facNormComp(row) {
+  if (!row) return row;
+  var c = Object.assign({}, row);
+  c.tipo = Number(row.tipo);
+  c.numero = Number(row.numero);
+  c.total = Number(row.total) || 0;
+  c.estado = String(row.estado || '').toLowerCase();
+  c.enlace_pdf = row.enlace_pdf || row.pdf || row.enlace || '';
+  if (!c.creado) c.creado = _facFmtCreado(row.creado_at || row.creado || row.fecha);
+  return c;
+}
+// Envoltura targetable de una card de primer nivel (para adición/actualización EN SITIO).
+function _facHistItemHTML(c, S, opts) {
+  return '<div class="fac-hist-item" data-fac-card="' + _facEsc(String(c.id)) + '">' + _facHistCardHTML(c, S, opts) + '</div>';
+}
+// Notas de crédito (tipo 3) que modifican al comprobante `parent`, dentro de `list`.
+function _facNCsFor(parent, list) {
+  var pk = Number(parent.tipo) + '|' + String(parent.serie) + '|' + Number(parent.numero), out = [];
+  (list || []).forEach(function (c) {
+    if (Number(c.tipo) === 3 && c.doc_modifica_serie) {
+      var k = Number(c.doc_modifica_tipo) + '|' + String(c.doc_modifica_serie) + '|' + Number(c.doc_modifica_numero);
+      if (k === pk) out.push(c);
+    }
+  });
+  return out.length ? out : null;
+}
+// Busca el nodo-item de una card por id dentro de un contenedor de lista (multi-instancia).
+function _facFindCardNode(listEl, id) {
+  return Array.prototype.find.call(listEl.children, function (el) { return el.getAttribute && el.getAttribute('data-fac-card') === String(id); }) || null;
+}
+// Refresca el contador "N en X meses" del encabezado, sin tocar la lista.
+function _facRTUpdateCount() {
+  var S = _facState; if (!S) return;
+  var sel = S.histMeses || [];
+  var list = !sel.length ? S.comprobantes : (S.comprobantes || []).filter(function (c) { var p = _facCompPeriodo(c); return !p || sel.includes(p); });
+  var nMeses = sel.length || _tribPeriodos().length;
+  var txt = list.length + ' en ' + nMeses + ' mes' + (nMeses === 1 ? '' : 'es');
+  _facRenderRoots().forEach(function (ov) { var el = ov.querySelector('[data-fac-hist-count]'); if (el) el.textContent = txt; });
+}
+// Reconstruye SOLO una card (no la lista) desde el estado → chip/estado/anidadas al día. flash = pulso verde.
+function _facRebuildCard(id, flash) {
+  var S = _facState; if (!S) return;
+  var c = (S.comprobantes || []).find(function (x) { return String(x.id) === String(id); }); if (!c) return;
+  var ncs = _facNCsFor(c, S.comprobantes), reduce = _facReduceMotion();
+  _facRenderRoots().forEach(function (ov) {
+    var listEl = ov.querySelector('[data-fac-hist-list]'); if (!listEl) return;
+    var node = _facFindCardNode(listEl, id); if (!node) return;
+    node.innerHTML = _facHistCardHTML(c, S, { ncs: ncs });
+    if (flash && !reduce) { node.classList.remove('fac-rt-flash'); void node.offsetWidth; node.classList.add('fac-rt-flash'); setTimeout(function () { node.classList.remove('fac-rt-flash'); }, 1300); }
+  });
+}
+// Inserta una card NUEVA de primer nivel al tope, con entrada suave + glow. local = emisión propia.
+function _facRTInsertTop(c, local) {
+  var S = _facState, reduce = _facReduceMotion();
+  _facRenderRoots().forEach(function (ov) {
+    var listEl = ov.querySelector('[data-fac-hist-list]');
+    if (!listEl) { _facSwapSlot(ov); return; }   // venía del estado vacío → repinta el slot (aparece la 1ª fila)
+    if (_facFindCardNode(listEl, c.id)) return;   // ya está (dedupe DOM)
+    var wrap = document.createElement('div');
+    wrap.innerHTML = _facHistItemHTML(c, S, { ncs: _facNCsFor(c, S.comprobantes) });
+    var node = wrap.firstElementChild; if (!node) return;
+    if (!reduce) node.classList.add('fac-rt-enter');
+    listEl.insertBefore(node, listEl.firstChild);
+    if (!reduce) setTimeout(function () { node.classList.remove('fac-rt-enter'); }, 1300);
+  });
+  try { (local ? sndOk : sndUp)(); haptic(local ? [15, 40, 15] : [10, 25, 10]); } catch (e) {}
+}
+// Inserta una Nota de Crédito: la anida bajo su factura/boleta y pasa al padre a 'anulada' EN SITIO.
+function _facRTInsertNC(c, local) {
+  var S = _facState;
+  var parent = (S.comprobantes || []).find(function (x) { return Number(x.tipo) === Number(c.doc_modifica_tipo) && String(x.serie) === String(c.doc_modifica_serie) && Number(x.numero) === Number(c.doc_modifica_numero); });
+  if (!parent) return _facRTInsertTop(c, local);   // padre fuera de la lista → va al tope como doc normal
+  parent.estado = 'anulada';
+  _facRebuildCard(parent.id, true);
+  try { (local ? sndOk : sndDown)(); haptic([10, 25, 10]); } catch (e) {}
+}
+// Handler de INSERT (expuesto para browsercheck). row = ROW crudo de `comprobantes`.
+window._facRTInsert = function (row, opts) {
+  var S = _facState; if (!S) return;
+  var c = _facNormComp(row); if (!c || c.id == null) return;
+  S.comprobantes = S.comprobantes || [];
+  if (S.comprobantes.some(function (x) { return String(x.id) === String(c.id); })) return window._facRTUpdate(row);   // dedupe → trátalo como update
+  S.comprobantes.unshift(c);   // fuente de verdad (prepend)
+  var sel = S.histMeses || [], per = _facCompPeriodo(c);
+  var inFilter = !sel.length || !per || sel.includes(per);
+  if (_facMode !== 'module' || S.tab !== 'historial' || !inFilter) { _facRTUpdateCount(); return; }   // fuera del filtro/vista → solo estado + contador
+  if (Number(c.tipo) === 3 && c.doc_modifica_serie) _facRTInsertNC(c, opts && opts.local);
+  else _facRTInsertTop(c, opts && opts.local);
+  _facRTUpdateCount();
+};
+// Handler de UPDATE (expuesto para browsercheck). Refresca el chip de estado EN SITIO.
+window._facRTUpdate = function (row) {
+  var S = _facState; if (!S) return;
+  var c = _facNormComp(row); if (!c || c.id == null) return;
+  S.comprobantes = S.comprobantes || [];
+  var idx = S.comprobantes.findIndex(function (x) { return String(x.id) === String(c.id); });
+  if (idx < 0) return window._facRTInsert(row);   // desconocido → entra como nuevo
+  S.comprobantes[idx] = Object.assign({}, S.comprobantes[idx], c);
+  if (_facMode !== 'module' || S.tab !== 'historial') return;
+  var target = S.comprobantes[idx];
+  if (Number(c.tipo) === 3 && c.doc_modifica_serie) {   // una NC actualizada → refresca su PADRE (donde se pinta anidada)
+    var parent = S.comprobantes.find(function (x) { return Number(x.tipo) === Number(c.doc_modifica_tipo) && String(x.serie) === String(c.doc_modifica_serie) && Number(x.numero) === Number(c.doc_modifica_numero); });
+    if (parent) target = parent;
+  }
+  _facRebuildCard(target.id, true);
+};
+// Adición local de la emisión propia (sin esperar el fetch). Realtime confirma después (dedupe por id).
+function _facRTInsertLocal(comp) {
+  if (!comp || comp.id == null) return;
+  try { window._facRTInsert(Object.assign({ creado_at: new Date().toISOString() }, comp), { local: true }); } catch (e) {}
+}
+// Suscripción Realtime — una sola vez, solo admin + módulo activo.
+function _facRTSubscribe() {
+  if (_facRTChannel) return;
+  if (typeof sbClient === 'undefined' || !sbClient) return;
+  var ses = null; try { ses = JSON.parse(localStorage.getItem('ps_session') || '{}'); } catch (e) {}
+  if (!ses || ses.rol !== 'Administrador') return;
+  try {
+    _facRTChannel = sbClient.channel('fac-cpe')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'comprobantes' }, function (p) { try { window._facRTInsert(p.new); } catch (e) {} })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'comprobantes' }, function (p) { try { window._facRTUpdate(p.new); } catch (e) {} })
+      .subscribe(function (status) { if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') _facRTBindFallback(); });
+  } catch (e) { _facRTBindFallback(); }
+}
+function _facRTUnsubscribe() {
+  try { if (_facRTChannel) sbClient.removeChannel(_facRTChannel); } catch (e) {}
+  _facRTChannel = null;
+}
+// Fallback si Realtime no conecta: re-fetch silencioso (SIN spinner) al enfocar/volver visible + diff-add suave.
+function _facRTBindFallback() {
+  if (_facRTFallbackBound) return; _facRTFallbackBound = true;
+  var h = function () { if (document.visibilityState === 'visible') _facRTPollSilent(); };
+  document.addEventListener('visibilitychange', h);
+  window.addEventListener('focus', h);
+}
+async function _facRTPollSilent() {
+  var S = _facState; if (!S || _facMode !== 'module') return;
+  try {
+    var r = await apiGet('listar_comprobantes', {});
+    if (!r.ok || !Array.isArray(r.data)) return;
+    var have = {}; (S.comprobantes || []).forEach(function (c) { have[String(c.id)] = c; });
+    var added = [];
+    r.data.map(_facNormComp).forEach(function (c) {
+      var ex = have[String(c.id)];
+      if (!ex) added.push(c);
+      else if (String(ex.estado || '') !== String(c.estado || '')) { Object.assign(ex, c); _facRebuildCard(ex.id, true); }
+    });
+    added.reverse().forEach(function (c) { window._facRTInsert(c); });   // viejo→nuevo: el más reciente queda arriba
+  } catch (e) {}
 }
 async function _facGuardarServicio() {
   const S = _facState, e = S.svcEdit || {};
@@ -6151,7 +6335,7 @@ function _facSectionBody(S) {
     const list = !sel.length ? S.comprobantes : S.comprobantes.filter(c => { const p = _facCompPeriodo(c); return !p || sel.includes(p); });
     const header = `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">
         <div style="font-size:11px;font-weight:800;color:var(--gold);letter-spacing:.04em">COMPROBANTES EMITIDOS</div>
-        <div style="font-size:10px;color:var(--text-muted)">${list.length} en ${sel.length || _tribPeriodos().length} mes${(sel.length || _tribPeriodos().length) === 1 ? '' : 'es'}</div>
+        <div data-fac-hist-count style="font-size:10px;color:var(--text-muted)">${list.length} en ${sel.length || _tribPeriodos().length} mes${(sel.length || _tribPeriodos().length) === 1 ? '' : 'es'}</div>
       </div>
       <div style="font-size:10px;color:var(--text-muted);margin-bottom:6px">Toca uno o varios meses:</div>
       ${_facCarouselHTML('hist', _facHistChips(S))}`;
@@ -6167,9 +6351,9 @@ function _facSectionBody(S) {
     });
     body = header +
       (S.cargandoHist ? '<div style="text-align:center;padding:24px"><div class="spin" style="display:inline-block"></div></div>' :
-       (list.length ? `<div style="border:1px solid var(--border);border-radius:14px;overflow:hidden">${list.map(c => {
+       (list.length ? `<div data-fac-hist-list style="border:1px solid var(--border);border-radius:14px;overflow:hidden">${list.map(c => {
           if (_histNested[String(c.id)]) return '';   // se pinta anidada bajo su padre
-          return _facHistCardHTML(c, S, { ncs: _histNC[_histKey(c.tipo, c.serie, c.numero)] });
+          return _facHistItemHTML(c, S, { ncs: _histNC[_histKey(c.tipo, c.serie, c.numero)] });
         }).join('')}</div>` :
         '<div style="padding:18px;text-align:center;color:var(--text-muted);font-size:12px">Sin comprobantes en los meses elegidos.</div>'));
   } else if (S.tab === 'anulaciones') {
@@ -6525,12 +6709,13 @@ window._facCloseEmit = function () {
   if (ov) { ov.classList.remove('visible'); setTimeout(() => { if (!(_facState && _facState._emitOpen) && ov.parentNode) ov.remove(); }, 260); }
   try { haptic(8); } catch (e) {}
   if (_facMode === 'module' && _facState) {
-    _facRenderModuleShell();
-    if (_facState._emitioAlgo) {   // P2.1: solo refresca si de verdad emitió → evita ~5 requests y tirar la caché del semáforo al cancelar
+    // SIN parpadeo: NO re-renderizamos el slot ni recargamos con spinner. El historial ya quedó al día
+    // por la adición local del emit + Realtime. Solo refrescamos la balanza (IGV cambió) y la sirena.
+    if (_facState._emitioAlgo) {   // P2.1: solo si de verdad emitió → evita requests y tirar la caché del semáforo al cancelar
       _facState._emitioAlgo = false;
-      if (_facState.tab === 'historial') _facLoadHist();
-      _facState._balMes = {}; _facLoadTrib(true);   // el IGV cambió: refresca balanza + semáforos
+      _facState._balMes = {}; _facLoadTrib(true);   // refresca SOLO la balanza (panel izq) + semáforos
     }
+    _facRenderAlerta();   // mantiene la sirena de anulaciones en sincronía sin tocar el historial
   }
 };
 // Pinta/re-pinta el cuerpo del modal Emitir (contexto tab='emitir' aislado del tab persistente del módulo).
@@ -10723,8 +10908,9 @@ const ViewFacturacion = {
   name: 'ViewFacturacion',
   props: ['data', 'loading'],
   template: `<div class="fac-module" ref="root"></div>`,
-  mounted()   { try { window._facMountModule && window._facMountModule(this.$refs.root); } catch (e) {} },
-  activated() { try { window._facActivateModule && window._facActivateModule(this.$refs.root); } catch (e) {} }
+  mounted()     { try { window._facMountModule && window._facMountModule(this.$refs.root); } catch (e) {} },
+  activated()   { try { window._facActivateModule && window._facActivateModule(this.$refs.root); } catch (e) {} },
+  deactivated() { try { _facRTUnsubscribe(); } catch (e) {} }   // sin fugas: corta Realtime al salir del módulo (re-suscribe al volver)
 };
 
 // ── Main app ─────────────────────────────────────────────────
@@ -11038,7 +11224,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.35.0';
+const APP_VERSION = '1.36.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
