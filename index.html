@@ -409,7 +409,14 @@ input  { outline: none; border: none; background: none; color: inherit; font: in
   .ps-head, .ps-head::after, .ps-head-ico, .ps-acc, .ps-stagger > *, .ps-slot-anim, .ps-fb,
   .ps-enter, .ps-sheet, .ps-sheet-overlay { animation:none !important; }
   .ps-card, .ps-acc, .ps-tab, .ps-tab-ind, .ps-row, .ps-btn { transition:none !important; }
+  .shimmer { animation:none !important; }
 }
+/* ── Dashboard (F1): KPIs glass + charts enmarcados ── */
+.ps-dash .kpi-card.ps-card { border-radius:var(--radius); }
+.ps-dash .kpi-card.ps-card::before { opacity:.5; }
+.ps-dash .chart-card { padding:18px; margin-bottom:16px; }
+.ps-dash .chart-card:last-child { margin-bottom:24px; }
+@media (max-width:400px){ .ps-dash .kpi-grid-3 { grid-template-columns:repeat(2,1fr); } }
 /* ═══════════════════ fin KIT ps-* ═══════════════════ */
 
 /* ── PORTRAIT LAYOUT (bottom nav) ──────────────────────── */
@@ -3149,50 +3156,63 @@ const ViewDashboard = {
     return { chartBar, chartDonut };
   },
   template: `
-    <div>
-      <div class="module-date" style="margin-bottom:20px;">{{ data?.hoy?.fecha || '—' }}</div>
+    <div class="ps-dash ps-enter">
+      <!-- Cabecera iOS -->
+      <div class="ps-head">
+        <div class="ps-head-l">
+          <div class="ps-head-ico">📊</div>
+          <div>
+            <div class="ps-head-title">Inicio</div>
+            <div class="ps-head-sub">{{ data?.hoy?.fecha || 'Resumen del día' }}</div>
+          </div>
+        </div>
+        <div v-if="data?.hoy" class="ps-head-hero">
+          <div class="lbl">Ingresos hoy</div>
+          <div class="val">S/ {{ fmt(data.hoy.total_ingresos) }}</div>
+        </div>
+      </div>
 
       <div v-if="loading" style="display:flex;justify-content:center;padding:60px 0;"><div class="spin"></div></div>
 
       <template v-else-if="data?.hoy">
         <!-- Resumen total -->
-        <div class="kpi-grid" style="margin-bottom:16px;">
-          <div class="kpi-card glass">
+        <div class="kpi-grid ps-stagger" style="margin-bottom:16px;">
+          <div class="kpi-card ps-card">
             <div class="kpi-label">Ingresos Totales</div>
             <div class="kpi-value big shimmer">S/ {{ fmt(data.hoy.total_ingresos) }}</div>
             <div class="kpi-sub">Lanchas + Hotel</div>
           </div>
-          <div class="kpi-card glass">
+          <div class="kpi-card ps-card">
             <div class="kpi-label">Deudas Pendientes</div>
-            <div class="kpi-value" style="color:#f87171;">S/ {{ fmt(data.hoy.total_deudas) }}</div>
+            <div class="kpi-value" style="color:#ff8b84;">S/ {{ fmt(data.hoy.total_deudas) }}</div>
             <div class="kpi-sub">Comisionados + Aliados</div>
           </div>
         </div>
 
         <!-- Lanchas KPIs -->
-        <div class="section-card glass">
+        <div class="section-card ps-card">
           <div class="section-title">⛵ Lanchas</div>
-          <div class="kpi-grid kpi-grid-3">
-            <div class="kpi-card" style="padding:12px;">
+          <div class="kpi-grid kpi-grid-3 ps-stagger" style="margin-bottom:10px;">
+            <div class="kpi-card ps-card" style="padding:12px;">
               <div class="kpi-label">PAX Total</div>
               <div class="kpi-value" style="font-size:22px;">{{ data.hoy.lanchas.pax_total }}</div>
               <div class="kpi-sub">{{ data.hoy.lanchas.operaciones_hoy }} operaciones</div>
             </div>
-            <div class="kpi-card" style="padding:12px;">
+            <div class="kpi-card ps-card" style="padding:12px;">
               <div class="kpi-label">Ingreso Op.</div>
               <div class="kpi-value" style="font-size:22px;color:var(--gold);">S/ {{ fmt(data.hoy.lanchas.ingresos_operador) }}</div>
             </div>
-            <div class="kpi-card" style="padding:12px;">
+            <div class="kpi-card ps-card" style="padding:12px;">
               <div class="kpi-label">Debe Comis.</div>
-              <div class="kpi-value" style="font-size:22px;color:#f87171;">S/ {{ fmt(data.hoy.lanchas.deuda_comisionados) }}</div>
+              <div class="kpi-value" style="font-size:22px;color:#ff8b84;">S/ {{ fmt(data.hoy.lanchas.deuda_comisionados) }}</div>
             </div>
           </div>
-          <div class="kpi-grid" style="margin-top:10px;margin-bottom:0;">
-            <div class="kpi-card" style="padding:12px;">
+          <div class="kpi-grid ps-stagger" style="margin-bottom:0;">
+            <div class="kpi-card ps-card" style="padding:12px;">
               <div class="kpi-label">Efectivo caja</div>
               <div class="kpi-value" style="font-size:18px;">S/ {{ fmt(data.hoy.lanchas.caja_efectivo) }}</div>
             </div>
-            <div class="kpi-card" style="padding:12px;">
+            <div class="kpi-card ps-card" style="padding:12px;">
               <div class="kpi-label">Pendiente Aliados</div>
               <div class="kpi-value" style="font-size:18px;color:#fbbf24;">S/ {{ fmt(data.hoy.lanchas.pendiente_aliados) }}</div>
             </div>
@@ -3205,19 +3225,19 @@ const ViewDashboard = {
         </div>
 
         <!-- Hotel KPIs -->
-        <div class="section-card glass">
+        <div class="section-card ps-card">
           <div class="section-title">🏨 Hotel</div>
-          <div class="kpi-grid kpi-grid-3">
-            <div class="kpi-card" style="padding:12px;">
+          <div class="kpi-grid kpi-grid-3 ps-stagger">
+            <div class="kpi-card ps-card" style="padding:12px;">
               <div class="kpi-label">Ocupación</div>
               <div class="kpi-value" style="font-size:22px;color:var(--gold);">{{ data.hoy.hotel.ocupacion_pct }}%</div>
               <div class="kpi-sub">{{ data.hoy.hotel.habitaciones_ocupadas }}/{{ data.hoy.hotel.total_habitaciones }} hab.</div>
             </div>
-            <div class="kpi-card" style="padding:12px;">
+            <div class="kpi-card ps-card" style="padding:12px;">
               <div class="kpi-label">Alojamiento</div>
               <div class="kpi-value" style="font-size:22px;">S/ {{ fmt(data.hoy.hotel.ingresos_alojamiento) }}</div>
             </div>
-            <div class="kpi-card" style="padding:12px;">
+            <div class="kpi-card ps-card" style="padding:12px;">
               <div class="kpi-label">Consumos</div>
               <div class="kpi-value" style="font-size:22px;">S/ {{ fmt(data.hoy.hotel.ingresos_consumos) }}</div>
             </div>
@@ -3225,7 +3245,7 @@ const ViewDashboard = {
         </div>
 
         <!-- Histórico 7 días -->
-        <div v-if="data.historico?.length" class="section-card glass" style="margin-bottom:24px;">
+        <div v-if="data.historico?.length" class="section-card ps-card chart-card">
           <div class="section-title">📈 Últimos 7 días</div>
           <div class="chart-wrap"><canvas ref="chartBar"></canvas></div>
         </div>
@@ -11609,7 +11629,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.38.0';
+const APP_VERSION = '1.39.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
