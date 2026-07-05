@@ -1259,6 +1259,65 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 }
 @media(max-width:600px){ .fac-emit-box { max-height:94vh; border-radius:22px; } .fac-emit-box-inner { padding:4px 16px 20px; } }
 
+/* ── Alerta flotante de anulaciones = BOTÓN FLOTANTE tipo SIRENA (FAB fijo) ── */
+.fac-anul-alert-wrap:empty { display:none; }
+.fac-anul-fab {
+  position:fixed; right:22px; bottom:calc(22px + env(safe-area-inset-bottom)); z-index:880;
+  width:62px; height:62px; border-radius:50%; border:none; cursor:pointer; padding:0;
+  display:flex; align-items:center; justify-content:center; font-size:27px; line-height:1;
+  color:#fff; background:radial-gradient(circle at 35% 30%, #ff5b5b, #c81e1e 60%, #7f1d1d);
+  -webkit-tap-highlight-color:transparent;
+  animation:facSirenIn .4s cubic-bezier(.34,1.56,.64,1) both, facSirenPulse 1.25s ease-in-out infinite;
+  transition:transform .16s cubic-bezier(.34,1.56,.64,1);
+}
+.fac-anul-fab::before {   /* halo/anillo de sirena que late hacia afuera */
+  content:''; position:absolute; inset:-6px; border-radius:50%; z-index:-1;
+  border:2px solid rgba(248,113,113,.7);
+  animation:facSirenRing 1.25s ease-out infinite;
+}
+.fac-anul-fab:hover { filter:brightness(1.08); }
+.fac-anul-fab:active { transform:scale(.9); }
+.fac-anul-fab.fac-anul-fab-out { animation:facSirenOut .32s ease forwards; pointer-events:none; }
+.fac-anul-fab .fac-anul-badge {
+  position:absolute; top:-4px; right:-4px;
+  min-width:23px; height:23px; padding:0 6px; border-radius:999px;
+  background:#fff; color:#c81e1e; border:2px solid #7f1d1d;
+  display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:900;
+}
+@keyframes facSirenPulse {
+  0%,100% { box-shadow:0 6px 20px rgba(0,0,0,.4), 0 0 0 0 rgba(220,38,38,.60); transform:scale(1); }
+  50%     { box-shadow:0 8px 30px rgba(200,30,30,.65), 0 0 34px 10px rgba(248,80,80,.55); transform:scale(1.06); }
+}
+@keyframes facSirenRing {
+  0%   { transform:scale(1);   opacity:.85; }
+  100% { transform:scale(1.85); opacity:0; }
+}
+@keyframes facSirenIn  { from{opacity:0; transform:scale(.4) translateY(14px);} to{opacity:1; transform:none;} }
+@keyframes facSirenOut { to{opacity:0; transform:scale(.5) translateY(10px);} }
+@media(max-width:600px){ .fac-anul-fab { width:58px; height:58px; font-size:25px; right:16px; bottom:calc(16px + env(safe-area-inset-bottom)); } }
+/* Filas del sheet de anulaciones */
+.fac-anul-row { border:1px solid rgba(255,255,255,.12); border-radius:14px; padding:12px; margin-bottom:10px; background:rgba(255,255,255,.04); }
+.fac-anul-row-top { display:flex; justify-content:space-between; gap:8px; align-items:flex-start; }
+.fac-anul-row-t { font-weight:800; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fac-anul-row-s { font-size:10px; color:var(--text-muted); margin-top:2px; }
+.fac-anul-row-monto { font-weight:800; font-size:13px; color:var(--gold); white-space:nowrap; }
+.fac-anul-motivo { margin:9px 0; padding:8px 10px; background:rgba(220,38,38,.10); border-radius:9px; font-size:12px; color:var(--text); line-height:1.4; }
+.fac-anul-motivo b { color:#f87171; }
+.fac-anul-btns { display:flex; gap:8px; }
+.fac-anul-rechazar, .fac-anul-anular {
+  flex:1; padding:10px; border-radius:11px; font-weight:800; font-size:12.5px; cursor:pointer;
+  -webkit-tap-highlight-color:transparent; transition:transform .15s cubic-bezier(.34,1.56,.64,1), filter .15s;
+}
+.fac-anul-rechazar { border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.06); color:var(--text-muted); }
+.fac-anul-anular { border:none; background:linear-gradient(135deg,#dc2626,#7f1d1d); color:#fff; box-shadow:0 6px 18px rgba(185,28,28,.4); }
+.fac-anul-rechazar:active, .fac-anul-anular:active { transform:scale(.93); }
+.fac-anul-anular:hover { filter:brightness(1.07); }
+@media(prefers-reduced-motion:reduce){
+  .fac-anul-fab { animation:facSirenIn .4s ease both; }   /* visible, sin el pulso continuo */
+  .fac-anul-fab::before { animation:none; opacity:0; }
+  .fac-anul-fab, .fac-anul-rechazar, .fac-anul-anular { transition:none; }
+}
+
 /* ── JALAR ZARPE → CPEs (sub-flujo dentro del modal Emitir) ─────────────── */
 .fac-z-dash {
   width:100%; padding:12px; border:1px dashed var(--gold); border-radius:13px;
@@ -5320,12 +5379,61 @@ async function _facLoadAnul() {
   if (_facState.tab === 'anulaciones') { _facState.cargandoAnul = true; _facRender(); }
   try { const r = await apiGet('solicitudes_anulacion'); _facState.solicitudes = (r.ok && r.data) || []; } catch (e) {}
   _facState.cargandoAnul = false; _facRender();
+  _facRenderAlerta();       // refresca el chip flotante
+  _facRefreshAnulSheet();   // y el sheet si está abierto
 }
 async function _facResolverAnul(id, aprobar) {
   sndTap(); haptic(aprobar ? 12 : 8);
   const r = await apiPost({ accion: 'resolver_anulacion', id, aprobar });
   if (r.ok) { (aprobar ? sndOk : sndDown)(); if (typeof showToast === 'function') showToast(aprobar ? '✓ Comprobante anulado' : 'Solicitud rechazada'); _facLoadAnul(); }
   else _facErr((r.error || 'No se pudo resolver').replace(/^.*?:\s*/, ''));
+}
+// ── Sheet flotante de anulaciones (reemplaza el tab): lista de CPEs que el muelle pide anular ──
+function _facAnulSheetHTML(S) {
+  const list = (S && S.solicitudes) || [];
+  const rows = list.length ? list.map(c => `<div class="fac-anul-row">
+      <div class="fac-anul-row-top">
+        <div style="min-width:0"><div class="fac-anul-row-t">${c.serie}-${String(c.numero).padStart(6, '0')} · ${_facEsc(c.cliente_nombre || 'Sin nombre')}</div><div class="fac-anul-row-s">${_facEsc(String(c.solicitada || ''))} · pidió: ${_facEsc(c.anulacion_por || '—')}</div></div>
+        <span class="fac-anul-row-monto">S/ ${_facMoney(c.total)}</span>
+      </div>
+      <div class="fac-anul-motivo"><b>Motivo:</b> ${_facEsc(c.anulacion_motivo || '—')}</div>
+      <div class="fac-anul-btns">
+        <button class="fac-anul-rechazar" onclick="_facResolverAnul('${c.id}',false)">Rechazar</button>
+        <button class="fac-anul-anular" onclick="_facResolverAnul('${c.id}',true)">⊘ Anular</button>
+      </div>
+    </div>`).join('')
+    : '<div style="padding:26px;text-align:center;color:var(--text-muted);font-size:12.5px">No hay solicitudes pendientes ✓</div>';
+  return `<div class="fac-emit-box fpdf-box fac-anul-sheet-box" role="dialog" aria-modal="true" style="max-width:520px">
+    <div class="fac-emit-head">
+      <div style="font-size:22px">⚠️</div>
+      <div style="flex:1;min-width:0"><div class="fac-emit-title">Anulaciones pedidas</div><div class="fac-emit-sub">El muelle solicita anular estos comprobantes</div></div>
+      <button class="fac-emit-x" onclick="_facCerrarAnulSheet()" aria-label="Cerrar">×</button>
+    </div>
+    <div class="fac-emit-box-inner">
+      <div style="font-size:11px;color:var(--text-muted);margin:2px 0 12px;line-height:1.5">Revisa el motivo y aprueba (recién ahí se anula en SUNAT) o rechaza. La lista se actualiza al resolver.</div>
+      ${rows}
+    </div>
+  </div>`;
+}
+window._facOpenAnulSheet = function () {
+  const S = _facState; if (!S) return;
+  try { sndTap(); haptic(12); } catch (e) {}
+  let ov = document.getElementById('fac-anul-sheet');
+  if (!ov) { ov = document.createElement('div'); ov.id = 'fac-anul-sheet'; ov.className = 'fac-emit-ov'; document.body.appendChild(ov); ov.addEventListener('click', e => { if (e.target === ov) _facCerrarAnulSheet(); }); }
+  ov.style.display = 'flex';
+  ov.innerHTML = _facAnulSheetHTML(S);
+  requestAnimationFrame(() => ov.classList.add('visible'));
+};
+window._facCerrarAnulSheet = function () {
+  const ov = document.getElementById('fac-anul-sheet');
+  if (ov) { ov.classList.remove('visible'); setTimeout(() => { if (ov.parentNode && !ov.classList.contains('visible')) ov.style.display = 'none'; }, 260); }
+  try { haptic(8); } catch (e) {}
+};
+function _facRefreshAnulSheet() {
+  const ov = document.getElementById('fac-anul-sheet');
+  if (!ov || ov.style.display === 'none' || !_facState) return;
+  if (((_facState.solicitudes) || []).length === 0) { _facCerrarAnulSheet(); return; }
+  ov.innerHTML = _facAnulSheetHTML(_facState);
 }
 function _facSetTipo(n) { sndTap(); haptic(8); _facState.tipo = n; if (n === 1 && _facState.docTipo === '1') _facState.docTipo = '6'; _facRender(); }
 function _facAddServicio(id) {
@@ -5662,7 +5770,7 @@ function _facSectionBody(S) {
 // Fase 1: 'emitir' pasó a botón→modal; 'subir'/'compras' se retiran del tabbar (Fase 2 van a la izquierda).
 const _FAC_MOD_TABS = [
   ['historial', '📜', 'Historial'],
-  ['servicios', '🏷', 'Servicios'], ['anulaciones', '⊘', 'Anular']
+  ['servicios', '🏷', 'Servicios']
 ];
 const _FAC_MOD_TAB_IDS = _FAC_MOD_TABS.map(t => t[0]);
 function _facTabbarHTML(S) {
@@ -5806,6 +5914,7 @@ function _facBuildShellInto(ov) {
   const S = _facState;
   ov.innerHTML = `<div class="fac-mod-shell2${S.shake ? ' si-shake' : ''}">
     <div class="fac-mesh" aria-hidden="true"></div>
+    <div class="fac-anul-alert-wrap" id="fac-anul-alert"></div>
     <div class="fac-mod-cols2">
       <div class="fac-mod-l" id="fac-balanza-panel"></div>
       <div class="fac-mod-r">
@@ -5819,6 +5928,29 @@ function _facBuildShellInto(ov) {
   const panel = ov.querySelector('#fac-balanza-panel'); if (panel) { panel.innerHTML = _facBalanzaFinaHTML(S); _facAfterBalanza(panel); }
   const slot = ov.querySelector('#fac-slot'); if (slot) { slot.innerHTML = _facSectionBody(S); _facBindSlot(ov); }
   _facMoveTabInd(ov.querySelector('#fac-tabbar'), true);
+  _facRenderAlerta();
+}
+// Alerta flotante de anulaciones: BOTÓN SIRENA (FAB fijo, pulso rojo) — solo si hay solicitudes.
+// Al resolver TODAS, sale con fade-out y desaparece.
+function _facRenderAlerta() {
+  if (_facMode !== 'module') return;
+  const S = _facState; if (!S) return;
+  const pend = (S.solicitudes && S.solicitudes.length) || 0;
+  const html = pend
+    ? `<button class="fac-anul-fab" onclick="_facOpenAnulSheet()" aria-label="${pend} ${pend === 1 ? 'anulación pedida' : 'anulaciones pedidas'} — revisar">🚨<span class="fac-anul-badge">${pend}</span></button>`
+    : '';
+  _facRenderRoots().forEach(ov => {
+    const host = ov.querySelector('#fac-anul-alert'); if (!host) return;
+    if (!html && host.querySelector('.fac-anul-fab')) {
+      // Fade-out elegante cuando ya no quedan solicitudes.
+      const fab = host.querySelector('.fac-anul-fab'); fab.classList.add('fac-anul-fab-out');
+      setTimeout(() => { if (host.querySelector('.fac-anul-fab-out')) host.innerHTML = ''; }, 340);
+    } else if (html) {
+      host.innerHTML = html;
+    } else {
+      host.innerHTML = '';
+    }
+  });
 }
 // Shell PERSISTENTE: construye cada instancia UNA vez; si ya existe (#fac-slot), solo hace swap del slot — la balanza queda fija.
 function _facRenderModuleShell() {
@@ -5830,6 +5962,7 @@ function _facRenderModuleShell() {
       _facSwapSlot(ov);
     }
   });
+  _facRenderAlerta();
 }
 // ═══ FASE 1 · Carrusel de meses reusable (flechas + swipe táctil) ═══
 // Carril horizontal sin scrollbar; el swipe es scroll nativo (touch), las flechas mueven ±70% del ancho.
@@ -6337,7 +6470,7 @@ window._facZarpeLightboxClose = function () {
 // (cuando NubeFact esté activo) vive en enlace_pdf. Todo el envío/guardado va por Supabase (cero GAS).
 // ═══════════════════════════════════════════════════════════════════════════
 // Identidad del emisor para la representación impresa. Edita RUC cuando lo tengas.
-const _FAC_EMISOR = { marca: 'PARACAS SIGHTS & TOURS', razon: 'PARACAS SIGHTS & TOURS AGENCIA DE VIAJES Y TURISMO S.A.C.', ruc: '20494562716', direccion: 'Paracas, Ica — Perú', web: 'paracas' };
+const _FAC_EMISOR = { marca: 'PARACAS SIGHTS & TOURS', razon: 'PARACAS SIGHTS & TOURS AGENCIA DE VIAJES Y TURISMO S.A.C.', ruc: '20494562716', direccion: 'Gral. José de San Martín Mz. E Lt. 8 - A.H. HH.UU. de Oficio, Paracas - Pisco - Ica', actividad: '7912 - Actividades de operadores turísticos', web: 'paracas' };
 // Carga jsPDF de forma perezosa (no bloquea el arranque del panel).
 let _facJsPDFPromise = null;
 function _facEnsureJsPDF() {
@@ -6371,8 +6504,105 @@ function _facInferDocTipo(c) {
   if (d.length) return '4';          // CE (numérico)
   return '0';
 }
-// Título oficial del comprobante.
-function _facTituloDoc(c) { return Number(c && c.tipo) === 1 ? 'FACTURA ELECTRÓNICA' : 'BOLETA DE VENTA ELECTRÓNICA'; }
+// Título oficial del comprobante. 1=Factura · 2=Boleta · 3=Nota de Crédito · 4=Nota de Débito (fallback boleta).
+function _facTituloDoc(c) {
+  var t = Number(c && c.tipo);
+  if (t === 1) return 'FACTURA ELECTRÓNICA';
+  if (t === 3) return 'NOTA DE CRÉDITO ELECTRÓNICA';
+  if (t === 4) return 'NOTA DE DÉBITO ELECTRÓNICA';
+  return 'BOLETA DE VENTA ELECTRÓNICA';
+}
+// Forma corta (pie del impreso): "FACTURA" / "BOLETA DE VENTA" / "NOTA DE CRÉDITO" / "NOTA DE DÉBITO".
+function _facTipoShort(c) {
+  var t = Number(c && c.tipo);
+  if (t === 1) return 'FACTURA';
+  if (t === 3) return 'NOTA DE CRÉDITO';
+  if (t === 4) return 'NOTA DE DÉBITO';
+  return 'BOLETA DE VENTA';
+}
+// Palabra en minúscula para mensajes (WhatsApp/correo).
+function _facTipoWord(c) {
+  var t = Number(c && c.tipo);
+  if (t === 1) return 'factura';
+  if (t === 3) return 'nota de crédito';
+  if (t === 4) return 'nota de débito';
+  return 'boleta';
+}
+// Slug para nombre de archivo.
+function _facTipoSlug(c) {
+  var t = Number(c && c.tipo);
+  if (t === 1) return 'factura';
+  if (t === 3) return 'nota-credito';
+  if (t === 4) return 'nota-debito';
+  return 'boleta';
+}
+// ── Monto en LETRAS (documento tributario): "SON: CIENTO DIECIOCHO CON 00/100 SOLES" ──
+function _facEnteroLetras(n) {
+  n = Math.floor(Math.abs(Number(n) || 0));
+  if (n === 0) return 'CERO';
+  if (n > 999999) return String(n);   // fuera de rango soportado
+  var UNI = ['', 'UNO', 'DOS', 'TRES', 'CUATRO', 'CINCO', 'SEIS', 'SIETE', 'OCHO', 'NUEVE', 'DIEZ', 'ONCE', 'DOCE', 'TRECE', 'CATORCE', 'QUINCE', 'DIECISÉIS', 'DIECISIETE', 'DIECIOCHO', 'DIECINUEVE', 'VEINTE'];
+  var VEINTI = ['VEINTE', 'VEINTIUNO', 'VEINTIDÓS', 'VEINTITRÉS', 'VEINTICUATRO', 'VEINTICINCO', 'VEINTISÉIS', 'VEINTISIETE', 'VEINTIOCHO', 'VEINTINUEVE'];
+  var DEC = ['', '', 'VEINTE', 'TREINTA', 'CUARENTA', 'CINCUENTA', 'SESENTA', 'SETENTA', 'OCHENTA', 'NOVENTA'];
+  var CEN = ['', 'CIENTO', 'DOSCIENTOS', 'TRESCIENTOS', 'CUATROCIENTOS', 'QUINIENTOS', 'SEISCIENTOS', 'SETECIENTOS', 'OCHOCIENTOS', 'NOVECIENTOS'];
+  function decenas(x) {
+    if (x <= 20) return UNI[x];
+    if (x < 30) return VEINTI[x - 20];
+    var d = Math.floor(x / 10), u = x % 10;
+    return DEC[d] + (u ? ' Y ' + UNI[u] : '');
+  }
+  function centenas(x) {
+    if (x === 0) return '';
+    if (x === 100) return 'CIEN';
+    var c = Math.floor(x / 100), r = x % 100, out = '';
+    if (c) out += CEN[c];
+    if (r) out += (out ? ' ' : '') + decenas(r);
+    return out;
+  }
+  var miles = Math.floor(n / 1000), resto = n % 1000, out = '';
+  if (miles) out += (miles === 1 ? 'MIL' : centenas(miles) + ' MIL');
+  if (resto) out += (out ? ' ' : '') + centenas(resto);
+  return out || 'CERO';
+}
+function _facMontoLetras(n, moneda) {
+  n = Number(n) || 0;
+  var ent = Math.floor(Math.abs(n));
+  var dec = Math.round((Math.abs(n) - ent) * 100);
+  if (dec >= 100) { dec = 0; ent += 1; }
+  var mon = String(moneda || '').toUpperCase();
+  var monWord = (mon === 'USD' || mon.indexOf('DÓL') === 0 || mon.indexOf('DOL') === 0 || mon.indexOf('DOLLAR') === 0) ? 'DÓLARES' : 'SOLES';
+  return 'SON: ' + _facEnteroLetras(ent) + ' CON ' + String(dec).padStart(2, '0') + '/100 ' + monWord;
+}
+// ── QR (estándar SUNAT) — carga perezosa de qrcode-generator ──
+let _facQRPromise = null;
+function _facEnsureQR() {
+  if (typeof window.qrcode === 'function') return Promise.resolve(window.qrcode);
+  if (_facQRPromise) return _facQRPromise;
+  _facQRPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js';
+    s.async = true;
+    s.onload = () => { (typeof window.qrcode === 'function') ? resolve(window.qrcode) : reject(new Error('QR no cargó')); };
+    s.onerror = () => { _facQRPromise = null; reject(new Error('No se pudo descargar la librería QR (sin red).')); };
+    document.head.appendChild(s);
+  });
+  return _facQRPromise;
+}
+// Cadena del QR (pipe-separated) según el estándar de representación impresa SUNAT.
+function _facQRData(c, T) {
+  const fecha = String(c.creado || c.fecha || c.creado_at || '').slice(0, 10);
+  const dos = v => (Number(v) || 0).toFixed(2);
+  return [
+    _FAC_EMISOR.ruc, Number(c.tipo) || '', c.serie || '', String(c.numero || 0),
+    dos(T.igv), dos(T.total), fecha,
+    c.cliente_doc_tipo || _facInferDocTipo(c), c.cliente_doc || '', c.hash || ''
+  ].join('|');
+}
+// dataURL del QR (o '' si no está la librería). module=4px, sin margen extra.
+function _facQRDataUrl(str) {
+  try { const q = window.qrcode(0, 'M'); q.addData(String(str || '')); q.make(); return q.createDataURL(4, 0); }
+  catch (e) { return ''; }
+}
 // Normaliza los ítems (el listado puede no traerlos → 1 línea resumen con el total).
 function _facPdfItems(c) {
   let it = (c && (c.items || c.detalle)) || [];
@@ -6418,9 +6648,18 @@ function _facPdfPreviewHTML(c, fmt) {
   const igvLbl = T.cero ? 'IGV (0%)' : 'IGV (18%)';
   const opLbl = T.cero ? 'Op. Export / Inafecta' : 'Op. Gravada';
   const opVal = T.cero ? T.inafecta : T.grav;
-  const hash = _facEsc(String(c.hash || c.codigo_barras || '').slice(0, 40));
+  const hashFull = String(c.hash || c.codigo_barras || '');
+  const hash = _facEsc(hashFull.slice(0, 40));
   const oficial = /^https?:\/\//.test(String(c.enlace_pdf || ''));
-  const footHtml = `Representación impresa de la ${Number(c.tipo) === 1 ? 'FACTURA' : 'BOLETA DE VENTA'} ELECTRÓNICA. Emitida mediante SUNAT · NubeFact.${hash ? ' · Hash: ' + hash : ''}${oficial ? '<br>PDF oficial disponible en el enlace del comprobante.' : ''}`;
+  const footHtml = `Representación impresa de la ${_facTipoShort(c)} ELECTRÓNICA. Emitida mediante SUNAT · NubeFact.${oficial ? '<br>PDF oficial disponible en el enlace del comprobante.' : ''}`;
+  const letras = _facEsc(_facMontoLetras(T.total, T.moneda));
+  const actividad = _FAC_EMISOR.actividad ? _facEsc(_FAC_EMISOR.actividad) : '';
+  // QR (estándar SUNAT) — si la librería ya está cargada lo pinta; si no, placeholder + carga diferida.
+  const qrUrl = (typeof window.qrcode === 'function') ? _facQRDataUrl(_facQRData(c, T)) : '';
+  const qrImg = size => qrUrl
+    ? `<img src="${qrUrl}" alt="QR" style="width:${size}px;height:${size}px;image-rendering:pixelated;border-radius:4px">`
+    : `<div style="width:${size}px;height:${size}px;border:1px dashed #bbb;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#999">QR</div>`;
+  const hashTxt = hash ? `<div style="font-size:7px;color:#777;word-break:break-all;line-height:1.25">Hash: ${hash}</div>` : '';
 
   if (esA4) {
     // ── A4 HORIZONTAL (apaisado) — fiel al PDF: emisor izq, recuadro doc der, tabla ancha + totales a la derecha ──
@@ -6438,6 +6677,7 @@ function _facPdfPreviewHTML(c, fmt) {
             <div class="fpdf-brand" style="font-size:17px">${_facEsc(_FAC_EMISOR.marca)}</div>
             <div style="font-size:8px;color:#333;font-weight:600;margin-top:1px;line-height:1.3">${_facEsc(_FAC_EMISOR.razon)}</div>
             <div style="font-size:9px;color:#555;margin-top:2px">${rucLine} · ${_facEsc(_FAC_EMISOR.direccion)}</div>
+            ${actividad ? `<div style="font-size:7.5px;color:#777;margin-top:1px">${actividad}</div>` : ''}
           </div>
         </div>
         <div class="fpdf-a4-docbox">
@@ -6461,7 +6701,11 @@ function _facPdfPreviewHTML(c, fmt) {
           <div class="fpdf-tot-row fpdf-tot-grand"><span>TOTAL</span><span>S/ ${_facMoney(T.total)}</span></div>
         </div>
       </div>
-      <div class="fpdf-foot" style="margin-top:14px;border-top:1px solid #ddd;padding-top:7px">${footHtml}</div>
+      <div style="margin-top:8px;font-size:9px;font-weight:700;color:#333;letter-spacing:.01em">${letras}</div>
+      <div style="display:flex;align-items:flex-end;gap:12px;margin-top:12px;border-top:1px solid #ddd;padding-top:7px">
+        <div style="flex:0 0 auto;text-align:center">${qrImg(74)}${hashTxt}</div>
+        <div class="fpdf-foot" style="flex:1;text-align:left;align-self:center">${footHtml}</div>
+      </div>
     </div>`;
   }
 
@@ -6476,7 +6720,9 @@ function _facPdfPreviewHTML(c, fmt) {
       <img src="./logo.png" alt="" style="height:38px;display:block;margin:0 auto 4px" onerror="this.style.display='none'">
       <div class="fpdf-brand" style="font-size:15px">${_facEsc(_FAC_EMISOR.marca)}</div>
       <div style="font-size:7px;color:#333;font-weight:600;margin-top:1px">${_facEsc(_FAC_EMISOR.razon)}</div>
-      <div style="font-size:8.5px;color:#555;margin-top:2px">${rucLine} · ${_facEsc(_FAC_EMISOR.direccion)}</div>
+      <div style="font-size:8px;color:#555;margin-top:2px">${rucLine}</div>
+      <div style="font-size:8px;color:#555;margin-top:1px;line-height:1.3">${_facEsc(_FAC_EMISOR.direccion)}</div>
+      ${actividad ? `<div style="font-size:7.5px;color:#777;margin-top:1px">${actividad}</div>` : ''}
     </div>
     <div class="fpdf-hr-solid"></div>
     <div style="text-align:center">
@@ -6500,6 +6746,9 @@ function _facPdfPreviewHTML(c, fmt) {
       <div class="fpdf-tot-row"><span>${igvLbl}</span><b>S/ ${_facMoney(T.igv)}</b></div>
       <div class="fpdf-tot-row fpdf-tot-grand"><span>TOTAL</span><span>S/ ${_facMoney(T.total)}</span></div>
     </div>
+    <div style="font-size:8.5px;font-weight:700;color:#333;margin-top:5px;text-align:center;line-height:1.3">${letras}</div>
+    <div class="fpdf-hr"></div>
+    <div style="text-align:center;margin:2px 0 4px">${qrImg(90)}${hashTxt}</div>
     <div class="fpdf-foot">${footHtml}</div>
   </div>`;
 }
@@ -6514,6 +6763,11 @@ async function _facGenPDF(c, fmtOverride) {
   const guinda = [123, 32, 48], ink = [26, 26, 26], gray = [110, 110, 110];
   const fecha = String(c.creado || c.fecha || c.creado_at || '').slice(0, 16);
   const rucLine = _FAC_EMISOR.ruc ? ('R.U.C. ' + _FAC_EMISOR.ruc) : 'R.U.C. —';
+  const letras = _facMontoLetras(T.total, T.moneda);
+  // QR (estándar SUNAT) — no bloquea si la librería no carga (degrada sin QR).
+  let qrUrl = '';
+  try { await _facEnsureQR(); qrUrl = _facQRDataUrl(_facQRData(c, T)); } catch (e) { qrUrl = ''; }
+  const hashTxt = c.hash ? ('Hash: ' + String(c.hash)) : '';
 
   if (fmt === 'a4') {
     // ── A4 HORIZONTAL (apaisado · 297×210) — layout profesional que aprovecha el ancho ──
@@ -6528,8 +6782,10 @@ async function _facGenPDF(c, fmtOverride) {
     doc.setTextColor(...ink); doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
     const rzL = doc.splitTextToSize(_FAC_EMISOR.razon, 150);
     doc.text(rzL, hx, y); y += 3.8 * rzL.length + 1;
-    doc.setTextColor(...gray); doc.setFontSize(9.5);
-    doc.text(rucLine + '   ·   ' + _FAC_EMISOR.direccion, hx, y);
+    doc.setTextColor(...gray); doc.setFontSize(8.5);
+    const dirL = doc.splitTextToSize(rucLine + '   ·   ' + _FAC_EMISOR.direccion, 150);
+    doc.text(dirL, hx, y); y += 3.4 * dirL.length;
+    if (_FAC_EMISOR.actividad) { doc.setFontSize(7.5); doc.setTextColor(150, 150, 150); doc.text(_FAC_EMISOR.actividad, hx, y); }
     // Recuadro documento (arriba-derecha)
     const bw = 76, bx = W - M - bw;
     doc.setDrawColor(...guinda); doc.setLineWidth(0.7); doc.roundedRect(bx, 13, bw, 25, 2.5, 2.5);
@@ -6586,18 +6842,27 @@ async function _facGenPDF(c, fmtOverride) {
     gRow(T.cero ? 'IGV (0%)' : 'IGV (18%)', T.igv, false);
     doc.setDrawColor(...guinda); doc.setLineWidth(0.5); doc.line(glx, gy - 3.5, grx, gy - 3.5); gy += 1.5;
     gRow('TOTAL', T.total, true);
-    // Pie SUNAT + hash (parte inferior de la página)
-    const footY = Math.min(Math.max(ry, topY + 46) + 12, H - 12);
+    // Monto en letras (bajo la tabla de ítems)
+    let letY = Math.max(ry, topY + 46) + 4;
+    doc.setTextColor(...ink); doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+    doc.splitTextToSize(letras, tblR - M).forEach(ln => { doc.text(ln, M, letY); letY += 4; });
+    // Pie SUNAT + QR + hash (parte inferior de la página)
+    const footY = Math.min(letY + 8, H - 26);
     doc.setDrawColor(220, 220, 220); doc.setLineWidth(0.3); doc.line(M, footY - 6, W - M, footY - 6);
+    // QR a la izquierda del pie
+    let footTextX = M;
+    if (qrUrl) {
+      try { doc.addImage(qrUrl, 'PNG', M, footY - 2, 22, 22); footTextX = M + 27; } catch (e) {}
+    }
     doc.setTextColor(...gray); doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
-    const foot = doc.splitTextToSize('Representación impresa de la ' + (Number(c.tipo) === 1 ? 'FACTURA' : 'BOLETA DE VENTA') + ' ELECTRÓNICA. Emitida mediante SUNAT · NubeFact.' + (c.hash ? '  Hash: ' + c.hash : ''), W - 2 * M);
-    doc.text(foot, W / 2, footY, { align: 'center' });
+    const foot = doc.splitTextToSize('Representación impresa de la ' + _facTipoShort(c) + ' ELECTRÓNICA. Emitida mediante SUNAT · NubeFact.' + (hashTxt ? '  ' + hashTxt : ''), W - M - footTextX);
+    doc.text(foot, footTextX, footY + 4);
     return doc;
   }
 
   // ── 80mm (ticket térmico, alto dinámico) ──
   const w = 80, mm = 5, cw = w - 2 * mm;
-  const est = 92 + T.items.length * 10 + 44;   // alto estimado (incluye logo + razón social legal + margen wrap)
+  const est = 92 + T.items.length * 10 + 44 + 40;   // alto estimado (incluye logo + razón social + letras + QR 22mm + margen wrap)
   const doc = new jsPDF({ unit: 'mm', format: [w, est] });
   let y = 8;
   const center = (txt, size, bold, color) => { doc.setFont('helvetica', bold ? 'bold' : 'normal'); doc.setFontSize(size); doc.setTextColor(...(color || ink)); doc.text(txt, w / 2, y, { align: 'center', maxWidth: cw }); };
@@ -6606,8 +6871,11 @@ async function _facGenPDF(c, fmtOverride) {
   doc.setFont('helvetica', 'normal'); doc.setFontSize(6.6); doc.setTextColor(...ink);
   doc.splitTextToSize(_FAC_EMISOR.razon, cw).forEach(ln => { doc.text(ln, w / 2, y, { align: 'center' }); y += 2.9; });
   y += 0.8;
-  center(rucLine, 7, false, gray); y += 3.4;
-  center(_FAC_EMISOR.direccion, 7, false, gray); y += 4;
+  center(rucLine, 7, false, gray); y += 3.2;
+  doc.setFontSize(6.6); doc.setTextColor(...gray); doc.setFont('helvetica', 'normal');
+  doc.splitTextToSize(_FAC_EMISOR.direccion, cw).forEach(ln => { doc.text(ln, w / 2, y, { align: 'center' }); y += 2.8; });
+  if (_FAC_EMISOR.actividad) { center(_FAC_EMISOR.actividad, 6, false, gray); y += 2.6; }
+  y += 1.4;
   doc.setDrawColor(...guinda); doc.setLineWidth(0.5); doc.line(mm, y, w - mm, y); y += 5;
   center(_facTituloDoc(c), 8.5, true, guinda); y += 4.2;
   center(num, 10, true, ink); y += 5;
@@ -6634,14 +6902,22 @@ async function _facGenPDF(c, fmtOverride) {
   trow(T.cero ? 'Op. Export/Inaf.' : 'Op. Gravada', T.cero ? T.inafecta : T.grav, false, false);
   trow(T.cero ? 'IGV (0%)' : 'IGV (18%)', T.igv, false, false);
   y += 1; trow('TOTAL', T.total, true, true);
-  y += 3; doc.setTextColor(...gray); doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5);
-  const foot = doc.splitTextToSize('Representación impresa de la ' + (Number(c.tipo) === 1 ? 'FACTURA' : 'BOLETA') + ' ELECTRÓNICA. SUNAT · NubeFact.' + (c.hash ? ' Hash: ' + String(c.hash).slice(0, 28) : ''), cw);
+  // Monto en letras
+  y += 2; doc.setTextColor(...ink); doc.setFont('helvetica', 'bold'); doc.setFontSize(7);
+  doc.splitTextToSize(letras, cw).forEach(ln => { doc.text(ln, w / 2, y, { align: 'center' }); y += 3; });
+  // QR (estándar SUNAT) centrado
+  if (qrUrl) {
+    y += 2;
+    try { doc.addImage(qrUrl, 'PNG', (w - 22) / 2, y, 22, 22); y += 23.5; } catch (e) {}
+    if (hashTxt) { doc.setTextColor(...gray); doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.splitTextToSize(hashTxt, cw).forEach(ln => { doc.text(ln, w / 2, y, { align: 'center' }); y += 2.4; }); }
+  }
+  y += 2; doc.setTextColor(...gray); doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5);
+  const foot = doc.splitTextToSize('Representación impresa de la ' + _facTipoShort(c) + ' ELECTRÓNICA. SUNAT · NubeFact.', cw);
   doc.text(foot, w / 2, y, { align: 'center' });
   return doc;
 }
 function _facPdfFilename(c) {
-  const tipo = Number(c.tipo) === 1 ? 'factura' : 'boleta';
-  return tipo + '-' + (c.serie || 'X') + '-' + String(c.numero || 0).padStart(6, '0') + '.pdf';
+  return _facTipoSlug(c) + '-' + (c.serie || 'X') + '-' + String(c.numero || 0).padStart(6, '0') + '.pdf';
 }
 
 // ── Apertura del modal PDF ──
@@ -6662,6 +6938,13 @@ window._facAbrirPDF = function (c) {
   requestAnimationFrame(() => ov.classList.add('visible'));
   // Precarga contacto del cliente frecuente si no vino en el comprobante.
   if (!S._pdf.contact.email || !S._pdf.contact.tel) _facPdfPrecargarContacto(c);
+  // Carga diferida del QR: cuando la librería esté lista, refresca SOLO el preview (sin tocar inputs).
+  if (typeof window.qrcode !== 'function') {
+    _facEnsureQR().then(() => {
+      const st = document.querySelector('#fac-pdf-modal .fpdf-stage'); const SS = _facState;
+      if (st && SS && SS._pdf) st.innerHTML = _facPdfPreviewHTML(SS._pdf.comp, SS._pdf.fmt);
+    }).catch(() => {});
+  }
 };
 window._facCerrarPDF = function () {
   const ov = document.getElementById('fac-pdf-modal');
@@ -6771,7 +7054,7 @@ async function _facPdfWhatsApp() {
   const waWin = window.open('', '_blank');
   const T = _facPdfTotales(c);
   const oficial = /^https?:\/\//.test(String(c.enlace_pdf || ''));
-  const baseMsg = 'Hola ' + (c.cliente_nombre || '') + ' 👋\n\nTe compartimos tu ' + (Number(c.tipo) === 1 ? 'factura' : 'boleta') + ' electrónica *' + _facNumFmt(c) + '* por un total de *S/ ' + _facMoney(T.total) + '*.';
+  const baseMsg = 'Hola ' + (c.cliente_nombre || '') + ' 👋\n\nTe compartimos tu ' + _facTipoWord(c) + ' electrónica *' + _facNumFmt(c) + '* por un total de *S/ ' + _facMoney(T.total) + '*.';
   const firma = '\n\n' + _FAC_EMISOR.marca + '. ¡Gracias por tu preferencia! 🌊';
   const btn = document.querySelector('#fac-pdf-modal .fpdf-act.wa');
   const btnHtml = btn ? btn.innerHTML : '';
@@ -6814,7 +7097,7 @@ async function _facPdfCorreo() {
     const doc = await _facGenPDF(c);
     const b64 = doc.output('datauristring').replace(/^data:.*?;base64,/, '');
     const { data, error } = await sbClient.functions.invoke('enviar-comprobante', {
-      body: { to, nombre: c.cliente_nombre || '', subject: (Number(c.tipo) === 1 ? 'Factura' : 'Boleta') + ' electrónica ' + _facNumFmt(c), pdf_base64: b64, filename: _facPdfFilename(c) }
+      body: { to, nombre: c.cliente_nombre || '', subject: (_facTipoWord(c).charAt(0).toUpperCase() + _facTipoWord(c).slice(1)) + ' electrónica ' + _facNumFmt(c), pdf_base64: b64, filename: _facPdfFilename(c) }
     });
     // La Edge devuelve 503 con RESEND_NO_CONFIG si aún no hay Resend configurado.
     // supabase-js envuelve el no-2xx como FunctionsHttpError: el detalle vive en error.context (Response), no en el message.
@@ -9950,7 +10233,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.28.0';
+const APP_VERSION = '1.29.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
