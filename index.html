@@ -1259,6 +1259,142 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 }
 @media(max-width:600px){ .fac-emit-box { max-height:94vh; border-radius:22px; } .fac-emit-box-inner { padding:4px 16px 20px; } }
 
+/* ── FASE 2 · Botón "Subir compra" + desplegable de compras del mes ─────── */
+.facb-subir-row { display:flex; gap:8px; margin-top:14px; align-items:stretch; }
+.facb-subir-main { flex:1 1 auto; margin-top:0; }
+.facb-subir-tog {
+  flex:0 0 auto; width:50px; border:none; border-radius:15px; cursor:pointer;
+  background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.12); color:var(--gold-pale,#e6cf8a);
+  font-size:14px; font-weight:800; line-height:1; -webkit-tap-highlight-color:transparent;
+  display:flex; align-items:center; justify-content:center; min-height:48px;
+  transition:transform .2s cubic-bezier(.34,1.56,.64,1), background .2s;
+}
+.facb-subir-tog:hover { background:rgba(201,168,76,.16); }
+.facb-subir-tog:active { transform:scale(.93); }
+.facb-subir-tog .chev { display:inline-block; transition:transform .32s cubic-bezier(.34,1.4,.5,1); }
+.facb-subir-tog.open .chev { transform:rotate(180deg); }
+.facb-acc { overflow:hidden; height:0; transition:height .34s cubic-bezier(.4,0,.2,1); }
+.facb-acc-inner { padding-top:10px; }
+.facb-acc-hd { display:flex; justify-content:space-between; align-items:center; font-size:10px; font-weight:800; letter-spacing:.5px; color:var(--text-muted); margin:2px 2px 8px; }
+.facb-crow {
+  display:flex; align-items:center; gap:10px; padding:8px 6px; border-radius:12px;
+  border:1px solid rgba(255,255,255,.06); background:rgba(255,255,255,.03); margin-bottom:7px;
+  animation:facFadeUp .3s ease both;
+}
+.facb-cthumb {
+  flex:0 0 auto; width:38px; height:38px; border-radius:10px; overflow:hidden; cursor:pointer;
+  background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1);
+  display:flex; align-items:center; justify-content:center; font-size:18px; -webkit-tap-highlight-color:transparent;
+  transition:transform .18s;
+}
+.facb-cthumb:active { transform:scale(.9); }
+.facb-cthumb img { width:100%; height:100%; object-fit:cover; }
+.facb-crow-mid { flex:1 1 auto; min-width:0; }
+.facb-crow-igv { font-weight:800; font-size:13px; font-variant-numeric:tabular-nums; }
+.facb-crow-sub { font-size:10px; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.facb-badge {
+  flex:0 0 auto; display:inline-flex; align-items:center; justify-content:center; gap:4px;
+  min-width:30px; height:30px; padding:0 8px; border-radius:9px; border:none; cursor:default;
+  font-size:14px; font-weight:900; -webkit-tap-highlight-color:transparent;
+}
+.facb-badge.ok  { background:rgba(52,199,89,.16);  color:#34C759; }
+.facb-badge.bad { background:rgba(255,69,58,.16);   color:#FF453A; cursor:pointer; transition:transform .18s, background .2s; }
+.facb-badge.bad:hover { background:rgba(255,69,58,.26); }
+.facb-badge.bad:active { transform:scale(.88); }
+.facb-badge.bad.spin-relee { pointer-events:none; }
+.facb-badge.dup { background:rgba(251,191,36,.16); color:#fbbf24; font-size:9px; font-weight:800; padding:0 9px; letter-spacing:.3px; }
+.facb-badge.ok.pop { animation:reveal-pop .4s cubic-bezier(.34,1.56,.64,1) both; }
+.facb-acc-empty { padding:18px 8px; text-align:center; color:var(--text-muted); font-size:11.5px; line-height:1.5; }
+.facb-relee-mini { width:13px; height:13px; border:2px solid rgba(255,69,58,.35); border-top-color:#FF453A; border-radius:50%; display:inline-block; animation:spin .7s linear infinite; }
+
+/* ── FASE 2 · Modal Subir compra (sheet frosted, spring desde abajo) ────── */
+.fac-subir-ov {
+  position:fixed; inset:0; z-index:940; display:none; align-items:flex-end; justify-content:center;
+  background:rgba(10,4,7,.6);
+  -webkit-backdrop-filter:blur(14px) saturate(140%); backdrop-filter:blur(14px) saturate(140%);
+  opacity:0; transition:opacity .26s ease;
+}
+@media(min-width:760px){ .fac-subir-ov { align-items:center; padding:20px; } }
+.fac-subir-ov.visible { opacity:1; }
+.fac-subir-sheet {
+  width:100%; max-width:520px; max-height:92vh; overflow:hidden; display:flex; flex-direction:column;
+  border-radius:28px 28px 0 0; background:rgba(38,18,24,.86); border:1px solid rgba(255,255,255,.14); border-bottom:none;
+  box-shadow:0 -20px 70px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.22);
+  -webkit-backdrop-filter:blur(34px) saturate(180%); backdrop-filter:blur(34px) saturate(180%);
+  transform:translateY(24px); opacity:0;
+  transition:transform .4s cubic-bezier(.22,1.2,.36,1), opacity .28s;
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media(min-width:760px){ .fac-subir-sheet { border-radius:26px; border-bottom:1px solid rgba(255,255,255,.14); } }
+.fac-subir-ov.visible .fac-subir-sheet { transform:none; opacity:1; }
+.fac-subir-grab { width:38px; height:5px; border-radius:999px; background:rgba(255,255,255,.24); margin:9px auto 2px; flex:0 0 auto; }
+.fac-subir-head { display:flex; align-items:center; gap:10px; padding:8px 20px 10px; }
+.fac-subir-title { font-size:18px; font-weight:800; letter-spacing:-.3px; }
+.fac-subir-sub { font-size:11px; color:var(--text-muted); margin-top:1px; }
+.fac-subir-inner { overflow-y:auto; padding:4px 20px calc(22px + env(safe-area-inset-bottom,0px)); -webkit-overflow-scrolling:touch; }
+.fac-pick-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:8px 0 6px; }
+.fac-pick {
+  position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;
+  padding:26px 12px; border-radius:20px; cursor:pointer; text-align:center;
+  border:1.5px solid rgba(201,168,76,.35); background:linear-gradient(165deg,rgba(201,168,76,.09),rgba(255,255,255,.02));
+  -webkit-tap-highlight-color:transparent; transition:transform .2s cubic-bezier(.34,1.56,.64,1), border-color .2s, background .2s;
+}
+.fac-pick:hover { border-color:var(--gold); background:linear-gradient(165deg,rgba(201,168,76,.16),rgba(255,255,255,.03)); }
+.fac-pick:active { transform:scale(.95); }
+.fac-pick .ico { font-size:34px; line-height:1; }
+.fac-pick .t { font-weight:800; font-size:14px; }
+.fac-pick .d { font-size:10.5px; color:var(--text-muted); line-height:1.35; }
+.fac-pick input { position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }
+.fac-subir-note { font-size:11px; color:var(--text-muted); line-height:1.5; margin:12px 2px 4px; text-align:center; }
+.fac-subir-note b { color:var(--gold); }
+.fac-subir-stage { display:flex; gap:14px; align-items:center; margin:10px 0 4px; }
+.fac-subir-prev { width:78px; height:78px; flex:0 0 auto; border-radius:16px; object-fit:cover; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.05); }
+.fac-subir-prevph { width:78px; height:78px; flex:0 0 auto; border-radius:16px; display:flex; align-items:center; justify-content:center; font-size:34px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.05); }
+.fac-subir-stat { flex:1; min-width:0; }
+.fac-subir-stat .lbl { font-weight:800; font-size:14px; }
+.fac-subir-prog { height:9px; border-radius:999px; background:rgba(255,255,255,.08); overflow:hidden; margin-top:9px; }
+.fac-subir-prog i { display:block; height:100%; width:6%; background:linear-gradient(90deg,#5aa9e6,#4ade80); box-shadow:0 0 8px rgba(90,169,230,.6); transition:width .3s ease; }
+.fac-subir-res { border-radius:18px; padding:16px; margin-top:8px; border:1px solid rgba(255,255,255,.1); background:rgba(0,0,0,.18); }
+.fac-subir-res-row { display:flex; justify-content:space-between; align-items:center; padding:7px 0; border-bottom:1px solid rgba(255,255,255,.06); font-size:13px; }
+.fac-subir-res-row:last-child { border-bottom:none; }
+.fac-subir-res-row b { font-variant-numeric:tabular-nums; }
+.fac-subir-ico-big { text-align:center; font-size:46px; margin:2px 0 2px; }
+.fac-subir-btns { display:flex; gap:10px; margin-top:14px; }
+.fac-subir-btn {
+  flex:1; padding:13px; border-radius:14px; font-weight:800; font-size:13.5px; cursor:pointer; min-height:48px;
+  -webkit-tap-highlight-color:transparent; transition:transform .18s, background .2s; border:1px solid rgba(255,255,255,.12);
+}
+.fac-subir-btn.ghost { background:rgba(255,255,255,.06); color:var(--text); }
+.fac-subir-btn.prim { border:none; background:linear-gradient(135deg,#b3324a,#7B2030); color:#fff; box-shadow:0 6px 20px rgba(123,32,48,.45); }
+.fac-subir-btn:active { transform:scale(.96); }
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .fac-subir-ov { background:rgba(10,4,7,.94); }
+  .fac-subir-sheet { background:rgba(40,18,24,.99); }
+}
+
+/* ── FASE 2 · Lightbox de foto (fondo blur) ────────────────────────────── */
+.fac-lb-ov {
+  position:fixed; inset:0; z-index:970; display:none; align-items:center; justify-content:center; padding:24px;
+  background:rgba(6,2,4,.72); -webkit-backdrop-filter:blur(18px); backdrop-filter:blur(18px);
+  opacity:0; transition:opacity .24s ease;
+}
+.fac-lb-ov.visible { opacity:1; }
+.fac-lb-img {
+  max-width:94vw; max-height:86vh; border-radius:18px; border:1px solid rgba(255,255,255,.16);
+  box-shadow:0 24px 80px rgba(0,0,0,.7); transform:scale(.9); opacity:0;
+  transition:transform .34s cubic-bezier(.34,1.56,.64,1), opacity .26s;
+}
+.fac-lb-ov.visible .fac-lb-img { transform:none; opacity:1; }
+.fac-lb-x {
+  position:absolute; top:calc(16px + env(safe-area-inset-top,0px)); right:18px; width:40px; height:40px; border-radius:50%;
+  border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.08); color:#fff; font-size:22px; line-height:1;
+  cursor:pointer; -webkit-tap-highlight-color:transparent;
+}
+.fac-lb-spin { color:#fff; font-size:13px; }
+@media (prefers-reduced-motion: reduce){
+  .fac-subir-ov, .fac-subir-sheet, .fac-lb-ov, .fac-lb-img, .facb-acc, .facb-subir-tog, .facb-subir-tog .chev, .fac-pick, .facb-badge, .fac-subir-prog i, .facb-crow { transition:none; animation:none; }
+}
+
 /* ── Separator ──────────────────────────────────────────── */
 .sep { height: 1px; background: var(--border); margin: 16px 0; opacity: 0.5; }
 
@@ -2113,6 +2249,11 @@ const PS_POST = {
     p_cliente_dir: b.cliente_dir || null, p_es_extranjero: !!b.es_extranjero,
     p_medio_pago: b.medio_pago || null, p_exportacion: !!b.exportacion }),
   registrar_compra: b => _psRpc('registrar_compra', { p: { ruc_proveedor: String(b.ruc_proveedor || '').trim(), razon_social: b.razon_social || null, base: parseFloat(b.base) || 0, igv: parseFloat(b.igv) || 0, total: parseFloat(b.total) || 0, fecha: b.fecha || null, serie: b.serie || null, numero: b.numero || null, foto_path: b.foto_path || null, periodo: b.periodo || null } }),
+  // ── Facturación · Fase 2: subir compra + OCR stateful (fila con foto → OCR ✓/✗ sobre el MISMO id) ──
+  crear_compra_foto:       b => _psRpc('crear_compra_foto', { p: { periodo: b.periodo || null, foto_path: b.foto_path || null, foto_url: b.foto_url || null } }),
+  actualizar_compra_ocr:   b => _psRpc('actualizar_compra_ocr', { p: { id: b.id, ruc_proveedor: b.ruc_proveedor || null, razon_social: b.razon_social || null, tipo_doc: b.tipo_doc || null, serie: b.serie || null, numero: b.numero || null, fecha: b.fecha || null, base: parseFloat(b.base) || 0, igv: parseFloat(b.igv) || 0, total: parseFloat(b.total) || 0, raw: b.raw || null } }),
+  marcar_compra_ocr_fallo: b => _psRpc('marcar_compra_ocr_fallo', { p: { id: b.id, raw: b.raw || null } }),
+  eliminar_compra:         b => _psRpc('eliminar_compra', { p: { id: b.id } }),
   set_servicio: b => _psRpc('admin_set_servicio', { p_id: b.id || '', p_nombre: b.nombre, p_desc: b.descripcion || null, p_precio: parseFloat(b.precio) || 0, p_unidad: b.unidad || 'NIU', p_activo: b.activo !== false }).then(id => ({ id })),
   eliminar_servicio: b => _psRpc('admin_eliminar_servicio', { p_id: b.id }).then(() => ({ ok: true })),
   set_facturacion_muelle: b => _psRpc('admin_set_facturacion_muelle', { p_on: !!b.on }).then(v => ({ on: v })),
@@ -5355,9 +5496,12 @@ function _facBalanzaFinaHTML(S) {
     <div class="facb-kpi"><span>🟢 Compras (crédito)</span><b id="facb-kc" style="color:#4ade80">S/ 0.00</b></div>
     <div class="facb-kpi" style="border-bottom:none"><span>📈 Renta</span><b id="facb-kr">S/ 0.00</b></div>
   </div>
-  ${inclina
-    ? `<button onclick="_facTab('subir')" class="facb-cta">📸 Sube una compra y baja el pago</button>`
-    : `<div class="facb-hint">Sube tus compras y este pago baja</div>`}`;
+  <div class="facb-subir-row">
+    <button onclick="_facAbrirSubir()" class="facb-cta facb-subir-main">📸 Subir compra${inclina ? ' y bajar el pago' : ''}</button>
+    <button class="facb-subir-tog${S._compAccOpen ? ' open' : ''}" id="facb-comp-tog" onclick="_facToggleCompras()" aria-expanded="${S._compAccOpen ? 'true' : 'false'}" aria-label="Ver compras del mes"><span class="chev">▾</span></button>
+  </div>
+  <div class="facb-acc" id="facb-comp-acc"><div class="facb-acc-inner" id="facb-comp-inner">${_facComprasAccInner(S)}</div></div>
+  ${inclina ? '' : `<div class="facb-hint">Sube tus compras y este pago baja</div>`}`;
 }
 // count-up + rotación de la balanza fina — corre UNA vez por cambio de datos (no en cada pestaña).
 function _facAfterBalanza(panel) {
@@ -5376,6 +5520,9 @@ function _facAfterBalanza(panel) {
     setTimeout(() => { try { haptic(6); } catch (e) {} }, 520);   // "asentar" al terminar la inclinación
   });
   _facLoadBalMeses();   // semáforo por chip (lazy-fetch + cache por mes)
+  // Fase 2: el panel se re-pintó → repobla + reabre el desplegable de compras si estaba abierto.
+  _facPaintComprasAcc();
+  if (S._compAccOpen) { _facLoadComprasBalanza(); _facSetAccHeight(true, true); }
 }
 // Swap del slot (sección activa) dentro de un contenedor: fade + re-bind + refresca tabbar. NO toca la balanza.
 function _facSwapSlot(ov) {
@@ -5675,7 +5822,7 @@ function _tribBalanzaBody(S) {
       <div class="trib-fulcrum"></div>
     </div>
     <div style="text-align:center;margin-top:4px"><span class="trib-chip" style="background:${tot <= 0 ? 'rgba(255,255,255,0.06)' : (inclina ? 'rgba(224,84,78,0.16)' : 'rgba(63,178,127,0.16)')};color:${tot <= 0 ? 'var(--text-muted)' : (inclina ? '#f87171' : '#4ade80')}">${tot <= 0 ? 'Sin movimiento este periodo' : (inclina ? '⚖️ Se inclina a pagar · sube más compras para equilibrar' : '✓ Tu crédito cubre bien el IGV')}</span></div>
-    ${inclina ? `<button onclick="_facTab('subir')" style="width:100%;margin-top:10px;padding:11px;border:none;border-radius:11px;background:linear-gradient(135deg,#8f2636,#56070c);color:#fff;font-weight:800;font-size:13px;cursor:pointer;min-height:44px">📸 Subir una compra y bajar el pago</button>` : ''}
+    ${inclina ? `<button onclick="_facAbrirSubir()" style="width:100%;margin-top:10px;padding:11px;border:none;border-radius:11px;background:linear-gradient(135deg,#8f2636,#56070c);color:#fff;font-weight:800;font-size:13px;cursor:pointer;min-height:44px">📸 Subir una compra y bajar el pago</button>` : ''}
   </div>
   <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">
     <div class="trib-glass" style="flex:1;min-width:180px;text-align:center">
@@ -5723,7 +5870,7 @@ function _facAccGrid(S) {
     ${primary}
     ${card('historial', '📜', 'Historial', 'CPE emitidos')}
     ${grp('IMPUESTOS')}
-    ${card('subir', '📸', 'Subir compra', 'IA lee el IGV')}
+    <button onclick="_facAbrirSubir()" class="fac-acc"><div class="ico">📸</div><div class="t">Subir compra</div><div class="d">IA lee el IGV</div></button>
     ${card('compras', '🧾', 'Compras', 'crédito fiscal')}
     ${card('renta', '📈', 'Renta', 'proyección')}
     ${grp('CONTROL')}
@@ -6015,6 +6162,277 @@ async function _tribVerFoto(path) {
     if (!error && data && data.signedUrl) window.open(data.signedUrl, '_blank', 'noopener');
     else if (typeof showToast === 'function') showToast('No se pudo abrir la foto');
   } catch (e) { if (typeof showToast === 'function') showToast('No se pudo abrir la foto'); }
+}
+
+// ══════════════════ FASE 2 · Subir compra (modal sheet) + OCR stateful + desplegable ══════════════════
+// Flujo por foto: Storage → crear_compra_foto (fila 'pendiente') → extraer-compra (OCR)
+//   · éxito → actualizar_compra_ocr (MISMO id → 'ok')   · falla/dudosa → marcar_compra_ocr_fallo ('fallo')
+//   · duplicado → el backend responde {ok:false,motivo:'duplicado'} y no infla crédito.
+// Re-leer (✗ en la lista) = repetir OCR sobre el MISMO id (nunca crea fila nueva).
+
+// ── Desplegable de compras del mes (acordeón en la balanza) ──
+function _facComprasAccInner(S) {
+  if (S._comprasBalLoading && !(S.compras && S.compras.length)) return `<div class="facb-acc-empty"><div class="spin" style="display:inline-block"></div></div>`;
+  const list = S.compras || [];
+  if (!list.length) return `<div class="facb-acc-empty">Aún no hay compras este mes.<br>Toca <b style="color:var(--gold)">📸 Subir compra</b> para empezar.</div>`;
+  const releeId = S._releeId;
+  const rows = list.map(c => {
+    const est = String(c.ocr_estado || 'ok').toLowerCase();
+    const igv = Number(c.igv) || 0;
+    const prov = c.razon_social || c.ruc_proveedor || '—';
+    const doc = ((c.serie || '') + (c.numero ? '-' + c.numero : '')) || '';
+    const fp = c.foto_path ? String(c.foto_path).replace(/'/g, "\\'") : '';
+    const thumb = fp ? `<button class="facb-cthumb" onclick="_facVerFotoLB('${fp}')" title="Ver foto">🧾</button>` : `<span class="facb-cthumb" style="cursor:default">🧾</span>`;
+    let badge, igvTxt;
+    if (est === 'ok') { badge = `<span class="facb-badge ok pop">✓</span>`; igvTxt = `<span style="color:#34C759">${_tribMoney(igv)}</span>`; }
+    else if (est === 'duplicado') { badge = `<span class="facb-badge dup">duplicado</span>`; igvTxt = `<span style="color:var(--text-muted)">no suma (repetida)</span>`; }
+    else {   // fallo | pendiente → ✗ clickable = re-lee el OCR
+      badge = (releeId === c.id)
+        ? `<span class="facb-badge bad spin-relee"><span class="facb-relee-mini"></span></span>`
+        : `<button class="facb-badge bad" onclick="_facReleerCompra('${c.id}')" title="Re-leer con IA">✗</button>`;
+      igvTxt = `<span style="color:var(--text-muted)">${est === 'pendiente' ? 'leyendo…' : 'toca ✗ para re-leer'}</span>`;
+    }
+    return `<div class="facb-crow">
+      ${thumb}
+      <div class="facb-crow-mid"><div class="facb-crow-igv">${igvTxt}</div><div class="facb-crow-sub">${_facEsc(prov)}${doc ? (' · ' + _facEsc(doc)) : ''}</div></div>
+      ${badge}
+    </div>`;
+  }).join('');
+  const totIgv = list.filter(c => String(c.ocr_estado || 'ok').toLowerCase() === 'ok').reduce((a, c) => a + (Number(c.igv) || 0), 0);
+  return `<div class="facb-acc-hd"><span>COMPRAS DE ESTE MES · ${list.length}</span><span style="color:#34C759">crédito ${_tribMoney(totIgv)}</span></div>${rows}`;
+}
+function _facCompAccEls() {
+  const out = [];
+  _facRenderRoots().forEach(ov => { const acc = ov.querySelector('#facb-comp-acc'); if (acc) out.push({ acc, inner: ov.querySelector('#facb-comp-inner'), tog: ov.querySelector('#facb-comp-tog') }); });
+  return out;
+}
+function _facSetAccHeight(open, instant) {
+  _facCompAccEls().forEach(({ acc, inner, tog }) => {
+    if (tog) { tog.classList.toggle('open', !!open); tog.setAttribute('aria-expanded', open ? 'true' : 'false'); }
+    if (!acc || !inner) return;
+    const h = open ? (inner.scrollHeight + 'px') : '0px';
+    if (instant) { const p = acc.style.transition; acc.style.transition = 'none'; acc.style.height = h; requestAnimationFrame(() => { acc.style.transition = p || ''; }); }
+    else acc.style.height = h;
+  });
+}
+function _facPaintComprasAcc() {
+  const S = _facState; if (!S) return;
+  _facCompAccEls().forEach(({ acc, inner }) => { if (inner) inner.innerHTML = _facComprasAccInner(S); if (acc && inner && S._compAccOpen) acc.style.height = inner.scrollHeight + 'px'; });
+}
+async function _facLoadComprasBalanza(force) {
+  const S = _facState; if (!S) return; const per = S.periodoTrib || '';
+  if (!force && S._comprasBalPer === per && Array.isArray(S.compras)) { _facPaintComprasAcc(); return; }
+  S._comprasBalLoading = true; _facPaintComprasAcc();
+  try { const r = await apiGet('listar_compras', { periodo: per || null }); S.compras = (r.ok && Array.isArray(r.data)) ? r.data : []; S._comprasBalPer = per; }
+  catch (e) { if (!Array.isArray(S.compras)) S.compras = []; }
+  S._comprasBalLoading = false; _facPaintComprasAcc();
+}
+window._facToggleCompras = function () {
+  const S = _facState; if (!S) return; try { sndTap(); haptic(10); } catch (e) {}
+  S._compAccOpen = !S._compAccOpen;
+  if (S._compAccOpen) _facLoadComprasBalanza();
+  _facSetAccHeight(S._compAccOpen, false);
+};
+if (!window._facAccResize) { window._facAccResize = true; window.addEventListener('resize', () => { if (_facMode === 'module' && _facState && _facState._compAccOpen) _facSetAccHeight(true, true); }); }
+
+// ── Lightbox de foto (fondo blur) ──
+window._facVerFotoLB = async function (path) {
+  if (!path) return; try { sndTap(); haptic(8); } catch (e) {}
+  let ov = document.getElementById('fac-lb-modal');
+  if (!ov) { ov = document.createElement('div'); ov.id = 'fac-lb-modal'; ov.className = 'fac-lb-ov'; document.body.appendChild(ov); ov.addEventListener('click', e => { if (e.target === ov || (e.target.classList && e.target.classList.contains('fac-lb-x'))) _facCerrarLB(); }); }
+  ov.innerHTML = `<button class="fac-lb-x" aria-label="Cerrar">×</button><div class="fac-lb-spin"><div class="spin" style="display:inline-block"></div> abriendo…</div>`;
+  ov.style.display = 'flex'; requestAnimationFrame(() => ov.classList.add('visible'));
+  try {
+    const { data, error } = await sbClient.storage.from('compras-fotos').createSignedUrl(path, 3600);
+    if (error || !data || !data.signedUrl) throw new Error('no foto');
+    if (document.getElementById('fac-lb-modal') === ov && ov.style.display !== 'none') ov.innerHTML = `<button class="fac-lb-x" aria-label="Cerrar">×</button><img src="${data.signedUrl}" class="fac-lb-img" alt="Factura de compra">`;
+  } catch (e) { ov.innerHTML = `<button class="fac-lb-x" aria-label="Cerrar">×</button><div class="fac-lb-spin">No se pudo abrir la foto</div>`; }
+};
+window._facCerrarLB = function () { const ov = document.getElementById('fac-lb-modal'); if (ov) { ov.classList.remove('visible'); setTimeout(() => { if (ov.parentNode) ov.remove(); }, 260); } try { haptic(6); } catch (e) {} };
+
+// ── Re-leer OCR de una compra (✗) — MISMO id, no crea fila ──
+window._facReleerCompra = async function (id) {
+  const S = _facState; if (!S || !id || S._releeId) return;
+  const c = (S.compras || []).find(x => x.id === id); if (!c) return;
+  if (!c.foto_path) { if (typeof showToast === 'function') showToast('Sin foto para re-leer'); return; }
+  try { sndTap(); haptic(10); } catch (e) {}
+  S._releeId = id; _facPaintComprasAcc();
+  try {
+    let signedUrl = '';
+    try { const { data } = await sbClient.storage.from('compras-fotos').createSignedUrl(c.foto_path, 3600); signedUrl = (data && data.signedUrl) || ''; } catch (e) {}
+    if (!signedUrl) throw new Error('No se pudo abrir la foto');
+    let ocr = null;
+    try { const { data: j, error } = await sbClient.functions.invoke('extraer-compra', { body: { imagen_url: signedUrl } }); if (error || !j || !j.ok || !j.compra) throw 0; ocr = j.compra; } catch (e) { ocr = null; }
+    if (ocr) {
+      const ru = await apiPost({ accion: 'actualizar_compra_ocr', id, ruc_proveedor: ocr.ruc_proveedor || '', razon_social: ocr.proveedor || '', tipo_doc: ocr.tipo_doc || '', serie: ocr.serie || '', numero: ocr.numero || '', fecha: ocr.fecha || null, base: ocr.base, igv: ocr.igv, total: ocr.total, raw: ocr });
+      const rd = ru && ru.data;
+      if (ru.ok && rd && rd.ok !== false) { sndUp(); haptic([15, 45, 15]); if (typeof showToast === 'function') showToast('✓ Leída · +' + _tribMoney(Number(ocr.igv) || 0) + ' de crédito'); }
+      else if (rd && rd.motivo === 'duplicado') { sndDown(); if (typeof showToast === 'function') showToast('Esta factura ya estaba registrada'); }
+      else { await apiPost({ accion: 'marcar_compra_ocr_fallo', id, raw: ocr }); sndDown(); if (typeof showToast === 'function') showToast('Lectura dudosa — revísala'); }
+    } else { await apiPost({ accion: 'marcar_compra_ocr_fallo', id, raw: { error: 'ocr' } }); sndDown(); if (typeof showToast === 'function') showToast('La IA no pudo leerla'); }
+  } catch (e) { if (typeof showToast === 'function') showToast((e && e.message) || 'No se pudo re-leer'); }
+  S._releeId = null;
+  await _facLoadComprasBalanza(true);
+  S._balMes = {}; _facLoadTrib(true);   // el crédito pudo cambiar → refresca balanza + semáforos
+};
+
+// ── Modal Subir compra (sheet) ──
+window._facAbrirSubir = function () {
+  const S = _facState; if (!S) return; try { sndTap(); haptic(10); } catch (e) {}
+  if (S._subirTimer) { clearInterval(S._subirTimer); S._subirTimer = null; }
+  S.subir = { phase: 'choose', progress: 0 };
+  let ov = document.getElementById('fac-subir-modal');
+  if (!ov) { ov = document.createElement('div'); ov.id = 'fac-subir-modal'; ov.className = 'fac-subir-ov'; document.body.appendChild(ov); ov.addEventListener('click', e => { if (e.target === ov) _facCerrarSubir(); }); }
+  ov.innerHTML = `<div class="fac-subir-sheet" role="dialog" aria-modal="true">
+    <div class="fac-subir-grab"></div>
+    <div class="fac-subir-head">
+      <div style="font-size:22px">📸</div>
+      <div style="flex:1;min-width:0"><div class="fac-subir-title">Subir compra</div><div class="fac-subir-sub">La IA lee RUC · base · IGV · total</div></div>
+      <button class="fac-emit-x" onclick="_facCerrarSubir()" aria-label="Cerrar">×</button>
+    </div>
+    <div class="fac-subir-inner"></div>
+  </div>`;
+  ov.style.display = 'flex';
+  _facRenderSubir();
+  requestAnimationFrame(() => ov.classList.add('visible'));
+};
+window._facCerrarSubir = function () {
+  const S = _facState; const ov = document.getElementById('fac-subir-modal');
+  try { if (S && S._subirTimer) { clearInterval(S._subirTimer); S._subirTimer = null; } if (S && S.subir && S.subir.previewUrl) URL.revokeObjectURL(S.subir.previewUrl); } catch (e) {}
+  if (S) S.subir = null;
+  if (ov) { ov.classList.remove('visible'); setTimeout(() => { if (ov.parentNode) ov.remove(); }, 300); }
+  try { haptic(8); } catch (e) {}
+};
+window._facSubirReset = function () {
+  const S = _facState; if (!S) return;
+  try { if (S.subir && S.subir.previewUrl) URL.revokeObjectURL(S.subir.previewUrl); } catch (e) {}
+  S.subir = { phase: 'choose', progress: 0 }; _facRenderSubir();
+};
+function _facRenderSubir() {
+  const inner = document.querySelector('#fac-subir-modal .fac-subir-inner'); if (!inner || !_facState) return;
+  inner.innerHTML = _facSubirBody(_facState);
+  _facSubirBind(inner);
+  const st = _facState.subir;
+  if (st && (st.phase === 'uploading' || st.phase === 'creating' || st.phase === 'extracting')) _facSubirTick();
+}
+function _facSubirBody(S) {
+  const st = S.subir || { phase: 'choose' };
+  const ph = st.phase;
+  if (ph === 'choose') {
+    return `<div class="fac-pick-grid">
+      <label class="fac-pick" for="fac-subir-cam"><div class="ico">📷</div><div class="t">Cámara</div><div class="d">Toma la foto ahora</div>
+        <input id="fac-subir-cam" type="file" accept="image/*" capture="environment"></label>
+      <label class="fac-pick" for="fac-subir-gal"><div class="ico">🖼️</div><div class="t">Galería</div><div class="d">Elige una imagen</div>
+        <input id="fac-subir-gal" type="file" accept="image/*"></label>
+    </div>
+    <div class="fac-subir-note">Se guarda en tu <b>respaldo seguro</b> y la IA extrae el IGV. Cada factura que subes te <b>ahorra impuestos</b>.</div>`;
+  }
+  const busy = ph === 'uploading' || ph === 'creating' || ph === 'extracting';
+  const prog = Math.round(st.progress || 0);
+  const prev = st.previewUrl ? `<img src="${st.previewUrl}" class="fac-subir-prev" alt="foto">` : `<div class="fac-subir-prevph">🧾</div>`;
+  if (busy) {
+    const statLbl = ph === 'uploading' ? 'Subiendo foto…' : (ph === 'creating' ? 'Guardando el respaldo…' : '🤖 Leyendo con IA…');
+    return `<div class="fac-subir-stage">${prev}
+      <div class="fac-subir-stat"><div class="lbl" style="color:#5aa9e6">${statLbl}</div>
+        <div class="fac-subir-prog"><i id="fac-subir-prog-i" style="width:${prog}%"></i></div>
+        <div style="font-size:10.5px;color:var(--text-muted);margin-top:5px">${ph === 'extracting' ? ('RUC · base · IGV · total (' + prog + '%)') : 'un momento…'}</div>
+      </div></div>`;
+  }
+  const okE = ph === 'ok', dup = ph === 'duplicado';
+  const c = st.compra || {};
+  const ico = okE ? '✅' : (dup ? '🟡' : '⚠️');
+  const titol = okE ? 'Compra leída' : (dup ? 'Factura duplicada' : 'Guardada · revisión manual');
+  const col = okE ? '#34C759' : (dup ? '#fbbf24' : '#FF453A');
+  let resBody;
+  if (okE || dup) {
+    resBody = `<div class="fac-subir-res">
+      <div class="fac-subir-res-row"><span>Empresa</span><b style="max-width:60%;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_facEsc(c.proveedor || c.ruc_proveedor || '—')}</b></div>
+      <div class="fac-subir-res-row"><span>IGV a favor</span><b style="color:#34C759">${_tribMoney(Number(c.igv) || 0)}</b></div>
+      <div class="fac-subir-res-row"><span>Total</span><b>${_tribMoney(Number(c.total) || 0)}</b></div>
+    </div>${dup ? '<div style="font-size:11px;color:var(--text-muted);text-align:center;margin-top:8px">Ya existía una compra con ese RUC/serie/número — no se sumó de nuevo al crédito.</div>' : ''}`;
+  } else {
+    resBody = `<div class="fac-subir-res" style="text-align:center;color:var(--text-muted);font-size:12.5px;line-height:1.5">${_facEsc(st.error || 'No se pudo leer la foto.')} Quedó guardada como <span style="color:#FF453A;font-weight:800">✗</span> en la lista — ábrela y toca ✗ para re-leer.</div>`;
+  }
+  return `<div class="fac-subir-ico-big">${ico}</div>
+    <div style="text-align:center;font-weight:800;font-size:16px;color:${col};margin-bottom:6px">${titol}</div>
+    ${resBody}
+    <div class="fac-subir-btns">
+      <button class="fac-subir-btn ghost" onclick="_facSubirReset()">＋ Subir otra</button>
+      <button class="fac-subir-btn prim" onclick="_facCerrarSubir()">Listo</button>
+    </div>`;
+}
+function _facSubirBind(inner) {
+  const cam = inner.querySelector('#fac-subir-cam'); if (cam) cam.onchange = e => { const f = e.target.files && e.target.files[0]; if (f) _facSubirProcess(f); };
+  const gal = inner.querySelector('#fac-subir-gal'); if (gal) gal.onchange = e => { const f = e.target.files && e.target.files[0]; if (f) _facSubirProcess(f); };
+}
+function _facSubirTick() {
+  const S = _facState; if (S._subirTimer) clearInterval(S._subirTimer);
+  S._subirTimer = setInterval(() => {
+    const st = S.subir;
+    if (!st || (st.phase !== 'uploading' && st.phase !== 'creating' && st.phase !== 'extracting')) { clearInterval(S._subirTimer); S._subirTimer = null; return; }
+    st.progress = Math.min(94, (st.progress || 0) + (Math.random() * 7 + 3));
+    const bar = document.querySelector('#fac-subir-prog-i'); if (bar) bar.style.width = st.progress + '%';
+  }, 360);
+}
+async function _facSubirProcess(file) {
+  const S = _facState; if (!S) return;
+  const mediaType = (file.type && file.type.indexOf('image/') === 0) ? file.type : 'image/jpeg';
+  let previewUrl = ''; try { previewUrl = URL.createObjectURL(file); } catch (e) {}
+  const st = S.subir = { phase: 'uploading', progress: 8, previewUrl, mediaType, file, id: null, path: null, compra: null, error: '' };
+  _facRenderSubir(); _facSubirTick();
+  try { sndTap(); haptic(10); } catch (e) {}
+  const perView = S.periodoTrib || null;
+  // 1) Storage (respaldo). path = <periodo>/<rand>.<ext>
+  const clean = (file.name || 'foto').toLowerCase().replace(/[^a-z0-9.]/g, '');
+  const ext = (clean.split('.').pop() || 'jpg').slice(0, 5) || 'jpg';
+  const per0 = /^\d{4}-\d{2}$/.test(perView || '') ? perView : new Date().toISOString().slice(0, 7);
+  const path = per0 + '/' + Date.now() + '-' + Math.random().toString(36).slice(2, 7) + '.' + ext;
+  try { const { error: upErr } = await sbClient.storage.from('compras-fotos').upload(path, file, { contentType: mediaType, upsert: false }); if (!upErr) st.path = path; } catch (e) {}
+  if (S.subir !== st) return;   // el usuario cerró/reinició
+  // 2) crear fila mínima (foto → pendiente)
+  st.phase = 'creating'; st.progress = Math.max(st.progress, 26); _facRenderSubir();
+  let signedUrl = '';
+  try { if (st.path) { const { data } = await sbClient.storage.from('compras-fotos').createSignedUrl(st.path, 3600); signedUrl = (data && data.signedUrl) || ''; } } catch (e) {}
+  const rc = await apiPost({ accion: 'crear_compra_foto', periodo: perView, foto_path: st.path || null, foto_url: signedUrl || null });
+  if (S.subir !== st) return;
+  if (!rc.ok || !rc.data || !rc.data.id) { st.phase = 'fallo'; st.error = (rc.error || 'No se pudo guardar la compra').replace(/^.*?:\s*/, ''); sndDown(); _facRenderSubir(); return; }
+  st.id = rc.data.id;
+  _facLoadComprasBalanza(true);   // ya aparece en la lista (pendiente ✗)
+  // 3) OCR
+  st.phase = 'extracting'; st.progress = Math.max(st.progress, 45); _facRenderSubir(); _facSubirTick();
+  let b64 = ''; try { b64 = await _fileToB64(file); } catch (e) {}
+  let ocr = null, ocrErr = '';
+  try {
+    const args = b64 ? { imagen_base64: b64, media_type: mediaType } : (signedUrl ? { imagen_url: signedUrl } : null);
+    if (!args) throw new Error('sin_imagen');
+    const { data: j, error } = await sbClient.functions.invoke('extraer-compra', { body: args });
+    if (error || !j || !j.ok || !j.compra) throw new Error((j && (j.error || j.motivo)) || 'La IA no pudo leer');
+    ocr = j.compra;
+  } catch (e) { ocrErr = (e && e.message) || 'ocr'; }
+  if (S.subir !== st) return;
+  st.progress = 100;
+  if (ocr) {
+    // 4a) volcar OCR sobre el MISMO id → 'ok' (o duplicado / dudosa)
+    const per = /^\d{4}-\d{2}-\d{2}$/.test(ocr.fecha || '') ? String(ocr.fecha).slice(0, 7) : perView;
+    const ru = await apiPost({ accion: 'actualizar_compra_ocr', id: st.id, ruc_proveedor: ocr.ruc_proveedor || '', razon_social: ocr.proveedor || '', tipo_doc: ocr.tipo_doc || '', serie: ocr.serie || '', numero: ocr.numero || '', fecha: ocr.fecha || null, base: ocr.base, igv: ocr.igv, total: ocr.total, raw: ocr });
+    if (S.subir !== st) return;
+    const rd = ru && ru.data;
+    if (ru.ok && rd && rd.ok !== false) {
+      st.phase = 'ok'; st.compra = ocr; sndUp(); haptic([15, 45, 15]);
+      try { _tribFly(Number(ocr.igv) || 0); } catch (e) {}
+      if (per) S.periodoTrib = per;
+    } else if (rd && rd.motivo === 'duplicado') { st.phase = 'duplicado'; st.compra = ocr; sndDown(); }
+    else { await apiPost({ accion: 'marcar_compra_ocr_fallo', id: st.id, raw: ocr }); st.phase = 'fallo'; st.compra = ocr; st.error = (ru.error || 'Lectura dudosa').replace(/^.*?:\s*/, ''); sndDown(); }
+  } else {
+    // 4b) OCR ilegible → 'fallo' (foto queda para re-intento)
+    await apiPost({ accion: 'marcar_compra_ocr_fallo', id: st.id, raw: { error: ocrErr } });
+    if (S.subir !== st) return;
+    st.phase = 'fallo'; st.error = 'La IA no pudo leerla.'; sndDown();
+  }
+  _facRenderSubir();
+  // 5) refrescar lista + balanza (el crédito IGV cambió)
+  _facLoadComprasBalanza(true);
+  S._balMes = {}; _facLoadTrib(true);
 }
 
 // ── Tween de contadores (easeOutCubic) ───────────────────────
@@ -8308,7 +8726,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.23.1';
+const APP_VERSION = '1.24.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
