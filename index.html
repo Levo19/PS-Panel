@@ -1890,10 +1890,13 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 /* Date picker modal */
 .date-picker-overlay {
   position: fixed; inset: 0; z-index: 200;
-  background: rgba(0,0,0,0.65);
+  background: rgba(0,0,0,0.62);
+  -webkit-backdrop-filter: blur(7px); backdrop-filter: blur(7px);
   display: flex; align-items: center; justify-content: center;
   padding: 24px;
+  animation: calFade .22s ease both;
 }
+@keyframes calFade { from { opacity: 0; } to { opacity: 1; } }
 .date-picker-modal {
   background: var(--bg2); border: 1px solid rgba(201,168,76,0.35);
   border-radius: var(--radius); width: 100%; max-width: 340px;
@@ -1917,6 +1920,87 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 }
 .date-picker-item:hover { background: rgba(201,168,76,0.1); }
 .date-picker-item.active { background: rgba(201,168,76,0.18); color: var(--gold); font-weight: 700; }
+
+/* ── Calendario Lanchas (semáforos) ─────────────────────────────── */
+.cal-panel {
+  width: 100%; max-width: 360px;
+  background: linear-gradient(165deg, rgba(34,15,20,0.97) 0%, rgba(16,8,11,0.98) 70%);
+  border: 1px solid rgba(201,168,76,0.34);
+  border-radius: 22px;
+  box-shadow: 0 26px 74px rgba(0,0,0,0.78), inset 0 1px 0 rgba(255,255,255,0.05);
+  -webkit-backdrop-filter: blur(22px) saturate(160%); backdrop-filter: blur(22px) saturate(160%);
+  overflow: hidden;
+  animation: calPop .34s cubic-bezier(.2,.9,.3,1.25) both;
+}
+@keyframes calPop { from { opacity: 0; transform: translateY(16px) scale(.93); } to { opacity: 1; transform: none; } }
+
+.cal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 17px 16px 11px; }
+.cal-title { font-size: 17px; font-weight: 800; color: var(--gold-pale); letter-spacing: .01em; }
+.cal-nav-btns { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.cal-nav {
+  width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center;
+  background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--gold);
+  font-size: 19px; line-height: 1; cursor: pointer; transition: transform .12s, background .15s, border-color .15s;
+}
+.cal-nav:hover { background: rgba(201,168,76,0.14); border-color: rgba(201,168,76,0.4); }
+.cal-nav:active { transform: scale(.86); }
+.cal-today-btn {
+  padding: 0 13px; height: 34px; border-radius: 11px; font-size: 12px; font-weight: 800;
+  background: rgba(201,168,76,0.14); border: 1px solid rgba(201,168,76,0.42); color: var(--gold);
+  cursor: pointer; transition: transform .12s, background .15s;
+}
+.cal-today-btn:hover { background: rgba(201,168,76,0.22); }
+.cal-today-btn:active { transform: scale(.9); }
+
+.cal-dow { display: grid; grid-template-columns: repeat(7,1fr); padding: 2px 13px 7px; }
+.cal-dow span { text-align: center; font-size: 10px; font-weight: 800; letter-spacing: .06em; color: var(--text-muted); text-transform: uppercase; }
+
+.cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 4px; padding: 0 13px 6px; }
+.cal-cell {
+  position: relative; aspect-ratio: 1 / 1; border-radius: 12px;
+  border: 1px solid transparent; background: rgba(255,255,255,0.03); color: var(--text);
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform .13s cubic-bezier(.2,.9,.3,1.5), background .15s, border-color .15s;
+}
+.cal-cell:hover { background: rgba(201,168,76,0.1); }
+.cal-cell:active { transform: scale(.85); }
+.cal-cell.out { opacity: .3; font-weight: 500; }
+.cal-cell.today { border-color: var(--gold); color: var(--gold-light); box-shadow: 0 0 0 1px rgba(201,168,76,0.5), 0 0 13px rgba(201,168,76,0.28); }
+.cal-cell.selected {
+  background: linear-gradient(135deg, var(--guinda-light), var(--guinda-dark));
+  color: #fff; font-weight: 800; border-color: var(--guinda-light);
+  box-shadow: 0 7px 18px rgba(123,32,48,0.55);
+}
+.cal-cell.selected.today { box-shadow: 0 7px 18px rgba(123,32,48,0.55), 0 0 0 1.5px var(--gold); }
+.cal-dot { position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%); width: 6px; height: 6px; border-radius: 50%; }
+.cal-dot.on  { background: #4ade80; box-shadow: 0 0 7px #4ade80, 0 0 2px #4ade80; animation: calGlow 2.4s ease-in-out infinite; }
+.cal-dot.off { background: rgba(255,255,255,0.13); }
+.cal-cell.selected .cal-dot.on { background: #eaffea; box-shadow: 0 0 7px rgba(255,255,255,0.85); }
+@keyframes calGlow { 0%,100% { opacity: .6; } 50% { opacity: 1; } }
+
+.cal-legend { display: flex; align-items: center; justify-content: center; gap: 18px; padding: 9px 12px 16px; font-size: 11px; color: var(--text-muted); font-weight: 600; }
+.cal-legend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+.cal-legend i.g { background: #4ade80; box-shadow: 0 0 6px #4ade80; }
+.cal-legend i.o { background: rgba(255,255,255,0.15); }
+
+/* Transición de mes */
+.cal-slide-left-enter-active, .cal-slide-left-leave-active,
+.cal-slide-right-enter-active, .cal-slide-right-leave-active { transition: transform .26s cubic-bezier(.3,.8,.3,1), opacity .24s; }
+.cal-slide-left-enter-from  { transform: translateX(30px);  opacity: 0; }
+.cal-slide-left-leave-to    { transform: translateX(-30px); opacity: 0; }
+.cal-slide-right-enter-from { transform: translateX(-30px); opacity: 0; }
+.cal-slide-right-leave-to   { transform: translateX(30px);  opacity: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .date-picker-overlay, .cal-panel { animation: none; }
+  .cal-cell, .cal-nav, .cal-today-btn { transition: none; }
+  .cal-dot.on { animation: none; }
+  .cal-slide-left-enter-active, .cal-slide-left-leave-active,
+  .cal-slide-right-enter-active, .cal-slide-right-leave-active { transition: none; }
+  .cal-slide-left-enter-from, .cal-slide-left-leave-to,
+  .cal-slide-right-enter-from, .cal-slide-right-leave-to { transform: none; opacity: 1; }
+}
 
 .btn-report {
   display: flex; align-items: center; gap: 6px;
@@ -3891,6 +3975,61 @@ const ViewLanchas = {
       showDatePicker.value = false;
     }
 
+    // ── Calendario con semáforos (reemplaza el <input type=date>) ──────────
+    const _MESES_CAL = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    const pickerYear    = ref(parseInt(today.slice(0, 4), 10));
+    const pickerMonth   = ref(parseInt(today.slice(5, 7), 10) - 1);   // 0-11
+    const calTransName  = ref('cal-slide-left');
+
+    function _syncPicker() {
+      const base = currentFecha.value || today;
+      pickerYear.value  = parseInt(base.slice(0, 4), 10);
+      pickerMonth.value = parseInt(base.slice(5, 7), 10) - 1;
+    }
+    watch(showDatePicker, v => { if (v) _syncPicker(); });
+
+    const calMonthLabel = computed(() => `${_MESES_CAL[pickerMonth.value]} ${pickerYear.value}`);
+
+    // 6 semanas × 7 = 42 celdas, semana empieza en LUNES. Construcción local (sin UTC → sin off-by-one).
+    const calCells = computed(() => {
+      const y = pickerYear.value, m = pickerMonth.value;
+      const first = new Date(y, m, 1);
+      const offset = (first.getDay() + 6) % 7;   // getDay: 0=Dom..6=Sáb → Lunes=0
+      const cells = [];
+      for (let i = 0; i < 42; i++) {
+        const d  = new Date(y, m, 1 - offset + i);
+        const f  = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        cells.push({
+          f, day: d.getDate(),
+          inMonth:    d.getMonth() === m,
+          isToday:    f === today,
+          isSelected: f === currentFecha.value,
+          hasOps:     fechas.value.includes(f)
+        });
+      }
+      return cells;
+    });
+
+    function calShift(dir) {
+      calTransName.value = dir > 0 ? 'cal-slide-left' : 'cal-slide-right';
+      let m = pickerMonth.value + dir, y = pickerYear.value;
+      if (m < 0)  { m = 11; y--; }
+      if (m > 11) { m = 0;  y++; }
+      pickerMonth.value = m; pickerYear.value = y;
+      try { sndTap(); haptic(6); } catch (e) {}
+    }
+    function calToday() {
+      const ty = parseInt(today.slice(0, 4), 10), tm = parseInt(today.slice(5, 7), 10) - 1;
+      const cur = pickerYear.value * 12 + pickerMonth.value;
+      calTransName.value = (ty * 12 + tm) >= cur ? 'cal-slide-left' : 'cal-slide-right';
+      pickerYear.value = ty; pickerMonth.value = tm;
+      try { sndTap(); haptic(6); } catch (e) {}
+    }
+    function calSelect(c) {
+      jumpToFecha(c.f);          // salta + carga el detalle (lazy) + háptica/sonido
+      showDatePicker.value = false;
+    }
+
     let refreshInterval = null;
 
     function refreshFechasList() {
@@ -3940,6 +4079,7 @@ const ViewLanchas = {
              openReport, openTicket, fmtFecha, fmt, totalMovs, allPasesDia, tipoBadgeClass,
              lToast,
              showDatePicker, datesByMonth, fmtMes, pickDate,
+             pickerYear, pickerMonth, calTransName, calMonthLabel, calCells, calShift, calToday, calSelect,
              selectedMov, contactColorByTipo, movPayments, montoPayStyle, openMovModal, allCajaDia,
              selectedPase, pagoStatusStyle, openPaseModal, calcPagoEstadoPase,
              isIngreso, metodoIcon, cajaRowStyle, selectedCajaDia, pulsMovId, irAMovimiento, fmtHora,
@@ -3977,7 +4117,7 @@ const ViewLanchas = {
 
         <!-- Navegación + KPIs en cabecera -->
         <div class="date-view-nav">
-          <button class="date-nav-arrow" @click="navigate(1)">‹</button>
+          <button class="date-nav-arrow" @click="navigate(-1)">‹</button>
           <div class="date-view-center">
             <div class="date-view-label" style="display:inline-flex;align-items:center;gap:7px;cursor:pointer;" @click="showDatePicker=true">
               <span :title="hasOps(currentFecha) ? 'Con operaciones' : 'Sin operaciones'" :style="{ width:'8px', height:'8px', borderRadius:'50%', flexShrink:0, background: hasOps(currentFecha) ? '#4ade80' : 'rgba(255,255,255,0.22)', boxShadow: hasOps(currentFecha) ? '0 0 6px #4ade80' : 'none', transition:'all .2s' }"></span>
@@ -4008,7 +4148,7 @@ const ViewLanchas = {
             </template>
             <div v-else-if="cache[currentFecha]?.loading" style="margin-top:6px;"><div class="spin" style="width:14px;height:14px;display:inline-block;"></div></div>
           </div>
-          <button class="date-nav-arrow" @click="navigate(-1)">›</button>
+          <button class="date-nav-arrow" @click="navigate(1)">›</button>
         </div>
 
         <!-- Cuerpo -->
@@ -5094,34 +5234,35 @@ const ViewLanchas = {
         </div>
       </teleport>
 
-      <!-- Date Picker Modal -->
+      <!-- Calendario con semáforos -->
       <teleport to="body">
         <div v-if="showDatePicker" class="date-picker-overlay" @click.self="showDatePicker=false">
-          <div class="date-picker-modal">
-            <div class="date-picker-header">
-              <span>📅 Seleccionar fecha</span>
-              <button @click="showDatePicker=false" style="font-size:18px;color:var(--text-muted);">✕</button>
+          <div class="cal-panel">
+            <div class="cal-head">
+              <transition :name="calTransName" mode="out-in">
+                <div class="cal-title" :key="pickerYear+'-'+pickerMonth">{{ calMonthLabel }}</div>
+              </transition>
+              <div class="cal-nav-btns">
+                <button class="cal-nav" @click="calShift(-1)" aria-label="Mes anterior">‹</button>
+                <button class="cal-today-btn" @click="calToday()">Hoy</button>
+                <button class="cal-nav" @click="calShift(1)" aria-label="Mes siguiente">›</button>
+              </div>
             </div>
-            <div style="padding:11px 12px;border-bottom:1px solid var(--border);">
-              <label style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em;">Ir a cualquier fecha</label>
-              <input type="date" :value="currentFecha" @change="jumpToFecha($event.target.value); showDatePicker=false"
-                style="width:100%;margin-top:6px;padding:10px;border-radius:10px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text);font-size:14px;font-weight:700;">
-            </div>
-            <div class="date-picker-list">
-              <div v-if="Object.keys(datesByMonth).length" style="font-size:10px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:8px 10px 2px;">● Días con operaciones</div>
-              <template v-for="(datesInMonth, monthKey) in datesByMonth" :key="monthKey">
-                <div class="date-picker-month">{{ fmtMes(monthKey) }}</div>
-                <div v-for="f in datesInMonth" :key="f"
-                  class="date-picker-item" :class="{active: f===currentFecha}"
-                  @click="pickDate(f)">
-                  <span>{{ fmtFecha(f) }}</span>
-                  <template v-if="cache[f]?.loaded">
-                    <span style="font-size:11px;color:var(--text-muted);">
-                      {{ cache[f].kpis?.pax_total||0 }} PAX · S/{{ fmt(cache[f].kpis?.ingresos_operador) }}
-                    </span>
-                  </template>
-                </div>
-              </template>
+            <div class="cal-dow"><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
+            <transition :name="calTransName" mode="out-in">
+              <div class="cal-grid" :key="pickerYear+'-'+pickerMonth">
+                <button v-for="c in calCells" :key="c.f"
+                  class="cal-cell"
+                  :class="{ out: !c.inMonth, today: c.isToday, selected: c.isSelected }"
+                  @click="calSelect(c)">
+                  {{ c.day }}
+                  <span class="cal-dot" :class="c.hasOps ? 'on' : 'off'"></span>
+                </button>
+              </div>
+            </transition>
+            <div class="cal-legend">
+              <span><i class="g"></i>Con operaciones</span>
+              <span><i class="o"></i>Sin operaciones</span>
             </div>
           </div>
         </div>
@@ -11224,7 +11365,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.36.0';
+const APP_VERSION = '1.37.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
