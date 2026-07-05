@@ -1116,15 +1116,46 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 .fac-hist-head.tap { cursor:pointer; }
 .fac-hist-head.tap:active { transform:scale(.985); }
 .fac-hist-head { transition:transform .16s cubic-bezier(.34,1.56,.64,1); }
-.fac-hist-tri { flex:0 0 auto; font-size:11px; line-height:1; color:var(--gold); transform:rotate(0deg); transition:transform .34s cubic-bezier(.34,1.56,.64,1); }
-.fac-hist-tri.open { transform:rotate(180deg); animation:facTriSpin .42s cubic-bezier(.34,1.56,.64,1); }
-@keyframes facTriSpin { from{transform:rotate(0deg);} to{transform:rotate(180deg);} }
-.fac-hist-acc { overflow:hidden; }
-.fac-hist-acc.open { animation:facAccIn .32s cubic-bezier(.22,1,.36,1); }
-@keyframes facAccIn { from{opacity:0; max-height:0; transform:translateY(-6px);} to{opacity:1; max-height:520px; transform:none;} }
+/* Acordeón suave por transición de max-height (sin re-render → sin parpadeo) */
+.fac-hist-acc { max-height:0; overflow:hidden; opacity:0; transition:max-height .36s cubic-bezier(.22,1,.36,1), opacity .3s ease; }
+.fac-hist-acc.open { max-height:640px; opacity:1; }
+/* Indicador de "tiene nota de crédito anexada": círculo ámbar con chevron, a la DERECHA */
+.fac-hist-tog { flex:0 0 auto; width:26px; height:26px; border-radius:50%; border:1px solid rgba(251,191,36,.42); background:rgba(251,191,36,.14); color:#fbbf24; font-size:12px; font-weight:900; line-height:1; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:transform .34s cubic-bezier(.34,1.56,.64,1), background .2s; -webkit-tap-highlight-color:transparent; }
+.fac-hist-tog.open { transform:rotate(180deg); background:rgba(251,191,36,.26); }
+.fac-hist-ncnote { color:#fbbf24; font-weight:700; }
 .fac-hist-nc { background:rgba(251,191,36,.05); border-left:2px solid rgba(251,191,36,.4); }
 @media (prefers-reduced-motion: reduce){
-  .fac-hist-tri, .fac-hist-tri.open, .fac-hist-acc.open, .fac-hist-head { transition:none; animation:none; }
+  .fac-hist-acc, .fac-hist-acc.open, .fac-hist-tog, .fac-hist-tog.open, .fac-hist-head { transition:none !important; animation:none !important; }
+}
+/* ── Feedback de emisión: banner glass (éxito/error) + chips de emitidos en la sesión ── */
+.fac-fb { position:relative; display:flex; align-items:center; gap:11px; padding:12px 13px; border-radius:15px; margin:2px 0 12px; border:1px solid transparent; -webkit-backdrop-filter:blur(12px) saturate(160%); backdrop-filter:blur(12px) saturate(160%); box-shadow:0 8px 24px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.14); animation:facFbIn .52s cubic-bezier(.34,1.56,.64,1) both; }
+.fac-fb.ok  { background:linear-gradient(135deg,rgba(52,199,89,.20),rgba(48,160,80,.10)); border-color:rgba(74,222,128,.42); }
+.fac-fb.err { background:linear-gradient(135deg,rgba(224,84,78,.22),rgba(180,40,40,.10)); border-color:rgba(248,113,113,.45); }
+.fac-fb-seen { animation:none; }
+.fac-fb-ico { flex:0 0 auto; font-size:20px; line-height:1; animation:facFbPop .5s cubic-bezier(.34,1.9,.5,1) both; }
+.fac-fb-seen .fac-fb-ico { animation:none; }
+.fac-fb-body { flex:1; min-width:0; }
+.fac-fb-t { font-weight:800; font-size:13px; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fac-fb.ok .fac-fb-t { color:#5df08e; }
+.fac-fb.err .fac-fb-t { color:#ff8b84; }
+.fac-fb-s { font-size:10.5px; color:var(--text-muted); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fac-fb-pdf { flex:0 0 auto; display:inline-flex; align-items:center; gap:5px; padding:8px 12px; border-radius:11px; background:rgba(74,222,128,.16); border:1px solid rgba(74,222,128,.4); color:#5df08e; font-weight:800; font-size:12px; cursor:pointer; white-space:nowrap; -webkit-tap-highlight-color:transparent; transition:transform .14s, background .18s; }
+.fac-fb-pdf:active { transform:scale(.9); background:rgba(74,222,128,.26); }
+.fac-fb-x { flex:0 0 auto; width:24px; height:24px; border-radius:50%; border:none; background:rgba(255,255,255,.09); color:var(--text-muted); font-size:15px; line-height:1; cursor:pointer; -webkit-tap-highlight-color:transparent; transition:background .18s; }
+.fac-fb-x:active { background:rgba(255,255,255,.18); }
+.fac-fb-out { animation:facFbOut .4s ease forwards !important; }
+.fac-emitidos { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 13px; }
+.fac-emitidos-lbl { flex:0 0 100%; font-size:10px; font-weight:800; color:var(--text-muted); letter-spacing:.05em; margin-bottom:1px; }
+.fac-chip-emit { display:inline-flex; align-items:center; gap:5px; padding:5px 10px; border-radius:999px; background:rgba(74,222,128,.10); border:1px solid rgba(74,222,128,.3); color:#5df08e; font-size:11px; font-weight:700; cursor:pointer; -webkit-tap-highlight-color:transparent; transition:transform .14s, background .18s; animation:facChipIn .4s cubic-bezier(.34,1.56,.64,1) both; }
+.fac-chip-emit:active { transform:scale(.92); background:rgba(74,222,128,.2); }
+.fac-chip-emit.pend { background:rgba(251,191,36,.10); border-color:rgba(251,191,36,.34); color:#fbbf24; }
+@keyframes facFbIn { 0%{opacity:0;transform:translateY(-12px) scale(.96);} 60%{opacity:1;} 100%{opacity:1;transform:none;} }
+@keyframes facFbOut { to{opacity:0;transform:translateY(-8px) scale(.98);} }
+@keyframes facFbPop { 0%{transform:scale(0) rotate(-25deg);} 100%{transform:scale(1) rotate(0);} }
+@keyframes facChipIn { 0%{opacity:0;transform:scale(.7);} 100%{opacity:1;transform:none;} }
+@media (prefers-reduced-motion: reduce){
+  .fac-fb, .fac-fb-ico, .fac-chip-emit { animation:none !important; }
+  .fac-fb-pdf, .fac-chip-emit, .fac-fb-x { transition:none !important; }
 }
 /* Tap feedback marcado en todo lo interactivo del slot */
 .fac-slot button { transition:transform .16s cubic-bezier(.34,1.56,.64,1); }
@@ -2649,7 +2680,7 @@ const PS_POST = {
     p_exonerado: false, p_moneda: b.moneda || 'PEN', p_origen: 'panel', p_operacion_ref: b.operacion_ref || null,
     p_creado_por: b.operador || 'PS', p_local_id: b.localId || null, p_cliente_tel: b.cliente_tel || null,
     p_cliente_dir: b.cliente_dir || null, p_es_extranjero: !!b.es_extranjero,
-    p_medio_pago: b.medio_pago || null, p_exportacion: !!b.exportacion }),
+    p_medio_pago: b.medio_pago || null, p_exportacion: !!b.exportacion, p_detraccion: !!b.detraccion }),
   // ── Jalar zarpe → CPEs (escritura; devuelven objetos, nunca arrays) ──
   registrar_zarpe_ocr:        b => _psRpc('registrar_zarpe_ocr', { p_operacion: b.operacion, p_pax: b.pax || [], p_por: b.por || 'PS' }),
   guardar_zarpe_tablilla:     b => _psRpc('guardar_zarpe_tablilla', { p_operacion: b.operacion, p_filas: b.filas || [] }),
@@ -5329,6 +5360,8 @@ function _facInitState(ses, servicios, muelleOn, facCfg) {
     compras: [], cargandoCompras: false, ia: null,
     // Fase 1: carrusel de meses (multi-select en historial) + semáforo por mes (balanza) + modal Emitir
     histMeses: [(_tribPeriodos()[0] || {}).p].filter(Boolean), _balMes: {}, _emitOpen: false, _histOpen: {},
+    // Feedback de emisión suave (banner + chips de emitidos en la sesión del modal)
+    _emitFeed: null, _emitidos: [], _emitFeedTO: null,
     // Buscador de cliente unificado (barra inteligente doc/nombre)
     cliQuery: '', cliResults: [], cliSel: false, cliShowLupa: false, cliManual: false,
     manualDoc: '', manualNombre: '', manualTipo: '1', _cliLoading: false, _cliLupaLoading: false, _cliTimer: null, _cliDebounce: null };
@@ -5826,6 +5859,7 @@ async function _facEmitir() {
       cliente_email: S.email.trim(), cliente_tel: S.tel.trim(), cliente_dir: S.dir.trim(), es_extranjero: S.esExtranjero,
       items: S.items.map(i => ({ descripcion: i.descripcion, cantidad: parseFloat(i.cantidad) || 0, precio: parseFloat(i.precio) || 0 })),
       exportacion: !!S.exportacion, medio_pago: S.medioPago || null,
+      detraccion: (S.tipo === 1 && tot.total >= (typeof _FAC_DETRACCION !== 'undefined' ? _FAC_DETRACCION.umbral : 700)),
       moneda: 'PEN', operador: (S.ses && S.ses.nombre) || 'PS',
       localId: S._emitLocalId });
   } finally { S._emitiendo = false; }
@@ -5833,13 +5867,107 @@ async function _facEmitir() {
     sndOk(); haptic([15, 40, 15]);
     S._emitLocalId = null;   // consumido → el próximo comprobante genera un localId nuevo
     S._emitioAlgo = true;    // cerrar el modal refresca balanza/historial SOLO si de verdad emitió
-    S.resultado = Object.assign({}, r.data, { _tel: S.tel.trim(), _email: S.email.trim(), _nombre: S.nombre.trim() });
+    const d = r.data;
+    const label = S.tipo === 1 ? 'Factura' : (S.exportacion ? 'Exportación' : 'Boleta');
+    const itemsSnap = S.items.map(i => ({ descripcion: i.descripcion, cantidad: parseFloat(i.cantidad) || 0, precio: parseFloat(i.precio) || 0 }));
+    // comp normalizado (mismo patrón que zarpe) → el botón "Ver PDF" abre el PDF directo, sin depender del historial
+    const comp = Object.assign({
+      id: d.id, tipo: S.tipo, serie: d.serie, numero: d.numero, total: d.total, estado: d.estado,
+      enlace_pdf: d.pdf || d.enlace_pdf || '', moneda: 'PEN', _label: label,
+      cliente_nombre: S.nombre.trim(), cliente_doc: S.docTipo === '0' ? '' : S.doc.trim(),
+      cliente_email: S.email.trim(), cliente_tel: S.tel.trim(), creado_por: (S.ses && S.ses.nombre) || 'PS',
+      items: itemsSnap
+    }, d);
+    comp._label = label;   // r.data no trae _label → re-imponer tras el merge
+    S._emitFeed = { type: 'ok', comp };
+    S._emitidos.unshift({ serie: comp.serie, numero: comp.numero, total: comp.total, estado: comp.estado, comp });
+    if (S._emitidos.length > 20) S._emitidos.length = 20;
+    // reset del form para el SIGUIENTE comprobante — el modal SIGUE ABIERTO
     S.items = []; S.doc = ''; S.nombre = ''; S.email = ''; S.tel = ''; S.dir = ''; S.medioPago = ''; S.lookupState = 'idle';
     S.cliQuery = ''; S.cliResults = []; S.cliSel = false; S.cliShowLupa = false; S.cliManual = false; S.manualDoc = ''; S.manualNombre = '';
+    S._emitLocalId = 'fac-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);   // localId nuevo para el próximo
+    _facRender();          // en módulo → _facRenderEmit (refresca SOLO el modal); banner + form reseteado entran animados
+    _facEmitFeedAfter();   // marca "visto" (no re-anima en re-renders incidentales) + auto-desvanece el banner OK a los ~6s
+  } else {
+    // error → banner rojo PERSISTENTE + form conservado para reintentar (el backend dedupea por localId)
+    sndErr(); haptic([60, 30, 60]);
+    S._emitFeed = { type: 'err', msg: (r.error || 'No se pudo emitir').replace(/^.*?:\s*/, '') };
     _facRender();
-  } else { _facErr((r.error || 'No se pudo emitir').replace(/^.*?:\s*/, '')); if (btn) { btn.disabled = false; btn.textContent = '🧾 Emitir comprobante'; } }
+    _facEmitFeedAfter();
+    const b2 = document.getElementById('fac-emitir'); if (b2) { b2.disabled = false; b2.textContent = '🧾 Emitir comprobante'; }
+  }
   // en error se CONSERVA S._emitLocalId → un reintento del mismo comprobante dedupea si el 1er intento llegó al server
 }
+// Banner + chips de feedback de emisión (arriba del form). Éxito verde con "Ver PDF"; error rojo persistente.
+function _facEmitFeedHTML(S) {
+  var html = '';
+  var f = S._emitFeed;
+  if (f) {
+    var seen = f._seen ? ' fac-fb-seen' : '';
+    if (f.type === 'ok') {
+      var c = f.comp || {};
+      var num6 = String(c.numero == null ? '' : c.numero).padStart(6, '0');
+      var estado = String(c.estado || '');
+      var estTxt = estado === 'aceptada' ? 'aceptada por SUNAT' : (estado === 'pendiente' ? 'pendiente en SUNAT' : (estado === 'rechazada' ? 'rechazada — revísala' : (estado || 'registrada')));
+      html += '<div class="fac-fb ok' + seen + '" role="status" aria-live="polite">' +
+          '<span class="fac-fb-ico">✅</span>' +
+          '<div class="fac-fb-body">' +
+            '<div class="fac-fb-t">' + _facEsc(c._label || 'Comprobante') + ' ' + _facEsc(c.serie || '') + '-' + num6 + ' · S/ ' + _facMoney(c.total) + '</div>' +
+            '<div class="fac-fb-s">' + estTxt + ' · listo para el siguiente</div>' +
+          '</div>' +
+          '<button class="fac-fb-pdf" onclick="_facEmitFeedPDF()">📄 Ver PDF</button>' +
+          '<button class="fac-fb-x" onclick="_facEmitFeedClose()" aria-label="Cerrar aviso">×</button>' +
+        '</div>';
+    } else {
+      html += '<div class="fac-fb err' + seen + '" role="alert" aria-live="assertive">' +
+          '<span class="fac-fb-ico">⚠️</span>' +
+          '<div class="fac-fb-body">' +
+            '<div class="fac-fb-t">No se pudo emitir</div>' +
+            '<div class="fac-fb-s">' + _facEsc(f.msg || 'Error desconocido') + '</div>' +
+          '</div>' +
+          '<button class="fac-fb-x" onclick="_facEmitFeedClose()" aria-label="Cerrar aviso">×</button>' +
+        '</div>';
+    }
+  }
+  var em = S._emitidos || [];
+  if (em.length) {
+    html += '<div class="fac-emitidos"><span class="fac-emitidos-lbl">EMITIDOS EN ESTA SESIÓN (' + em.length + ')</span>' +
+      em.map(function (e, i) {
+        var n6 = String(e.numero == null ? '' : e.numero).padStart(6, '0');
+        var pend = (e.estado && e.estado !== 'aceptada') ? ' pend' : '';
+        return '<button class="fac-chip-emit' + pend + '" onclick="_facEmitidoPDF(' + i + ')" title="Ver PDF">📄 ' + _facEsc(e.serie || '') + '-' + n6 + '</button>';
+      }).join('') + '</div>';
+  }
+  return html;
+}
+// Tras pintar el banner: lo marca "visto" (evita re-animar en re-renders incidentales) y auto-desvanece el OK a los ~6s.
+function _facEmitFeedAfter() {
+  var S = _facState; if (!S || !S._emitFeed) return;
+  var f = S._emitFeed;
+  try { clearTimeout(S._emitFeedTO); } catch (e) {}
+  requestAnimationFrame(function () { if (S._emitFeed === f) f._seen = true; });
+  if (f.type === 'ok') {
+    S._emitFeedTO = setTimeout(function () {
+      if (S._emitFeed !== f) return;
+      var el = document.querySelector('#fac-emit-modal .fac-fb.ok');
+      if (el) { el.classList.add('fac-fb-out'); setTimeout(function () { if (S._emitFeed === f) { S._emitFeed = null; if (S._emitOpen) _facRenderEmit(); } }, 400); }
+      else { S._emitFeed = null; }
+    }, 6000);
+  }
+}
+window._facEmitFeedPDF = function () {
+  var S = _facState; if (S && S._emitFeed && S._emitFeed.comp) _facAbrirPDF(S._emitFeed.comp);
+};
+window._facEmitidoPDF = function (i) {
+  var S = _facState; var e = (S && S._emitidos || [])[i]; if (e && e.comp) _facAbrirPDF(e.comp);
+};
+window._facEmitFeedClose = function () {
+  var S = _facState; if (!S) return;
+  try { clearTimeout(S._emitFeedTO); } catch (e) {}
+  var el = document.querySelector('#fac-emit-modal .fac-fb');
+  if (el) { el.classList.add('fac-fb-out'); setTimeout(function () { S._emitFeed = null; if (S._emitOpen) _facRenderEmit(); }, 380); }
+  else { S._emitFeed = null; if (S._emitOpen) _facRenderEmit(); }
+};
 async function _facLoadHist() {
   _facState.cargandoHist = true; _facRender();
   try { const r = await apiGet('listar_comprobantes', {}); _facState.comprobantes = (r.ok && r.data) || []; } catch (e) {}
@@ -5935,6 +6063,7 @@ function _facSectionBody(S) {
     } else {
       const segBtn = (m, label) => { const on = S.facModo === m; return `<button onclick="_facSetModo('${m}')" style="flex:1;padding:9px 4px;border-radius:10px;font-weight:800;font-size:12px;cursor:pointer;border:1px solid ${on?'var(--gold)':'var(--border)'};background:${on?'rgba(201,168,76,0.16)':'transparent'};color:${on?'var(--gold)':'var(--text-muted)'}">${label}</button>`; };
       body = `
+      ${_facEmitFeedHTML(S)}
       ${S._emitOpen ? `<button class="fac-z-dash" onclick="_facZarpeAbrir()">📸 Jalar zarpe con IA — facturar el grupo</button>
       <div class="fac-z-or">— o emite a un cliente suelto —</div>` : ''}
       <div style="display:flex;gap:6px;margin-bottom:12px">
@@ -6372,6 +6501,8 @@ window._facOpenEmit = function () {
   S._zarpe = null;   // el modal abre en el form suelto; "Jalar zarpe" activa el sub-flujo
   S._emitLocalId = 'fac-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);   // P1: un localId por apertura
   S._emitiendo = false; S._emitioAlgo = false;
+  try { clearTimeout(S._emitFeedTO); } catch (e) {}
+  S._emitFeed = null; S._emitidos = []; S._emitFeedTO = null;   // sesión de feedback fresca por apertura
   let ov = document.getElementById('fac-emit-modal');
   if (!ov) { ov = document.createElement('div'); ov.id = 'fac-emit-modal'; ov.className = 'fac-emit-ov'; document.body.appendChild(ov); ov.addEventListener('click', e => { if (e.target === ov) _facCloseEmit(); }); }
   ov.innerHTML = `<div class="fac-emit-box" role="dialog" aria-modal="true">
@@ -6908,7 +7039,8 @@ function _facHistCardHTML(c, S, opts) {
   var anu = c.estado === 'anulada';
   var hasNC = !!(ncs && ncs.length);
   var open = hasNC && !!(S._histOpen && S._histOpen[c.id]);
-  var tri = hasNC ? '<span class="fac-hist-tri' + (open ? ' open' : '') + '" aria-hidden="true">▾</span>' : '';
+  var ncNote = hasNC ? ' · <span class="fac-hist-ncnote">' + ncs.length + ' nota' + (ncs.length === 1 ? '' : 's') + ' de crédito</span>' : '';
+  var togBtn = hasNC ? '<button class="fac-hist-tog' + (open ? ' open' : '') + '" data-htog="' + c.id + '" onclick="_facHistToggle(\'' + c.id + '\')" title="Ver nota(s) de crédito anexada(s)" aria-label="Desplegar nota de crédito">▾</button>' : '';
   var arrow = nested ? '<span style="flex:0 0 auto;color:#fbbf24;font-size:12px;font-weight:800;line-height:1">↳</span>' : '';
   var headClick = hasNC ? ' onclick="_facHistToggle(\'' + c.id + '\')" role="button" aria-expanded="' + open + '"' : '';
   var num6 = String(c.numero).padStart(6, '0');
@@ -6916,29 +7048,32 @@ function _facHistCardHTML(c, S, opts) {
   var anulBtn = anu ? '' : '<button onclick="_facAnular(\'' + c.id + '\')" title="Anular" style="cursor:pointer;flex:0 0 auto;' + (S.anularId === c.id ? 'color:#fff;background:#f87171;border:none;border-radius:7px;padding:3px 8px;font-size:10px;font-weight:800' : 'color:#f87171;background:none;border:none;font-size:14px') + '">' + (S.anularId === c.id ? '¿Anular?' : '⊘') + '</button>';
   var row = '<div class="' + (nested ? 'fac-hist-nc' : '') + '" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-bottom:1px solid var(--border);' + (nested ? 'padding-left:16px;' : '') + (anu ? 'opacity:.6' : '') + '">' +
       '<div class="fac-hist-head' + (hasNC ? ' tap' : '') + '"' + headClick + '>' +
-        arrow + tri +
+        arrow +
         '<div style="min-width:0;flex:1">' +
           '<div style="display:flex;align-items:center;gap:6px;min-width:0">' +
             '<span style="font-weight:800;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;' + (anu ? 'text-decoration:line-through' : '') + '">' + _facEsc(c.cliente_nombre || 'Sin nombre') + '</span>' +
             _facTipoBadge(c) +
           '</div>' +
-          '<div style="font-size:10px;color:var(--text-muted);display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap">' + c.serie + '-' + num6 + ' · ' + _facEsc(String(c.creado || '')) + ' ' + _facChipEstado(c) + '</div>' +
+          '<div style="font-size:10px;color:var(--text-muted);display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap">' + c.serie + '-' + num6 + ' · ' + _facEsc(String(c.creado || '')) + ' ' + _facChipEstado(c) + ncNote + '</div>' +
         '</div>' +
       '</div>' +
       '<span style="font-weight:800;font-size:13px;color:var(--gold);white-space:nowrap">S/ ' + _facMoney(c.total) + '</span>' +
-      pdfBtn + anulBtn +
+      togBtn + pdfBtn + anulBtn +
     '</div>';
   if (!hasNC) return row;
-  var acc = '<div class="fac-hist-acc' + (open ? ' open' : '') + '"' + (open ? '' : ' style="display:none"') + '>' + ncs.map(function (nc) { return _facHistCardHTML(nc, S, { nested: true }); }).join('') + '</div>';
+  var acc = '<div class="fac-hist-acc' + (open ? ' open' : '') + '" data-hacc="' + c.id + '">' + ncs.map(function (nc) { return _facHistCardHTML(nc, S, { nested: true }); }).join('') + '</div>';
   return row + acc;
 }
-// Toggle del acordeón de una card (padre con NCs) — re-pinta el slot/modal conservando estado.
+// Toggle del acordeón de una card — EN SITIO (sin re-render → sin parpadeo), en todas las instancias.
 window._facHistToggle = function (id) {
   var S = _facState; if (!S) return;
   try { sndTap(); haptic(8); } catch (e) {}
   S._histOpen = S._histOpen || {};
-  S._histOpen[id] = !S._histOpen[id];
-  if (_facMode === 'module') _facRenderSlot(); else _facRender();
+  var open = S._histOpen[id] = !S._histOpen[id];
+  try {
+    document.querySelectorAll('[data-hacc]').forEach(function (el) { if (el.getAttribute('data-hacc') === id) el.classList.toggle('open', open); });
+    document.querySelectorAll('[data-htog]').forEach(function (el) { if (el.getAttribute('data-htog') === id) el.classList.toggle('open', open); });
+  } catch (e) { if (_facMode === 'module') _facRenderSlot(); else _facRender(); }
 };
 // ── Monto en LETRAS (documento tributario): "SON: CIENTO DIECIOCHO CON 00/100 SOLES" ──
 function _facEnteroLetras(n) {
@@ -10903,7 +11038,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.34.0';
+const APP_VERSION = '1.35.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
