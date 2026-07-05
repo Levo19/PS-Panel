@@ -2116,6 +2116,27 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 }
 .date-loading { display: flex; justify-content: center; padding: 24px 0; }
 
+/* ── Lanchas F2: nav de fecha integrada en .ps-head + acciones + tabs KIT ── */
+.lan-head { align-items: center; }
+.lan-datenav { display: flex; align-items: center; gap: 10px; position: relative; z-index: 1;
+  flex: 1 1 240px; min-width: 0; justify-content: flex-end; }
+.ps-datearrow { width: 42px; height: 42px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 13px; border: 1px solid rgba(201,168,76,0.32); background: rgba(201,168,76,0.08); color: var(--gold);
+  font-size: 22px; font-weight: 900; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), background 0.18s, border-color 0.18s; }
+.ps-datearrow:hover  { background: rgba(201,168,76,0.2); border-color: var(--gold); }
+.ps-datearrow:active { transform: scale(0.9); }
+.lan-date-center { flex: 1; min-width: 0; text-align: center; }
+.lan-date-label { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; font-size: 15px; font-weight: 800;
+  color: var(--text); padding: 5px 10px; border-radius: 11px; -webkit-tap-highlight-color: transparent; transition: background 0.18s; }
+.lan-date-label:hover { background: rgba(255,255,255,0.06); }
+.lan-actions { display: flex; gap: 8px; margin-bottom: 14px; }
+.lan-actions .ps-btn { flex: 1; padding: 10px 8px; font-size: 12.5px; }
+.lan-tabcount { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 18px; padding: 0 6px;
+  border-radius: 999px; font-size: 11px; font-weight: 800; background: rgba(255,255,255,0.12); color: inherit; }
+.ps-tab.on .lan-tabcount { background: rgba(255,255,255,0.22); }
+@media (max-width: 560px) { .lan-head { gap: 12px; } .lan-datenav { flex-basis: 100%; } }
+
 /* Date picker modal */
 .date-picker-overlay {
   position: fixed; inset: 0; z-index: 200;
@@ -2131,7 +2152,12 @@ select.config-input option { background: #1e0a10; color: var(--text); }
   border-radius: var(--radius); width: 100%; max-width: 340px;
   max-height: 72vh; display: flex; flex-direction: column; overflow: hidden;
   box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+  animation: lanSheetIn 0.44s cubic-bezier(.34,1.56,.64,1) both;
 }
+/* Entrada spring iOS para modales de la vista (alineado a .ps-sheet) */
+.lan-sheet-anim { animation: lanSheetIn 0.44s cubic-bezier(.34,1.56,.64,1) both; }
+@keyframes lanSheetIn { from { opacity: 0; transform: translateY(16px) scale(.965); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .date-picker-modal, .lan-sheet-anim { animation: none !important; } }
 .date-picker-header {
   padding: 14px 16px; border-bottom: 1px solid var(--border);
   display: flex; align-items: center; justify-content: space-between;
@@ -2246,10 +2272,12 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 .mov-row {
   display: flex; align-items: center; justify-content: space-between;
   padding: 9px 10px; border-radius: 8px; cursor: pointer; gap: 8px;
-  transition: background 0.12s; border-bottom: 1px solid rgba(255,255,255,0.04);
+  transition: background 0.12s, transform 0.16s cubic-bezier(.34,1.56,.64,1);
+  border-bottom: 1px solid rgba(255,255,255,0.04); -webkit-tap-highlight-color: transparent;
 }
 .mov-row:last-child { border-bottom: none; }
 .mov-row:hover { background: rgba(255,255,255,0.05); }
+.mov-row:active { transform: scale(0.985); }
 .mov-row.mov-cancelled { opacity: 0.4; text-decoration: line-through; }
 .mov-row.mov-pulsing    { animation: movPulse 0.7s ease-in-out 3; }
 .caja-row-pulsing       { animation: movPulse 0.7s ease-in-out 3; }
@@ -3390,6 +3418,13 @@ const ViewLanchas = {
       if (s === 'cancelado') return 'badge-red';
       return 'estado-cerrada';
     }
+    // Variante de color del KIT .ps-chip según estado del movimiento
+    function psChipEstado(e) {
+      const s = String(e || '').toLowerCase();
+      if (s === 'embarcado') return 'green';
+      if (s === 'cancelado') return 'red';
+      return '';
+    }
 
     function openReport(fecha) {
       window.open(`./report.html?fecha=${fecha}&api=${encodeURIComponent(API_URL)}`, '_blank');
@@ -4294,17 +4329,45 @@ const ViewLanchas = {
       refreshFechasList();
     }
 
+    // ── Segmented control (ps-tabbar): lozenge deslizante al tab activo ──
+    const tabbarEl    = ref(null);
+    const tabIndStyle = ref({ opacity: 0 });
+    function moveTabInd() {
+      const bar = tabbarEl.value; if (!bar) return;
+      const on = bar.querySelector('.ps-tab.on');
+      if (!on) { tabIndStyle.value = { opacity: 0 }; return; }
+      tabIndStyle.value = {
+        opacity: 1,
+        width:  on.offsetWidth  + 'px',
+        height: on.offsetHeight + 'px',
+        transform: 'translate(' + on.offsetLeft + 'px,' + on.offsetTop + 'px)'
+      };
+    }
+    function switchTab(t) {
+      if (dateTab.value === t) return;
+      dateTab.value = t;
+      try { sndTap(); haptic(8); } catch (e) {}
+    }
+    watch(dateTab, () => nextTick(moveTabInd));
+    watch(() => cache.value[currentFecha.value]?.loaded, () => nextTick(moveTabInd));
+    watch(currentFecha, () => nextTick(moveTabInd));
+    const _onResizeTabInd = () => nextTick(moveTabInd);
+    window.addEventListener('resize', _onResizeTabInd);
+    onUnmounted(() => window.removeEventListener('resize', _onResizeTabInd));
+
     onMounted(() => {
       if (!fechas.value.length) loadFechas();
       loadCatalogos();
       loadContactos();
       refreshInterval = setInterval(silentRefresh, 60000);
+      nextTick(moveTabInd);
     });
     onActivated(() => {
       if (!fechas.value.length && !loadingFechas.value) loadFechas();
       loadCatalogos();
       loadContactos();
       if (!refreshInterval) refreshInterval = setInterval(silentRefresh, 60000);
+      nextTick(moveTabInd);
     });
     onDeactivated(() => {
       clearInterval(refreshInterval);
@@ -4321,7 +4384,7 @@ const ViewLanchas = {
 
     return { fechas, cache, currentFecha, fechaIdx, expandedOps, tabs, dateTab,
              loadingFechas, fetchError, today, navigate, loadFechas,
-             toggleOp, getTab, setTab, boatBorderClass, movEstadoClass, estadoIcon, estadoIconColor,
+             toggleOp, getTab, setTab, boatBorderClass, movEstadoClass, psChipEstado, estadoIcon, estadoIconColor,
              openReport, openTicket, fmtFecha, fmt, totalMovs, allPasesDia, tipoBadgeClass,
              lToast,
              showDatePicker, datesByMonth, fmtMes, pickDate,
@@ -4340,6 +4403,7 @@ const ViewLanchas = {
              openPagoModal, openPagoModalPase, guardarPago,
              openDerivarModal, openConvertirModal, guardarDerivarConvertir,
              confirmarAnularPaseMov,
+             tabbarEl, tabIndStyle, switchTab, moveTabInd,
              hasOps, jumpToFecha, today };
   },
   template: `
@@ -4358,60 +4422,64 @@ const ViewLanchas = {
           Reintentar
         </button>
       </div>
-      <!-- ── Vista carousel (navegación por calendario libre) ── -->
-      <div v-else class="date-view-frame">
+      <!-- ── Vista (navegación por calendario libre) — KIT ps-* ── -->
+      <div v-else>
 
-        <!-- Navegación + KPIs en cabecera -->
-        <div class="date-view-nav">
-          <button class="date-nav-arrow" @click="navigate(-1)">‹</button>
-          <div class="date-view-center">
-            <div class="date-view-label" style="display:inline-flex;align-items:center;gap:7px;cursor:pointer;" @click="showDatePicker=true">
-              <span :title="hasOps(currentFecha) ? 'Con operaciones' : 'Sin operaciones'" :style="{ width:'8px', height:'8px', borderRadius:'50%', flexShrink:0, background: hasOps(currentFecha) ? '#4ade80' : 'rgba(255,255,255,0.22)', boxShadow: hasOps(currentFecha) ? '0 0 6px #4ade80' : 'none', transition:'all .2s' }"></span>
-              <span :style="{ color: currentFecha===today ? 'var(--gold)' : 'inherit' }">{{ fmtFecha(currentFecha) }}{{ currentFecha===today ? ' · hoy' : '' }}</span>
-              <span style="font-size:11px;opacity:0.7;">▼</span>
+        <!-- Cabecera ps-head con navegación de fecha integrada -->
+        <div class="ps-head lan-head">
+          <div class="ps-head-l">
+            <span class="ps-head-ico">⚓</span>
+            <div>
+              <div class="ps-head-title">Lanchas</div>
+              <div class="ps-head-sub">Operaciones · Pases · Caja</div>
             </div>
-            <template v-if="cache[currentFecha]?.loaded">
-              <div class="date-view-kpis-row">
-                <span class="date-kpi-chip" style="color:var(--gold);">{{ cache[currentFecha].kpis?.pax_total || 0 }} PAX</span>
-                <span class="date-kpi-chip" style="color:#4ade80;">S/ {{ fmt(cache[currentFecha].kpis?.ingresos_operador) }}</span>
-                <span v-if="cache[currentFecha].kpis?.deuda_comisionados > 0" class="date-kpi-chip" style="color:#f87171;">-S/ {{ fmt(cache[currentFecha].kpis?.deuda_comisionados) }}</span>
-                <div class="date-semaforo" :class="'sem-'+(cache[currentFecha].kpis?.semaforo||'gris')" style="display:inline-block;vertical-align:middle;"></div>
-              </div>
-              <div style="display:flex;gap:5px;margin-top:9px;justify-content:center;">
-                <button @click="openReport(currentFecha)"
-                  style="flex:1;padding:6px 4px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.3);color:var(--gold);">
-                  📊 Reporte
-                </button>
-                <button @click="openTicket()"
-                  style="flex:1;padding:6px 4px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;background:rgba(92,217,138,0.1);border:1px solid rgba(92,217,138,0.35);color:#5cd98a;">
-                  🎫 Ticket
-                </button>
-                <button @click="openOpModal(null)"
-                  style="flex:1;padding:6px 4px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;background:rgba(201,168,76,0.15);border:1px solid rgba(201,168,76,0.5);color:var(--gold);">
-                  ＋ Op
-                </button>
-              </div>
-            </template>
-            <div v-else-if="cache[currentFecha]?.loading" style="margin-top:6px;"><div class="spin" style="width:14px;height:14px;display:inline-block;"></div></div>
           </div>
-          <button class="date-nav-arrow" @click="navigate(1)">›</button>
+          <div class="lan-datenav">
+            <button class="ps-datearrow" @click="navigate(-1)" aria-label="Día anterior">‹</button>
+            <div class="lan-date-center">
+              <div class="lan-date-label" @click="showDatePicker=true">
+                <span :title="hasOps(currentFecha) ? 'Con operaciones' : 'Sin operaciones'" :style="{ width:'8px', height:'8px', borderRadius:'50%', flexShrink:0, background: hasOps(currentFecha) ? '#4ade80' : 'rgba(255,255,255,0.22)', boxShadow: hasOps(currentFecha) ? '0 0 6px #4ade80' : 'none', transition:'all .2s' }"></span>
+                <span :style="{ color: currentFecha===today ? 'var(--gold)' : 'inherit' }">{{ fmtFecha(currentFecha) }}{{ currentFecha===today ? ' · hoy' : '' }}</span>
+                <span style="font-size:11px;opacity:0.7;">▼</span>
+              </div>
+              <template v-if="cache[currentFecha]?.loaded">
+                <div class="date-view-kpis-row">
+                  <span class="date-kpi-chip" style="color:var(--gold);">{{ cache[currentFecha].kpis?.pax_total || 0 }} PAX</span>
+                  <span class="date-kpi-chip" style="color:#4ade80;">S/ {{ fmt(cache[currentFecha].kpis?.ingresos_operador) }}</span>
+                  <span v-if="cache[currentFecha].kpis?.deuda_comisionados > 0" class="date-kpi-chip" style="color:#f87171;">-S/ {{ fmt(cache[currentFecha].kpis?.deuda_comisionados) }}</span>
+                  <div class="date-semaforo" :class="'sem-'+(cache[currentFecha].kpis?.semaforo||'gris')" style="display:inline-block;vertical-align:middle;"></div>
+                </div>
+              </template>
+              <div v-else-if="cache[currentFecha]?.loading" style="margin-top:6px;"><div class="spin" style="width:14px;height:14px;display:inline-block;"></div></div>
+            </div>
+            <button class="ps-datearrow" @click="navigate(1)" aria-label="Día siguiente">›</button>
+          </div>
         </div>
 
-        <!-- Cuerpo -->
-        <div class="date-view-body">
+        <!-- Acciones del día -->
+        <div v-if="cache[currentFecha]?.loaded" class="lan-actions">
+          <button class="ps-btn" @click="openReport(currentFecha)">📊 Reporte</button>
+          <button class="ps-btn" @click="openTicket()">🎫 Ticket</button>
+          <button class="ps-btn ps-btn-primary" @click="openOpModal(null)">＋ Op</button>
+        </div>
 
-          <!-- Tabs -->
-          <div class="tab-bar">
-            <button class="tab-btn" :class="{active: dateTab==='operaciones'}" @click="dateTab='operaciones'">
-              ⛵ Ops<br><span style="font-size:11px;font-weight:600;opacity:0.8;">{{ (cache[currentFecha]?.operaciones||[]).length }}</span>
-            </button>
-            <button class="tab-btn" :class="{active: dateTab==='pases'}" @click="dateTab='pases'">
-              🔀 Pases<br><span style="font-size:11px;font-weight:600;opacity:0.8;">{{ allPasesDia(currentFecha).length }}</span>
-            </button>
-            <button class="tab-btn" :class="{active: dateTab==='caja'}" @click="dateTab='caja'">
-              💵 Caja<br><span style="font-size:11px;font-weight:600;opacity:0.8;">{{ allCajaDia(currentFecha).length }}</span>
-            </button>
-          </div>
+        <!-- Tabs (segmented control con lozenge deslizante) -->
+        <div class="ps-tabbar" ref="tabbarEl">
+          <span class="ps-tab-ind" :style="tabIndStyle"></span>
+          <button class="ps-tab" :class="{on: dateTab==='operaciones'}" @click="switchTab('operaciones')">
+            ⛵ Ops <span class="lan-tabcount">{{ (cache[currentFecha]?.operaciones||[]).length }}</span>
+          </button>
+          <button class="ps-tab" :class="{on: dateTab==='pases'}" @click="switchTab('pases')">
+            🔀 Pases <span class="lan-tabcount">{{ allPasesDia(currentFecha).length }}</span>
+          </button>
+          <button class="ps-tab" :class="{on: dateTab==='caja'}" @click="switchTab('caja')">
+            💵 Caja <span class="lan-tabcount">{{ allCajaDia(currentFecha).length }}</span>
+          </button>
+        </div>
+
+        <!-- Slot animado (spring al cambiar de tab) -->
+        <div class="ps-slot">
+        <div class="ps-slot-anim" :key="dateTab">
 
           <!-- Loading día -->
           <div v-if="!cache[currentFecha]?.loaded" class="date-loading"><div class="spin"></div></div>
@@ -4428,8 +4496,7 @@ const ViewLanchas = {
                 <!-- Chips resumen por tipo -->
                 <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
                   <span v-for="tipo in [...new Set(allPasesDia(currentFecha).map(p=>p.tipo))]" :key="tipo"
-                    class="tipo-badge" :style="chipStyle(tipo)"
-                    style="padding:3px 10px;font-size:11px;">
+                    class="ps-chip" :style="chipStyle(tipo)">
                     {{ tipo }} ×{{ allPasesDia(currentFecha).filter(p=>p.tipo===tipo).reduce((s,p)=>s+(parseFloat(p.cant_pax)||0),0) }} pax
                   </span>
                 </div>
@@ -4566,7 +4633,7 @@ const ViewLanchas = {
                 <p style="font-size:13px;margin-bottom:14px;">Sin operaciones {{ currentFecha===today ? 'hoy' : 'este día' }}</p>
                 <button v-if="isAdmin" @click="openOpModal(null)" style="display:inline-flex;align-items:center;gap:7px;padding:11px 22px;border-radius:12px;font-size:14px;font-weight:800;cursor:pointer;color:#1e1c18;background:linear-gradient(135deg,var(--gold),#8a6a10);border:none;box-shadow:0 4px 14px rgba(201,168,76,0.35);">＋ Crear operación</button>
               </div>
-              <div v-for="op in (cache[currentFecha].operaciones||[])" :key="op.id" class="boat-card" :class="boatBorderClass(op.estado)">
+              <div v-for="op in (cache[currentFecha].operaciones||[])" :key="op.id" class="boat-card ps-card" :class="boatBorderClass(op.estado)">
                 <div class="boat-header" @click="toggleOp(op.id)">
                   <!-- Fila 1: nombre bote · estado · descuadre | monto · edit · chevron -->
                   <div style="display:flex;align-items:center;gap:7px;margin-bottom:4px;">
@@ -4646,6 +4713,7 @@ const ViewLanchas = {
             </div>
 
           </template>
+        </div>
         </div>
       </div>
 
@@ -4768,7 +4836,7 @@ const ViewLanchas = {
 
               <!-- 4. Meta -->
               <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
-                <span class="estado-chip" :class="movEstadoClass(selectedMov.mov.estado)">{{ selectedMov.mov.estado }}</span>
+                <span class="ps-chip" :class="psChipEstado(selectedMov.mov.estado)">{{ selectedMov.mov.estado }}</span>
                 <span v-if="selectedMov.mov.operador" style="font-size:11px;color:var(--text-muted);">por {{ selectedMov.mov.operador }}</span>
               </div>
 
@@ -4832,7 +4900,7 @@ const ViewLanchas = {
       <!-- Mov Form Modal (crear / editar movimiento) -->
       <teleport to="body">
         <div v-if="movFormModal.show" class="date-picker-overlay" @click.self="movFormModal.show=false">
-          <div style="background:var(--bg2);border:1px solid rgba(201,168,76,0.2);border-radius:18px;width:92%;max-width:400px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,0.85);">
+          <div class="lan-sheet-anim" style="background:var(--bg2);border:1px solid rgba(201,168,76,0.2);border-radius:18px;width:92%;max-width:400px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,0.85);">
 
             <!-- Header -->
             <div style="background:linear-gradient(135deg,rgba(90,23,34,0.9),rgba(22,10,13,0.97));padding:16px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(201,168,76,0.15);">
@@ -5149,7 +5217,7 @@ const ViewLanchas = {
                 <span style="flex:1;padding:8px 6px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:9px;font-size:12px;text-align:center;color:var(--text-muted);">
                   🕐 {{ selectedPase._hora }}
                 </span>
-                <span class="estado-chip" :class="movEstadoClass(selectedPase.estado)"
+                <span class="ps-chip" :class="psChipEstado(selectedPase.estado)"
                   style="flex:1;text-align:center;display:flex;align-items:center;justify-content:center;">{{ selectedPase.estado }}</span>
               </div>
 
@@ -5347,7 +5415,7 @@ const ViewLanchas = {
       <!-- Op CRUD Modal -->
       <teleport to="body">
         <div v-if="opModal.show" class="date-picker-overlay" @click.self="opModal.show=false">
-          <div style="background:var(--bg2);border:1px solid rgba(201,168,76,0.2);border-radius:18px;width:92%;max-width:400px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,0.85);">
+          <div class="lan-sheet-anim" style="background:var(--bg2);border:1px solid rgba(201,168,76,0.2);border-radius:18px;width:92%;max-width:400px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,0.85);">
 
             <!-- Header -->
             <div style="background:linear-gradient(135deg,rgba(90,23,34,0.9),rgba(22,10,13,0.97));padding:16px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(201,168,76,0.15);">
@@ -11629,7 +11697,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.39.0';
+const APP_VERSION = '1.40.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
