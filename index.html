@@ -6496,6 +6496,11 @@ window._facZarpeLightboxClose = function () {
 // ═══════════════════════════════════════════════════════════════════════════
 // Identidad del emisor para la representación impresa. Edita RUC cuando lo tengas.
 const _FAC_EMISOR = { marca: 'PARACAS SIGHTS & TOURS', razon: 'PARACAS SIGHTS & TOURS AGENCIA DE VIAJES Y TURISMO S.A.C.', ruc: '20494562716', direccion: 'Gral. José de San Martín Mz. E Lt. 8 - A.H. HH.UU. de Oficio, Paracas - Pisco - Ica', actividad: '7912 - Actividades de operadores turísticos', web: 'paracas' };
+// Detracción (SPOT) — parametrizable. Aplica solo a FACTURA (tipo 1) cuyo TOTAL ≥ umbral.
+// La `cuenta` va vacía por ahora (el dueño la completa luego → placeholder "(pendiente de configurar)").
+const _FAC_DETRACCION = { rate: 0.12, umbral: 700, codigo: '037', concepto: 'Demás servicios gravados', banco: 'Banco de la Nación', cuenta: '' };
+// Unidad de medida por defecto para los ítems (SUNAT exige unidad; estos son servicios → ZZ).
+const _FAC_UNIDAD = 'ZZ';
 // Carga jsPDF de forma perezosa (no bloquea el arranque del panel).
 let _facJsPDFPromise = null;
 function _facEnsureJsPDF() {
@@ -6730,7 +6735,57 @@ function _facPdfTotales(c) {
   if (isNaN(igv)) igv = 0;
   const inafecta = noGrav > 0 ? noGrav : ((grav <= 0 && igv === 0) ? total : 0);
   const cero = grav <= 0 && igv === 0;   // documento sin porción gravada (export/exonerado/inafecto)
-  return { items, total, grav, igv, inafecta, noGrav, cero, moneda: (c && c.moneda) || 'PEN' };
+  // Buckets individuales por tipo de operación (para el desglose fiel del CPE).
+  const exonerada = Number(c && c.total_exonerada) || 0;
+  const exportacion = Number(c && c.total_exportacion) || 0;
+  const inafectaOp = Number(c && c.total_inafecta) || 0;
+  return { items, total, grav, igv, inafecta, noGrav, cero, exonerada, exportacion, inafectaOp, moneda: (c && c.moneda) || 'PEN' };
+}
+// Desglose por tipo de operación del CPE → filas ordenadas {lbl, val}. Gravada + IGV + TOTAL siempre;
+// exonerada/inafecta/exportación solo si su monto es >0. Cierra el desglose para export/exonerado/mixto.
+function _facTotRows(T) {
+  const rows = [{ lbl: 'Op. Gravada', val: T.grav }];
+  if (T.exonerada > 0) rows.push({ lbl: 'Op. Exonerada', val: T.exonerada });
+  // Inafecta: usa el bucket explícito; si el doc es "cero" legacy sin buckets, cae al total.
+  let inaf = T.inafectaOp;
+  if (T.exonerada <= 0 && T.exportacion <= 0 && inaf <= 0 && T.cero) inaf = T.total;
+  if (inaf > 0) rows.push({ lbl: 'Op. Inafecta', val: inaf });
+  if (T.exportacion > 0) rows.push({ lbl: 'Op. Exportación', val: T.exportacion });
+  rows.push({ lbl: T.igv > 0 ? 'IGV (18%)' : 'IGV (0%)', val: T.igv });
+  return rows;
+}
+// Forma de pago del CPE: turismo es al CONTADO por defecto; añade el medio si el comprobante lo trae.
+function _facFormaPago(c) {
+  var s = 'CONTADO';
+  var m = String((c && c.medio_pago) || '').trim();
+  if (m) s += ' · ' + m;
+  return s;
+}
+// Datos de detracción (SPOT) del comprobante → null si no aplica (boleta / total < umbral).
+function _facDetraccion(c, T) {
+  if (Number(c && c.tipo) !== 1) return null;                 // solo FACTURA
+  var total = Number(T && T.total) || 0;
+  if (total < _FAC_DETRACCION.umbral) return null;
+  return {
+    rate: _FAC_DETRACCION.rate,
+    monto: Math.round(total * _FAC_DETRACCION.rate * 100) / 100,
+    codigo: _FAC_DETRACCION.codigo, concepto: _FAC_DETRACCION.concepto,
+    banco: _FAC_DETRACCION.banco, cuenta: String(_FAC_DETRACCION.cuenta || '').trim()
+  };
+}
+// Texto legal de la detracción (una sola cadena, para reflow con splitTextToSize).
+function _facDetraccionTexto(d) {
+  var pct = (d.rate * 100).toLocaleString('es-PE', { maximumFractionDigits: 2 });
+  return 'Operación sujeta al Sistema de Pago de Obligaciones Tributarias (SPOT) — Detracción ' + pct + '% : S/ ' +
+    _facMoney(d.monto) + ' — Cód. ' + d.codigo + ' (' + d.concepto + ') — Cta. ' + d.banco + ' N° ' + (d.cuenta || '(pendiente de configurar)');
+}
+// Bloque legal (HTML) de la detracción para el preview. '' si no aplica. compact=true → 80mm.
+function _facDetraccionHTML(c, T, compact) {
+  var d = _facDetraccion(c, T); if (!d) return '';
+  var pad = compact ? '5px 8px' : '7px 11px';
+  var fs = compact ? '8px' : '9px';
+  return '<div style="margin:' + (compact ? '5px 0' : '9px 0') + ';padding:' + pad + ';border:1px solid #7B2030;background:#FBF0EE;border-radius:6px;line-height:1.35">' +
+    '<div style="font-weight:900;color:#7B2030;font-size:' + fs + ';letter-spacing:.01em">' + _facEsc(_facDetraccionTexto(d)) + '</div></div>';
 }
 const _facMoney = v => (Number(v) || 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 function _facNumFmt(c) { return (c.serie || '') + '-' + String(c.numero || 0).padStart(8, '0'); }
@@ -6744,9 +6799,6 @@ function _facPdfPreviewHTML(c, fmt) {
   const docCli = _facEsc(String(c.cliente_doc || '').trim() || '—');
   const nomCli = _facEsc(c.cliente_nombre || 'Cliente varios');
   const rucLine = _FAC_EMISOR.ruc ? ('R.U.C. ' + _facEsc(_FAC_EMISOR.ruc)) : 'R.U.C. —';
-  const igvLbl = T.cero ? 'IGV (0%)' : 'IGV (18%)';
-  const opLbl = T.cero ? 'Op. Export / Inafecta' : 'Op. Gravada';
-  const opVal = T.cero ? T.inafecta : T.grav;
   const hashFull = String(c.hash || c.codigo_barras || '');
   const hash = _facEsc(hashFull.slice(0, 40));
   const oficial = /^https?:\/\//.test(String(c.enlace_pdf || ''));
@@ -6759,11 +6811,19 @@ function _facPdfPreviewHTML(c, fmt) {
     ? `<img src="${qrUrl}" alt="QR" style="width:${size}px;height:${size}px;image-rendering:pixelated;border-radius:4px">`
     : `<div style="width:${size}px;height:${size}px;border:1px dashed #bbb;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#999">QR</div>`;
   const hashTxt = hash ? `<div style="font-size:7px;color:#777;word-break:break-all;line-height:1.25">Hash: ${hash}</div>` : '';
+  // Campos SUNAT añadidos: forma de pago, tipo de operación, vendedor, desglose por tipo de op. y detracción.
+  const formaPago = _facEsc(_facFormaPago(c));
+  const vendedor = _facEsc(String(c.creado_por || '').trim());
+  const vendedorLine = vendedor ? `Emitido por: ${vendedor}` : '';
+  const totRowsHtml = _facTotRows(T).map(r => `<div class="fpdf-tot-row"><span>${_facEsc(r.lbl)}</span><b>S/ ${_facMoney(r.val)}</b></div>`).join('');
+  const detrHtmlA4 = _facDetraccionHTML(c, T, false);
+  const detrHtml80 = _facDetraccionHTML(c, T, true);
 
   if (esA4) {
     // ── A4 HORIZONTAL (apaisado) — fiel al PDF: emisor izq, recuadro doc der, tabla ancha + totales a la derecha ──
     const rows = T.items.map(i => `<tr>
         <td>${_facEsc(i.descripcion)}</td>
+        <td class="num">${_FAC_UNIDAD}</td>
         <td class="num">${i.cantidad}</td>
         <td class="num">${_facMoney(i.precio)}</td>
         <td class="num">${_facMoney(i.cantidad * i.precio)}</td>
@@ -6786,32 +6846,33 @@ function _facPdfPreviewHTML(c, fmt) {
       </div>
       <div class="fpdf-hr-solid"></div>
       <div class="fpdf-a4-meta">
-        <div class="fpdf-a4-metacol"><div><span class="lbl">CLIENTE</span> ${nomCli}</div><div><span class="lbl">DOCUMENTO</span> ${docCli}</div></div>
-        <div class="fpdf-a4-metacol r"><div><span class="lbl">FECHA</span> ${fecha || '—'}</div><div><span class="lbl">MONEDA</span> ${_facEsc(c.moneda || 'PEN')}</div></div>
+        <div class="fpdf-a4-metacol"><div><span class="lbl">CLIENTE</span> ${nomCli}</div><div><span class="lbl">DOCUMENTO</span> ${docCli}</div><div><span class="lbl">FORMA DE PAGO</span> ${formaPago}</div></div>
+        <div class="fpdf-a4-metacol r"><div><span class="lbl">FECHA</span> ${fecha || '—'}</div><div><span class="lbl">MONEDA</span> ${_facEsc(c.moneda || 'PEN')}</div><div><span class="lbl">OPERACIÓN</span> Venta interna</div></div>
       </div>
       ${_facNCLegalHTML(c)}
       <div class="fpdf-a4-body">
         <table class="fpdf-tbl fpdf-a4-tbl">
-          <thead><tr><th>Descripción</th><th class="num">Cant</th><th class="num">P. Unit</th><th class="num">Importe</th></tr></thead>
+          <thead><tr><th>Descripción</th><th class="num">U.M.</th><th class="num">Cant</th><th class="num">P. Unit</th><th class="num">Importe</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
         <div class="fpdf-a4-tot">
-          <div class="fpdf-tot-row"><span>${opLbl}</span><b>S/ ${_facMoney(opVal)}</b></div>
-          <div class="fpdf-tot-row"><span>${igvLbl}</span><b>S/ ${_facMoney(T.igv)}</b></div>
+          ${totRowsHtml}
           <div class="fpdf-tot-row fpdf-tot-grand"><span>TOTAL</span><span>S/ ${_facMoney(T.total)}</span></div>
         </div>
       </div>
       <div style="margin-top:8px;font-size:9px;font-weight:700;color:#333;letter-spacing:.01em">${letras}</div>
+      ${detrHtmlA4}
       <div style="display:flex;align-items:flex-end;gap:12px;margin-top:12px;border-top:1px solid #ddd;padding-top:7px">
         <div style="flex:0 0 auto;text-align:center">${qrImg(74)}${hashTxt}</div>
-        <div class="fpdf-foot" style="flex:1;text-align:left;align-self:center">${footHtml}</div>
+        <div class="fpdf-foot" style="flex:1;text-align:left;align-self:center">${footHtml}${vendedorLine ? `<br>${vendedorLine}` : ''}</div>
       </div>
     </div>`;
   }
 
-  // ── 80mm (ticket térmico, vertical — sin cambios) ──
+  // ── 80mm (ticket térmico, vertical) ──
   const rows = T.items.map(i => `<tr>
       <td>${_facEsc(i.descripcion)}</td>
+      <td class="num">${_FAC_UNIDAD}</td>
       <td class="num">${i.cantidad}</td>
       <td class="num">${_facMoney(i.cantidad * i.precio)}</td>
     </tr>`).join('');
@@ -6834,23 +6895,27 @@ function _facPdfPreviewHTML(c, fmt) {
       <div><b>Fecha:</b> ${fecha || '—'}</div>
       <div><b>Moneda:</b> ${_facEsc(c.moneda || 'PEN')}</div>
     </div>
+    <div style="display:flex;justify-content:space-between;gap:8px;font-size:9.5px;margin-top:2px">
+      <div><b>Pago:</b> ${formaPago}</div>
+      <div><b>Op.:</b> Venta interna</div>
+    </div>
     <div style="font-size:10px;margin-top:4px"><b>Cliente:</b> ${nomCli}<br><b>Doc:</b> ${docCli}</div>
     ${_facNCLegalHTML(c, true)}
     <div class="fpdf-hr"></div>
     <table class="fpdf-tbl">
-      <thead><tr><th>Descripción</th><th class="num">Cant</th><th class="num">Importe</th></tr></thead>
+      <thead><tr><th>Descripción</th><th class="num">U.M.</th><th class="num">Cant</th><th class="num">Importe</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
     <div class="fpdf-hr"></div>
     <div style="font-size:11px">
-      <div class="fpdf-tot-row"><span>${opLbl}</span><b>S/ ${_facMoney(opVal)}</b></div>
-      <div class="fpdf-tot-row"><span>${igvLbl}</span><b>S/ ${_facMoney(T.igv)}</b></div>
+      ${totRowsHtml}
       <div class="fpdf-tot-row fpdf-tot-grand"><span>TOTAL</span><span>S/ ${_facMoney(T.total)}</span></div>
     </div>
     <div style="font-size:8.5px;font-weight:700;color:#333;margin-top:5px;text-align:center;line-height:1.3">${letras}</div>
+    ${detrHtml80}
     <div class="fpdf-hr"></div>
     <div style="text-align:center;margin:2px 0 4px">${qrImg(90)}${hashTxt}</div>
-    <div class="fpdf-foot">${footHtml}</div>
+    <div class="fpdf-foot">${footHtml}${vendedorLine ? `<br>${vendedorLine}` : ''}</div>
   </div>`;
 }
 
@@ -6907,10 +6972,15 @@ async function _facGenPDF(c, fmtOverride) {
     doc.setTextColor(...ink); doc.setFont('helvetica', 'normal'); doc.text(fecha || '—', bx + 24, hy);
     doc.setTextColor(...gray); doc.setFont('helvetica', 'bold'); doc.text('MONEDA', bx, hy + 6.5);
     doc.setTextColor(...ink); doc.setFont('helvetica', 'normal'); doc.text(String(c.moneda || 'PEN'), bx + 24, hy + 6.5);
+    // Forma de pago (izq) + tipo de operación (der) — campos SUNAT
+    doc.setTextColor(...gray); doc.setFont('helvetica', 'bold'); doc.text('FORMA DE PAGO', M, hy + 13);
+    doc.setTextColor(...ink); doc.setFont('helvetica', 'normal'); doc.text(_facFormaPago(c), M + 34, hy + 13);
+    doc.setTextColor(...gray); doc.setFont('helvetica', 'bold'); doc.text('OPERACIÓN', bx, hy + 13);
+    doc.setTextColor(...ink); doc.setFont('helvetica', 'normal'); doc.text('Venta interna', bx + 24, hy + 13);
     // ── Bloque legal Nota de Crédito (SUNAT): a qué doc modifica + motivo ──
     let ncExtra = 0;
     if (ncL) {
-      const ly = hy + 13;
+      const ly = hy + 20;
       doc.setFillColor(250, 244, 224); doc.setDrawColor(...guinda); doc.setLineWidth(0.4);
       doc.roundedRect(M, ly, 194 - M, 13, 1.8, 1.8, 'FD');
       doc.setTextColor(...guinda); doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
@@ -6921,31 +6991,34 @@ async function _facGenPDF(c, fmtOverride) {
       ncExtra = 16;
     }
     // ── Zona de cuerpo: tabla de ítems (izq, ancha) + bloque de totales (der) ──
-    const topY = hy + 15 + ncExtra;
-    const tblR = 194, colCant = 132, colPU = 162, colImp = tblR - 2;   // tabla ocupa M..tblR
+    const topY = hy + 22 + ncExtra;
+    const tblR = 194, colUM = 120, colCant = 142, colPU = 168, colImp = tblR - 2;   // tabla ocupa M..tblR
     // Cabecera tabla
     doc.setFillColor(...guinda); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
     doc.rect(M, topY, tblR - M, 8, 'F');
     let ry = topY + 5.4;
     doc.text('DESCRIPCIÓN', M + 3, ry);
+    doc.text('U.M.', colUM, ry, { align: 'right' });
     doc.text('CANT', colCant, ry, { align: 'right' });
     doc.text('P. UNIT', colPU, ry, { align: 'right' });
     doc.text('IMPORTE', colImp, ry, { align: 'right' });
     ry = topY + 14;
     doc.setTextColor(...ink); doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
     T.items.forEach(i => {
-      const lines = doc.splitTextToSize(String(i.descripcion), colCant - M - 12);
+      const lines = doc.splitTextToSize(String(i.descripcion), colUM - M - 14);
       doc.text(lines, M + 3, ry);
+      doc.text(_FAC_UNIDAD, colUM, ry, { align: 'right' });
       doc.text(String(i.cantidad), colCant, ry, { align: 'right' });
       doc.text(_facMoney(i.precio), colPU, ry, { align: 'right' });
       doc.text(_facMoney(i.cantidad * i.precio), colImp, ry, { align: 'right' });
       ry += Math.max(6.5, lines.length * 5);
       doc.setDrawColor(232, 232, 232); doc.setLineWidth(0.2); doc.line(M, ry - 3.8, tblR, ry - 3.8);
     });
-    // Bloque de totales (derecha)
-    const gx = 205, gw = W - M - gx;
+    // Bloque de totales (derecha) — desglose por tipo de operación (alto dinámico)
+    const totR = _facTotRows(T);
+    const gx = 205, gw = W - M - gx, boxH = totR.length * 7 + 22;
     doc.setFillColor(250, 246, 239); doc.setDrawColor(...guinda); doc.setLineWidth(0.5);
-    doc.roundedRect(gx, topY, gw, 40, 2.5, 2.5, 'FD');
+    doc.roundedRect(gx, topY, gw, boxH, 2.5, 2.5, 'FD');
     const glx = gx + 6, grx = gx + gw - 6; let gy = topY + 9;
     const gRow = (lbl, val, big) => {
       doc.setFont('helvetica', big ? 'bold' : 'normal'); doc.setFontSize(big ? 13 : 9.5);
@@ -6953,14 +7026,24 @@ async function _facGenPDF(c, fmtOverride) {
       doc.text(lbl, glx, gy); doc.text('S/ ' + _facMoney(val), grx, gy, { align: 'right' });
       gy += big ? 10 : 7;
     };
-    gRow(T.cero ? 'Op. Export/Inaf.' : 'Op. Gravada', T.cero ? T.inafecta : T.grav, false);
-    gRow(T.cero ? 'IGV (0%)' : 'IGV (18%)', T.igv, false);
+    totR.forEach(r => gRow(r.lbl, r.val, false));
     doc.setDrawColor(...guinda); doc.setLineWidth(0.5); doc.line(glx, gy - 3.5, grx, gy - 3.5); gy += 1.5;
     gRow('TOTAL', T.total, true);
     // Monto en letras (bajo la tabla de ítems)
-    let letY = Math.max(ry, topY + 46) + 4;
+    let letY = Math.max(ry, topY + boxH + 6) + 4;
     doc.setTextColor(...ink); doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
     doc.splitTextToSize(letras, tblR - M).forEach(ln => { doc.text(ln, M, letY); letY += 4; });
+    // ── Detracción (SPOT) — bloque legal, solo FACTURA ≥ umbral ──
+    const detr = _facDetraccion(c, T);
+    if (detr) {
+      const dLines = doc.splitTextToSize(_facDetraccionTexto(detr), W - 2 * M - 8);
+      const dh = dLines.length * 4 + 4.5;
+      doc.setFillColor(251, 240, 238); doc.setDrawColor(...guinda); doc.setLineWidth(0.4);
+      doc.roundedRect(M, letY, W - 2 * M, dh, 1.8, 1.8, 'FD');
+      doc.setTextColor(...guinda); doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5);
+      let dy = letY + 4.6; dLines.forEach(ln => { doc.text(ln, M + 4, dy); dy += 4; });
+      letY += dh + 3;
+    }
     // Pie SUNAT + QR + hash (parte inferior de la página)
     const footY = Math.min(letY + 8, H - 26);
     doc.setDrawColor(220, 220, 220); doc.setLineWidth(0.3); doc.line(M, footY - 6, W - M, footY - 6);
@@ -6970,14 +7053,18 @@ async function _facGenPDF(c, fmtOverride) {
       try { doc.addImage(qrUrl, 'PNG', M, footY - 2, 22, 22); footTextX = M + 27; } catch (e) {}
     }
     doc.setTextColor(...gray); doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
-    const foot = doc.splitTextToSize('Representación impresa de la ' + _facTipoShort(c) + ' ELECTRÓNICA. Emitida mediante SUNAT · NubeFact.' + (hashTxt ? '  ' + hashTxt : ''), W - M - footTextX);
+    const vendA4 = String(c.creado_por || '').trim();
+    const foot = doc.splitTextToSize('Representación impresa de la ' + _facTipoShort(c) + ' ELECTRÓNICA. Emitida mediante SUNAT · NubeFact.' + (vendA4 ? '  ·  Emitido por: ' + vendA4 : '') + (hashTxt ? '  ' + hashTxt : ''), W - M - footTextX);
     doc.text(foot, footTextX, footY + 4);
     return doc;
   }
 
   // ── 80mm (ticket térmico, alto dinámico) ──
   const w = 80, mm = 5, cw = w - 2 * mm;
-  const est = 92 + T.items.length * 10 + 44 + 40 + (ncL ? 16 : 0);   // alto estimado (incluye logo + razón social + letras + QR 22mm + margen wrap + bloque NC)
+  const detr = _facDetraccion(c, T);                                 // detracción (SPOT) si aplica
+  const totR = _facTotRows(T);                                       // desglose por tipo de operación
+  // alto estimado: logo + razón + letras + QR 22mm + wrap + NC + forma pago/operación + buckets extra + detracción + vendedor
+  const est = 92 + T.items.length * 10 + 44 + 40 + (ncL ? 16 : 0) + 12 + (totR.length - 2) * 4 + (detr ? 24 : 0);
   const doc = new jsPDF({ unit: 'mm', format: [w, est] });
   let y = 8;
   const center = (txt, size, bold, color) => { doc.setFont('helvetica', bold ? 'bold' : 'normal'); doc.setFontSize(size); doc.setTextColor(...(color || ink)); doc.text(txt, w / 2, y, { align: 'center', maxWidth: cw }); };
@@ -7000,6 +7087,11 @@ async function _facGenPDF(c, fmtOverride) {
   const nomLines = doc.splitTextToSize('Cliente: ' + String(c.cliente_nombre || 'Cliente varios'), cw);
   doc.text(nomLines, mm, y); y += nomLines.length * 3.6;
   doc.text('Doc: ' + String(c.cliente_doc || '—'), mm, y); y += 4;
+  // Forma de pago + tipo de operación (campos SUNAT)
+  doc.setFontSize(7.5);
+  doc.splitTextToSize('Pago: ' + _facFormaPago(c), cw).forEach(ln => { doc.text(ln, mm, y); y += 3.3; });
+  doc.text('Operación: Venta interna', mm, y); y += 4;
+  doc.setFontSize(8);
   // ── Bloque legal Nota de Crédito (SUNAT) ──
   if (ncL) {
     doc.setDrawColor(...guinda); doc.setLineWidth(0.3); doc.setFillColor(250, 244, 224);
@@ -7019,16 +7111,26 @@ async function _facGenPDF(c, fmtOverride) {
     doc.text(lines, mm, y);
     doc.text(_facMoney(i.cantidad * i.precio), w - mm, y, { align: 'right' });
     y += Math.max(3.6, lines.length * 3.4);
-    doc.setTextColor(...gray); doc.setFontSize(7); doc.text(i.cantidad + ' x ' + _facMoney(i.precio), mm, y); doc.setTextColor(...ink); doc.setFontSize(8); y += 3.8;
+    doc.setTextColor(...gray); doc.setFontSize(7); doc.text(_FAC_UNIDAD + ' · ' + i.cantidad + ' x ' + _facMoney(i.precio), mm, y); doc.setTextColor(...ink); doc.setFontSize(8); y += 3.8;
   });
   doc.setDrawColor(...guinda); doc.setLineWidth(0.4); doc.line(mm, y, w - mm, y); y += 4.2;
   const trow = (lbl, val, bold, big) => { doc.setFont('helvetica', bold ? 'bold' : 'normal'); doc.setFontSize(big ? 11 : 8); doc.setTextColor(...(big ? guinda : ink)); doc.text(lbl, mm, y); doc.text('S/ ' + _facMoney(val), w - mm, y, { align: 'right' }); y += big ? 6 : 3.8; };
-  trow(T.cero ? 'Op. Export/Inaf.' : 'Op. Gravada', T.cero ? T.inafecta : T.grav, false, false);
-  trow(T.cero ? 'IGV (0%)' : 'IGV (18%)', T.igv, false, false);
+  totR.forEach(r => trow(r.lbl, r.val, false, false));
   y += 1; trow('TOTAL', T.total, true, true);
   // Monto en letras
   y += 2; doc.setTextColor(...ink); doc.setFont('helvetica', 'bold'); doc.setFontSize(7);
   doc.splitTextToSize(letras, cw).forEach(ln => { doc.text(ln, w / 2, y, { align: 'center' }); y += 3; });
+  // ── Detracción (SPOT) — bloque legal, solo FACTURA ≥ umbral ──
+  if (detr) {
+    y += 1.5;
+    const dLines = doc.splitTextToSize(_facDetraccionTexto(detr), cw - 3);
+    const dh = dLines.length * 2.7 + 3;
+    doc.setDrawColor(...guinda); doc.setLineWidth(0.3); doc.setFillColor(251, 240, 238);
+    doc.roundedRect(mm, y, cw, dh, 1.2, 1.2, 'FD');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(...guinda);
+    let dy = y + 3; dLines.forEach(ln => { doc.text(ln, mm + 1.5, dy); dy += 2.7; });
+    y += dh + 2;
+  }
   // QR (estándar SUNAT) centrado
   if (qrUrl) {
     y += 2;
@@ -7036,7 +7138,8 @@ async function _facGenPDF(c, fmtOverride) {
     if (hashTxt) { doc.setTextColor(...gray); doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.splitTextToSize(hashTxt, cw).forEach(ln => { doc.text(ln, w / 2, y, { align: 'center' }); y += 2.4; }); }
   }
   y += 2; doc.setTextColor(...gray); doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5);
-  const foot = doc.splitTextToSize('Representación impresa de la ' + _facTipoShort(c) + ' ELECTRÓNICA. SUNAT · NubeFact.', cw);
+  const vend80 = String(c.creado_por || '').trim();
+  const foot = doc.splitTextToSize('Representación impresa de la ' + _facTipoShort(c) + ' ELECTRÓNICA. SUNAT · NubeFact.' + (vend80 ? ' Emitido por: ' + vend80 : ''), cw);
   doc.text(foot, w / 2, y, { align: 'center' });
   return doc;
 }
@@ -10357,7 +10460,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.30.0';
+const APP_VERSION = '1.31.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
