@@ -1282,6 +1282,87 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 }
 @media(max-width:600px){ .fac-emit-box { max-height:94vh; border-radius:22px; } .fac-emit-box-inner { padding:4px 16px 20px; } }
 
+/* ── Buscador de cliente UNIFICADO (barra inteligente estilo POS · iOS glass) ── */
+.fac-cli-wrap { margin:2px 0 4px; }
+.fac-cli-field { position:relative; display:flex; align-items:center; }
+.fac-cli-search-ico { position:absolute; left:13px; font-size:13px; opacity:.55; pointer-events:none; }
+.fac-cli-input {
+  width:100%; box-sizing:border-box; padding:13px 84px 13px 36px;
+  border-radius:14px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.05);
+  color:var(--text); font-size:14px; font-weight:600; outline:none; -webkit-appearance:none;
+  transition:border-color .18s, background .18s, box-shadow .18s;
+}
+.fac-cli-input::placeholder { color:var(--text-muted); font-weight:500; }
+.fac-cli-input:focus { border-color:var(--gold); background:rgba(201,168,76,.06); box-shadow:0 0 0 3px rgba(201,168,76,.14); }
+.fac-cli-actions { position:absolute; right:8px; display:flex; align-items:center; gap:6px; }
+.fac-cli-btn {
+  width:30px; height:30px; border-radius:50%; border:1px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.06); cursor:pointer; display:flex; align-items:center; justify-content:center;
+  font-size:14px; line-height:1; color:var(--text-muted); -webkit-tap-highlight-color:transparent;
+  transition:transform .14s cubic-bezier(.34,1.56,.64,1), background .14s, color .14s;
+}
+.fac-cli-btn:active { transform:scale(.86); }
+.fac-cli-btn.lupa { color:var(--gold); border-color:rgba(201,168,76,.4); background:rgba(201,168,76,.14); animation:facCliPop .3s cubic-bezier(.34,1.56,.64,1) both; }
+.fac-cli-btn.x { font-size:19px; }
+.fac-cli-btn.x:active { background:rgba(248,113,113,.2); color:#f87171; }
+.fac-cli-spin { width:13px; height:13px; display:inline-block; vertical-align:middle; }
+@keyframes facCliPop { from{ transform:scale(0) rotate(-40deg); opacity:0; } to{ transform:none; opacity:1; } }
+
+.fac-cli-drop:empty { display:none; }
+.fac-cli-drop {
+  margin-top:6px; border-radius:14px; overflow:hidden; border:1px solid rgba(255,255,255,.12);
+  background:rgba(30,15,21,.74); -webkit-backdrop-filter:blur(22px) saturate(160%); backdrop-filter:blur(22px) saturate(160%);
+  box-shadow:0 14px 36px rgba(0,0,0,.44); animation:facCliDrop .22s cubic-bezier(.34,1.4,.64,1) both;
+}
+@keyframes facCliDrop { from{ transform:translateY(-6px); opacity:0; } to{ transform:none; opacity:1; } }
+.fac-cli-drop-empty { padding:13px 14px; font-size:12px; color:var(--text-muted); text-align:center; }
+.fac-cli-row {
+  width:100%; box-sizing:border-box; display:flex; align-items:center; gap:11px; padding:11px 13px;
+  background:none; border:none; border-bottom:1px solid rgba(255,255,255,.06); cursor:pointer; text-align:left;
+  -webkit-tap-highlight-color:transparent; transition:background .14s, transform .1s;
+}
+.fac-cli-row:last-child { border-bottom:none; }
+.fac-cli-row:hover { background:rgba(255,255,255,.05); }
+.fac-cli-row:active { transform:scale(.985); background:rgba(201,168,76,.09); }
+.fac-cli-row-ico { font-size:17px; flex:0 0 auto; }
+.fac-cli-row-main { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.fac-cli-row-n { font-size:13.5px; font-weight:700; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fac-cli-row-d { font-size:11px; color:var(--text-muted); display:flex; align-items:center; gap:6px; }
+.fac-cli-tag { font-size:9.5px; font-weight:800; letter-spacing:.03em; padding:1px 6px; border-radius:999px; background:rgba(255,255,255,.09); color:var(--text-muted); white-space:nowrap; }
+.fac-cli-tag.ruc { background:rgba(201,168,76,.2); color:var(--gold); }
+
+.fac-cli-chip {
+  display:flex; align-items:center; gap:12px; padding:12px 12px 12px 14px; border-radius:16px;
+  border:1px solid rgba(52,199,89,.42); background:linear-gradient(180deg, rgba(52,199,89,.1), rgba(52,199,89,.035));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.1); animation:facCliDrop .26s cubic-bezier(.34,1.5,.64,1) both;
+}
+.fac-cli-chip-ico { font-size:21px; flex:0 0 auto; }
+.fac-cli-chip-main { flex:1; min-width:0; }
+.fac-cli-chip-t { display:flex; }
+.fac-cli-chip-n { font-size:14px; font-weight:800; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:3px; }
+.fac-cli-chip-dir { font-size:11px; color:var(--text-muted); margin-top:3px; line-height:1.35; }
+.fac-cli-x {
+  width:32px; height:32px; flex:0 0 auto; border-radius:50%; border:1px solid rgba(255,255,255,.14);
+  background:rgba(255,255,255,.07); color:var(--text-muted); font-size:20px; line-height:1; cursor:pointer;
+  -webkit-tap-highlight-color:transparent; transition:transform .14s cubic-bezier(.34,1.56,.64,1), background .14s, color .14s;
+}
+.fac-cli-x:active { transform:scale(.86); background:rgba(248,113,113,.2); color:#f87171; }
+
+.fac-cli-manual { margin-top:8px; padding:13px; border-radius:14px; border:1px dashed rgba(201,168,76,.42); background:rgba(201,168,76,.05); animation:facCliDrop .22s cubic-bezier(.34,1.4,.64,1) both; }
+.fac-cli-manual-h { font-size:11px; color:var(--gold); font-weight:700; margin-bottom:9px; }
+.fac-cli-minput { width:100%; box-sizing:border-box; padding:10px 12px; margin-bottom:8px; border-radius:11px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.05); color:var(--text); font-size:13.5px; outline:none; -webkit-appearance:none; transition:border-color .16s; }
+.fac-cli-minput::placeholder { color:var(--text-muted); }
+.fac-cli-minput:focus { border-color:var(--gold); }
+.fac-cli-seg-wrap { display:flex; gap:6px; margin-bottom:10px; }
+.fac-cli-seg { flex:1; padding:9px 4px; border-radius:10px; font-size:12px; font-weight:700; cursor:pointer; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.04); color:var(--text-muted); -webkit-tap-highlight-color:transparent; transition:border-color .16s, background .16s, color .16s, transform .14s; }
+.fac-cli-seg.on { border-color:var(--gold); background:rgba(201,168,76,.16); color:var(--gold); }
+.fac-cli-seg:active { transform:scale(.95); }
+.fac-cli-manual-save { width:100%; padding:11px; border-radius:12px; border:none; cursor:pointer; font-size:13px; font-weight:800; background:linear-gradient(180deg,var(--gold),#b8963f); color:#2a1206; -webkit-tap-highlight-color:transparent; transition:transform .14s; }
+.fac-cli-manual-save:active { transform:scale(.97); }
+@media (prefers-reduced-motion: reduce){
+  .fac-cli-btn, .fac-cli-drop, .fac-cli-chip, .fac-cli-manual, .fac-cli-row, .fac-cli-x, .fac-cli-seg, .fac-cli-manual-save { animation:none !important; transition:none !important; }
+}
+
 /* ── Alerta flotante de anulaciones = BOTÓN FLOTANTE tipo SIRENA (FAB fijo) ── */
 .fac-anul-alert-wrap:empty { display:none; }
 .fac-anul-fab {
@@ -2526,6 +2607,7 @@ const PS_GET = {
   get_facturacion_muelle: () => _psRpc('get_facturacion_muelle'),
   listar_comprobantes:    p => _psRpc('listar_comprobantes', { p_desde: p.desde || null, p_hasta: p.hasta || null }),
   buscar_cliente:         p => _psRpc('buscar_cliente', { p_doc_tipo: p.doc_tipo, p_doc: p.doc }),
+  buscar_clientes_like:   p => _psRpc('buscar_clientes_like', { p_q: p.q }),
   get_facturacion_config: () => _psRpc('get_facturacion_config'),
   consultar_documento:    p => _psRpc('consultar_documento', { p_numero: p.numero, p_tipo: p.tipo || null }),
   solicitudes_anulacion:  () => _psRpc('listar_solicitudes_anulacion'),
@@ -2568,6 +2650,7 @@ const PS_POST = {
   set_facturacion_config: b => _psRpc('admin_set_facturacion_config', { p_ruta: b.ruta || '', p_token: b.token || '', p_lookup_url: b.lookup_url || '', p_lookup_token: b.lookup_token || '', p_modo: b.modo || '', p_activo: typeof b.activo === 'boolean' ? b.activo : null }).then(() => ({ ok: true })),
   anular_comprobante: b => _psRpc('anular_comprobante', { p_id: b.id, p_motivo: b.motivo || 'Anulación' }),
   actualizar_contacto_cliente: b => _psRpc('actualizar_contacto_cliente', { p: { doc_tipo: b.doc_tipo, doc_numero: b.doc_numero, email: b.email || null, telefono: b.telefono || null, nombre: b.nombre || null } }),
+  guardar_cliente: b => _psRpc('guardar_cliente', { p: { doc_tipo: b.doc_tipo, doc_numero: String(b.doc_numero || '').trim(), nombre: String(b.nombre || '').trim(), direccion: b.direccion || null, email: b.email || null, telefono: b.telefono || null, es_extranjero: !!b.es_extranjero } }),
   resolver_anulacion: b => _psRpc('resolver_anulacion', { p_id: b.id, p_aprobar: !!b.aprobar, p_nota: b.nota || null }),
   alinear_correlativo: b => _psRpc('admin_alinear_correlativo', { p_serie: b.serie, p_numero: parseInt(b.numero) || 0 }).then(n => ({ correlativo: n })),
   set_series: b => _psRpc('admin_set_series', { p_boleta: b.boleta, p_factura: b.factura }),
@@ -5228,7 +5311,10 @@ function _facInitState(ses, servicios, muelleOn, facCfg) {
     tribSub: 'balanza', renta: null, cargandoRenta: false, anioTrib: new Date().getFullYear(),
     compras: [], cargandoCompras: false, ia: null,
     // Fase 1: carrusel de meses (multi-select en historial) + semáforo por mes (balanza) + modal Emitir
-    histMeses: [(_tribPeriodos()[0] || {}).p].filter(Boolean), _balMes: {}, _emitOpen: false, _histOpen: {} };
+    histMeses: [(_tribPeriodos()[0] || {}).p].filter(Boolean), _balMes: {}, _emitOpen: false, _histOpen: {},
+    // Buscador de cliente unificado (barra inteligente doc/nombre)
+    cliQuery: '', cliResults: [], cliSel: false, cliShowLupa: false, cliManual: false,
+    manualDoc: '', manualNombre: '', manualTipo: '1', _cliLoading: false, _cliLupaLoading: false, _cliTimer: null, _cliDebounce: null };
 }
 async function _facCargarBase() {
   let servicios = [], muelleOn = false, facCfg = {};
@@ -5465,24 +5551,172 @@ function _facAddServicio(id) {
 }
 function _facAddLibre() { sndTap(); haptic(8); _facState.items.push({ descripcion: '', cantidad: 1, precio: 0 }); _facRender(); }
 function _facDelItem(i) { sndTap(); haptic(8); _facState.items.splice(i, 1); _facRender(); }
-async function _facBuscar() {
-  const S = _facState; const doc = String(S.doc || '').trim(); if (!doc) return;
-  sndTap(); haptic(8);
-  const toast = m => { if (typeof showToast === 'function') showToast(m); };
-  // Autodetección: 8 dígitos = DNI, 11 = RUC (no pisa CE/Pasaporte)
-  if (doc.length === 11) S.docTipo = '6'; else if (doc.length === 8 && S.docTipo !== '7' && S.docTipo !== '4') S.docTipo = '1';
-  // 1) cliente frecuente ya guardado
-  try { const r = await apiGet('buscar_cliente', { doc_tipo: S.docTipo, doc });
-    if (r.ok && r.data && r.data.nombre) { S.nombre = r.data.nombre; S.email = r.data.email || ''; S.tel = r.data.telefono || ''; S.dir = r.data.direccion || ''; S.lookupState = 'ok'; sndOk(); _facRender(); toast('✓ Cliente frecuente'); return; }
-  } catch (e) {}
-  // 2) lookup externo RUC/DNI vía Edge consultar-documento
-  if (doc.length !== 8 && doc.length !== 11) { S.lookupState = 'err'; _facRender(); toast('CE/Pasaporte: escribe el nombre a mano'); return; }
-  S.lookupState = 'loading'; _facRender();
+// ═══════════════════════════════════════════════════════════════════════════
+// BUSCADOR DE CLIENTE UNIFICADO — una sola barra inteligente (documento O nombre)
+// 3 estados sin duplicar markup: búsqueda+dropdown / seleccionado-chip / manual-unfold.
+// Guarda en `clientes` al ENCONTRAR (RENIEC/SUNAT) y al Guardar manual, no al emitir.
+// ═══════════════════════════════════════════════════════════════════════════
+function _facCliTipoLabel(t) { t = String(t || ''); return t === '6' ? 'RUC' : (t === '7' ? 'Pasaporte' : (t === '4' ? 'CE' : (t === '1' ? 'DNI' : 'Doc'))); }
+// Botones a la derecha del casillero: la "X" SIEMPRE que haya texto; la 🔎 solo tras el timing (3s sin tecleo, sin selección).
+function _facCliActionsHTML(S) {
+  const hasX = (S.cliQuery || '').length > 0;
+  const lupa = S.cliShowLupa ? `<button class="fac-cli-btn lupa" onclick="_facCliLupa()" title="Buscar en RENIEC / SUNAT" aria-label="Buscar en RENIEC / SUNAT">${S._cliLupaLoading ? '<span class="spin fac-cli-spin"></span>' : '🔎'}</button>` : '';
+  const x = hasX ? `<button class="fac-cli-btn x" onclick="_facCliClear()" title="Borrar" aria-label="Borrar">×</button>` : '';
+  return lupa + x;
+}
+// Dropdown de coincidencias frecuentes (búsqueda inteligente por doc-prefijo o nombre).
+function _facCliDropHTML(S) {
+  if (S.cliSel || S.cliManual) return '';
+  const q = (S.cliQuery || '').trim();
+  if (q.length < 3) return '';
+  if (S._cliLoading) return `<div class="fac-cli-drop-empty"><span class="spin fac-cli-spin"></span> Buscando…</div>`;
+  const r = S.cliResults || [];
+  if (!r.length) return `<div class="fac-cli-drop-empty">Sin coincidencias guardadas · usa 🔎 para RENIEC / SUNAT</div>`;
+  return r.map((c, i) => { const esRuc = String(c.doc_tipo) === '6'; return `<button class="fac-cli-row" onclick="_facCliPick(${i})">
+      <span class="fac-cli-row-ico">${esRuc ? '🏢' : '👤'}</span>
+      <span class="fac-cli-row-main"><span class="fac-cli-row-n">${_facEsc(c.nombre || '—')}</span><span class="fac-cli-row-d"><span class="fac-cli-tag${esRuc ? ' ruc' : ''}">${_facCliTipoLabel(c.doc_tipo)}</span> ${_facEsc(c.doc_numero || '')}</span></span>
+    </button>`; }).join('');
+}
+// Cajón manual (aparece cuando RENIEC/SUNAT no devuelven nada, o no es 8/11 dígitos).
+function _facCliManualHTML(S) {
+  const seg = [['1', 'DNI'], ['4', 'CE'], ['7', 'Pasaporte']].map(([t, l]) => `<button class="fac-cli-seg${S.manualTipo === t ? ' on' : ''}" onclick="_facCliManualTipo('${t}')">${l}</button>`).join('');
+  return `<div class="fac-cli-manual">
+    <div class="fac-cli-manual-h">Sin datos en RENIEC / SUNAT · regístralo a mano</div>
+    <input id="fac-cli-mdoc" class="fac-cli-minput" placeholder="N° de documento" value="${_facEsc(S.manualDoc || '')}" autocomplete="off">
+    <input id="fac-cli-mnom" class="fac-cli-minput" placeholder="Nombre / Razón social" value="${_facEsc(S.manualNombre || '')}" autocomplete="off">
+    <div class="fac-cli-seg-wrap">${seg}</div>
+    <button class="fac-cli-manual-save" onclick="_facCliManualGuardar()">💾 Guardar cliente</button>
+  </div>`;
+}
+// Componente único: renderiza el estado correcto (chip seleccionado vs búsqueda+dropdown+manual).
+function _facCliBox(S) {
+  if (S.cliSel) {
+    const esRuc = S.docTipo === '6';
+    const dir = (esRuc && S.dir) ? `<div class="fac-cli-chip-dir">📍 ${_facEsc(S.dir)}</div>` : '';
+    return `<div class="fac-cli-chip" data-cli="sel">
+      <div class="fac-cli-chip-ico">${esRuc ? '🏢' : '👤'}</div>
+      <div class="fac-cli-chip-main">
+        <div class="fac-cli-chip-t"><span class="fac-cli-tag${esRuc ? ' ruc' : ''}">${_facCliTipoLabel(S.docTipo)}${S.doc ? ' ' + _facEsc(S.doc) : ''}</span></div>
+        <div class="fac-cli-chip-n">${_facEsc(S.nombre) || '—'}</div>
+        ${dir}
+      </div>
+      <button class="fac-cli-x" onclick="_facCliClear()" aria-label="Cambiar cliente" title="Cambiar cliente">×</button>
+    </div>`;
+  }
+  return `<div class="fac-cli-wrap" data-cli="search">
+    <div class="fac-cli-field">
+      <span class="fac-cli-search-ico">🔍</span>
+      <input id="fac-cli" class="fac-cli-input" placeholder="Documento o nombre del cliente…" value="${_facEsc(S.cliQuery || '')}" autocomplete="off" inputmode="text">
+      <div class="fac-cli-actions" id="fac-cli-actions">${_facCliActionsHTML(S)}</div>
+    </div>
+    <div class="fac-cli-drop" id="fac-cli-drop">${_facCliDropHTML(S)}</div>
+    <div id="fac-cli-manual">${S.cliManual ? _facCliManualHTML(S) : ''}</div>
+  </div>`;
+}
+// Refresco en SITIO del dropdown + botones (sin re-render global → conserva foco/caret del input).
+function _facCliRefreshDrop() {
+  const S = _facState; if (!S) return;
+  const d = document.getElementById('fac-cli-drop'); if (d) d.innerHTML = _facCliDropHTML(S);
+  const a = document.getElementById('fac-cli-actions'); if (a) a.innerHTML = _facCliActionsHTML(S);
+}
+// Tecleo en el casillero: deselecciona, reinicia timer de lupa (3s) y dispara búsqueda interna con debounce.
+function _facCliInput(v) {
+  const S = _facState; if (!S) return;
+  S.cliQuery = v; S.cliSel = false; S.cliShowLupa = false; S.cliManual = false;
+  clearTimeout(S._cliTimer); S._cliTimer = setTimeout(_facCliArmLupa, 3000);
+  clearTimeout(S._cliDebounce);
+  const q = v.trim();
+  if (q.length < 3) { S.cliResults = []; S._cliLoading = false; _facCliRefreshDrop(); return; }
+  S._cliLoading = true; _facCliRefreshDrop();
+  S._cliDebounce = setTimeout(async () => {
+    const qq = (_facState.cliQuery || '').trim();
+    try { const r = await apiGet('buscar_clientes_like', { q: qq }); _facState.cliResults = (r.ok && Array.isArray(r.data)) ? r.data : []; }
+    catch (e) { _facState.cliResults = []; }
+    _facState._cliLoading = false; _facCliRefreshDrop();
+  }, 250);
+}
+// Timer: pasados ~3s sin tecleo y sin selección → muestra la lupa (búsqueda externa), aunque haya coincidencias.
+function _facCliArmLupa() {
+  const S = _facState; if (!S || S.cliSel) return;
+  if ((S.cliQuery || '').trim().length < 1) return;
+  S.cliShowLupa = true;
+  const a = document.getElementById('fac-cli-actions'); if (a) a.innerHTML = _facCliActionsHTML(S);
+}
+// Elegir una coincidencia → llena el estado y muestra el chip seleccionado (la lupa desaparece, la "X" queda).
+function _facCliPick(i) {
+  const S = _facState; const c = (S.cliResults || [])[i]; if (!c) return;
+  try { sndOk(); haptic([10, 20, 10]); } catch (e) {}
+  S.doc = String(c.doc_numero || ''); S.nombre = String(c.nombre || ''); S.docTipo = String(c.doc_tipo || '1');
+  S.dir = String(c.direccion || ''); S.email = String(c.email || ''); S.tel = String(c.telefono || ''); S.esExtranjero = !!c.es_extranjero;
+  S.cliSel = true; S.cliShowLupa = false; S.cliManual = false; S.cliResults = [];
+  clearTimeout(S._cliTimer); clearTimeout(S._cliDebounce);
+  _facRender();
+}
+// Búsqueda externa (la lupa): 8 díg → RENIEC (dni), 11 díg → SUNARP (ruc). Si encuentra → llena + GUARDA. Si no → cajón manual.
+async function _facCliLupa() {
+  const S = _facState; const doc = String(S.cliQuery || '').trim().replace(/\s+/g, ''); if (!doc) return;
+  try { sndTap(); haptic(8); } catch (e) {}
+  clearTimeout(S._cliTimer);
+  if (doc.length !== 8 && doc.length !== 11) { _facCliOpenManual(); return; }
+  S._cliLupaLoading = true; const a0 = document.getElementById('fac-cli-actions'); if (a0) a0.innerHTML = _facCliActionsHTML(S);
   try {
     const { data: j, error } = await sbClient.functions.invoke('consultar-documento', { body: { numero: doc, tipo: doc.length === 11 ? 'ruc' : 'dni' } });
-    if (!error && j && j.ok && j.nombre) { S.nombre = j.nombre; if (j.direccion) S.dir = j.direccion; if (j.doc_tipo) S.docTipo = String(j.doc_tipo); S.lookupState = 'ok'; sndOk(); _facRender(); toast('✓ ' + j.nombre); }
-    else { S.lookupState = 'err'; _facRender(); toast('Sin datos — escribe el nombre'); }
-  } catch (e) { S.lookupState = 'err'; _facRender(); toast('Escribe el nombre a mano'); }
+    S._cliLupaLoading = false;
+    if (!error && j && j.ok && j.nombre) {
+      S.doc = doc; S.nombre = j.nombre; S.docTipo = String(j.doc_tipo || (doc.length === 11 ? '6' : '1'));
+      S.dir = j.direccion || ''; S.esExtranjero = false; S.cliSel = true; S.cliShowLupa = false; S.cliManual = false;
+      try { sndOk(); haptic([12, 30, 12]); } catch (e) {}
+      apiPost({ accion: 'guardar_cliente', doc_tipo: S.docTipo, doc_numero: S.doc, nombre: S.nombre, direccion: S.dir, email: S.email, telefono: S.tel, es_extranjero: S.esExtranjero }).catch(() => {});
+      if (typeof showToast === 'function') showToast('✓ ' + j.nombre);
+      _facRender();
+    } else { _facCliOpenManual(); }
+  } catch (e) { S._cliLupaLoading = false; _facCliOpenManual(); }
+}
+function _facCliOpenManual() {
+  const S = _facState;
+  S.cliManual = true; S.cliShowLupa = false;
+  S.manualDoc = String(S.cliQuery || '').trim();
+  S.manualNombre = S.manualNombre || '';
+  S.manualTipo = S.exportacion ? '7' : (/^\d{8}$/.test(S.manualDoc) ? '1' : '4');
+  try { sndDown(); haptic(10); } catch (e) {}
+  if (typeof showToast === 'function') showToast('Sin datos — regístralo a mano');
+  _facRender();
+}
+function _facCliManualTipo(t) {
+  const S = _facState; S.manualTipo = t; try { sndTap(); haptic(6); } catch (e) {}
+  const w = document.getElementById('fac-cli-manual'); if (w) { w.innerHTML = _facCliManualHTML(S); _facCliBindManual(); }
+}
+async function _facCliManualGuardar() {
+  const S = _facState;
+  const doc = String(S.manualDoc || '').trim(), nom = String(S.manualNombre || '').trim();
+  if (!nom) return _facErr('Escribe el nombre / razón social');
+  if (!doc) return _facErr('Escribe el número de documento');
+  try { sndTap(); haptic(10); } catch (e) {}
+  const r = await apiPost({ accion: 'guardar_cliente', doc_tipo: S.manualTipo, doc_numero: doc, nombre: nom, direccion: '', email: S.email, telefono: S.tel, es_extranjero: S.manualTipo === '7' });
+  if (r.ok) {
+    S.doc = doc; S.nombre = nom; S.docTipo = S.manualTipo; S.dir = ''; S.esExtranjero = (S.manualTipo === '7');
+    S.cliSel = true; S.cliManual = false; S.manualDoc = ''; S.manualNombre = '';
+    try { sndOk(); haptic([12, 30, 12]); } catch (e) {}
+    if (typeof showToast === 'function') showToast('✓ Cliente guardado');
+    _facRender();
+  } else _facErr((r.error || 'No se pudo guardar').replace(/^.*?:\s*/, ''));
+}
+// "X": borra todo y vuelve a buscar (reenfoca el casillero).
+function _facCliClear() {
+  const S = _facState;
+  try { sndTap(); haptic(8); } catch (e) {}
+  clearTimeout(S._cliTimer); clearTimeout(S._cliDebounce);
+  S.doc = ''; S.nombre = ''; S.dir = ''; S.email = ''; S.tel = ''; S.esExtranjero = !!S.exportacion;
+  S.docTipo = S.exportacion ? '7' : (S.tipo === 1 ? '6' : '1');
+  S.cliQuery = ''; S.cliResults = []; S.cliSel = false; S.cliShowLupa = false; S.cliManual = false;
+  S.manualDoc = ''; S.manualNombre = ''; S._cliLoading = false; S._cliLupaLoading = false;
+  _facRender();
+  setTimeout(() => { const el = document.getElementById('fac-cli'); if (el) el.focus(); }, 30);
+}
+function _facCliBindManual() {
+  const w = document.getElementById('fac-cli-manual'); if (!w) return;
+  const md = w.querySelector('#fac-cli-mdoc'); if (md) md.oninput = e => { _facState.manualDoc = e.target.value; };
+  const mn = w.querySelector('#fac-cli-mnom'); if (mn) mn.oninput = e => { _facState.manualNombre = e.target.value; };
 }
 async function _facAnular(id) {
   const S = _facState;
@@ -5522,6 +5756,7 @@ async function _facEmitir() {
     S._emitioAlgo = true;    // cerrar el modal refresca balanza/historial SOLO si de verdad emitió
     S.resultado = Object.assign({}, r.data, { _tel: S.tel.trim(), _email: S.email.trim(), _nombre: S.nombre.trim() });
     S.items = []; S.doc = ''; S.nombre = ''; S.email = ''; S.tel = ''; S.dir = ''; S.medioPago = ''; S.lookupState = 'idle';
+    S.cliQuery = ''; S.cliResults = []; S.cliSel = false; S.cliShowLupa = false; S.cliManual = false; S.manualDoc = ''; S.manualNombre = '';
     _facRender();
   } else { _facErr((r.error || 'No se pudo emitir').replace(/^.*?:\s*/, '')); if (btn) { btn.disabled = false; btn.textContent = '🧾 Emitir comprobante'; } }
   // en error se CONSERVA S._emitLocalId → un reintento del mismo comprobante dedupea si el 1er intento llegó al server
@@ -5629,18 +5864,11 @@ function _facSectionBody(S) {
         ${segBtn('export', '🌎 Exportación')}
       </div>
       ${S.exportacion ? '<div style="font-size:11px;color:var(--text-muted);background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.25);border-radius:9px;padding:8px 10px;margin-bottom:10px;line-height:1.5">Turismo receptivo (0% IGV). Requiere <b>pasaporte</b> del turista y un <b>paquete de 2 o más servicios</b>. La afectación la fija el sistema.</div>' : ''}
-      <div style="display:flex;gap:8px;margin-bottom:8px">
-        <select id="fac-doctipo" class="config-input" style="flex:0 0 110px">${_FAC_DOCS.map(d=>`<option value="${d[0]}"${S.docTipo===d[0]?' selected':''}>${d[1]}</option>`).join('')}</select>
-        <input id="fac-doc" class="config-input" style="flex:1" placeholder="N° documento" value="${_facEsc(S.doc)}" ${S.docTipo==='0'?'disabled':''}>
-        <button onclick="_facBuscar()" title="Consultar RUC/DNI" ${S.lookupState==='loading'?'disabled':''} style="flex:0 0 44px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,0.05);color:${S.lookupState==='ok'?'#4ade80':(S.lookupState==='err'?'#fbbf24':'var(--gold)')};font-size:16px;cursor:pointer">${S.lookupState==='loading'?'<span class="spin" style="display:inline-block;width:14px;height:14px;vertical-align:middle"></span>':(S.lookupState==='ok'?'✓':(S.lookupState==='err'?'⚠':'🔎'))}</button>
-      </div>
-      ${S.lookupState==='loading'?'<div style="font-size:10px;color:var(--text-muted);margin:-4px 0 8px">Consultando SUNAT…</div>':''}
-      <input id="fac-nombre" class="config-input" style="margin-bottom:8px" placeholder="Nombre / Razón social" value="${_facEsc(S.nombre)}">
-      <div style="display:flex;gap:8px;margin-bottom:10px">
+      ${_facCliBox(S)}
+      <div style="display:flex;gap:8px;margin:10px 0 12px">
         <input id="fac-email" class="config-input" style="flex:1" placeholder="Email (opcional)" value="${_facEsc(S.email)}">
         <input id="fac-tel" class="config-input" style="flex:1" placeholder="WhatsApp (opcional)" value="${_facEsc(S.tel)}">
       </div>
-      ${S.exportacion ? '' : `<input id="fac-dir" class="config-input" style="margin-bottom:12px" placeholder="Dirección fiscal${S.tipo===1?' (obligatoria para factura)':' (opcional)'}" value="${_facEsc(S.dir)}">`}
       <div style="font-size:11px;font-weight:800;color:var(--gold);letter-spacing:.04em;margin-bottom:6px">SERVICIOS</div>
       <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:8px">
         ${S.items.length ? S.items.map((it,i)=>`<div style="display:flex;align-items:center;gap:6px;padding:7px 8px;border-bottom:1px solid var(--border)">
@@ -6058,6 +6286,9 @@ window._facOpenEmit = function () {
   // Form fresco en cada apertura.
   S.resultado = null; S.facModo = 'boleta'; S.tipo = 2; S.exportacion = false; S.esExtranjero = false;
   S.docTipo = '1'; S.doc = ''; S.nombre = ''; S.email = ''; S.tel = ''; S.dir = ''; S.items = []; S.medioPago = ''; S.lookupState = 'idle';
+  clearTimeout(S._cliTimer); clearTimeout(S._cliDebounce);
+  S.cliQuery = ''; S.cliResults = []; S.cliSel = false; S.cliShowLupa = false; S.cliManual = false;
+  S.manualDoc = ''; S.manualNombre = ''; S.manualTipo = '1'; S._cliLoading = false; S._cliLupaLoading = false;
   S._emitOpen = true;
   S._zarpe = null;   // el modal abre en el form suelto; "Jalar zarpe" activa el sub-flujo
   S._emitLocalId = 'fac-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);   // P1: un localId por apertura
@@ -7366,10 +7597,10 @@ function _facRender() {
 function _facBindSlot(ov) {
   const S = _facState;
   const bind = (id, key) => { const el = ov.querySelector('#' + id); if (el) el.oninput = e => { _facState[key] = e.target.value; }; };
-  bind('fac-nombre', 'nombre'); bind('fac-email', 'email'); bind('fac-tel', 'tel'); bind('fac-dir', 'dir');
-  const fdoc = ov.querySelector('#fac-doc'); if (fdoc) fdoc.oninput = e => { _facState.doc = e.target.value; if (_facState.lookupState !== 'idle') _facState.lookupState = 'idle'; };
+  bind('fac-email', 'email'); bind('fac-tel', 'tel');
+  const fcli = ov.querySelector('#fac-cli'); if (fcli) fcli.oninput = e => _facCliInput(e.target.value);
+  _facCliBindManual();
   const fmed = ov.querySelector('#fac-medio'); if (fmed) fmed.onchange = e => { _facState.medioPago = e.target.value; _facRender(); };
-  const dt = ov.querySelector('#fac-doctipo'); if (dt) dt.onchange = e => { _facState.docTipo = e.target.value; _facRender(); };
   const ss = ov.querySelector('#fac-svcsel'); if (ss) ss.onchange = e => { if (e.target.value) _facAddServicio(e.target.value); };
   // Uploader IA + animaciones count-up post-render de las secciones tributarias.
   if (S.tab === 'subir') _tribBind(ov);
@@ -10593,7 +10824,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.32.0';
+const APP_VERSION = '1.33.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
