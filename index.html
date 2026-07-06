@@ -1387,6 +1387,21 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 .fac-hist-tog.open { transform:rotate(180deg); background:rgba(251,191,36,.26); }
 .fac-hist-ncnote { color:#fbbf24; font-weight:700; }
 .fac-hist-nc { background:rgba(251,191,36,.05); border-left:2px solid rgba(251,191,36,.4); }
+/* Card de comprobante (móvil + tablet): 2 columnas apiladas, altura uniforme, aprovecha el ancho */
+.fac-hcard { display:flex; gap:11px; padding:13px; border-bottom:1px solid var(--border); align-items:flex-start; }
+.fac-hcard.nested { padding-left:18px; background:rgba(251,191,36,.05); border-left:2px solid rgba(251,191,36,.4); }
+.fac-hcard-main { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:5px; }
+.fac-hcard-main.tap { cursor:pointer; -webkit-tap-highlight-color:transparent; }
+.fac-hcard-main.tap:active { transform:scale(.99); }
+/* nombre: hasta 2 líneas, PERO reserva 2 líneas siempre → todas las cards iguales */
+.fac-hcard-name { font-weight:800; font-size:13.5px; line-height:1.28; min-height:2.56em; color:var(--text); display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; word-break:break-word; }
+.fac-hcard-name.anu { text-decoration:line-through; opacity:.85; }
+.fac-hcard-chips { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.fac-hcard-meta { font-size:11px; color:var(--text-muted); line-height:1.15; }
+.fac-hcard-est { margin-top:1px; }
+.fac-hcard-side { flex:0 0 auto; display:flex; flex-direction:column; align-items:flex-end; gap:9px; padding-top:1px; }
+.fac-hcard-monto { font-weight:800; font-size:15px; color:var(--gold); white-space:nowrap; }
+.fac-hcard-acts { display:flex; gap:6px; align-items:center; }
 @media (prefers-reduced-motion: reduce){
   .fac-hist-acc, .fac-hist-acc.open, .fac-hist-tog, .fac-hist-tog.open, .fac-hist-head { transition:none !important; animation:none !important; }
 }
@@ -7785,26 +7800,27 @@ function _facHistCardHTML(c, S, opts) {
   var anu = c.estado === 'anulada';
   var hasNC = !!(ncs && ncs.length);
   var open = hasNC && !!(S._histOpen && S._histOpen[c.id]);
-  var ncNote = hasNC ? ' · <span class="fac-hist-ncnote">' + ncs.length + ' nota' + (ncs.length === 1 ? '' : 's') + ' de crédito</span>' : '';
+  var ncNote = hasNC ? '<span class="fac-hist-ncnote" style="font-size:9.5px;font-weight:800;background:rgba(251,191,36,.14);border:1px solid rgba(251,191,36,.34);border-radius:999px;padding:2px 7px">' + ncs.length + ' N.C.</span>' : '';
   var togBtn = hasNC ? '<button class="fac-hist-tog' + (open ? ' open' : '') + '" data-htog="' + c.id + '" onclick="_facHistToggle(\'' + c.id + '\')" title="Ver nota(s) de crédito anexada(s)" aria-label="Desplegar nota de crédito">▾</button>' : '';
   var arrow = nested ? '<span style="flex:0 0 auto;color:#fbbf24;font-size:12px;font-weight:800;line-height:1">↳</span>' : '';
   var headClick = hasNC ? ' onclick="_facHistToggle(\'' + c.id + '\')" role="button" aria-expanded="' + open + '"' : '';
   var num6 = String(c.numero).padStart(6, '0');
-  var pdfBtn = '<button onclick="_facAbrirPDFById(\'' + c.id + '\')" title="Ver / imprimir / enviar PDF" style="cursor:pointer;flex:0 0 auto;background:' + (real ? 'rgba(74,222,128,0.12)' : 'rgba(201,168,76,0.12)') + ';border:1px solid ' + (real ? 'rgba(74,222,128,0.32)' : 'rgba(201,168,76,0.3)') + ';border-radius:8px;padding:5px 8px;font-size:15px;line-height:1">📄</button>';
-  var anulBtn = anu ? '' : '<button onclick="_facAnular(\'' + c.id + '\')" title="Anular" style="cursor:pointer;flex:0 0 auto;' + (S.anularId === c.id ? 'color:#fff;background:#f87171;border:none;border-radius:7px;padding:3px 8px;font-size:10px;font-weight:800' : 'color:#f87171;background:none;border:none;font-size:14px') + '">' + (S.anularId === c.id ? '¿Anular?' : '⊘') + '</button>';
-  var row = '<div class="' + (nested ? 'fac-hist-nc' : '') + '" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-bottom:1px solid var(--border);' + (nested ? 'padding-left:16px;' : '') + (anu ? 'opacity:.6' : '') + '">' +
-      '<div class="fac-hist-head' + (hasNC ? ' tap' : '') + '"' + headClick + '>' +
-        arrow +
-        '<div style="min-width:0;flex:1">' +
-          '<div style="display:flex;align-items:center;gap:6px;min-width:0">' +
-            '<span style="font-weight:800;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;' + (anu ? 'text-decoration:line-through' : '') + '">' + _facEsc(c.cliente_nombre || 'Sin nombre') + '</span>' +
-            _facTipoBadge(c) +
-          '</div>' +
-          '<div style="font-size:10px;color:var(--text-muted);display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap">' + c.serie + '-' + num6 + ' · ' + _facEsc(String(c.creado || '')) + ' ' + _facChipEstado(c) + ncNote + '</div>' +
-        '</div>' +
+  var fecha = String(c.creado || '').replace(/\s+\d{1,2}:\d{2}(?::\d{2})?.*$/, '').trim() || String(c.creado || '');   // fecha SIN hora (ahorra espacio)
+  var pdfBtn = '<button onclick="_facAbrirPDFById(\'' + c.id + '\')" title="Ver / imprimir / enviar PDF" style="cursor:pointer;flex:0 0 auto;background:' + (real ? 'rgba(74,222,128,0.12)' : 'rgba(201,168,76,0.12)') + ';border:1px solid ' + (real ? 'rgba(74,222,128,0.32)' : 'rgba(201,168,76,0.3)') + ';border-radius:8px;padding:6px 9px;font-size:15px;line-height:1">📄</button>';
+  var anulBtn = anu ? '' : '<button onclick="_facAnular(\'' + c.id + '\')" title="Anular" style="cursor:pointer;flex:0 0 auto;' + (S.anularId === c.id ? 'color:#fff;background:#f87171;border:none;border-radius:8px;padding:6px 9px;font-size:11px;font-weight:800' : 'color:#f87171;background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.3);border-radius:8px;padding:6px 9px;font-size:14px;line-height:1') + '">' + (S.anularId === c.id ? '¿Anular?' : '⊘') + '</button>';
+  var row = '<div class="fac-hcard' + (nested ? ' nested' : '') + '"' + (anu ? ' style="opacity:.62"' : '') + '>' +
+      arrow +
+      '<div class="fac-hcard-main' + (hasNC ? ' tap' : '') + '"' + headClick + '>' +
+        '<div class="fac-hcard-name' + (anu ? ' anu' : '') + '">' + _facEsc(c.cliente_nombre || 'Sin nombre') + '</div>' +
+        '<div class="fac-hcard-chips">' + _facTipoBadge(c) + ncNote + '</div>' +
+        '<div class="fac-hcard-meta">' + c.serie + '-' + num6 + '</div>' +
+        '<div class="fac-hcard-meta">' + _facEsc(fecha) + '</div>' +
+        '<div class="fac-hcard-est">' + _facChipEstado(c) + '</div>' +
       '</div>' +
-      '<span style="font-weight:800;font-size:13px;color:var(--gold);white-space:nowrap">S/ ' + _facMoney(c.total) + '</span>' +
-      togBtn + pdfBtn + anulBtn +
+      '<div class="fac-hcard-side">' +
+        '<span class="fac-hcard-monto">S/ ' + _facMoney(c.total) + '</span>' +
+        '<div class="fac-hcard-acts">' + togBtn + pdfBtn + anulBtn + '</div>' +
+      '</div>' +
     '</div>';
   if (!hasNC) return row;
   var acc = '<div class="fac-hist-acc' + (open ? ' open' : '') + '" data-hacc="' + c.id + '">' + ncs.map(function (nc) { return _facHistCardHTML(nc, S, { nested: true }); }).join('') + '</div>';
@@ -11922,7 +11938,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.48.0';
+const APP_VERSION = '1.49.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
