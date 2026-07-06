@@ -2,7 +2,7 @@
 // PS Panel — Service Worker
 // Bumpa VERSION en cada deploy para invalidar caché
 // ============================================================
-const VERSION = '1.45.0';
+const VERSION = '1.46.0';
 const CACHE   = 'ps-panel-v' + VERSION;
 const ASSETS  = [
   './',
@@ -17,6 +17,7 @@ const ASSETS  = [
 ];
 
 self.addEventListener('install', e => {
+  self.skipWaiting();   // el SW nuevo (correcto) desaloja al viejo bugueado de inmediato
   e.waitUntil(
     caches.open(CACHE)
       .then(c => c.addAll(ASSETS.map(url => new Request(url, { cache: 'no-store' }))))
