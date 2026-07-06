@@ -3161,6 +3161,22 @@ async function preloadCatalogos() {
   }
 }
 
+// ── Lanchas: precalentado liviano al login (semilla del 1er montaje) ──
+// ViewLanchas gestiona su propio estado; esto solo adelanta fechas + el día de HOY
+// para que la 1ª visita pinte al instante. Se refresca igual desde el fondo al montar.
+const _lanchasWarm = { fechas: null, dias: {} };
+async function preloadLanchas() {
+  try {
+    const hoy = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+    const [fR, dR] = await Promise.all([
+      apiGet('lanchas_fechas'),
+      apiGet('lanchas_dia', { fecha: hoy })
+    ]);
+    if (fR.ok && Array.isArray(fR.data)) _lanchasWarm.fechas = fR.data;
+    if (dR.ok && dR.data) _lanchasWarm.dias[hoy] = dR.data;
+  } catch (e) { /* silencioso: la vista rehace su carga al montar */ }
+}
+
 // ── Module views ─────────────────────────────────────────────
 const ViewDashboard = {
   name: 'ViewDashboard',
@@ -3349,12 +3365,21 @@ const ViewLanchas = {
     async function loadFechas() {
       loadingFechas.value = true;
       fetchError.value = '';
+      // Semilla instantánea desde la precarga del login (si existe): pinta HOY sin esperar red.
+      if (_lanchasWarm.fechas && !fechas.value.length) {
+        fechas.value = _lanchasWarm.fechas.slice();
+        currentFecha.value = today;
+        if (_lanchasWarm.dias[today]) {
+          cache.value = { ...cache.value, [today]: { loaded: true, loading: false, ..._lanchasWarm.dias[today] } };
+          loadingFechas.value = false;   // ya hay contenido; el resto refresca en el fondo
+        }
+      }
       try {
         const r = await apiGet('lanchas_fechas');
         if (r.ok && Array.isArray(r.data)) {
           fechas.value = r.data;                 // días CON actividad (para marcar con ●)
-          currentFecha.value = today;            // aterriza en HOY; se navega por calendario libre
-          loadFecha(today);
+          if (!currentFecha.value) currentFecha.value = today;   // aterriza en HOY; navegación libre
+          loadFecha(today, true);                // refresca hoy aunque venga de semilla
           [-1, 1].forEach(o => { const n = new Date(today + 'T12:00:00'); n.setDate(n.getDate() + o); loadFecha(n.toISOString().slice(0, 10)); });
         } else {
           fetchError.value = r.error || 'GAS no reconoce lanchas_fechas — actualiza Code.gs';
@@ -3366,17 +3391,19 @@ const ViewLanchas = {
       }
     }
 
-    async function loadFecha(fecha) {
-      if (cache.value[fecha]?.loaded || cache.value[fecha]?.loading) return;
-      cache.value = { ...cache.value, [fecha]: { loaded: false, loading: true } };
+    async function loadFecha(fecha, force = false) {
+      if (!force && (cache.value[fecha]?.loaded || cache.value[fecha]?.loading)) return;
+      const prev = cache.value[fecha];
+      // Si ya había contenido (semilla/caché), NO lo borres al forzar: refresca sin spinner.
+      cache.value = { ...cache.value, [fecha]: prev?.loaded ? { ...prev, loading: true } : { loaded: false, loading: true } };
       try {
         const r = await apiGet('lanchas_dia', { fecha });
         cache.value = { ...cache.value, [fecha]: {
           loaded: true, loading: false,
-          ...(r.ok ? r.data : { operaciones: [], pases_sueltos: [], kpis: {} })
+          ...(r.ok ? r.data : (prev?.loaded ? prev : { operaciones: [], pases_sueltos: [], kpis: {} }))
         }};
       } catch(e) {
-        cache.value = { ...cache.value, [fecha]: { loaded: true, loading: false, operaciones: [], pases_sueltos: [], kpis: {} } };
+        cache.value = { ...cache.value, [fecha]: prev?.loaded ? { ...prev, loading: false } : { loaded: true, loading: false, operaciones: [], pases_sueltos: [], kpis: {} } };
       }
     }
 
@@ -4406,6 +4433,8 @@ const ViewLanchas = {
       loadCatalogos();
       loadContactos();
       if (!refreshInterval) refreshInterval = setInterval(silentRefresh, 60000);
+      // Al volver (keep-alive) mostramos lo que ya hay AL INSTANTE y refrescamos en el fondo (sin spinner).
+      if (fechas.value.length) silentRefresh();
       nextTick(moveTabInd);
     });
     onDeactivated(() => {
@@ -11527,6 +11556,11 @@ createApp({
     const currentModule  = ref('dashboard');
     const moduleData     = ref({});
     const moduleLoading  = ref(false);
+    // Caché por módulo (id → { data, _loadedAt }): al volver a un módulo se pinta AL INSTANTE
+    // y se refresca en el fondo. Anti-race: seq por módulo (datos) + seq global (spinner foreground).
+    const moduleCache    = reactive({});
+    const _loadSeq       = {};
+    let   _fgSeq         = 0;
     const showInfoPanel  = ref(false);
     const isOnline       = ref(navigator.onLine);
     const orbitDotState  = computed(() => {
@@ -11658,6 +11692,7 @@ createApp({
           if ((r.data.rol || '') === 'Administrador' && r.data.id) await supaLoginAdmin(r.data.id, loginPin.value);
           preloadCatalogos();
           await loadModuleData('dashboard');
+          preloadModules();
         } else {
           loginError.value = 'PIN incorrecto. Intenta de nuevo.';
           loginPin.value = '';
@@ -11677,6 +11712,7 @@ createApp({
           localStorage.setItem('ps_session', JSON.stringify(session.value));
           preloadCatalogos();
           await loadModuleData('dashboard');
+          preloadModules();
         } else { loginError.value = 'Error al crear usuario: ' + (r.error || ''); }
       } catch(e) { loginError.value = 'Error de conexión con el servidor.'; }
       finally { loginLoading.value = false; }
@@ -11693,8 +11729,16 @@ createApp({
     // ── Module loading ────────────────────────────────────────
     const today = () => new Date().toISOString().slice(0, 10);
 
-    async function loadModuleData(mod) {
-      moduleLoading.value = true;
+    // loadModuleData(mod, { silent }): silent = refresco invisible (sin spinner). Escribe siempre
+    // en moduleCache[mod] (con _loadedAt) y, si el módulo sigue visible, en moduleData.
+    async function loadModuleData(mod, opts = {}) {
+      const silent = !!opts.silent;
+      // Staleness: en refresco silencioso, evita fetch redundante si es muy reciente (<15s).
+      if (silent && moduleCache[mod] && (Date.now() - moduleCache[mod]._loadedAt) < 15000) return;
+      const seq = (_loadSeq[mod] = (_loadSeq[mod] || 0) + 1);   // anti-race datos (por módulo)
+      let fg = 0;
+      if (!silent) { fg = ++_fgSeq; moduleLoading.value = true; }   // anti-race spinner (global)
+      let result;
       try {
         switch(mod) {
           case 'dashboard': {
@@ -11702,14 +11746,14 @@ createApp({
               apiGet('dashboard', { fecha: today() }),
               apiGet('historico')
             ]);
-            moduleData.value = {
+            result = {
               hoy: kpiR.ok ? kpiR.data : null,
               historico: histR.ok ? histR.data : []
             };
             break;
           }
           case 'lanchas': {
-            moduleData.value = { _ts: Date.now() }; // ViewLanchas gestiona su propio estado
+            result = { _ts: Date.now() }; // ViewLanchas gestiona su propio estado
             break;
           }
           case 'hotel': {
@@ -11718,7 +11762,7 @@ createApp({
               apiGet('hotel_reservas', { fecha: today() }),
               apiGet('dashboard', { fecha: today() })
             ]);
-            moduleData.value = {
+            result = {
               habitaciones: habR.ok ? habR.data : [],
               reservas: resR.ok ? resR.data : [],
               dashboard: dashR.ok ? dashR.data : null
@@ -11727,28 +11771,55 @@ createApp({
           }
           case 'finanzas': {
             const kpiR = await apiGet('dashboard', { fecha: today() });
-            moduleData.value = { hoy: kpiR.ok ? kpiR.data : null };
+            result = { hoy: kpiR.ok ? kpiR.data : null };
             break;
           }
           case 'facturacion': {
             // El componente ViewFacturacion carga su propio estado (bridge _facMountModule).
-            moduleData.value = { _ts: Date.now() };
+            result = { _ts: Date.now() };
             break;
           }
           case 'config': {
             const pmR = await apiGet('listar_personal');
-            moduleData.value = { personal: pmR.ok ? pmR.data : [] };
+            result = { personal: pmR.ok ? pmR.data : [] };
             break;
           }
         }
-      } catch(e) { showToast('Error cargando datos'); }
-      finally { moduleLoading.value = false; }
+        // Guard anti-race: descarta si ya arrancó otro load del mismo módulo.
+        if (seq !== _loadSeq[mod]) return;
+        if (result !== undefined) {
+          moduleCache[mod] = { data: result, _loadedAt: Date.now() };
+          if (currentModule.value === mod) moduleData.value = result;
+        }
+      } catch(e) { if (!silent) showToast('Error cargando datos'); }
+      finally { if (!silent && fg === _fgSeq) moduleLoading.value = false; }
     }
 
-    async function goModule(mod) {
+    // requestIdleCallback escalonado (fallback setTimeout) para la precarga en el fondo.
+    function _idlePreload(fn, delay) {
+      const run = () => { try { fn(); } catch(e){} };
+      if (window.requestIdleCallback) requestIdleCallback(run, { timeout: (delay || 0) + 800 });
+      else setTimeout(run, delay || 0);
+    }
+    // Precarga al iniciar sesión: calienta moduleCache de los demás módulos SIN pelear con el visible.
+    function preloadModules() {
+      const admin = String(session.value?.rol || '') === 'Administrador';
+      _idlePreload(() => loadModuleData('finanzas', { silent: true }), 200);
+      _idlePreload(() => loadModuleData('hotel',    { silent: true }), 450);
+      _idlePreload(() => { loadModuleData('lanchas', { silent: true }); preloadLanchas(); }, 700);
+      if (admin) _idlePreload(() => { try { _facEnsureState(null); } catch(e){} }, 1000);
+    }
+
+    function goModule(mod) {
       currentModule.value = mod;
       showInfoPanel.value = false;
-      await loadModuleData(mod);
+      const cached = moduleCache[mod];
+      if (cached) {
+        moduleData.value = cached.data;          // instantáneo: sin spinner
+        loadModuleData(mod, { silent: true });   // refresco en el fondo (staleness-gated)
+      } else {
+        loadModuleData(mod);                     // frío: spinner solo la 1ª vez
+      }
     }
 
     // ── Actions from child views ──────────────────────────────
@@ -11806,15 +11877,18 @@ createApp({
       } catch(e) { showToast('Error de conexión'); }
     }
 
+    // Debug hook (browsercheck / diagnóstico): inspección de caché y estado de carga.
+    try { window.__psDebug = { moduleCache, get moduleLoading(){ return moduleLoading.value; }, get currentModule(){ return currentModule.value; }, keys(){ return Object.keys(moduleCache); } }; } catch(e) {}
+
     onMounted(async () => {
       if (!session.value) cargarPersonal();
       else if (USE_SUPABASE_PS && session.value.rol === 'Administrador') {
         // si la sesión Supabase no sobrevivió al reload (o getSession se colgó), re-login
         let s = await _sbSessionSafe(4000);
         if (!s) { session.value = null; localStorage.removeItem('ps_session'); loginStep.value = 'select'; cargarPersonal(); }
-        else { loadModuleData('dashboard'); preloadCatalogos(); }
+        else { loadModuleData('dashboard'); preloadCatalogos(); preloadModules(); }
       }
-      else { loadModuleData('dashboard'); preloadCatalogos(); }
+      else { loadModuleData('dashboard'); preloadCatalogos(); preloadModules(); }
       window.addEventListener('online',  () => isOnline.value = true);
       window.addEventListener('offline', () => isOnline.value = false);
       window.addEventListener('beforeinstallprompt', e => {
@@ -11848,7 +11922,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.47.0';
+const APP_VERSION = '1.48.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
