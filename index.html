@@ -11848,7 +11848,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.46.0';
+const APP_VERSION = '1.47.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
@@ -11932,7 +11932,7 @@ console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   });
 
   if (!('serviceWorker' in navigator)) {
-    _pollVersion(); setInterval(_pollVersion, 5 * 60 * 1000); return;
+    _pollVersion(); setInterval(_pollVersion, 90 * 1000); return;
   }
 
   navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then(reg => {
@@ -11946,12 +11946,12 @@ console.log('%c PS Panel %c v' + APP_VERSION + ' ',
       });
     });
     _reg.update().catch(() => {});
-    setInterval(() => _reg?.update().catch(() => {}), 5 * 60 * 1000);
+    setInterval(() => _reg?.update().catch(() => {}), 90 * 1000);
   }).catch(() => {});
 
   _pollVersion();
   setTimeout(_pollVersion, 3000); // segundo intento a los 3s — iOS cold start
-  setInterval(_pollVersion, 5 * 60 * 1000);
+  setInterval(_pollVersion, 90 * 1000);
 })();
 </script>
 </body>
