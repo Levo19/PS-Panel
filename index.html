@@ -436,6 +436,12 @@ input  { outline: none; border: none; background: none; color: inherit; font: in
 .ps-dash .chart-card { padding:18px; margin-bottom:16px; }
 .ps-dash .chart-card:last-child { margin-bottom:24px; }
 @media (max-width:400px){ .ps-dash .kpi-grid-3 { grid-template-columns:repeat(2,1fr); } }
+/* ── Wrap de una sola columna: en pantallas anchas limita el ancho y centra
+   (móvil = 100%, sin cambios). Úsalo en el CONTENEDOR de vistas de columna
+   única (Catálogo hub/sub-vistas, Finanzas) para que header y contenido
+   queden alineados al MISMO ancho máximo y no se estiren de borde a borde. ── */
+.ps-wrap { width:100%; }
+@media (min-width:900px){ .ps-wrap { max-width:1040px; margin-inline:auto; } }
 /* ═══════════════════ fin KIT ps-* ═══════════════════ */
 
 /* ── PORTRAIT LAYOUT (bottom nav) ──────────────────────── */
@@ -10354,7 +10360,7 @@ const ViewFinanzas = {
              METODOS, CATS, contactos, reg, regCat, contactosFiltrados, abrirReg, enviarReg };
   },
   template: `
-    <div>
+    <div class="ps-wrap">
       <!-- Cabecera iOS -->
       <div class="ps-head">
         <div class="ps-head-l">
@@ -10779,7 +10785,7 @@ const ViewCatalogos = {
     <div class="ps-enter">
 
       <!-- ── HUB ─────────────────────────────────────────── -->
-      <div v-if="view==='hub'" style="padding-bottom:32px;">
+      <div v-if="view==='hub'" class="ps-wrap" style="padding-bottom:32px;">
         <div class="ps-head">
           <div class="ps-head-l">
             <div class="ps-head-ico">📚</div>
@@ -10804,7 +10810,7 @@ const ViewCatalogos = {
       </div>
 
       <!-- ── EMBARCACIONES ──────────────────────────────── -->
-      <div v-else-if="view==='embarcaciones'" style="padding-bottom:32px;">
+      <div v-else-if="view==='embarcaciones'" class="ps-wrap" style="padding-bottom:32px;">
         <div class="ps-head ps-head--bar">
           <div class="ps-head-l">
             <button @click="openHub()" class="ps-btn ps-btn-ghost" style="width:38px;height:38px;min-height:38px;padding:0;font-size:20px;flex-shrink:0;">‹</button>
@@ -10831,7 +10837,7 @@ const ViewCatalogos = {
       </div>
 
       <!-- ── PERSONAL ────────────────────────────────────── -->
-      <div v-else-if="view==='personal'" style="padding-bottom:32px;">
+      <div v-else-if="view==='personal'" class="ps-wrap" style="padding-bottom:32px;">
         <div class="ps-head ps-head--bar">
           <div class="ps-head-l">
             <button @click="openHub()" class="ps-btn ps-btn-ghost" style="width:38px;height:38px;min-height:38px;padding:0;font-size:20px;flex-shrink:0;">‹</button>
@@ -10874,7 +10880,7 @@ const ViewCatalogos = {
       </div>
 
       <!-- ── CONTACTOS ───────────────────────────────────── -->
-      <div v-else-if="view==='contactos'" style="padding-bottom:32px;">
+      <div v-else-if="view==='contactos'" class="ps-wrap" style="padding-bottom:32px;">
         <div class="ps-head ps-head--bar">
           <div class="ps-head-l">
             <button @click="openHub()" class="ps-btn ps-btn-ghost" style="width:38px;height:38px;min-height:38px;padding:0;font-size:20px;flex-shrink:0;">‹</button>
@@ -10915,7 +10921,7 @@ const ViewCatalogos = {
       </div>
 
       <!-- ── IMPUESTOS ───────────────────────────────────── -->
-      <div v-else-if="view==='impuestos'" style="padding-bottom:32px;">
+      <div v-else-if="view==='impuestos'" class="ps-wrap" style="padding-bottom:32px;">
         <div class="ps-head ps-head--bar">
           <div class="ps-head-l">
             <button @click="openHub()" class="ps-btn ps-btn-ghost" style="width:38px;height:38px;min-height:38px;padding:0;font-size:20px;flex-shrink:0;">‹</button>
@@ -10938,7 +10944,7 @@ const ViewCatalogos = {
       </div>
 
       <!-- ── SERVICIOS DE FACTURACIÓN ────────────────────── -->
-      <div v-else-if="view==='servicios'" style="padding-bottom:32px;">
+      <div v-else-if="view==='servicios'" class="ps-wrap" style="padding-bottom:32px;">
         <div class="ps-head ps-head--bar">
           <div class="ps-head-l">
             <button @click="openHub()" class="ps-btn ps-btn-ghost" style="width:38px;height:38px;min-height:38px;padding:0;font-size:20px;flex-shrink:0;">‹</button>
@@ -11831,7 +11837,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.44.0';
+const APP_VERSION = '1.45.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
