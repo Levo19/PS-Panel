@@ -264,6 +264,21 @@ input  { outline: none; border: none; background: none; color: inherit; font: in
 @keyframes psIcoFloat  { 0%,100%{ transform:translateY(0) rotate(-3deg);} 50%{ transform:translateY(-5px) rotate(3deg);} }
 @keyframes psRise      { from{opacity:0; transform:translateY(12px);} to{opacity:1; transform:none;} }
 
+/* ── Variante "app-bar" de cabecera: título a la izq + acción a la der en UNA sola
+   fila (sub-vistas de Catálogo, etc.). Sin wrap: el título elipsa si falta espacio
+   y el botón de acción nunca cae debajo. En pantallas angostas la acción se vuelve
+   sólo ícono (＋) para no comprimir el título. ── */
+.ps-head--bar { flex-wrap:nowrap; gap:12px; }
+.ps-head--bar .ps-head-l { flex:1 1 auto; min-width:0; }
+.ps-head--bar .ps-head-l > div:last-child { min-width:0; }
+.ps-head--bar .ps-head-title { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ps-head--bar > .ps-btn { flex-shrink:0; }
+@media (max-width:430px){
+  .ps-head--bar { padding:15px 16px; gap:10px; }
+  .ps-head--bar .ps-head-ico { font-size:24px !important; }
+  .ps-hide-xs { display:none; }
+}
+
 /* ── Card de vidrio (glass frosted) ── */
 .ps-card {
   background:rgba(255,255,255,.06); border:1px solid var(--border); border-radius:var(--radius);
@@ -10790,13 +10805,13 @@ const ViewCatalogos = {
 
       <!-- ── EMBARCACIONES ──────────────────────────────── -->
       <div v-else-if="view==='embarcaciones'" style="padding-bottom:32px;">
-        <div class="ps-head">
+        <div class="ps-head ps-head--bar">
           <div class="ps-head-l">
             <button @click="openHub()" class="ps-btn ps-btn-ghost" style="width:38px;height:38px;min-height:38px;padding:0;font-size:20px;flex-shrink:0;">‹</button>
             <div class="ps-head-ico" style="font-size:30px;">🛥</div>
             <div><div class="ps-head-title" style="font-size:20px;">Embarcaciones</div></div>
           </div>
-          <button @click="openCatModal('embarcaciones')" class="ps-btn ps-btn-primary">＋ Nuevo</button>
+          <button @click="openCatModal('embarcaciones')" class="ps-btn ps-btn-primary">＋<span class="ps-hide-xs"> Nuevo</span></button>
         </div>
         <div v-if="!lists.embarcaciones.length" style="text-align:center;padding:40px 20px;color:var(--text-muted);">Sin embarcaciones</div>
         <div class="ps-stagger">
@@ -10817,13 +10832,13 @@ const ViewCatalogos = {
 
       <!-- ── PERSONAL ────────────────────────────────────── -->
       <div v-else-if="view==='personal'" style="padding-bottom:32px;">
-        <div class="ps-head">
+        <div class="ps-head ps-head--bar">
           <div class="ps-head-l">
             <button @click="openHub()" class="ps-btn ps-btn-ghost" style="width:38px;height:38px;min-height:38px;padding:0;font-size:20px;flex-shrink:0;">‹</button>
             <div class="ps-head-ico" style="font-size:30px;">👥</div>
             <div><div class="ps-head-title" style="font-size:20px;">Personal</div></div>
           </div>
-          <button @click="openCatModal('personal')" class="ps-btn ps-btn-primary">＋ Nuevo</button>
+          <button @click="openCatModal('personal')" class="ps-btn ps-btn-primary">＋<span class="ps-hide-xs"> Nuevo</span></button>
         </div>
         <div style="display:flex;gap:6px;padding:0 4px 14px;">
           <button v-for="f in [{k:'todos',l:'Todos'},{k:'activos',l:'Activos'},{k:'inactivos',l:'Inactivos'}]" :key="f.k"
@@ -10860,13 +10875,13 @@ const ViewCatalogos = {
 
       <!-- ── CONTACTOS ───────────────────────────────────── -->
       <div v-else-if="view==='contactos'" style="padding-bottom:32px;">
-        <div class="ps-head">
+        <div class="ps-head ps-head--bar">
           <div class="ps-head-l">
             <button @click="openHub()" class="ps-btn ps-btn-ghost" style="width:38px;height:38px;min-height:38px;padding:0;font-size:20px;flex-shrink:0;">‹</button>
             <div class="ps-head-ico" style="font-size:30px;">📇</div>
             <div><div class="ps-head-title" style="font-size:20px;">Contactos</div></div>
           </div>
-          <button @click="openCatModal('contactos')" class="ps-btn ps-btn-primary">＋ Nuevo</button>
+          <button @click="openCatModal('contactos')" class="ps-btn ps-btn-primary">＋<span class="ps-hide-xs"> Nuevo</span></button>
         </div>
         <input v-model="search" placeholder="🔍 Buscar contacto..."
           style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px;font-size:16px;color:var(--text);margin-bottom:10px;-webkit-appearance:none;outline:none;box-sizing:border-box;" />
@@ -10901,13 +10916,13 @@ const ViewCatalogos = {
 
       <!-- ── IMPUESTOS ───────────────────────────────────── -->
       <div v-else-if="view==='impuestos'" style="padding-bottom:32px;">
-        <div class="ps-head">
+        <div class="ps-head ps-head--bar">
           <div class="ps-head-l">
             <button @click="openHub()" class="ps-btn ps-btn-ghost" style="width:38px;height:38px;min-height:38px;padding:0;font-size:20px;flex-shrink:0;">‹</button>
             <div class="ps-head-ico" style="font-size:30px;">🧾</div>
             <div><div class="ps-head-title" style="font-size:19px;">Impuestos</div><div class="ps-head-sub">Adicionales</div></div>
           </div>
-          <button @click="openCatModal('impuestos')" class="ps-btn ps-btn-primary">＋ Nuevo</button>
+          <button @click="openCatModal('impuestos')" class="ps-btn ps-btn-primary">＋<span class="ps-hide-xs"> Nuevo</span></button>
         </div>
         <div v-if="!lists.impuestos.length" style="text-align:center;padding:40px 20px;color:var(--text-muted);">Sin impuestos</div>
         <div class="ps-stagger">
@@ -10924,13 +10939,13 @@ const ViewCatalogos = {
 
       <!-- ── SERVICIOS DE FACTURACIÓN ────────────────────── -->
       <div v-else-if="view==='servicios'" style="padding-bottom:32px;">
-        <div class="ps-head">
+        <div class="ps-head ps-head--bar">
           <div class="ps-head-l">
             <button @click="openHub()" class="ps-btn ps-btn-ghost" style="width:38px;height:38px;min-height:38px;padding:0;font-size:20px;flex-shrink:0;">‹</button>
             <div class="ps-head-ico" style="font-size:30px;">🏷</div>
             <div><div class="ps-head-title" style="font-size:19px;">Servicios</div><div class="ps-head-sub">Facturación</div></div>
           </div>
-          <button @click="openSvcModal()" class="ps-btn ps-btn-primary">＋ Nuevo</button>
+          <button @click="openSvcModal()" class="ps-btn ps-btn-primary">＋<span class="ps-hide-xs"> Nuevo</span></button>
         </div>
         <div style="font-size:11px;color:var(--text-muted);padding:0 4px 14px;line-height:1.5;">Los servicios que aparecen al emitir un CPE (boleta / factura) y en el paquete de zarpe (Paseo · Guiado).</div>
         <div v-if="svcLoading && !servicios.length" style="text-align:center;padding:40px 20px;color:var(--text-muted);"><span class="spin" style="display:inline-block;width:22px;height:22px;"></span></div>
@@ -11816,7 +11831,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.43.0';
+const APP_VERSION = '1.44.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
