@@ -405,9 +405,13 @@ input  { outline: none; border: none; background: none; color: inherit; font: in
 @keyframes psEnter { 0%{opacity:0; transform:translateY(-14px) scale(.985);} 60%{opacity:1;} 100%{opacity:1; transform:none;} }
 @keyframes psGlow  { 0%{box-shadow:inset 0 0 0 9999px rgba(201,168,76,.15);} 100%{box-shadow:inset 0 0 0 9999px rgba(201,168,76,0);} }
 
+/* ── Ícono flotante para estados vacíos elegantes (reutilizable) ── */
+.ps-float-ico { display:inline-block; animation:psBob 3.2s ease-in-out infinite; }
+@keyframes psBob { 0%,100%{ -webkit-transform:translateY(0); transform:translateY(0);} 50%{ -webkit-transform:translateY(-8px); transform:translateY(-8px);} }
+
 @media (prefers-reduced-motion: reduce){
   .ps-head, .ps-head::after, .ps-head-ico, .ps-acc, .ps-stagger > *, .ps-slot-anim, .ps-fb,
-  .ps-enter, .ps-sheet, .ps-sheet-overlay { animation:none !important; }
+  .ps-enter, .ps-sheet, .ps-sheet-overlay, .ps-float-ico { animation:none !important; }
   .ps-card, .ps-acc, .ps-tab, .ps-tab-ind, .ps-row, .ps-btn { transition:none !important; }
   .shimmer { animation:none !important; }
 }
@@ -5596,49 +5600,78 @@ const ViewHotel = {
   props: ['data', 'loading'],
   emits: ['action'],
   template: `
-    <div>
+    <div class="ps-dash ps-enter">
+      <!-- Cabecera iOS -->
+      <div class="ps-head">
+        <div class="ps-head-l">
+          <div class="ps-head-ico">🏨</div>
+          <div>
+            <div class="ps-head-title">Hotel</div>
+            <div class="ps-head-sub">Ocupación y reservas del día</div>
+          </div>
+        </div>
+        <div class="ps-head-hero">
+          <div class="lbl">Ingresos hoy</div>
+          <div class="val">S/ {{ fmt(ingresosHoy) }}</div>
+        </div>
+      </div>
+
       <div v-if="loading" style="display:flex;justify-content:center;padding:60px 0;"><div class="spin"></div></div>
 
       <template v-else>
-        <!-- Ocupación rápida -->
-        <div class="kpi-grid" style="margin-bottom:16px;">
-          <div class="kpi-card glass">
+        <!-- KPIs de ocupación -->
+        <div class="kpi-grid ps-stagger" style="margin-bottom:16px;">
+          <div class="kpi-card ps-card">
             <div class="kpi-label">Ocupación</div>
-            <div class="kpi-value shimmer">{{ ocupacionPct }}%</div>
+            <div class="kpi-value big shimmer">{{ ocupacionPct }}%</div>
             <div class="kpi-sub">{{ ocupadas }}/{{ total }} habitaciones</div>
           </div>
-          <div class="kpi-card glass">
+          <div class="kpi-card ps-card">
             <div class="kpi-label">Ingresos hoy</div>
-            <div class="kpi-value" style="color:var(--gold);">S/ {{ fmt(data?.dashboard?.hotel?.ingresos_total || 0) }}</div>
+            <div class="kpi-value" style="color:var(--gold);">S/ {{ fmt(ingresosHoy) }}</div>
             <div class="kpi-sub">Aloj. + Consumos</div>
           </div>
         </div>
 
         <!-- Mapa de habitaciones -->
-        <div class="section-card glass">
-          <div class="section-title">Habitaciones</div>
-          <div class="room-grid" v-if="data?.habitaciones?.length">
-            <div v-for="h in data.habitaciones" :key="h.id" class="room-card glass">
+        <div class="section-card ps-card">
+          <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+            <span>Habitaciones</span>
+            <span v-if="total" style="display:inline-flex;gap:6px;flex-wrap:wrap;">
+              <span class="ps-chip green">{{ libres }} libres</span>
+              <span class="ps-chip gold">{{ ocupadas }} ocup.</span>
+            </span>
+          </div>
+          <div class="room-grid ps-stagger" v-if="data?.habitaciones?.length">
+            <div v-for="h in data.habitaciones" :key="h.id" class="room-card ps-card" @click="tap">
               <div class="room-status" :class="roomStatusClass(h.estado)"></div>
               <div class="room-number">{{ h.numero }}</div>
               <div class="room-type">{{ h.tipo }}</div>
-              <div style="font-size:11px;margin-top:4px;" :style="roomColor(h.estado)">{{ h.estado }}</div>
+              <div style="font-size:11px;margin-top:4px;font-weight:700;" :style="roomColor(h.estado)">{{ h.estado }}</div>
             </div>
           </div>
-          <div v-else class="empty-state" style="padding:20px 0;"><p>Sin habitaciones registradas</p></div>
+          <div v-else class="empty-state" style="padding:26px 0;">
+            <div class="empty-icon ps-float-ico">🛏️</div>
+            <p style="font-size:13px;">Sin habitaciones registradas</p>
+          </div>
         </div>
 
         <!-- Reservas del día -->
-        <div class="section-card glass" style="margin-bottom:24px;">
+        <div class="section-card ps-card" style="margin-bottom:24px;">
           <div class="section-title">Reservas de hoy</div>
-          <div v-if="!data?.reservas?.length" class="empty-state" style="padding:20px 0;"><p>Sin reservas hoy</p></div>
-          <div v-for="r in (data?.reservas || [])" :key="r.id" class="pm-card" style="cursor:default;">
-            <div class="pm-avatar" style="font-size:13px;">{{ r.habitacion }}</div>
-            <div class="pm-info">
-              <div class="pm-name">{{ r.huesped }}</div>
-              <div class="pm-rol">{{ r.noches }} noche(s) · S/ {{ r.total }}</div>
+          <div v-if="!data?.reservas?.length" class="empty-state" style="padding:26px 0;">
+            <div class="empty-icon ps-float-ico">🗓️</div>
+            <p style="font-size:13px;">Sin reservas para hoy</p>
+          </div>
+          <div v-else class="ps-stagger" style="display:flex;flex-direction:column;gap:8px;">
+            <div v-for="r in data.reservas" :key="r.id" class="ps-row">
+              <div class="pm-avatar" style="font-size:13px;">{{ r.habitacion }}</div>
+              <div class="pm-info" style="min-width:0;">
+                <div class="pm-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ r.huesped }}</div>
+                <div class="pm-rol">{{ r.noches }} noche(s) · S/ {{ r.total }}</div>
+              </div>
+              <span class="ps-chip" :class="reservaChip(r.estado)">{{ r.estado }}</span>
             </div>
-            <span class="estado-chip" :class="reservaClass(r.estado)" style="font-size:10px;">{{ r.estado }}</span>
           </div>
         </div>
       </template>
@@ -5647,10 +5680,19 @@ const ViewHotel = {
   computed: {
     total()     { return (this.data?.habitaciones || []).length; },
     ocupadas()  { return (this.data?.habitaciones || []).filter(h => String(h.estado).toLowerCase().includes('ocup')).length; },
-    ocupacionPct() { return this.total > 0 ? Math.round(this.ocupadas / this.total * 100) : 0; }
+    libres()    { return (this.data?.habitaciones || []).filter(h => String(h.estado).toLowerCase().includes('libr')).length; },
+    ocupacionPct() { return this.total > 0 ? Math.round(this.ocupadas / this.total * 100) : 0; },
+    ingresosHoy()  { return this.data?.dashboard?.hotel?.ingresos_total || 0; }
   },
   methods: {
     fmt(v) { return (parseFloat(v)||0).toLocaleString('es-PE',{minimumFractionDigits:0,maximumFractionDigits:0}); },
+    tap() { try { sndTap(); haptic(8); } catch(e){} },
+    reservaChip(e) {
+      const s = String(e).toLowerCase();
+      if (s.includes('cancel')) return 'red';
+      if (s.includes('activ') || s.includes('check')) return 'green';
+      return 'gold';
+    },
     roomStatusClass(e) {
       const s = String(e).toLowerCase();
       if (s.includes('ocup')) return 'room-ocupada';
@@ -11774,7 +11816,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.42.0';
+const APP_VERSION = '1.43.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
