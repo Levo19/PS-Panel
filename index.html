@@ -3120,7 +3120,8 @@ const PS_POST = {
   convertir_pase_compra: b => _psRpc('convertir_pase_compra', { p_mov: b.id_mov, p_agencia: b.id_agencia, p_monto: parseFloat(b.monto) || 0 }),
   crear_operacion: b => _psRpc('abrir_operacion', { p_bote: b.id_bote, p_capitan: b.id_capitan || null, p_guia: b.id_guia || null, p_hora: b.hora_salida || null, p_destino: b.destino || null, p_creador: b.creador || 'PS', p_local_id: b.localId || null, p_fecha: b.fecha || null }).then(id => ({ id })),
   actualizar_operacion: b => _psRpc('editar_operacion', { p_op: b.id_operacion || b.id, p_capitan: b.id_capitan == null ? null : b.id_capitan, p_guia: b.id_guia == null ? null : b.id_guia, p_hora: b.hora_salida == null ? null : b.hora_salida }),
-  crear_movimiento: b => _psRpc('registrar_movimiento', { p_op: b.id_operacion, p_tipo: b.tipo, p_contacto: b.id_contacto || null, p_nombre: b.nombre_contacto || b.id_contacto || null, p_pax: parseInt(b.cant_pax) || 0, p_precio: parseFloat(b.precio_aplicado || b.precio_unitario) || 0, p_monto: parseFloat(b.monto_total) || 0, p_operador: b.operador || 'PS', p_local_id: b.localId || null }).then(id => ({ id_mov: id })),
+  crear_movimiento: b => { const args = { p_op: b.id_operacion, p_tipo: b.tipo, p_contacto: b.id_contacto || null, p_nombre: b.nombre_contacto || b.id_contacto || null, p_pax: parseInt(b.cant_pax) || 0, p_precio: parseFloat(b.precio_aplicado || b.precio_unitario) || 0, p_monto: parseFloat(b.monto_total) || 0, p_operador: b.operador || 'PS', p_local_id: b.localId || null }; if (b.registrado_at) args.p_registrado_at = b.registrado_at; return _psRpc('registrar_movimiento', args).then(id => ({ id_mov: id })); },
+  crear_pase_directo: b => _psRpc('registrar_pase_directo', { p_contacto: b.id_contacto || null, p_nombre: b.nombre_contacto || null, p_aliado: b.id_aliado, p_pax: parseInt(b.cant_pax) || 0, p_operador: b.operador || 'PS', p_fecha: b.fecha, p_local_id: b.localId || null }).then(id => ({ id_mov: id })),
   editar_movimiento: b => _psRpc('editar_movimiento', { p_id: b.id_mov, p_op: b.id_operacion, p_tipo: b.tipo, p_contacto: b.id_contacto || null, p_nombre: b.nombre_contacto || null, p_pax: parseInt(b.cant_pax) || 0, p_precio: parseFloat(b.precio_aplicado || b.precio_unitario) || 0, p_monto: parseFloat(b.monto_total) || 0 }),
   crear_embarcacion: b => _psRpc('admin_crear_embarcacion', { p_nombre: b.nombre, p_cap: parseInt(b.capacidad_pax) || 0, p_matricula: b.matricula || null }).then(id => ({ id })),
   actualizar_embarcacion: b => _psRpc('admin_editar_embarcacion', { p_id: b.id, p_nombre: b.nombre == null ? null : b.nombre, p_cap: b.capacidad_pax == null ? null : parseInt(b.capacidad_pax), p_matricula: b.matricula == null ? null : b.matricula }),
@@ -4045,7 +4046,9 @@ const ViewLanchas = {
     const contactosOps = ref([]);
     const movFormModal = ref({ show: false, mode: 'crear', saving: false, error: '',
       id_mov: '', id_operacion: '', op_label: '', tipo: 'Directo',
-      id_contacto: '', nombre_contacto: '', cant_pax: '', monto_total: '', adicionales: '' });
+      id_contacto: '', nombre_contacto: '', cant_pax: '', precio_unit: '', monto_total: '', adicionales: '' });
+    const paseSueltoModal = ref({ show: false, saving: false, error: '',
+      origenQ: '', origenId: '', origenNombre: '', aliadoId: '', pax: 1, localId: '' });
     const pagoModal = ref({ show: false, saving: false, error: '', modo: 'cobro',
       id_mov: '', id_operacion: '', id_contacto: '', nombre_contacto: '',
       monto: '', metodo_pago: 'Efectivo', comentarios: '' });
@@ -4086,27 +4089,85 @@ const ViewLanchas = {
       if (r.ok) contactosOps.value = r.data;
     }
 
+    // ── Tipos de movimiento + filtrado de contactos por tipo ──
+    const MOV_TIPOS_BASE = ['Libre', 'Agencia', 'Comisionado', 'Aliado(PaseIn)'];
+    const movTipos = computed(() => {
+      const t = movFormModal.value.tipo;   // al editar un tipo legado (p.ej. Directo) lo preservamos como pill extra
+      return (t && !MOV_TIPOS_BASE.includes(t)) ? [t, ...MOV_TIPOS_BASE] : MOV_TIPOS_BASE;
+    });
+    function movTipoFiltro(t) {            // tipo de mov → tipo de contacto (case-insensitive)
+      const s = String(t || '').toLowerCase();
+      if (s === 'agencia')      return 'agencia';
+      if (s === 'comisionado')  return 'comisionado';
+      if (s.includes('pasein')) return 'aliado';
+      return null;                          // Libre / Directo / legado → sin filtro
+    }
+    const movEsPaseIn = computed(() => String(movFormModal.value.tipo || '').toLowerCase().includes('pasein'));
+    const movEsLibre  = computed(() => { const s = String(movFormModal.value.tipo || '').toLowerCase(); return s === 'libre' || s === 'directo'; });
+    const movContactosFiltrados = computed(() => {
+      const f = movTipoFiltro(movFormModal.value.tipo);
+      if (!f) return contactosOps.value;
+      return contactosOps.value.filter(c => String(c.tipo || '').toLowerCase() === f);
+    });
+    function setMovTipo(t) {
+      const m = movFormModal.value;
+      if (m.tipo === t) return;
+      m.tipo = t;
+      const f = movTipoFiltro(t);
+      const sel = contactosOps.value.find(c => c.id === m.id_contacto);
+      if (m.id_contacto && f && (!sel || String(sel.tipo || '').toLowerCase() !== f)) {
+        m.id_contacto = ''; m.nombre_contacto = ''; m.precio_unit = '';   // el contacto elegido no calza con el nuevo tipo
+      }
+      if (String(t).toLowerCase().includes('pasein')) { m.precio_unit = '0'; m.monto_total = '0'; }  // pases van en PAX
+      try { sndTap(); haptic(6); } catch (e) {}
+    }
+    function onMovContacto() {
+      const m = movFormModal.value;
+      const c = contactosOps.value.find(x => x.id === m.id_contacto);
+      if (!c) return;
+      m.nombre_contacto = c.nombre;
+      if (!movEsPaseIn.value) {
+        const p = parseFloat(c.precio_defecto ?? c.precio) || 0;   // precio por defecto del contacto (editable)
+        if (p > 0) { m.precio_unit = String(p); movRecalc(); }
+      }
+    }
+    function movRecalc() {                  // monto = pax × precio, en vivo
+      const m = movFormModal.value;
+      const pax = parseInt(m.cant_pax) || 0, pu = parseFloat(m.precio_unit) || 0;
+      if (pax > 0 && pu > 0) m.monto_total = (pax * pu).toFixed(2);
+    }
+    const esRetro = computed(() => !!currentFecha.value && currentFecha.value !== today);   // viendo un día ≠ hoy
+
     function openMovFormModal(op, mov = null) {
+      loadContactos();
       const opLabel = (op.nombre_bote || op.id_bote || '') + (op.hora_salida ? ' · ' + op.hora_salida : '');
       if (mov) {
+        const pax0 = parseInt(mov.cant_pax) || 0, monto0 = parseFloat(mov.monto_total) || 0;
+        const pu0  = parseFloat(mov.precio_aplicado);
         movFormModal.value = { show: true, mode: 'editar', saving: false, error: '',
           id_mov: mov.id_mov, id_operacion: op.id, op_label: opLabel,
           tipo: mov.tipo, id_contacto: mov.id_contacto,
           nombre_contacto: mov.nombre_contacto,
           cant_pax: String(mov.cant_pax),
+          precio_unit: !isNaN(pu0) && pu0 > 0 ? String(pu0) : (pax0 > 0 && monto0 > 0 ? (monto0 / pax0).toFixed(2) : ''),
           monto_total: String(mov.monto_total),
           adicionales: '' };
       } else {
         movFormModal.value = { show: true, mode: 'crear', saving: false, error: '',
           id_mov: '', id_operacion: op.id, op_label: opLabel,
-          tipo: 'Directo', id_contacto: '', nombre_contacto: '',
-          cant_pax: '', monto_total: '', adicionales: '' };
+          tipo: 'Libre', id_contacto: '', nombre_contacto: '',
+          cant_pax: '', precio_unit: '', monto_total: '', adicionales: '' };
       }
     }
 
     async function guardarMov() {
       const m = movFormModal.value;
-      if (!m.id_contacto || !m.cant_pax || !m.monto_total) {
+      if (movEsPaseIn.value) {              // pase recibido: va en PAX, sin dinero
+        m.monto_total = '0'; m.precio_unit = '0';
+        if (!m.id_contacto || !m.cant_pax) { m.error = 'Aliado y PAX son obligatorios'; return; }
+      } else if (movEsLibre.value) {        // libre: contacto opcional (texto libre)
+        if (!m.cant_pax || !m.monto_total) { m.error = 'PAX y monto son obligatorios'; return; }
+      } else if (!m.id_contacto || !m.cant_pax || !m.monto_total) {
         m.error = 'Contacto, PAX y monto son obligatorios'; return;
       }
       const session = JSON.parse(localStorage.getItem('ps_session') || '{}');
@@ -4127,6 +4188,8 @@ const ViewLanchas = {
       };
       if (m.mode === 'editar') body.id_mov = m.id_mov;
       if (m.mode === 'crear')  body.localId = 'ps-mov-' + Date.now() + '-' + Math.random().toString(36).slice(2,8);  // idempotencia
+      if (m.mode === 'crear' && esRetro.value)                       // retroactivo: mediodía Lima del día visto (solo admin lo respeta el backend)
+        body.registrado_at = currentFecha.value + 'T12:00:00-05:00';
 
       // ── Editar: optimistic ────────────────────────────────────
       if (m.mode === 'editar') {
@@ -4183,6 +4246,59 @@ const ViewLanchas = {
         showToast('✅ Movimiento registrado');
       } catch(e) { m.error = e.message; }
       finally    { m.saving = false; }
+    }
+
+    // ── Pase suelto (sin reserva): origen opcional + aliado que lo lleva + PAX ──
+    const contactosAliado = computed(() =>
+      contactosOps.value.filter(c => String(c.tipo || '').toLowerCase() === 'aliado'));
+    const origenMatches = computed(() => {
+      const p = paseSueltoModal.value;
+      const q = String(p.origenQ || '').trim().toLowerCase();
+      if (p.origenId || q.length < 2) return [];
+      return contactosOps.value.filter(c => String(c.nombre || '').toLowerCase().includes(q)).slice(0, 8);
+    });
+    function openPaseSueltoModal() {
+      try { sndTap(); haptic(10); } catch (e) {}
+      loadContactos();
+      paseSueltoModal.value = { show: true, saving: false, error: '',
+        origenQ: '', origenId: '', origenNombre: '', aliadoId: '', pax: 1,
+        localId: 'ps-pase-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) };  // localId al ABRIR → doble click = mismo pase
+    }
+    function pickOrigen(c) {
+      const p = paseSueltoModal.value;
+      p.origenId = c.id; p.origenNombre = c.nombre; p.origenQ = c.nombre;
+      try { sndTap(); haptic(6); } catch (e) {}
+    }
+    function paseSueltoPaxStep(d) {
+      const p = paseSueltoModal.value;
+      p.pax = Math.max(1, (parseInt(p.pax) || 1) + d);
+      try { sndTap(); haptic(6); } catch (e) {}
+    }
+    async function guardarPaseSuelto() {
+      const p = paseSueltoModal.value;
+      if (p.saving) return;                                    // anti doble-click
+      if (!p.aliadoId) { p.error = 'Elige el aliado que lleva el pase'; return; }
+      const pax = parseInt(p.pax) || 0;
+      if (pax < 1) { p.error = 'PAX debe ser al menos 1'; return; }
+      const session = JSON.parse(localStorage.getItem('ps_session') || '{}');
+      const origen  = p.origenId ? contactosOps.value.find(c => c.id === p.origenId) : null;
+      p.saving = true; p.error = '';
+      try {
+        const r = await apiPost({ accion: 'crear_pase_directo',
+          id_contacto: origen ? origen.id : null,
+          nombre_contacto: origen ? origen.nombre : (String(p.origenQ || '').trim() || null),  // texto libre si no eligió contacto
+          id_aliado: p.aliadoId, cant_pax: pax,
+          operador: session.nombre || 'PS',
+          fecha: currentFecha.value,                           // la fecha que se está VIENDO (retroactivo solo admin)
+          localId: p.localId });
+        if (!r.ok) throw new Error(r.error || 'Error al registrar el pase');
+        paseSueltoModal.value.show = false;
+        try { sndOk(); haptic([15, 40, 15]); } catch (e) {}
+        showToast('✅ Pase registrado');
+        dateTab.value = 'pases';
+        loadFecha(currentFecha.value, true);                   // refresco sin spinner: el pase aparece en la lista
+      } catch (e) { p.error = e.message; }
+      finally     { p.saving = false; }
     }
 
     async function confirmarCancelarMov(id_mov) {
@@ -4483,6 +4599,8 @@ const ViewLanchas = {
              contactosOps, movFormModal, pagoModal, derivarModal,
              tipoEsCobrable, calcPagoEstado, pagadoAgencia,
              openMovFormModal, guardarMov, confirmarCancelarMov,
+             movTipos, movContactosFiltrados, movEsPaseIn, movEsLibre, setMovTipo, onMovContacto, movRecalc, esRetro,
+             paseSueltoModal, contactosAliado, origenMatches, openPaseSueltoModal, pickOrigen, paseSueltoPaxStep, guardarPaseSuelto,
              openPagoModal, openPagoModalPase, guardarPago,
              openDerivarModal, openConvertirModal, guardarDerivarConvertir,
              confirmarAnularPaseMov,
@@ -4571,6 +4689,11 @@ const ViewLanchas = {
 
             <!-- TAB PASES -->
             <div v-if="dateTab==='pases'">
+              <!-- Toolbar de la pestaña: registrar pase suelto -->
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;">
+                <span style="font-size:11px;color:var(--text-muted);letter-spacing:.05em;">Pases del día · {{ fmtFecha(currentFecha) }}</span>
+                <button class="ps-btn ps-btn-primary" style="min-height:36px;padding:7px 14px;font-size:12.5px;" @click="openPaseSueltoModal()">＋ Pase</button>
+              </div>
               <div v-if="!allPasesDia(currentFecha).length" class="empty-state" style="padding:20px;">
                 <div class="empty-icon" style="font-size:28px;">🔀</div>
                 <p style="font-size:13px;">Sin pases registrados este día</p>
@@ -4992,6 +5115,9 @@ const ViewLanchas = {
                   {{ movFormModal.mode==='crear' ? 'Nuevo movimiento' : 'Editar movimiento' }}
                 </div>
                 <div style="font-size:13px;font-weight:700;color:var(--text);">{{ movFormModal.op_label }}</div>
+                <div v-if="movFormModal.mode==='crear' && esRetro" style="margin-top:5px;">
+                  <span class="ps-chip" style="color:#fbbf24;background:rgba(251,191,36,.14);border-color:rgba(251,191,36,.4);">⚠ Retroactivo · {{ fmtFecha(currentFecha) }}</span>
+                </div>
               </div>
               <button @click="movFormModal.show=false" style="font-size:20px;color:var(--text-muted);line-height:1;padding:2px 6px;">✕</button>
             </div>
@@ -4999,53 +5125,71 @@ const ViewLanchas = {
             <!-- Body -->
             <div style="padding:16px 18px;display:flex;flex-direction:column;gap:14px;max-height:72vh;overflow-y:auto;">
 
-              <!-- Contacto -->
-              <div style="display:flex;flex-direction:column;gap:5px;">
-                <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">Contacto *</span>
-                <select v-model="movFormModal.id_contacto"
-                  @change="() => { const c = contactosOps.find(x => x.id === movFormModal.id_contacto); if(c) { movFormModal.nombre_contacto = c.nombre; movFormModal.tipo = c.tipo && ['Agencia','Comisionado','Directo'].includes(c.tipo) ? c.tipo : 'Directo'; if(movFormModal.cant_pax) movFormModal.monto_total = (parseFloat(c.precio||0) * parseInt(movFormModal.cant_pax||0)).toFixed(2); } }"
-                  style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 10px;font-size:13px;color:var(--text);appearance:none;">
-                  <option value="">— seleccionar —</option>
-                  <option v-for="c in contactosOps" :key="c.id" :value="c.id">{{ c.nombre }}{{ c.tipo ? '  ·  '+c.tipo : '' }}</option>
-                </select>
-                <div v-if="movFormModal.id_contacto" style="display:flex;align-items:center;justify-content:space-between;">
-                  <span style="font-size:11px;color:var(--text-muted);">
-                    Precio ref: <span style="color:var(--gold);font-weight:700;">S/ {{ fmt(contactosOps.find(x=>x.id===movFormModal.id_contacto)?.precio || 0) }}</span> / pax
-                  </span>
-                </div>
-              </div>
-
-              <!-- Tipo pills -->
+              <!-- Tipo pills (definen qué contactos se muestran) -->
               <div style="display:flex;flex-direction:column;gap:6px;">
                 <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">Tipo</span>
-                <div style="display:flex;gap:6px;">
-                  <button v-for="t in ['Directo','Agencia','Comisionado']" :key="t"
-                    @click="movFormModal.tipo=t"
-                    :style="movFormModal.tipo===t
-                      ? 'flex:1;padding:9px 4px;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;background:rgba(201,168,76,0.2);border:1.5px solid var(--gold);color:var(--gold);text-align:center;'
-                      : 'flex:1;padding:9px 4px;border-radius:9px;font-size:12px;cursor:pointer;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);text-align:center;'">
+                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                  <button v-for="t in movTipos" :key="t"
+                    @click="setMovTipo(t)"
+                    :style="(movFormModal.tipo===t
+                      ? 'padding:9px 4px;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;background:rgba(201,168,76,0.2);border:1.5px solid var(--gold);color:var(--gold);text-align:center;'
+                      : 'padding:9px 4px;border-radius:9px;font-size:12px;cursor:pointer;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);text-align:center;') + 'flex:1 1 calc(50% - 6px);min-width:110px;'">
                     {{ t }}
                   </button>
                 </div>
               </div>
 
-              <!-- PAX + Monto -->
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                <div style="display:flex;flex-direction:column;gap:5px;">
+              <!-- Contacto (filtrado por tipo) / texto libre -->
+              <div v-if="!movEsLibre" style="display:flex;flex-direction:column;gap:5px;">
+                <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">{{ movEsPaseIn ? 'Aliado que lo trae *' : 'Contacto *' }}</span>
+                <select v-model="movFormModal.id_contacto"
+                  @change="onMovContacto()"
+                  style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 10px;font-size:13px;color:var(--text);appearance:none;">
+                  <option value="">— seleccionar —</option>
+                  <option v-for="c in movContactosFiltrados" :key="c.id" :value="c.id">{{ c.nombre }}{{ c.tipo ? '  ·  '+c.tipo : '' }}</option>
+                </select>
+                <span v-if="!movContactosFiltrados.length" style="font-size:11px;color:#f87171;">Sin contactos de este tipo en el catálogo</span>
+                <div v-if="movFormModal.id_contacto && !movEsPaseIn" style="display:flex;align-items:center;justify-content:space-between;">
+                  <span style="font-size:11px;color:var(--text-muted);">
+                    Precio ref: <span style="color:var(--gold);font-weight:700;">S/ {{ fmt(contactosOps.find(x=>x.id===movFormModal.id_contacto)?.precio || 0) }}</span> / pax
+                  </span>
+                </div>
+              </div>
+              <div v-else style="display:flex;flex-direction:column;gap:5px;">
+                <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">Cliente / referencia (opcional)</span>
+                <input type="text" v-model="movFormModal.nombre_contacto" placeholder="Ej: Familia García…"
+                  style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 10px;font-size:13px;color:var(--text);" />
+              </div>
+
+              <!-- PAX + Precio + Monto (ocultos precio/monto si es PaseIn: va en PAX) -->
+              <div v-if="!movEsPaseIn" style="display:grid;grid-template-columns:1fr 1fr 1.2fr;gap:8px;">
+                <div style="display:flex;flex-direction:column;gap:5px;min-width:0;">
                   <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">PAX *</span>
                   <input type="number" v-model="movFormModal.cant_pax" min="1" placeholder="0"
-                    @input="() => { const c = contactosOps.find(x => x.id === movFormModal.id_contacto); if(c?.precio && movFormModal.cant_pax) movFormModal.monto_total = (parseFloat(c.precio)*parseInt(movFormModal.cant_pax||0)).toFixed(2); }"
-                    style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 10px;font-size:15px;font-weight:700;color:var(--text);text-align:center;" />
+                    @input="movRecalc()"
+                    style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 8px;font-size:15px;font-weight:700;color:var(--text);text-align:center;" />
                 </div>
-                <div style="display:flex;flex-direction:column;gap:5px;">
-                  <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">Monto total S/ *</span>
+                <div style="display:flex;flex-direction:column;gap:5px;min-width:0;">
+                  <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">Precio S/</span>
+                  <input type="number" v-model="movFormModal.precio_unit" min="0" step="0.01" placeholder="0.00"
+                    @input="movRecalc()"
+                    style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 8px;font-size:15px;font-weight:700;color:var(--text);text-align:center;" />
+                </div>
+                <div style="display:flex;flex-direction:column;gap:5px;min-width:0;">
+                  <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">Monto S/ *</span>
                   <input type="number" v-model="movFormModal.monto_total" min="0" step="0.01" placeholder="0.00"
-                    style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 10px;font-size:15px;font-weight:700;color:var(--gold);" />
+                    style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 8px;font-size:15px;font-weight:700;color:var(--gold);text-align:center;" />
                 </div>
+              </div>
+              <div v-else style="display:flex;flex-direction:column;gap:5px;">
+                <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">PAX *</span>
+                <input type="number" v-model="movFormModal.cant_pax" min="1" placeholder="0"
+                  style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 10px;font-size:15px;font-weight:700;color:var(--text);text-align:center;" />
+                <span style="font-size:11px;color:var(--text-muted);text-align:center;">Los pases se cuentan en pasajeros — sin monto</span>
               </div>
 
               <!-- Precio implícito (si hay pax y monto) -->
-              <div v-if="movFormModal.cant_pax && movFormModal.monto_total"
+              <div v-if="!movEsPaseIn && movFormModal.cant_pax && movFormModal.monto_total"
                 style="font-size:11px;color:var(--text-muted);text-align:center;margin-top:-6px;">
                 = S/ {{ fmt(parseFloat(movFormModal.monto_total)/parseInt(movFormModal.cant_pax)) }} por pax
               </div>
@@ -5079,6 +5223,90 @@ const ViewLanchas = {
               </div>
 
             </div>
+          </div>
+        </div>
+      </teleport>
+
+      <!-- Pase Suelto Modal (registrar pase sin reserva — va en PAX, no en dinero) -->
+      <teleport to="body">
+        <div v-if="paseSueltoModal.show" class="ps-sheet-overlay" @click.self="paseSueltoModal.show=false">
+          <div class="ps-sheet" style="max-width:420px;">
+
+            <!-- Header -->
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
+              <div>
+                <div style="font-size:10px;letter-spacing:.1em;color:#fb923c;text-transform:uppercase;margin-bottom:2px;">Pase suelto</div>
+                <div style="font-size:16px;font-weight:800;color:var(--text);">🔀 Registrar pase</div>
+                <div style="margin-top:7px;">
+                  <span v-if="esRetro" class="ps-chip" style="color:#fbbf24;background:rgba(251,191,36,.14);border-color:rgba(251,191,36,.4);">⚠ Retroactivo · {{ fmtFecha(currentFecha) }}</span>
+                  <span v-else class="ps-chip gold">📅 {{ fmtFecha(currentFecha) }}</span>
+                </div>
+              </div>
+              <button @click="paseSueltoModal.show=false" style="font-size:20px;color:var(--text-muted);line-height:1;padding:2px 6px;background:transparent;border:none;cursor:pointer;">✕</button>
+            </div>
+
+            <!-- Origen: buscador de contactos con texto libre -->
+            <div style="display:flex;flex-direction:column;gap:5px;position:relative;margin-top:16px;">
+              <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">Origen · quién lo trae (opcional)</span>
+              <input type="text" v-model="paseSueltoModal.origenQ"
+                @input="paseSueltoModal.origenId=''; paseSueltoModal.origenNombre='';"
+                placeholder="Busca un contacto o escribe libre…"
+                style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:10px 12px;font-size:13px;color:var(--text);" />
+              <div v-if="origenMatches.length"
+                style="position:absolute;top:100%;left:0;right:0;z-index:20;margin-top:4px;background:var(--bg2);border:1px solid rgba(201,168,76,0.3);border-radius:12px;max-height:190px;overflow-y:auto;box-shadow:0 14px 36px rgba(0,0,0,0.65);">
+                <div v-for="c in origenMatches" :key="c.id" @click="pickOrigen(c)"
+                  style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.05);">
+                  <span style="font-size:13px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.nombre }}</span>
+                  <span class="ps-chip" :style="chipStyle(c.tipo)">{{ c.tipo }}</span>
+                </div>
+              </div>
+              <span v-if="paseSueltoModal.origenId" style="font-size:11px;color:#4ade80;">✓ Contacto: {{ paseSueltoModal.origenNombre }}</span>
+              <span v-else-if="paseSueltoModal.origenQ.trim().length" style="font-size:11px;color:var(--text-muted);">Se registrará como texto libre</span>
+            </div>
+
+            <!-- Aliado que lo lleva (obligatorio, solo tipo Aliado) -->
+            <div style="display:flex;flex-direction:column;gap:5px;margin-top:14px;">
+              <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">Aliado que lo lleva *</span>
+              <select v-model="paseSueltoModal.aliadoId"
+                style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:10px 12px;font-size:13px;color:var(--text);appearance:none;">
+                <option value="">— seleccionar aliado —</option>
+                <option v-for="c in contactosAliado" :key="c.id" :value="c.id">{{ c.nombre }}</option>
+              </select>
+              <span v-if="!contactosAliado.length" style="font-size:11px;color:#f87171;">No hay contactos tipo Aliado en el catálogo</span>
+            </div>
+
+            <!-- PAX stepper (los pases van en PAX, sin monto) -->
+            <div style="display:flex;flex-direction:column;gap:6px;margin-top:14px;">
+              <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">PAX *</span>
+              <div style="display:flex;align-items:stretch;gap:10px;">
+                <button @click="paseSueltoPaxStep(-1)" class="ps-btn" style="width:54px;font-size:20px;padding:0;flex-shrink:0;">−</button>
+                <div style="flex:1;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;color:#fb923c;background:var(--surface);border:1px solid var(--border);border-radius:12px;">{{ paseSueltoModal.pax }}</div>
+                <button @click="paseSueltoPaxStep(1)" class="ps-btn" style="width:54px;font-size:20px;padding:0;flex-shrink:0;">＋</button>
+              </div>
+              <span style="font-size:11px;color:var(--text-muted);text-align:center;">Los pases se cuentan en pasajeros</span>
+            </div>
+
+            <!-- Error -->
+            <div v-if="paseSueltoModal.error"
+              style="margin-top:12px;padding:10px 12px;border-radius:8px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);font-size:13px;color:#f87171;">
+              ⚠ {{ paseSueltoModal.error }}
+            </div>
+
+            <!-- Botones -->
+            <div style="display:flex;gap:10px;margin-top:16px;">
+              <button @click="paseSueltoModal.show=false"
+                style="flex:1;padding:12px;border-radius:12px;background:transparent;border:1px solid var(--border);font-size:13px;cursor:pointer;color:var(--text-muted);">
+                Cancelar
+              </button>
+              <button @click="guardarPaseSuelto()"
+                :disabled="paseSueltoModal.saving"
+                style="flex:2;padding:12px;border-radius:12px;background:linear-gradient(135deg,#fb923c,#ea7317);border:none;font-size:14px;font-weight:800;color:#1a0a05;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;"
+                :style="paseSueltoModal.saving?'opacity:0.6;cursor:default':''">
+                <span v-if="paseSueltoModal.saving" class="spin" style="width:14px;height:14px;border-color:rgba(26,10,5,0.3);border-top-color:#1a0a05;"></span>
+                {{ paseSueltoModal.saving ? 'Registrando…' : 'Registrar pase' }}
+              </button>
+            </div>
+
           </div>
         </div>
       </teleport>
@@ -11938,7 +12166,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.49.0';
+const APP_VERSION = '1.50.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
