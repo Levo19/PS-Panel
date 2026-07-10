@@ -4383,7 +4383,7 @@ const ViewLanchas = {
         id_mov: selMov.mov.id_mov, id_operacion: selMov.op.id,
         cant_pax: selMov.mov.cant_pax,
         nombre_contacto: selMov.mov.nombre_contacto,
-        id_aliado: selMov.mov.id_contacto_pase || '',
+        id_aliado: '',   // el usuario elige la AGENCIA a la que compra el espacio (no el aliado)
         monto_compra: String(parseFloat(selMov.mov.monto_total) || '') };
     }
 
@@ -5405,7 +5405,7 @@ const ViewLanchas = {
                 <select v-model="derivarModal.id_aliado"
                   style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);appearance:none;">
                   <option value="">— seleccionar —</option>
-                  <option v-for="c in contactosOps" :key="c.id" :value="c.id">{{ c.nombre }}{{ c.tipo ? ' ('+c.tipo+')' : '' }}</option>
+                  <option v-for="c in contactosOps.filter(x => String(x.tipo||'').toLowerCase() === (derivarModal.mode==='derivar' ? 'aliado' : 'agencia'))" :key="c.id" :value="c.id">{{ c.nombre }}</option>
                 </select>
               </label>
 
@@ -12167,7 +12167,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.50.1';
+const APP_VERSION = '1.51.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
