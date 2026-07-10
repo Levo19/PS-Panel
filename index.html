@@ -3130,8 +3130,51 @@ const PS_POST = {
   crear_contacto: b => _psRpc('admin_crear_contacto', { p_nombre: b.nombre, p_tipo: b.tipo || 'Libre', p_precio: parseFloat(b.precio) || 0 }).then(id => ({ id })),
   actualizar_contacto: b => _psRpc('admin_editar_contacto', { p_id: b.id, p_nombre: b.nombre == null ? null : b.nombre, p_tipo: b.tipo == null ? null : b.tipo, p_precio: b.precio == null ? null : parseFloat(b.precio) }),
   crear_impuesto: b => _psRpc('admin_crear_impuesto', { p_nombre: b.nombre, p_monto: parseFloat(b.monto) || 0 }).then(id => ({ id })),
-  actualizar_impuesto: b => _psRpc('admin_editar_impuesto', { p_id: b.id, p_nombre: b.nombre == null ? null : b.nombre, p_monto: b.monto == null ? null : parseFloat(b.monto) })
+  actualizar_impuesto: b => _psRpc('admin_editar_impuesto', { p_id: b.id, p_nombre: b.nombre == null ? null : b.nombre, p_monto: b.monto == null ? null : parseFloat(b.monto) }),
+  set_foto_zarpe: b => _psRpc('set_foto_zarpe', { p_op: b.id_operacion, p_url: b.url })
 };
+
+// ── COMPRESIÓN de fotos de zarpe ─────────────────────────────
+// Reescala a máx 2200px (lado largo) + JPEG 0.85: sube rápido PERO sigue
+// legible para la IA/OCR de facturación (Edge extraer-zarpe · Claude Vision).
+// Si ya es chica (lado ≤2200 y peso <~900KB) devuelve el file original.
+// Devuelve { blob, dataURL, width, height }. Ante cualquier fallo → original.
+async function comprimirFotoZarpe(file, opts) {
+  opts = opts || {};
+  const maxDim  = opts.maxDim  || 2200;
+  const quality = opts.quality || 0.85;
+  const SMALL_BYTES = 900 * 1024;
+  try {
+    if (!file || !/^image\//.test(file.type || '')) return { blob: file, dataURL: null, width: 0, height: 0 };
+    let bmp = null, w = 0, h = 0;
+    try {
+      bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+      w = bmp.width; h = bmp.height;
+    } catch (_) {
+      const dataURL = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); });
+      const img = await new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = dataURL; });
+      bmp = img; w = img.naturalWidth || img.width; h = img.naturalHeight || img.height;
+    }
+    const longSide = Math.max(w, h);
+    if (longSide <= maxDim && file.size && file.size < SMALL_BYTES) {
+      if (bmp && bmp.close) try { bmp.close(); } catch (_) {}
+      return { blob: file, dataURL: null, width: w, height: h };
+    }
+    const scale = longSide > maxDim ? (maxDim / longSide) : 1;
+    const nw = Math.round(w * scale), nh = Math.round(h * scale);
+    const canvas = document.createElement('canvas');
+    canvas.width = nw; canvas.height = nh;
+    canvas.getContext('2d').drawImage(bmp, 0, 0, nw, nh);
+    if (bmp && bmp.close) try { bmp.close(); } catch (_) {}
+    const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', quality));
+    if (!blob) return { blob: file, dataURL: null, width: w, height: h };
+    const outBlob = (file.size && blob.size >= file.size && longSide <= maxDim) ? file : blob;
+    const dataURL = await new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => res(null); r.readAsDataURL(outBlob); });
+    return { blob: outBlob, dataURL, width: nw, height: nh };
+  } catch (e) {
+    return { blob: file, dataURL: null, width: 0, height: 0 };
+  }
+}
 
 async function apiGet(accion, params = {}) {
   if (USE_SUPABASE_PS && PS_GET[accion]) {
@@ -4608,6 +4651,51 @@ const ViewLanchas = {
       lToastTimer = setTimeout(() => { lToast.value.show = false; }, dur);
     }
 
+    // ── Foto de zarpe (subir a Supabase Storage · bucket operaciones/zarpes) ──
+    const fotoInput  = ref(null);
+    const fotoUp     = ref({ opId: null });          // op en subida (spinner)
+    const fotoViewer = ref({ op: null });            // visor (op con foto)
+    let _fotoTargetOp = null;                         // op para la que se abrió el picker
+
+    function onFotoZarpe(op) {
+      if (fotoUp.value.opId) return;                 // ya hay una subida en curso
+      if (op.foto_zarpe_url) { fotoViewer.value = { op }; return; }   // con foto → visor
+      _pickFotoFor(op);
+    }
+    function reemplazarFoto(op) { _pickFotoFor(op); }
+    function _pickFotoFor(op) {
+      _fotoTargetOp = op;
+      const el = fotoInput.value;
+      if (el) { el.value = ''; el.click(); }
+    }
+    async function onFotoPicked(e) {
+      const file = e.target && e.target.files && e.target.files[0];
+      const op = _fotoTargetOp; _fotoTargetOp = null;
+      if (!file || !op) return;
+      await _subirFotoZarpe(op, file);
+    }
+    async function _subirFotoZarpe(op, file) {
+      fotoUp.value = { opId: op.id };
+      try {
+        const cmp = await comprimirFotoZarpe(file);
+        const blob = (cmp && cmp.blob) || file;
+        const path = 'zarpes/' + op.id + '_' + Date.now() + '.jpg';
+        const { error: upErr } = await sbClient.storage.from('operaciones')
+          .upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
+        if (upErr) throw upErr;
+        const url = sbClient.storage.from('operaciones').getPublicUrl(path).data.publicUrl;
+        const r = await apiPost({ accion: 'set_foto_zarpe', id_operacion: op.id, url });
+        if (!r.ok) throw new Error(r.error || 'No se pudo guardar el URL');
+        op.foto_zarpe_url = url;                      // optimista (reactivo)
+        if (fotoViewer.value.op && fotoViewer.value.op.id === op.id) fotoViewer.value.op.foto_zarpe_url = url;
+        showToast('✅ Foto subida');
+      } catch (err) {
+        showToast('⚠️ Error al subir la foto');
+      } finally {
+        fotoUp.value = { opId: null };
+      }
+    }
+
     return { fechas, cache, currentFecha, fechaIdx, expandedOps, tabs, dateTab,
              loadingFechas, fetchError, today, navigate, loadFechas,
              toggleOp, getTab, setTab, boatBorderClass, movEstadoClass, psChipEstado, estadoIcon, estadoIconColor,
@@ -4632,6 +4720,7 @@ const ViewLanchas = {
              openDerivarModal, openConvertirModal, guardarDerivarConvertir,
              confirmarAnularPaseMov,
              tabbarEl, tabIndStyle, switchTab, moveTabInd,
+             fotoInput, fotoUp, fotoViewer, onFotoZarpe, onFotoPicked, reemplazarFoto,
              hasOps, jumpToFecha, today };
   },
   template: `
@@ -4874,6 +4963,13 @@ const ViewLanchas = {
                     <span style="font-size:13px;font-weight:900;flex-shrink:0;" :style="estadoIconColor(op.estado)">{{ estadoIcon(op.estado) }}</span>
                     <span v-if="op.descuadre" style="font-size:14px;color:#ef4444;flex-shrink:0;" title="Descuadre de caja">💰</span>
                     <span style="font-size:13px;font-weight:800;color:var(--gold);flex-shrink:0;">S/ {{ fmt(op.ingresos_operador) }}</span>
+                    <button @click.stop="onFotoZarpe(op)"
+                      :title="op.foto_zarpe_url ? 'Foto de zarpe subida — ver / reemplazar' : 'Subir foto de zarpe'"
+                      :disabled="fotoUp.opId===op.id"
+                      :style="'width:24px;height:24px;border-radius:6px;font-size:12px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;padding:0;position:relative;' + (op.foto_zarpe_url ? 'background:rgba(74,222,128,0.15);border:1px solid rgba(74,222,128,0.45);color:#4ade80;' : 'background:rgba(201,168,76,0.10);border:1px solid rgba(201,168,76,0.3);color:var(--gold);')">
+                      <span v-if="fotoUp.opId===op.id" class="spin" style="width:12px;height:12px;border-width:2px;"></span>
+                      <template v-else>📷<span v-if="op.foto_zarpe_url" style="position:absolute;bottom:-3px;right:-3px;font-size:9px;line-height:1;">✓</span></template>
+                    </button>
                     <button @click.stop="openOpModal(op)" title="Editar operación"
                       style="width:24px;height:24px;border-radius:6px;background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);color:var(--gold);font-size:13px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;padding:0;">✏</button>
                     <span style="color:var(--text-muted);font-size:12px;flex-shrink:0;">{{ expandedOps.has(op.id) ? '▴' : '▾' }}</span>
@@ -4949,6 +5045,32 @@ const ViewLanchas = {
         </div>
         </div>
       </div>
+
+      <!-- Foto de zarpe: input oculto + visor -->
+      <input ref="fotoInput" type="file" accept="image/*" capture="environment" style="display:none" @change="onFotoPicked">
+      <teleport to="body">
+        <div v-if="fotoViewer.op" class="ps-sheet-overlay" @click.self="fotoViewer.op=null">
+          <div class="ps-sheet" style="text-align:center;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+              <span style="font-weight:800;font-size:15px;color:var(--gold);">📷 Foto de zarpe</span>
+              <button @click="fotoViewer.op=null" style="font-size:18px;color:var(--text-muted);">✕</button>
+            </div>
+            <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">{{ fotoViewer.op.nombre_bote || fotoViewer.op.id_bote }}&nbsp;·&nbsp;🕐 {{ fotoViewer.op.hora_salida }}</div>
+            <img :src="fotoViewer.op.foto_zarpe_url" style="width:100%;max-height:60vh;object-fit:contain;border-radius:14px;background:rgba(0,0,0,0.25);" />
+            <div style="display:flex;gap:8px;margin-top:14px;">
+              <button @click="reemplazarFoto(fotoViewer.op)" :disabled="fotoUp.opId===fotoViewer.op.id"
+                style="flex:1;padding:11px;border-radius:11px;background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.35);color:var(--gold);font-weight:700;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+                <span v-if="fotoUp.opId===fotoViewer.op.id" class="spin" style="width:13px;height:13px;border-width:2px;"></span>
+                <template v-else>🔄 Reemplazar</template>
+              </button>
+              <a :href="fotoViewer.op.foto_zarpe_url" target="_blank" rel="noopener"
+                style="flex:1;padding:11px;border-radius:11px;background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--text);font-weight:700;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;text-decoration:none;">
+                🔍 Ver original
+              </a>
+            </div>
+          </div>
+        </div>
+      </teleport>
 
       <!-- Movement Detail Modal -->
       <teleport to="body">
@@ -12197,7 +12319,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.52.0';
+const APP_VERSION = '1.53.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
