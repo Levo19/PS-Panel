@@ -3128,6 +3128,7 @@ const PS_POST = {
   crear_personal_ops: b => _psRpc('admin_crear_personal_ops', { p_nombre: b.nombre, p_rol: b.rol || null, p_tarifa: parseFloat(b.tarifa_fija) || 0, p_estado: b.estado || 'activo' }).then(id => ({ id })),
   actualizar_personal_ops: b => _psRpc('admin_editar_personal_ops', { p_id: b.id, p_nombre: b.nombre == null ? null : b.nombre, p_rol: b.rol == null ? null : b.rol, p_tarifa: b.tarifa_fija == null ? null : parseFloat(b.tarifa_fija), p_estado: b.estado == null ? null : b.estado }),
   crear_contacto: b => _psRpc('admin_crear_contacto', { p_nombre: b.nombre, p_tipo: b.tipo || 'Libre', p_precio: parseFloat(b.precio) || 0 }).then(id => ({ id })),
+  crear_contacto_multi: b => _psRpc('admin_crear_contacto_multi', { p_nombre: b.nombre, p_items: b.items }).then(rows => ({ rows: rows || [] })),
   actualizar_contacto: b => _psRpc('admin_editar_contacto', { p_id: b.id, p_nombre: b.nombre == null ? null : b.nombre, p_tipo: b.tipo == null ? null : b.tipo, p_precio: b.precio == null ? null : parseFloat(b.precio) }),
   crear_impuesto: b => _psRpc('admin_crear_impuesto', { p_nombre: b.nombre, p_monto: parseFloat(b.monto) || 0 }).then(id => ({ id })),
   actualizar_impuesto: b => _psRpc('admin_editar_impuesto', { p_id: b.id, p_nombre: b.nombre == null ? null : b.nombre, p_monto: b.monto == null ? null : parseFloat(b.monto) }),
@@ -4088,7 +4089,7 @@ const ViewLanchas = {
 
     // ── Movimientos CRUD ─────────────────────────────────────
     const TIPOS_SIN_COBRO = ['Aliado(PaseIn)', 'Pase_Recibido', 'Aliado'];
-    const contactosOps = ref([]);
+    const contactosOps = computed(() => catalogosCache.contactos);   // fuente ÚNICA compartida con Catálogos → altas se reflejan al instante
     const movFormModal = ref({ show: false, mode: 'crear', saving: false, error: '',
       id_mov: '', id_operacion: '', op_label: '', tipo: 'Directo',
       id_contacto: '', nombre_contacto: '', cant_pax: '', precio_unit: '', monto_total: '', adicionales: '' });
@@ -4129,9 +4130,10 @@ const ViewLanchas = {
     }
 
     async function loadContactos() {
-      if (contactosOps.value.length) return;
-      const r = await apiGet('listar_contactos_ops');
-      if (r.ok) contactosOps.value = r.data;
+      // Fuente única = catalogosCache.contactos (misma que Catálogos). Si aún no hay, precargar.
+      if (!catalogosCache.contactos.length) { await preloadCatalogos(); return; }
+      // stale-while-revalidate: refresca en 2º plano por si hubo altas desde otro dispositivo
+      apiGet('listar_contactos_ops').then(r => { if (r && r.ok && Array.isArray(r.data)) catalogosCache.contactos = r.data; }).catch(() => {});
     }
 
     // ── Tipos de movimiento + filtrado de contactos por tipo ──
@@ -11089,7 +11091,14 @@ const ViewCatalogos = {
         tarifa_fija:   item ? String(item.tarifa_fija || '') : '',
         estado:        item?.estado || 'activo',
         tipo:          item?.tipo || 'Libre',
-        precio:        item ? String(item.precio || '') : ''
+        precio:        item ? String(item.precio || '') : '',
+        // Multi-tipo (solo al CREAR contactos): marca uno o varios; crea 1 fila por tipo.
+        // Libre NO va aquí (es único). Aliado no lleva precio (siempre 0).
+        multiTipos: [
+          { tipo: 'Agencia',     on: false, precio: '25' },
+          { tipo: 'Comisionado', on: false, precio: '25' },
+          { tipo: 'Aliado',      on: false }
+        ]
       };
     }
 
@@ -11122,9 +11131,47 @@ const ViewCatalogos = {
       return it;
     }
 
+    async function guardarContactoMulti(m) {
+      const nombre = m.nombre.trim().replace(/\s+/g, ' ').toUpperCase();   // normaliza igual que el backend
+      const sel = (m.multiTipos || []).filter(t => t.on);
+      if (!nombre) { m.error = 'Nombre requerido'; return; }
+      if (!sel.length) { m.error = 'Marca al menos un tipo'; return; }
+      const items = sel.map(t => ({ tipo: t.tipo, precio: t.tipo === 'Aliado' ? 0 : (parseFloat(t.precio) || 0) }));
+      const arr = lists.contactos;
+      const snapshot = JSON.parse(JSON.stringify(arr));
+
+      // Optimista: una fila por tipo (tempId hasta que el server devuelva ids reales)
+      const temps = items.map((it, i) => {
+        const t = { id: '_tmp_' + Date.now() + '_' + i, nombre, tipo: it.tipo, precio: it.precio };
+        arr.push(t);
+        return t;
+      });
+      catModal.value.show = false;
+      emit('action', { type: 'toast', msg: '✅ ' + items.length + (items.length > 1 ? ' registros creados' : ' registro creado') });
+      try {
+        const r = await apiPost({ accion: 'crear_contacto_multi', nombre, items });
+        if (!r.ok) throw new Error(r.error || 'Error');
+        const rows = (r.data && r.data.rows) || [];
+        // reconcilia: casa por tipo el id real devuelto
+        temps.forEach(t => {
+          const real = rows.find(x => String(x.tipo).toLowerCase() === String(t.tipo).toLowerCase());
+          const idx = arr.findIndex(x => x.id === t.id);
+          if (idx >= 0) {
+            if (real) arr.splice(idx, 1, { ...arr[idx], id: real.id });
+            else arr.splice(idx, 1);   // el server no lo creó (raro) → quita el optimista
+          }
+        });
+      } catch (e) {
+        lists.contactos = snapshot;
+        emit('action', { type: 'toast', msg: '⚠ ' + e.message, dur: 4000 });
+      }
+    }
+
     async function guardarCat() {
       const m = catModal.value;
       if (!m.nombre.trim()) { m.error = 'Nombre requerido'; return; }
+      // Contactos NUEVOS → flujo multi-tipo (crea 1 fila por tipo marcado)
+      if (m.type === 'contactos' && m.mode === 'crear') { return guardarContactoMulti(m); }
       const body = buildBody(m);
       const arr = lists[m.type];
       const snapshot = JSON.parse(JSON.stringify(arr));
@@ -11558,33 +11605,60 @@ const ViewCatalogos = {
 
               <!-- Contactos -->
               <template v-if="catModal.type==='contactos'">
-                <div style="display:flex;flex-direction:column;gap:7px;">
-                  <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;font-weight:700;">Tipo *</span>
-                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
-                    <button v-for="t in ['Libre','Agencia','Comisionado','Aliado']" :key="t"
-                      @click="catModal.tipo=t" type="button"
-                      :style="catModal.tipo===t
-                        ? 'min-height:44px;padding:10px 4px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(201,168,76,0.2);border:1.5px solid var(--gold);color:var(--gold);'
-                        : 'min-height:44px;padding:10px 4px;border-radius:10px;font-size:13px;cursor:pointer;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);'">
-                      {{ t }}
-                    </button>
+
+                <!-- CREAR: multi-tipo. Marca uno o varios → crea 1 fila por tipo. Libre NO va aquí. -->
+                <template v-if="catModal.mode==='crear'">
+                  <div style="display:flex;flex-direction:column;gap:8px;">
+                    <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;font-weight:700;">Tipo(s) * · marca uno o varios</span>
+                    <div v-for="mt in catModal.multiTipos" :key="mt.tipo"
+                      :style="'display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:11px;transition:all .15s;border:1.5px solid '+(mt.on?'var(--gold)':'var(--border)')+';background:'+(mt.on?'rgba(201,168,76,0.12)':'var(--surface)')+';'">
+                      <div @click="mt.on=!mt.on" style="display:flex;align-items:center;gap:10px;cursor:pointer;flex:1;min-width:0;">
+                        <div :style="'width:22px;height:22px;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;transition:all .15s;'+(mt.on?'background:var(--gold);color:#1a1a1a;':'background:transparent;border:1.5px solid var(--border);color:transparent;')">✓</div>
+                        <span :style="'font-size:14.5px;font-weight:'+(mt.on?'700':'500')+';color:'+(mt.on?'var(--text)':'var(--text-muted)')+';'">{{ mt.tipo }}</span>
+                      </div>
+                      <div v-if="mt.on && mt.tipo!=='Aliado'" style="display:flex;align-items:center;gap:5px;flex-shrink:0;">
+                        <span style="font-size:12px;color:var(--text-muted);font-weight:700;">S/</span>
+                        <input v-model="mt.precio" type="number" min="0" step="0.01" inputmode="decimal" @click.stop
+                          style="width:66px;background:rgba(0,0,0,0.22);border:1px solid var(--border);border-radius:8px;padding:8px;font-size:16px;font-weight:800;color:var(--gold);text-align:center;outline:none;-webkit-appearance:none;" />
+                        <span style="font-size:10px;color:var(--text-muted);">/pax</span>
+                      </div>
+                      <span v-else-if="mt.on" style="font-size:11.5px;font-weight:800;color:#93c5fd;flex-shrink:0;">🤝 S/0 · PAX</span>
+                    </div>
                   </div>
-                </div>
-                <!-- Aliado: sin precio. Resto: con +/- -->
-                <div v-if="catModal.tipo!=='Aliado'" style="display:flex;flex-direction:column;gap:6px;">
-                  <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;font-weight:700;">Precio por PAX (S/)</span>
-                  <div style="display:flex;align-items:stretch;border:1px solid var(--border);border-radius:11px;overflow:hidden;background:var(--surface);">
-                    <button @click="bump('precio',-1)" type="button"
-                      style="width:50px;background:rgba(201,168,76,0.05);border:none;color:var(--gold);font-size:24px;font-weight:700;cursor:pointer;flex-shrink:0;border-right:1px solid var(--border);">−</button>
-                    <input v-model="catModal.precio" type="number" min="0" step="0.01" inputmode="decimal"
-                      style="flex:1;background:transparent;border:none;padding:0 8px;font-size:20px;font-weight:800;color:var(--gold);text-align:center;height:48px;outline:none;-webkit-appearance:none;min-width:0;" />
-                    <button @click="bump('precio',1)" type="button"
-                      style="width:50px;background:rgba(201,168,76,0.05);border:none;color:var(--gold);font-size:24px;font-weight:700;cursor:pointer;flex-shrink:0;border-left:1px solid var(--border);">+</button>
+                  <div style="padding:9px 12px;background:rgba(96,165,250,0.07);border:1px solid rgba(96,165,250,0.2);border-radius:9px;font-size:11.5px;color:#93c5fd;line-height:1.45;">
+                    ℹ️ Se crea una fila por tipo marcado (ej. Agencia + Aliado = mismo nombre, 2 registros). El nombre se guarda en <b>MAYÚSCULAS</b>. <b>Libre</b> es único y no se agrega desde aquí.
                   </div>
-                </div>
-                <div v-else style="padding:11px 13px;background:rgba(96,165,250,0.08);border:1px solid rgba(96,165,250,0.25);border-radius:10px;font-size:12px;color:#93c5fd;text-align:center;">
-                  🤝 Los aliados se manejan solo por cantidad de PAX, sin precio fijo.
-                </div>
+                </template>
+
+                <!-- EDITAR: un solo tipo (la fila existente) -->
+                <template v-else>
+                  <div style="display:flex;flex-direction:column;gap:7px;">
+                    <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;font-weight:700;">Tipo *</span>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+                      <button v-for="t in ['Libre','Agencia','Comisionado','Aliado']" :key="t"
+                        @click="catModal.tipo=t" type="button"
+                        :style="catModal.tipo===t
+                          ? 'min-height:44px;padding:10px 4px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(201,168,76,0.2);border:1.5px solid var(--gold);color:var(--gold);'
+                          : 'min-height:44px;padding:10px 4px;border-radius:10px;font-size:13px;cursor:pointer;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);'">
+                        {{ t }}
+                      </button>
+                    </div>
+                  </div>
+                  <div v-if="catModal.tipo!=='Aliado'" style="display:flex;flex-direction:column;gap:6px;">
+                    <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;font-weight:700;">Precio por PAX (S/)</span>
+                    <div style="display:flex;align-items:stretch;border:1px solid var(--border);border-radius:11px;overflow:hidden;background:var(--surface);">
+                      <button @click="bump('precio',-1)" type="button"
+                        style="width:50px;background:rgba(201,168,76,0.05);border:none;color:var(--gold);font-size:24px;font-weight:700;cursor:pointer;flex-shrink:0;border-right:1px solid var(--border);">−</button>
+                      <input v-model="catModal.precio" type="number" min="0" step="0.01" inputmode="decimal"
+                        style="flex:1;background:transparent;border:none;padding:0 8px;font-size:20px;font-weight:800;color:var(--gold);text-align:center;height:48px;outline:none;-webkit-appearance:none;min-width:0;" />
+                      <button @click="bump('precio',1)" type="button"
+                        style="width:50px;background:rgba(201,168,76,0.05);border:none;color:var(--gold);font-size:24px;font-weight:700;cursor:pointer;flex-shrink:0;border-left:1px solid var(--border);">+</button>
+                    </div>
+                  </div>
+                  <div v-else style="padding:11px 13px;background:rgba(96,165,250,0.08);border:1px solid rgba(96,165,250,0.25);border-radius:10px;font-size:12px;color:#93c5fd;text-align:center;">
+                    🤝 Los aliados se manejan solo por cantidad de PAX, sin precio fijo.
+                  </div>
+                </template>
               </template>
 
               <!-- Impuestos -->
@@ -12319,7 +12393,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.54.0';
+const APP_VERSION = '1.55.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
