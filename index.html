@@ -3868,7 +3868,7 @@ const ViewLanchas = {
       }
       const items = impuestosCatalog.value.map(imp => {
         const total = currentMap[imp.nombre] || 0;
-        const qty   = total > 0 ? Math.round(total / imp.monto) : 0;
+        const qty   = (total > 0 && imp.monto > 0) ? Math.round(total / imp.monto) : 0;   // guard div/0 si un extra tuviera monto 0
         return { id: imp.id, nombre: imp.nombre, montoUnit: imp.monto, qty };
       });
       adicionalesModal.value = { show: true, movId: mov.id_mov, movLabel: mov.nombre_contacto, items, saving: false, error: '' };
@@ -12464,7 +12464,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.61.0';
+const APP_VERSION = '1.62.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
