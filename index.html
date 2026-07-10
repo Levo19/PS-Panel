@@ -2963,7 +2963,10 @@ Deuda comisionado = (precio_aplicado − precio_pax_defecto) × cant_pax
             <div v-if="jadeOpen" class="jade-panel">
               <div class="jade-head">
                 <div class="jade-head-l"><span class="jade-gem-sm">💎</span><div><div class="jade-title">JADE</div><div class="jade-sub">asistente del ecosistema PS</div></div></div>
-                <button @click="jadeToggle" class="jade-x">✕</button>
+                <div style="display:flex;gap:6px;align-items:center;">
+                  <button @click="jadeVozToggle" class="jade-x" :title="jadeVoz?'Voz activada — tocar para silenciar':'Voz apagada'">{{ jadeVoz ? '🔊' : '🔈' }}</button>
+                  <button @click="jadeToggle" class="jade-x">✕</button>
+                </div>
               </div>
               <div id="jade-scroll" class="jade-scroll">
                 <div v-for="(m,i) in jadeMsgs" :key="i" :class="['jade-msg', m.role==='user'?'jade-me':'jade-ai']">
@@ -2983,7 +2986,8 @@ Deuda comisionado = (precio_aplicado − precio_pax_defecto) × cant_pax
                 <button v-for="s in jadeSug" :key="s" @click="jadeSend(s)" class="jade-chip">{{ s }}</button>
               </div>
               <div class="jade-input">
-                <input v-model="jadeInput" @keydown.enter="jadeSend()" :disabled="jadeLoading" placeholder="Pregúntale a JADE…" />
+                <button @click="jadeMic" :class="['jade-mic', jadeListening?'jade-mic-on':'']" :title="jadeListening?'Escuchando…':'Hablar por voz'">{{ jadeListening ? '●' : '🎤' }}</button>
+                <input v-model="jadeInput" @keydown.enter="jadeSend()" :disabled="jadeLoading" :placeholder="jadeListening ? 'Te escucho, reina…' : 'Escribe o toca 🎤'" />
                 <button @click="jadeSend()" :disabled="jadeLoading || !jadeInput.trim()" class="jade-send">➤</button>
               </div>
             </div>
@@ -2996,8 +3000,16 @@ Deuda comisionado = (precio_aplicado − precio_pax_defecto) × cant_pax
 </div>
 
 <style>
-.jade-fab{position:fixed;right:18px;bottom:80px;z-index:9998;width:56px;height:56px;border-radius:50%;border:none;cursor:pointer;background:linear-gradient(135deg,#0f766e,#0891b2);box-shadow:0 8px 28px rgba(8,145,178,.45);display:flex;align-items:center;justify-content:center;font-size:26px;animation:jadeFloat 3.5s ease-in-out infinite}
+.jade-fab{position:fixed;right:18px;bottom:80px;z-index:9998;width:56px;height:56px;border-radius:50%;border:none;cursor:pointer;background:linear-gradient(135deg,#0f766e,#0891b2,#2dd4bf,#0891b2);background-size:220% 220%;box-shadow:0 8px 28px rgba(8,145,178,.5);display:flex;align-items:center;justify-content:center;font-size:26px;animation:jadeFloat 3.5s ease-in-out infinite,jadeShine 5s ease infinite}
+.jade-fab>span:first-child{animation:jadeSpark 2.4s ease-in-out infinite;display:inline-block}
 @keyframes jadeFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes jadeShine{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+@keyframes jadeSpark{0%,100%{transform:scale(1) rotate(0);filter:drop-shadow(0 0 0 #fff)}50%{transform:scale(1.12) rotate(-8deg);filter:drop-shadow(0 0 6px rgba(255,255,255,.8))}}
+.jade-mic{width:42px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#e8e0d0;font-size:16px;cursor:pointer;flex-shrink:0}
+.jade-mic-on{background:#dc2626;color:#fff;border-color:#dc2626;animation:jadeMicPulse 1s infinite}
+@keyframes jadeMicPulse{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.6)}50%{box-shadow:0 0 0 8px rgba(220,38,38,0)}}
+.jade-msg{animation:jadeMsgIn .22s ease}
+@keyframes jadeMsgIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .jade-fab-ping{position:absolute;inset:0;border-radius:50%;border:2px solid rgba(45,212,191,.6);animation:jadePing 2.2s ease-out infinite}
 @keyframes jadePing{0%{transform:scale(1);opacity:.7}100%{transform:scale(1.55);opacity:0}}
 .jade-panel{position:fixed;right:16px;bottom:16px;z-index:9999;width:min(390px,calc(100vw - 24px));height:min(600px,calc(100vh - 90px));background:#1a0e14;border:1px solid rgba(45,212,191,.25);border-radius:20px;box-shadow:0 24px 70px rgba(0,0,0,.7);display:flex;flex-direction:column;overflow:hidden}
@@ -12531,8 +12543,36 @@ createApp({
     const jadeMsgs      = ref([{ role: 'assistant', content: '¡Hola! Soy JADE 💎 Consúltame balances, KPIs o cómo hacer algo. También preparo acciones (siempre con tu confirmación). ¿En qué te ayudo?' }]);
     const jadePropuesta = ref(null);
     const jadeSug       = ['¿Cuánto nos debe cada agencia?', '¿Cómo va el día?', '¿Dónde registro un movimiento?'];
-    const JADE_WRITE_OK = ['registrar_pago', 'actualizar_contacto'];   // whitelist de escrituras confirmables
+    const JADE_WRITE_OK = ['registrar_pago', 'actualizar_contacto', 'crear_contacto_multi', 'actualizar_adicionales'];   // whitelist de escrituras confirmables
+    const jadeVoz       = ref(true);    // JADE responde por voz
+    const jadeListening = ref(false);   // dictado activo
+    let   _jadeRec      = null;
     function jadeScroll() { nextTick(() => { const el = document.getElementById('jade-scroll'); if (el) el.scrollTop = el.scrollHeight; }); }
+    function jadeSpeak(text) {
+      if (!jadeVoz.value || !window.speechSynthesis) return;
+      try {
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(String(text).replace(/[\u{1F000}-\u{1FAFF}☀-➿]/gu, '').trim());
+        u.lang = 'es-PE'; u.rate = 1.06; u.pitch = 1.12;
+        const vs = window.speechSynthesis.getVoices();
+        const fem = vs.find(v => /es/i.test(v.lang) && /(paulina|helena|sabina|monica|femen|mujer|google español)/i.test(v.name)) || vs.find(v => /es/i.test(v.lang));
+        if (fem) u.voice = fem;
+        window.speechSynthesis.speak(u);
+      } catch (e) {}
+    }
+    function jadeVozToggle() { jadeVoz.value = !jadeVoz.value; if (!jadeVoz.value && window.speechSynthesis) window.speechSynthesis.cancel(); }
+    function jadeMic() {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) { jadeMsgs.value.push({ role: 'assistant', content: 'Ay reina, tu navegador no me deja escuchar por voz 😔 — prueba en Chrome.' }); jadeScroll(); return; }
+      if (jadeListening.value) { try { _jadeRec && _jadeRec.stop(); } catch (e) {} jadeListening.value = false; return; }
+      try { _jadeRec = new SR(); } catch (e) { return; }
+      _jadeRec.lang = 'es-PE'; _jadeRec.interimResults = false; _jadeRec.maxAlternatives = 1;
+      jadeListening.value = true;
+      _jadeRec.onresult = (e) => { const t = e.results[0][0].transcript; jadeListening.value = false; if (t) jadeSend(t); };
+      _jadeRec.onerror = () => { jadeListening.value = false; };
+      _jadeRec.onend = () => { jadeListening.value = false; };
+      try { _jadeRec.start(); } catch (e) { jadeListening.value = false; }
+    }
     function jadeToggle() { jadeOpen.value = !jadeOpen.value; if (jadeOpen.value) jadeScroll(); }
     async function jadeSend(texto) {
       const q = String(texto != null ? texto : jadeInput.value).trim();
@@ -12544,7 +12584,7 @@ createApp({
         const payload = jadeMsgs.value.filter(m => m.role === 'user' || m.role === 'assistant').slice(-12).map(m => ({ role: m.role, content: m.content }));
         const { data, error } = await sbClient.functions.invoke('jade-chat', { body: { messages: payload } });
         if (error || !data || !data.ok) throw new Error((data && data.motivo) || (error && error.message) || 'error');
-        if (data.reply) jadeMsgs.value.push({ role: 'assistant', content: data.reply });
+        if (data.reply) { jadeMsgs.value.push({ role: 'assistant', content: data.reply }); jadeSpeak(data.reply); }
         if (data.propuesta && JADE_WRITE_OK.includes(data.propuesta.accion)) jadePropuesta.value = data.propuesta;
       } catch (e) {
         jadeMsgs.value.push({ role: 'assistant', content: '⚠ No pude responder ahora (' + (e.message || 'error') + '). Intenta de nuevo.' });
@@ -12571,13 +12611,14 @@ createApp({
       navIcon, iniciales, pinPress, verificarPin, guardarSetupUrl,
       goModule, handleAction, guardarPersonal,
       jadeOpen, jadeInput, jadeLoading, jadeMsgs, jadePropuesta, jadeSug, jadeToggle, jadeSend, jadeConfirmar, jadeCancelar,
+      jadeVoz, jadeListening, jadeMic, jadeVozToggle,
       abrirFacturacion: () => window.abrirFacturacion()
     };
   }
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.64.0';
+const APP_VERSION = '1.65.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
