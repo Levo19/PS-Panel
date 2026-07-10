@@ -3129,6 +3129,7 @@ const PS_POST = {
   actualizar_personal_ops: b => _psRpc('admin_editar_personal_ops', { p_id: b.id, p_nombre: b.nombre == null ? null : b.nombre, p_rol: b.rol == null ? null : b.rol, p_tarifa: b.tarifa_fija == null ? null : parseFloat(b.tarifa_fija), p_estado: b.estado == null ? null : b.estado }),
   crear_contacto: b => _psRpc('admin_crear_contacto', { p_nombre: b.nombre, p_tipo: b.tipo || 'Libre', p_precio: parseFloat(b.precio) || 0 }).then(id => ({ id })),
   crear_contacto_multi: b => _psRpc('admin_crear_contacto_multi', { p_nombre: b.nombre, p_items: b.items }).then(rows => ({ rows: rows || [] })),
+  guardar_contacto_grupo: b => _psRpc('admin_guardar_contacto_grupo', { p_nombre_old: b.nombre_old, p_nombre: b.nombre, p_items: b.items }).then(res => ({ res: res || {} })),
   actualizar_contacto: b => _psRpc('admin_editar_contacto', { p_id: b.id, p_nombre: b.nombre == null ? null : b.nombre, p_tipo: b.tipo == null ? null : b.tipo, p_precio: b.precio == null ? null : parseFloat(b.precio) }),
   crear_impuesto: b => _psRpc('admin_crear_impuesto', { p_nombre: b.nombre, p_monto: parseFloat(b.monto) || 0 }).then(id => ({ id })),
   actualizar_impuesto: b => _psRpc('admin_editar_impuesto', { p_id: b.id, p_nombre: b.nombre == null ? null : b.nombre, p_monto: b.monto == null ? null : parseFloat(b.monto) }),
@@ -4153,8 +4154,11 @@ const ViewLanchas = {
     const movEsLibre  = computed(() => { const s = String(movFormModal.value.tipo || '').toLowerCase(); return s === 'libre' || s === 'directo'; });
     const movContactosFiltrados = computed(() => {
       const f = movTipoFiltro(movFormModal.value.tipo);
-      if (!f) return contactosOps.value;
-      return contactosOps.value.filter(c => String(c.tipo || '').toLowerCase() === f);
+      const all = contactosOps.value;
+      if (f === 'aliado') return all.filter(c => String(c.tipo || '').toLowerCase() === 'aliado');  // aliado no incluye Varios
+      const list = (!f ? all.slice() : all.filter(c => String(c.tipo || '').toLowerCase() === f)).filter(c => c.id !== 'CON-00');
+      const varios = all.find(c => c.id === 'CON-00');
+      return varios ? [varios, ...list] : list;   // VARIOS fijo al inicio (aunque el filtro por tipo lo excluya)
     });
     function setMovTipo(t) {
       const m = movFormModal.value;
@@ -4301,9 +4305,12 @@ const ViewLanchas = {
       contactosOps.value.filter(c => String(c.tipo || '').toLowerCase() === 'aliado'));
     const origenMatches = computed(() => {
       const p = paseSueltoModal.value;
+      if (p.origenId) return [];
       const q = String(p.origenQ || '').trim().toLowerCase();
-      if (p.origenId || q.length < 2) return [];
-      return contactosOps.value.filter(c => String(c.nombre || '').toLowerCase().includes(q)).slice(0, 8);
+      if (q.length < 1) return [];   // sin interacción no abre dropdown
+      const varios = contactosOps.value.find(c => c.id === 'CON-00');
+      const matches = q.length < 2 ? [] : contactosOps.value.filter(c => c.id !== 'CON-00' && String(c.nombre || '').toLowerCase().includes(q)).slice(0, 8);
+      return varios ? [varios, ...matches] : matches;   // VARIOS fijo al inicio (aunque busques otro)
     });
     function openPaseSueltoModal() {
       try { sndTap(); haptic(10); } catch (e) {}
@@ -5299,7 +5306,7 @@ const ViewLanchas = {
                   @change="onMovContacto()"
                   style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 10px;font-size:13px;color:var(--text);appearance:none;">
                   <option value="">— seleccionar —</option>
-                  <option v-for="c in movContactosFiltrados" :key="c.id" :value="c.id">{{ c.nombre }}{{ c.tipo ? '  ·  '+c.tipo : '' }}</option>
+                  <option v-for="c in movContactosFiltrados" :key="c.id" :value="c.id">{{ c.id==='CON-00' ? '⭐ VARIOS · público (rápido)' : c.nombre + (c.tipo ? '  ·  '+c.tipo : '') }}</option>
                 </select>
                 <span v-if="!movContactosFiltrados.length" style="font-size:11px;color:#f87171;">Sin contactos de este tipo en el catálogo</span>
                 <div v-if="movFormModal.id_contacto && !movEsPaseIn" style="display:flex;align-items:center;justify-content:space-between;">
@@ -5408,8 +5415,8 @@ const ViewLanchas = {
               <div v-if="origenMatches.length"
                 style="position:absolute;top:100%;left:0;right:0;z-index:20;margin-top:4px;background:var(--bg2);border:1px solid rgba(201,168,76,0.3);border-radius:12px;max-height:190px;overflow-y:auto;box-shadow:0 14px 36px rgba(0,0,0,0.65);">
                 <div v-for="c in origenMatches" :key="c.id" @click="pickOrigen(c)"
-                  style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.05);">
-                  <span style="font-size:13px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.nombre }}</span>
+                  :style="'display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.05);'+(c.id==='CON-00'?'background:rgba(201,168,76,0.12);':'')">
+                  <span style="font-size:13px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.id==='CON-00' ? '⭐ VARIOS · público' : c.nombre }}</span>
                   <span class="ps-chip" :style="chipStyle(c.tipo)">{{ c.tipo }}</span>
                 </div>
               </div>
@@ -11092,8 +11099,9 @@ const ViewCatalogos = {
         estado:        item?.estado || 'activo',
         tipo:          item?.tipo || 'Libre',
         precio:        item ? String(item.precio || '') : '',
-        // Multi-tipo (solo al CREAR contactos): marca uno o varios; crea 1 fila por tipo.
+        // Multi-tipo (al CREAR contactos): marca uno o varios; crea 1 fila por tipo.
         // Libre NO va aquí (es único). Aliado no lleva precio (siempre 0).
+        esGrupo: false, esVarios: false, nombreOld: '', grupoTipos: [],
         multiTipos: [
           { tipo: 'Agencia',     on: false, precio: '25' },
           { tipo: 'Comisionado', on: false, precio: '25' },
@@ -11131,47 +11139,84 @@ const ViewCatalogos = {
       return it;
     }
 
-    async function guardarContactoMulti(m) {
-      const nombre = m.nombre.trim().replace(/\s+/g, ' ').toUpperCase();   // normaliza igual que el backend
-      const sel = (m.multiTipos || []).filter(t => t.on);
-      if (!nombre) { m.error = 'Nombre requerido'; return; }
-      if (!sel.length) { m.error = 'Marca al menos un tipo'; return; }
-      const items = sel.map(t => ({ tipo: t.tipo, precio: t.tipo === 'Aliado' ? 0 : (parseFloat(t.precio) || 0) }));
-      const arr = lists.contactos;
-      const snapshot = JSON.parse(JSON.stringify(arr));
+    // Abrir un CARD de contacto. VARIOS (CON-00) → solo precio. Resto → multi-tipo (add/quita tipos).
+    function openContactoCard(card) {
+      try { sndTap(); haptic(8); } catch (e) {}
+      if (card.isVarios) {
+        const v = card.tipos[0] || {};
+        catModal.value = {
+          show: true, type: 'contactos', mode: 'editar', esVarios: true, esGrupo: false,
+          id: v.id || 'CON-00', nombre: card.nombre, nombreOld: card.nombre,
+          precio: String(v.precio || ''), grupoTipos: [], multiTipos: [], saving: false, error: ''
+        };
+        return;
+      }
+      const has = t => card.tipos.find(x => x.tipo === t);
+      catModal.value = {
+        show: true, type: 'contactos', mode: 'editar', esGrupo: true, esVarios: false,
+        nombre: card.nombre, nombreOld: card.nombre, saving: false, error: '',
+        grupoTipos: card.tipos.map(t => t.tipo),
+        multiTipos: [
+          { tipo: 'Agencia',     on: !!has('Agencia'),     precio: has('Agencia') ? String(has('Agencia').precio || '25') : '25' },
+          { tipo: 'Comisionado', on: !!has('Comisionado'), precio: has('Comisionado') ? String(has('Comisionado').precio || '25') : '25' },
+          { tipo: 'Aliado',      on: !!has('Aliado') }
+        ]
+      };
+    }
 
-      // Optimista: una fila por tipo (tempId hasta que el server devuelva ids reales)
-      const temps = items.map((it, i) => {
-        const t = { id: '_tmp_' + Date.now() + '_' + i, nombre, tipo: it.tipo, precio: it.precio };
-        arr.push(t);
-        return t;
-      });
-      catModal.value.show = false;
-      emit('action', { type: 'toast', msg: '✅ ' + items.length + (items.length > 1 ? ' registros creados' : ' registro creado') });
+    // Refresca la fuente única (catálogo + picker de lanchas) tras cualquier alta/edición de contacto.
+    async function _refetchContactos() {
+      try { const rr = await apiGet('listar_contactos_ops'); if (rr && rr.ok && Array.isArray(rr.data)) catalogosCache.contactos = rr.data; } catch (e) {}
+    }
+
+    // VARIOS: solo se edita el precio (el tipo es único, no se agrega ni quita).
+    async function guardarVarios(m) {
+      const precio = parseFloat(m.precio) || 0;
+      m.saving = true; m.error = '';
       try {
-        const r = await apiPost({ accion: 'crear_contacto_multi', nombre, items });
+        const r = await apiPost({ accion: 'actualizar_contacto', id: m.id, nombre: null, tipo: null, precio });
         if (!r.ok) throw new Error(r.error || 'Error');
-        const rows = (r.data && r.data.rows) || [];
-        // reconcilia: casa por tipo el id real devuelto
-        temps.forEach(t => {
-          const real = rows.find(x => String(x.tipo).toLowerCase() === String(t.tipo).toLowerCase());
-          const idx = arr.findIndex(x => x.id === t.id);
-          if (idx >= 0) {
-            if (real) arr.splice(idx, 1, { ...arr[idx], id: real.id });
-            else arr.splice(idx, 1);   // el server no lo creó (raro) → quita el optimista
-          }
-        });
+        catModal.value.show = false;
+        emit('action', { type: 'toast', msg: '✅ Precio actualizado' });
+        await _refetchContactos();
+      } catch (e) { m.saving = false; m.error = (e && e.message) || 'No se pudo guardar'; }
+    }
+
+    // Crear/editar un grupo de contacto (N tipos por nombre). Quitar tipo → confirma; el backend
+    // BLOQUEA si el tipo tiene registros en movimientos/pagos (no altera reportes).
+    async function guardarContactoGrupo(m) {
+      const nombre = m.nombre.trim().replace(/\s+/g, ' ').toUpperCase();
+      if (!nombre) { m.error = 'Nombre requerido'; return; }
+      const sel = (m.multiTipos || []).filter(t => t.on);
+      if (!sel.length) { m.error = 'Marca al menos un tipo'; return; }
+      const nowOn = sel.map(t => t.tipo);
+      const removed = (m.grupoTipos || []).filter(t => t !== 'Libre' && !nowOn.includes(t));
+      if (removed.length) {
+        const ok = window.confirm('Vas a QUITAR de "' + nombre + '" el tipo: ' + removed.join(', ') + '.\n\nSe eliminará ese registro. Si tiene movimientos o pagos usándolo, NO se podrá eliminar (para no alterar los reportes).\n\n¿Continuar?');
+        if (!ok) return;
+      }
+      const items = sel.map(t => ({ tipo: t.tipo, precio: t.tipo === 'Aliado' ? 0 : (parseFloat(t.precio) || 0) }));
+      m.saving = true; m.error = '';
+      try {
+        const r = await apiPost({ accion: 'guardar_contacto_grupo', nombre_old: m.nombreOld || nombre, nombre, items });
+        if (!r.ok) throw new Error(r.error || 'Error');
+        catModal.value.show = false;
+        emit('action', { type: 'toast', msg: '✅ Guardado' });
+        await _refetchContactos();
       } catch (e) {
-        lists.contactos = snapshot;
-        emit('action', { type: 'toast', msg: '⚠ ' + e.message, dur: 4000 });
+        m.saving = false;
+        const msg = (e && e.message) || 'Error';
+        m.error = /TIENE_MOVIMIENTOS/.test(msg)
+          ? '⛔ No se puede quitar ese tipo: está en uso en movimientos o pagos.'
+          : msg;
       }
     }
 
     async function guardarCat() {
       const m = catModal.value;
       if (!m.nombre.trim()) { m.error = 'Nombre requerido'; return; }
-      // Contactos NUEVOS → flujo multi-tipo (crea 1 fila por tipo marcado)
-      if (m.type === 'contactos' && m.mode === 'crear') { return guardarContactoMulti(m); }
+      // Contactos → VARIOS (solo precio) o grupo multi-tipo (crear/editar)
+      if (m.type === 'contactos') { return m.esVarios ? guardarVarios(m) : guardarContactoGrupo(m); }
       const body = buildBody(m);
       const arr = lists[m.type];
       const snapshot = JSON.parse(JSON.stringify(arr));
@@ -11235,24 +11280,34 @@ const ViewCatalogos = {
     });
 
     // Contactos filtrados + agrupados (orden fijo)
-    const contactosGrouped = computed(() => {
+    function tipoIcon(t) { return t === 'Agencia' ? '🏢' : t === 'Aliado' ? '🤝' : t === 'Comisionado' ? '💼' : '🆓'; }
+    function tipoChipStyle(t) {
+      const m = { Agencia: '52,120,246', Aliado: '96,165,250', Comisionado: '201,168,76', Libre: '147,197,253' };
+      const rgb = m[t] || '160,160,160';
+      return `display:inline-flex;align-items:center;gap:3px;font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:7px;background:rgba(${rgb},0.14);border:1px solid rgba(${rgb},0.35);color:rgb(${rgb});`;
+    }
+    // Un CARD por nombre; cada card lista sus tipos como chips. VARIOS (CON-00) fijo arriba + siempre visible.
+    const contactosCards = computed(() => {
       const q = search.value.toLowerCase().trim();
       const tipoF = contactosFilter.value;
-      const filtered = (lists.contactos || []).filter(c => {
-        if (tipoF !== 'todos' && c.tipo !== tipoF) return false;
-        if (q && !String(c.nombre).toLowerCase().includes(q)) return false;
+      const byName = {};
+      (lists.contactos || []).forEach(c => {
+        const key = String(c.nombre || '').trim().toLowerCase();
+        if (!byName[key]) byName[key] = { key, nombre: c.nombre, isVarios: false, tipos: [] };
+        byName[key].tipos.push({ id: c.id, tipo: c.tipo, precio: parseFloat(c.precio_defecto ?? c.precio) || 0 });
+        if (c.id === 'CON-00') byName[key].isVarios = true;
+      });
+      const ord = { Agencia: 0, Comisionado: 1, Aliado: 2, Libre: 3 };
+      let cards = Object.values(byName);
+      cards.forEach(card => card.tipos.sort((a, b) => (ord[a.tipo] ?? 9) - (ord[b.tipo] ?? 9)));
+      cards = cards.filter(card => {
+        if (card.isVarios) return true;                               // VARIOS siempre visible (sin importar filtro/búsqueda)
+        if (q && !String(card.nombre).toLowerCase().includes(q)) return false;
+        if (tipoF !== 'todos' && !card.tipos.some(t => t.tipo === tipoF)) return false;
         return true;
       });
-      const order = ['Agencia', 'Aliado', 'Comisionado', 'Libre'];
-      const groups = {};
-      order.forEach(t => { groups[t] = []; });
-      filtered.forEach(c => {
-        const t = c.tipo && groups[c.tipo] !== undefined ? c.tipo : 'Libre';
-        groups[t].push(c);
-      });
-      // Quitar grupos vacíos
-      Object.keys(groups).forEach(k => { if (!groups[k].length) delete groups[k]; });
-      return groups;
+      cards.sort((a, b) => a.isVarios ? -1 : b.isVarios ? 1 : a.nombre.localeCompare(b.nombre));   // VARIOS primero
+      return cards;
     });
 
     onMounted(openHub);
@@ -11261,7 +11316,7 @@ const ViewCatalogos = {
 
     return { view, lists, search, personalFilter, contactosFilter,
              catModal, cards, openHub, openCat, openCatModal, guardarCat,
-             personalGrouped, contactosGrouped, fmt, bump, bumpInt,
+             personalGrouped, contactosCards, openContactoCard, tipoChipStyle, tipoIcon, fmt, bump, bumpInt,
              servicios, svcLoading, svcModal, openSvcModal, guardarSvc, eliminarSvc, bumpSvc, catCount };
   },
   template: `
@@ -11375,7 +11430,7 @@ const ViewCatalogos = {
         <input v-model="search" placeholder="🔍 Buscar contacto..."
           style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px;font-size:16px;color:var(--text);margin-bottom:10px;-webkit-appearance:none;outline:none;box-sizing:border-box;" />
         <div style="display:flex;gap:6px;padding:0 0 14px;flex-wrap:wrap;">
-          <button v-for="f in ['todos','Agencia','Aliado','Comisionado','Libre']" :key="f"
+          <button v-for="f in ['todos','Agencia','Aliado','Comisionado']" :key="f"
             @click="contactosFilter=f"
             :style="contactosFilter===f
               ? 'padding:8px 13px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;background:rgba(201,168,76,0.18);border:1.5px solid var(--gold);color:var(--gold);min-height:38px;'
@@ -11383,24 +11438,26 @@ const ViewCatalogos = {
             {{ f === 'todos' ? 'Todos' : f }}
           </button>
         </div>
-        <template v-for="(items, tipo) in contactosGrouped" :key="tipo">
-          <div class="ps-list-group">
-            <div class="ps-list-head">
-              {{ tipo === 'Agencia' ? '🏢 Agencias' : tipo === 'Aliado' ? '🤝 Aliados' : tipo === 'Comisionado' ? '💼 Comisionados' : tipo === 'Libre' ? '🆓 Libre' : tipo }} ({{ items.length }})
-            </div>
-            <div v-for="c in items" :key="c.id" @click="openCatModal('contactos', c)" class="ps-row" style="min-height:56px;">
-              <div style="flex:1;min-width:0;">
-                <div style="font-weight:700;font-size:14px;">{{ c.nombre }}</div>
-                <div style="font-size:11px;color:var(--text-muted);margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-                  <span class="ps-chip gold">{{ c.id }}</span>
-                  <span v-if="c.tipo==='Aliado'" class="ps-chip blue">solo PAX</span>
-                  <span v-else-if="c.precio>0" class="ps-chip">S/ {{ fmt(c.precio) }}/pax</span>
-                </div>
+        <div v-if="!contactosCards.length" style="text-align:center;padding:40px 20px;color:var(--text-muted);">Sin contactos</div>
+        <div class="ps-stagger">
+          <div v-for="card in contactosCards" :key="card.key" @click="openContactoCard(card)" class="ps-row"
+            :style="card.isVarios
+              ? 'min-height:62px;border:1.5px solid var(--gold);background:rgba(201,168,76,0.10);box-shadow:0 0 14px rgba(201,168,76,0.12);position:sticky;top:0;z-index:2;'
+              : 'min-height:62px;'">
+            <div style="flex:1;min-width:0;">
+              <div style="font-weight:800;font-size:14.5px;display:flex;align-items:center;gap:7px;flex-wrap:wrap;">
+                <span v-if="card.isVarios">⭐</span>{{ card.nombre }}
+                <span v-if="card.isVarios" class="ps-chip gold" style="font-size:9px;">ÚNICO · público</span>
               </div>
-              <span style="color:var(--text-muted);flex-shrink:0;">›</span>
+              <div style="margin-top:6px;display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
+                <span v-for="t in card.tipos" :key="t.id" :style="tipoChipStyle(t.tipo)">
+                  {{ tipoIcon(t.tipo) }} {{ t.tipo }}<template v-if="t.tipo!=='Aliado' && t.precio>0"> · S/{{ fmt(t.precio) }}</template>
+                </span>
+              </div>
             </div>
+            <span style="color:var(--text-muted);flex-shrink:0;">›</span>
           </div>
-        </template>
+        </div>
       </div>
 
       <!-- ── IMPUESTOS ───────────────────────────────────── -->
@@ -11542,8 +11599,8 @@ const ViewCatalogos = {
               <!-- Nombre (común) -->
               <div style="display:flex;flex-direction:column;gap:6px;">
                 <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;font-weight:700;">Nombre *</span>
-                <input v-model="catModal.nombre" type="text" autocomplete="off" autocapitalize="words"
-                  style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 13px;font-size:16px;color:var(--text);outline:none;-webkit-appearance:none;width:100%;box-sizing:border-box;" />
+                <input v-model="catModal.nombre" type="text" autocomplete="off" autocapitalize="words" :readonly="catModal.esVarios"
+                  :style="'background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 13px;font-size:16px;color:var(--text);outline:none;-webkit-appearance:none;width:100%;box-sizing:border-box;'+(catModal.esVarios?'opacity:.6;':'')" />
               </div>
 
               <!-- Embarcaciones — campos apilados en mobile -->
@@ -11606,8 +11663,26 @@ const ViewCatalogos = {
               <!-- Contactos -->
               <template v-if="catModal.type==='contactos'">
 
-                <!-- CREAR: multi-tipo. Marca uno o varios → crea 1 fila por tipo. Libre NO va aquí. -->
-                <template v-if="catModal.mode==='crear'">
+                <!-- VARIOS (único): solo se edita el precio, no el tipo -->
+                <template v-if="catModal.esVarios">
+                  <div style="padding:11px 13px;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.3);border-radius:10px;font-size:12px;color:var(--gold);line-height:1.45;">
+                    ⭐ <b>VARIOS</b> es el contacto público único (los de a pie). Su tipo no se modifica — solo su precio por defecto.
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:6px;">
+                    <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;font-weight:700;">Precio por PAX (S/)</span>
+                    <div style="display:flex;align-items:stretch;border:1px solid var(--border);border-radius:11px;overflow:hidden;background:var(--surface);">
+                      <button @click="bump('precio',-1)" type="button"
+                        style="width:50px;background:rgba(201,168,76,0.05);border:none;color:var(--gold);font-size:24px;font-weight:700;cursor:pointer;flex-shrink:0;border-right:1px solid var(--border);">−</button>
+                      <input v-model="catModal.precio" type="number" min="0" step="0.01" inputmode="decimal"
+                        style="flex:1;background:transparent;border:none;padding:0 8px;font-size:22px;font-weight:900;color:var(--gold);text-align:center;height:52px;outline:none;-webkit-appearance:none;min-width:0;" />
+                      <button @click="bump('precio',1)" type="button"
+                        style="width:50px;background:rgba(201,168,76,0.05);border:none;color:var(--gold);font-size:24px;font-weight:700;cursor:pointer;flex-shrink:0;border-left:1px solid var(--border);">+</button>
+                    </div>
+                  </div>
+                </template>
+
+                <!-- Multi-tipo (crear o editar grupo): marca/desmarca tipos, 1 fila por tipo. Libre NO va aquí. -->
+                <template v-else>
                   <div style="display:flex;flex-direction:column;gap:8px;">
                     <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;font-weight:700;">Tipo(s) * · marca uno o varios</span>
                     <div v-for="mt in catModal.multiTipos" :key="mt.tipo"
@@ -11626,37 +11701,7 @@ const ViewCatalogos = {
                     </div>
                   </div>
                   <div style="padding:9px 12px;background:rgba(96,165,250,0.07);border:1px solid rgba(96,165,250,0.2);border-radius:9px;font-size:11.5px;color:#93c5fd;line-height:1.45;">
-                    ℹ️ Se crea una fila por tipo marcado (ej. Agencia + Aliado = mismo nombre, 2 registros). El nombre se guarda en <b>MAYÚSCULAS</b>. <b>Libre</b> es único y no se agrega desde aquí.
-                  </div>
-                </template>
-
-                <!-- EDITAR: un solo tipo (la fila existente) -->
-                <template v-else>
-                  <div style="display:flex;flex-direction:column;gap:7px;">
-                    <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;font-weight:700;">Tipo *</span>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
-                      <button v-for="t in ['Libre','Agencia','Comisionado','Aliado']" :key="t"
-                        @click="catModal.tipo=t" type="button"
-                        :style="catModal.tipo===t
-                          ? 'min-height:44px;padding:10px 4px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(201,168,76,0.2);border:1.5px solid var(--gold);color:var(--gold);'
-                          : 'min-height:44px;padding:10px 4px;border-radius:10px;font-size:13px;cursor:pointer;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);'">
-                        {{ t }}
-                      </button>
-                    </div>
-                  </div>
-                  <div v-if="catModal.tipo!=='Aliado'" style="display:flex;flex-direction:column;gap:6px;">
-                    <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;font-weight:700;">Precio por PAX (S/)</span>
-                    <div style="display:flex;align-items:stretch;border:1px solid var(--border);border-radius:11px;overflow:hidden;background:var(--surface);">
-                      <button @click="bump('precio',-1)" type="button"
-                        style="width:50px;background:rgba(201,168,76,0.05);border:none;color:var(--gold);font-size:24px;font-weight:700;cursor:pointer;flex-shrink:0;border-right:1px solid var(--border);">−</button>
-                      <input v-model="catModal.precio" type="number" min="0" step="0.01" inputmode="decimal"
-                        style="flex:1;background:transparent;border:none;padding:0 8px;font-size:20px;font-weight:800;color:var(--gold);text-align:center;height:48px;outline:none;-webkit-appearance:none;min-width:0;" />
-                      <button @click="bump('precio',1)" type="button"
-                        style="width:50px;background:rgba(201,168,76,0.05);border:none;color:var(--gold);font-size:24px;font-weight:700;cursor:pointer;flex-shrink:0;border-left:1px solid var(--border);">+</button>
-                    </div>
-                  </div>
-                  <div v-else style="padding:11px 13px;background:rgba(96,165,250,0.08);border:1px solid rgba(96,165,250,0.25);border-radius:10px;font-size:12px;color:#93c5fd;text-align:center;">
-                    🤝 Los aliados se manejan solo por cantidad de PAX, sin precio fijo.
+                    ℹ️ Una fila por tipo marcado (ej. Agencia + Aliado = mismo nombre, 2 registros). Nombre en <b>MAYÚSCULAS</b>. Al <b>quitar</b> un tipo se pide confirmación; si tiene movimientos o pagos, no se puede quitar. <b>Libre</b> es único y no se agrega aquí.
                   </div>
                 </template>
               </template>
@@ -12393,7 +12438,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.55.0';
+const APP_VERSION = '1.56.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
