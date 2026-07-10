@@ -4147,6 +4147,8 @@ const ViewLanchas = {
       const t = movFormModal.value.tipo;   // al editar un tipo legado (p.ej. Directo) lo preservamos como pill extra
       return (t && !MOV_TIPOS_BASE.includes(t)) ? [t, ...MOV_TIPOS_BASE] : MOV_TIPOS_BASE;
     });
+    // Etiqueta del pill: mostramos "Aliado" (como en OPS), el valor interno sigue siendo 'Aliado(PaseIn)'
+    function movTipoLabel(t) { return t === 'Aliado(PaseIn)' ? 'Aliado' : (t === 'Directo' ? 'Libre' : t); }
     function movTipoFiltro(t) {            // tipo de mov → tipo de contacto (case-insensitive)
       const s = String(t || '').toLowerCase();
       if (s === 'agencia')      return 'agencia';
@@ -4218,13 +4220,18 @@ const ViewLanchas = {
     async function guardarMov() {
       const m = movFormModal.value;
       if (m.saving) return;                 // anti doble-click (el localId se genera por click)
-      if (movEsPaseIn.value) {              // pase recibido: va en PAX, sin dinero
+      // Validaciones alineadas con OPS (confirmarVentaDirecta): Aliado NO pide monto (trueque en PAX).
+      if (movEsPaseIn.value) {              // Aliado (pase recibido): va en PAX, sin dinero
         m.monto_total = '0'; m.precio_unit = '0';
-        if (!m.id_contacto || !m.cant_pax) { m.error = 'Aliado y PAX son obligatorios'; return; }
-      } else if (movEsLibre.value) {        // libre: contacto opcional (texto libre)
-        if (!m.cant_pax || !m.monto_total) { m.error = 'PAX y monto son obligatorios'; return; }
-      } else if (!m.id_contacto || !m.cant_pax || !m.monto_total) {
-        m.error = 'Contacto, PAX y monto son obligatorios'; return;
+        if (!m.id_contacto) { m.error = 'Elige el aliado que trae los pax.'; return; }
+        if (!m.cant_pax || parseInt(m.cant_pax) <= 0) { m.error = 'Cantidad de pasajeros inválida.'; return; }
+      } else if (movEsLibre.value) {        // Libre: contacto por texto libre
+        if (!m.cant_pax || parseInt(m.cant_pax) <= 0) { m.error = 'Cantidad de pasajeros inválida.'; return; }
+        if (!m.monto_total || parseFloat(m.monto_total) < 0) { m.error = 'Ingresa el precio cobrado.'; return; }
+      } else {                              // Agencia / Comisionado
+        if (!m.id_contacto) { m.error = 'Selecciona el contacto.'; return; }
+        if (!m.cant_pax || parseInt(m.cant_pax) <= 0) { m.error = 'Cantidad de pasajeros inválida.'; return; }
+        if (!m.monto_total || parseFloat(m.monto_total) < 0) { m.error = 'Ingresa el precio cobrado.'; return; }
       }
       const session = JSON.parse(localStorage.getItem('ps_session') || '{}');
       const pax   = parseInt(m.cant_pax) || 0;
@@ -4729,7 +4736,7 @@ const ViewLanchas = {
              contactosOps, movFormModal, pagoModal, derivarModal,
              tipoEsCobrable, calcPagoEstado, pagadoAgencia,
              openMovFormModal, guardarMov, confirmarCancelarMov,
-             movTipos, movContactosFiltrados, movEsPaseIn, movEsLibre, setMovTipo, onMovContacto, movRecalc, esRetro,
+             movTipos, movTipoLabel, movContactosFiltrados, movEsPaseIn, movEsLibre, setMovTipo, onMovContacto, movRecalc, esRetro,
              paseSueltoModal, contactosAliado, origenMatches, openPaseSueltoModal, pickOrigen, paseSueltoPaxStep, guardarPaseSuelto,
              openPagoModal, openPagoModalPase, guardarPago,
              openDerivarModal, openConvertirModal, guardarDerivarConvertir,
@@ -5300,7 +5307,7 @@ const ViewLanchas = {
                     :style="(movFormModal.tipo===t
                       ? 'padding:9px 4px;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;background:rgba(201,168,76,0.2);border:1.5px solid var(--gold);color:var(--gold);text-align:center;'
                       : 'padding:9px 4px;border-radius:9px;font-size:12px;cursor:pointer;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);text-align:center;') + 'flex:1 1 calc(50% - 6px);min-width:110px;'">
-                    {{ t }}
+                    {{ movTipoLabel(t) }}
                   </button>
                 </div>
               </div>
@@ -12444,7 +12451,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.58.0';
+const APP_VERSION = '1.59.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
