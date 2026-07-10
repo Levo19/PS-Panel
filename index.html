@@ -4371,14 +4371,15 @@ const ViewLanchas = {
     function openPagoModal(selMov, modo = 'cobro') {
       const { mov, op } = selMov;
       const paid = movPayments(op, mov.id_mov).reduce((s, c) => s + (parseFloat(c.monto) || 0), 0);
-      const pendiente = Math.max(0, (parseFloat(mov.monto_total) || 0) - paid);
+      const total = montoTotalMov(mov);                            // monto + adicionales
+      const pendiente = Math.max(0, total - paid);
       pagoModal.value = { show: true, saving: false, error: '', modo,
         id_mov: mov.id_mov, id_operacion: op.id,
         id_contacto: modo === 'pago_agencia' ? mov.id_agencia_comprada : mov.id_contacto,
         nombre_contacto: modo === 'pago_agencia' ? (mov.id_agencia_comprada || '') : mov.nombre_contacto,
         monto: modo === 'pago_agencia'
           ? String(parseFloat(mov.monto_comprado) || 0)
-          : (pendiente > 0 ? pendiente.toFixed(2) : (parseFloat(mov.monto_total) || 0).toFixed(2)),
+          : (pendiente > 0 ? pendiente : total).toFixed(2),
         metodo_pago: 'Efectivo', comentarios: '' };
     }
 
@@ -4413,12 +4414,13 @@ const ViewLanchas = {
 
     function openPagoModalPase(pase) {
       const paid      = pasePayments(pase).reduce((s, c) => s + (parseFloat(c.monto) || 0), 0);
-      const pendiente = Math.max(0, (parseFloat(pase.monto_total) || 0) - paid);
+      const total     = montoTotalMov(pase);                       // monto + adicionales (= TOTAL A COBRAR)
+      const pendiente = Math.max(0, total - paid);
       pagoModal.value = { show: true, saving: false, error: '', modo: 'cobro',
-        id_mov: pase.id_mov, id_operacion: pase.id_operacion,
+        id_mov: pase.id_mov, id_operacion: pase.id_operacion === 'PASE_DIRECTO' ? '' : (pase.id_operacion || ''),
         id_contacto: pase.id_contacto,
         nombre_contacto: pase.nombre_contacto,
-        monto: pendiente > 0 ? pendiente.toFixed(2) : (parseFloat(pase.monto_total) || 0).toFixed(2),
+        monto: (pendiente > 0 ? pendiente : total).toFixed(2),
         metodo_pago: 'Efectivo', comentarios: '' };
     }
 
@@ -12438,7 +12440,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.56.0';
+const APP_VERSION = '1.57.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
