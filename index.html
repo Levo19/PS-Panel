@@ -2953,9 +2953,84 @@ Deuda comisionado = (precio_aplicado − precio_pax_defecto) × cant_pax
         <div v-if="toast.show" class="toast">{{ toast.msg }}</div>
       </transition>
 
+      <!-- JADE 💎 asistente flotante -->
+      <teleport to="body">
+        <div v-if="session">
+          <button v-if="!jadeOpen" @click="jadeToggle" class="jade-fab" title="JADE — asistente PS">
+            <span>💎</span><span class="jade-fab-ping"></span>
+          </button>
+          <transition name="jade-slide">
+            <div v-if="jadeOpen" class="jade-panel">
+              <div class="jade-head">
+                <div class="jade-head-l"><span class="jade-gem-sm">💎</span><div><div class="jade-title">JADE</div><div class="jade-sub">asistente del ecosistema PS</div></div></div>
+                <button @click="jadeToggle" class="jade-x">✕</button>
+              </div>
+              <div id="jade-scroll" class="jade-scroll">
+                <div v-for="(m,i) in jadeMsgs" :key="i" :class="['jade-msg', m.role==='user'?'jade-me':'jade-ai']">
+                  <div class="jade-bubble">{{ m.content }}</div>
+                </div>
+                <div v-if="jadeLoading" class="jade-msg jade-ai"><div class="jade-bubble jade-typing"><span></span><span></span><span></span></div></div>
+                <div v-if="jadePropuesta" class="jade-prop">
+                  <div class="jade-prop-t">⚡ JADE quiere hacer esto:</div>
+                  <div class="jade-prop-d">{{ jadePropuesta.descripcion }}</div>
+                  <div class="jade-prop-b">
+                    <button @click="jadeCancelar" class="jade-btn-ghost">Cancelar</button>
+                    <button @click="jadeConfirmar" class="jade-btn-ok">✓ Confirmar</button>
+                  </div>
+                </div>
+              </div>
+              <div v-if="jadeMsgs.length<=1 && !jadeLoading" class="jade-sug">
+                <button v-for="s in jadeSug" :key="s" @click="jadeSend(s)" class="jade-chip">{{ s }}</button>
+              </div>
+              <div class="jade-input">
+                <input v-model="jadeInput" @keydown.enter="jadeSend()" :disabled="jadeLoading" placeholder="Pregúntale a JADE…" />
+                <button @click="jadeSend()" :disabled="jadeLoading || !jadeInput.trim()" class="jade-send">➤</button>
+              </div>
+            </div>
+          </transition>
+        </div>
+      </teleport>
+
     </template>
   </div>
 </div>
+
+<style>
+.jade-fab{position:fixed;right:18px;bottom:80px;z-index:9998;width:56px;height:56px;border-radius:50%;border:none;cursor:pointer;background:linear-gradient(135deg,#0f766e,#0891b2);box-shadow:0 8px 28px rgba(8,145,178,.45);display:flex;align-items:center;justify-content:center;font-size:26px;animation:jadeFloat 3.5s ease-in-out infinite}
+@keyframes jadeFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.jade-fab-ping{position:absolute;inset:0;border-radius:50%;border:2px solid rgba(45,212,191,.6);animation:jadePing 2.2s ease-out infinite}
+@keyframes jadePing{0%{transform:scale(1);opacity:.7}100%{transform:scale(1.55);opacity:0}}
+.jade-panel{position:fixed;right:16px;bottom:16px;z-index:9999;width:min(390px,calc(100vw - 24px));height:min(600px,calc(100vh - 90px));background:#1a0e14;border:1px solid rgba(45,212,191,.25);border-radius:20px;box-shadow:0 24px 70px rgba(0,0,0,.7);display:flex;flex-direction:column;overflow:hidden}
+.jade-head{display:flex;align-items:center;justify-content:space-between;padding:13px 15px;background:linear-gradient(135deg,rgba(13,148,136,.92),rgba(8,145,178,.85))}
+.jade-head-l{display:flex;align-items:center;gap:9px}
+.jade-gem-sm{font-size:22px}
+.jade-title{font-weight:800;font-size:15px;color:#fff}
+.jade-sub{font-size:10px;color:rgba(255,255,255,.75)}
+.jade-x{background:rgba(255,255,255,.15);border:none;color:#fff;width:28px;height:28px;border-radius:8px;cursor:pointer;font-size:14px}
+.jade-scroll{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+.jade-msg{display:flex}.jade-me{justify-content:flex-end}.jade-ai{justify-content:flex-start}
+.jade-bubble{max-width:82%;padding:9px 12px;border-radius:14px;font-size:13.5px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+.jade-me .jade-bubble{background:linear-gradient(135deg,#0f766e,#0891b2);color:#fff;border-bottom-right-radius:4px}
+.jade-ai .jade-bubble{background:rgba(255,255,255,.06);color:#e8e0d0;border:1px solid rgba(255,255,255,.08);border-bottom-left-radius:4px}
+.jade-typing{display:flex;gap:4px}
+.jade-typing span{width:7px;height:7px;border-radius:50%;background:#2dd4bf;animation:jadeBlink 1.2s infinite}
+.jade-typing span:nth-child(2){animation-delay:.2s}.jade-typing span:nth-child(3){animation-delay:.4s}
+@keyframes jadeBlink{0%,60%,100%{opacity:.3}30%{opacity:1}}
+.jade-prop{background:rgba(201,168,76,.1);border:1px solid rgba(201,168,76,.4);border-radius:12px;padding:11px}
+.jade-prop-t{font-size:11px;font-weight:800;color:#e6c34a;margin-bottom:5px}
+.jade-prop-d{font-size:13px;color:#e8e0d0;line-height:1.4;margin-bottom:9px}
+.jade-prop-b{display:flex;gap:8px}
+.jade-btn-ghost{flex:1;padding:8px;border-radius:9px;background:transparent;border:1px solid rgba(255,255,255,.2);color:#bbb;cursor:pointer;font-size:12px}
+.jade-btn-ok{flex:1;padding:8px;border-radius:9px;background:#0f766e;border:none;color:#fff;font-weight:700;cursor:pointer;font-size:12px}
+.jade-sug{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 8px}
+.jade-chip{background:rgba(45,212,191,.1);border:1px solid rgba(45,212,191,.3);color:#5eead4;font-size:11.5px;padding:6px 10px;border-radius:100px;cursor:pointer}
+.jade-input{display:flex;gap:8px;padding:11px 13px;border-top:1px solid rgba(255,255,255,.08)}
+.jade-input input{flex:1;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:10px 12px;color:#e8e0d0;font-size:14px;outline:none}
+.jade-send{width:42px;border-radius:10px;background:#0891b2;border:none;color:#fff;font-size:15px;cursor:pointer}
+.jade-slide-enter-active,.jade-slide-leave-active{transition:transform .25s,opacity .25s}
+.jade-slide-enter-from,.jade-slide-leave-to{transform:translateY(20px);opacity:0}
+@media(max-width:430px){.jade-fab{bottom:76px}.jade-panel{height:min(74vh,560px);bottom:12px}}
+</style>
 
 <script>
 const { createApp, ref, reactive, computed, onMounted, onUnmounted, onActivated, onDeactivated, watch, nextTick } = Vue;
@@ -12449,6 +12524,43 @@ createApp({
       return r === 'Administrador' || r === 'Supervisor';
     });
 
+    // ── JADE 💎 — asistente flotante del ecosistema PS ─────────────────────
+    const jadeOpen      = ref(false);
+    const jadeInput     = ref('');
+    const jadeLoading   = ref(false);
+    const jadeMsgs      = ref([{ role: 'assistant', content: '¡Hola! Soy JADE 💎 Consúltame balances, KPIs o cómo hacer algo. También preparo acciones (siempre con tu confirmación). ¿En qué te ayudo?' }]);
+    const jadePropuesta = ref(null);
+    const jadeSug       = ['¿Cuánto nos debe cada agencia?', '¿Cómo va el día?', '¿Dónde registro un movimiento?'];
+    const JADE_WRITE_OK = ['registrar_pago', 'actualizar_contacto'];   // whitelist de escrituras confirmables
+    function jadeScroll() { nextTick(() => { const el = document.getElementById('jade-scroll'); if (el) el.scrollTop = el.scrollHeight; }); }
+    function jadeToggle() { jadeOpen.value = !jadeOpen.value; if (jadeOpen.value) jadeScroll(); }
+    async function jadeSend(texto) {
+      const q = String(texto != null ? texto : jadeInput.value).trim();
+      if (!q || jadeLoading.value) return;
+      jadeInput.value = ''; jadePropuesta.value = null;
+      jadeMsgs.value.push({ role: 'user', content: q });
+      jadeLoading.value = true; jadeScroll();
+      try {
+        const payload = jadeMsgs.value.filter(m => m.role === 'user' || m.role === 'assistant').slice(-12).map(m => ({ role: m.role, content: m.content }));
+        const { data, error } = await sbClient.functions.invoke('jade-chat', { body: { messages: payload } });
+        if (error || !data || !data.ok) throw new Error((data && data.motivo) || (error && error.message) || 'error');
+        if (data.reply) jadeMsgs.value.push({ role: 'assistant', content: data.reply });
+        if (data.propuesta && JADE_WRITE_OK.includes(data.propuesta.accion)) jadePropuesta.value = data.propuesta;
+      } catch (e) {
+        jadeMsgs.value.push({ role: 'assistant', content: '⚠ No pude responder ahora (' + (e.message || 'error') + '). Intenta de nuevo.' });
+      } finally { jadeLoading.value = false; jadeScroll(); }
+    }
+    async function jadeConfirmar() {
+      const p = jadePropuesta.value; if (!p) return;
+      jadePropuesta.value = null; jadeLoading.value = true; jadeScroll();
+      try {
+        const r = await apiPost({ accion: p.accion, ...(p.params || {}) });
+        jadeMsgs.value.push({ role: 'assistant', content: (r && r.ok) ? '✅ Hecho.' : ('⚠ No se pudo: ' + ((r && r.error) || 'error')) });
+      } catch (e) { jadeMsgs.value.push({ role: 'assistant', content: '⚠ Error al ejecutar: ' + (e.message || 'error') }); }
+      finally { jadeLoading.value = false; jadeScroll(); }
+    }
+    function jadeCancelar() { jadePropuesta.value = null; jadeMsgs.value.push({ role: 'assistant', content: 'Ok, no hice nada. ¿Algo más?' }); jadeScroll(); }
+
     return {
       session, currentModule, currentView, navModules,
       moduleData, moduleLoading, showInfoPanel,
@@ -12458,13 +12570,14 @@ createApp({
       pmModal, toast, isAdminRoot,
       navIcon, iniciales, pinPress, verificarPin, guardarSetupUrl,
       goModule, handleAction, guardarPersonal,
+      jadeOpen, jadeInput, jadeLoading, jadeMsgs, jadePropuesta, jadeSug, jadeToggle, jadeSend, jadeConfirmar, jadeCancelar,
       abrirFacturacion: () => window.abrirFacturacion()
     };
   }
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.63.0';
+const APP_VERSION = '1.64.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
