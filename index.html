@@ -3796,7 +3796,9 @@ const ViewLanchas = {
     }
 
     function canHaveAdicionales(mov) {
-      return mov.es_agencia_origen === true || (mov.adicionales && String(mov.adicionales).trim() !== '');
+      // Cualquier movimiento/pase COBRABLE (Libre/Agencia/Comisionado/PaseOut) puede llevar extras,
+      // no solo agencia. Aliado recibido (PaseIn) no. Funciona aunque la operación esté cerrada.
+      return tipoEsCobrable(String(mov.tipo || '')) || mov.es_agencia_origen === true || (mov.adicionales && String(mov.adicionales).trim() !== '');
     }
 
     async function openAdicionalesModal(mov) {
@@ -4976,37 +4978,44 @@ const ViewLanchas = {
                 </div>
               </div>
 
-              <!-- 2. Desglose de monto -->
+              <!-- 2. Cobro: desglose + extras (chips) + total + acciones -->
               <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:13px;padding:13px;">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                <!-- Base -->
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;">
                   <div>
                     <span style="font-size:12px;color:var(--text-muted);">{{ selectedMov.mov.cant_pax }} pax</span>
                     <div style="font-size:10px;color:rgba(240,230,211,0.3);margin-top:1px;">ref. S/ {{ fmt(selectedMov.mov.precio_aplicado) }}/pax</div>
                   </div>
                   <span style="font-size:15px;font-weight:700;">S/ {{ fmt(selectedMov.mov.monto_total) }}</span>
                 </div>
-                <template v-if="adicionalItems(selectedMov.mov.adicionales).length">
-                  <div v-for="a in adicionalItems(selectedMov.mov.adicionales)" :key="a.label"
-                    style="display:flex;justify-content:space-between;align-items:center;padding:2px 0;font-size:12px;">
-                    <span style="color:var(--text-muted);">+ {{ a.label }}</span>
-                    <span style="color:var(--gold);">S/ {{ fmt(a.monto) }}</span>
-                  </div>
-                  <div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;align-items:center;">
-                    <span style="font-size:11px;font-weight:800;letter-spacing:.06em;color:var(--text-muted);">TOTAL</span>
-                    <span style="font-size:20px;font-weight:900;color:var(--gold);">S/ {{ fmt(montoTotalMov(selectedMov.mov)) }}</span>
-                  </div>
-                </template>
-                <template v-else>
-                  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
-                    <span style="font-size:11px;font-weight:800;letter-spacing:.06em;color:var(--text-muted);">TOTAL</span>
-                    <span style="font-size:20px;font-weight:900;color:var(--gold);">S/ {{ fmt(montoTotalMov(selectedMov.mov)) }}</span>
-                  </div>
-                </template>
-                <div v-if="canHaveAdicionales(selectedMov.mov)"
-                  style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);text-align:center;">
-                  <button @click="openAdicionalesModal(selectedMov.mov)"
-                    style="padding:5px 16px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.32);color:var(--gold);letter-spacing:.04em;">
-                    {{ adicionalItems(selectedMov.mov.adicionales).length ? '✎ Adicionales (' + adicionalItems(selectedMov.mov.adicionales).length + ')' : '+ Adicionales' }}
+
+                <!-- Extras como chips -->
+                <div v-if="adicionalItems(selectedMov.mov.adicionales).length"
+                  style="display:flex;flex-wrap:wrap;gap:5px;margin-top:9px;">
+                  <span v-for="a in adicionalItems(selectedMov.mov.adicionales)" :key="a.label"
+                    style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:100px;background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.35);color:var(--gold);">
+                    {{ a.label }}<span style="opacity:.75;">S/ {{ fmt(a.monto) }}</span>
+                  </span>
+                </div>
+
+                <!-- Total -->
+                <div style="border-top:1px solid var(--border);margin-top:10px;padding-top:9px;display:flex;justify-content:space-between;align-items:baseline;">
+                  <span style="font-size:11px;font-weight:800;letter-spacing:.06em;color:var(--text-muted);">TOTAL A COBRAR</span>
+                  <span style="font-size:22px;font-weight:900;color:var(--gold);">S/ {{ fmt(montoTotalMov(selectedMov.mov)) }}</span>
+                </div>
+
+                <!-- Acciones de cobro (Cobrar primario + Adicionales secundario) -->
+                <div v-if="selectedMov.mov.estado !== 'Cancelado' && (tipoEsCobrable(selectedMov.mov.tipo) || canHaveAdicionales(selectedMov.mov))"
+                  style="display:flex;gap:8px;margin-top:12px;">
+                  <button v-if="tipoEsCobrable(selectedMov.mov.tipo)"
+                    @click="openPagoModal(selectedMov,'cobro');selectedMov=null"
+                    style="flex:2;min-width:0;padding:11px 12px;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;background:rgba(74,222,128,0.16);border:1px solid rgba(74,222,128,0.42);color:#4ade80;display:flex;align-items:center;justify-content:center;gap:6px;">
+                    💰 Cobrar
+                  </button>
+                  <button v-if="canHaveAdicionales(selectedMov.mov)"
+                    @click="openAdicionalesModal(selectedMov.mov)"
+                    style="flex:1;min-width:0;padding:11px 10px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.34);color:var(--gold);display:flex;align-items:center;justify-content:center;gap:5px;white-space:nowrap;">
+                    {{ adicionalItems(selectedMov.mov.adicionales).length ? '✎ Extras (' + adicionalItems(selectedMov.mov.adicionales).length + ')' : '+ Extras' }}
                   </button>
                 </div>
               </div>
@@ -5060,17 +5069,12 @@ const ViewLanchas = {
                 </div>
               </div>
 
-              <!-- 6. Acciones -->
+              <!-- 6. Gestión -->
               <div v-if="selectedMov.mov.estado !== 'Cancelado'" style="display:flex;flex-wrap:wrap;gap:8px;border-top:1px solid var(--border);padding-top:12px;">
                 <button v-if="isAdmin"
                   @click="openMovFormModal(selectedMov.op, selectedMov.mov);selectedMov=null"
                   style="flex:1;min-width:130px;padding:9px 12px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);color:var(--gold);">
                   ✏ Editar
-                </button>
-                <button v-if="tipoEsCobrable(selectedMov.mov.tipo)"
-                  @click="openPagoModal(selectedMov,'cobro');selectedMov=null"
-                  style="flex:1;min-width:130px;padding:9px 12px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(74,222,128,0.12);border:1px solid rgba(74,222,128,0.3);color:#4ade80;">
-                  💰 Cobrar
                 </button>
                 <button v-if="selectedMov.mov.tipo==='Directo' && !selectedMov.mov.id_contacto_pase"
                   @click="openDerivarModal(selectedMov);selectedMov=null"
@@ -5563,37 +5567,44 @@ const ViewLanchas = {
                 </div>
               </div>
 
-              <!-- 3. Desglose de monto -->
+              <!-- 3. Cobro: desglose + extras (chips) + total + acciones -->
               <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:13px;padding:13px;">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                <!-- Base -->
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;">
                   <div>
                     <span style="font-size:12px;color:var(--text-muted);">{{ selectedPase.cant_pax }} pax</span>
                     <div style="font-size:10px;color:rgba(240,230,211,0.3);margin-top:1px;">ref. S/ {{ fmt(selectedPase.precio_aplicado) }}/pax</div>
                   </div>
                   <span style="font-size:15px;font-weight:700;">S/ {{ fmt(selectedPase.monto_total) }}</span>
                 </div>
-                <template v-if="adicionalItems(selectedPase.adicionales).length">
-                  <div v-for="a in adicionalItems(selectedPase.adicionales)" :key="a.label"
-                    style="display:flex;justify-content:space-between;align-items:center;padding:2px 0;font-size:12px;">
-                    <span style="color:var(--text-muted);">+ {{ a.label }}</span>
-                    <span style="color:var(--gold);">S/ {{ fmt(a.monto) }}</span>
-                  </div>
-                  <div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;align-items:center;">
-                    <span style="font-size:11px;font-weight:800;letter-spacing:.06em;color:var(--text-muted);">TOTAL</span>
-                    <span style="font-size:20px;font-weight:900;color:#fb923c;">S/ {{ fmt(montoTotalMov(selectedPase)) }}</span>
-                  </div>
-                </template>
-                <template v-else>
-                  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
-                    <span style="font-size:11px;font-weight:800;letter-spacing:.06em;color:var(--text-muted);">TOTAL</span>
-                    <span style="font-size:20px;font-weight:900;color:#fb923c;">S/ {{ fmt(montoTotalMov(selectedPase)) }}</span>
-                  </div>
-                </template>
-                <div v-if="canHaveAdicionales(selectedPase)"
-                  style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);text-align:center;">
-                  <button @click="openAdicionalesModal(selectedPase)"
-                    style="padding:5px 16px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.32);color:var(--gold);letter-spacing:.04em;">
-                    {{ adicionalItems(selectedPase.adicionales).length ? '✎ Adicionales (' + adicionalItems(selectedPase.adicionales).length + ')' : '+ Adicionales' }}
+
+                <!-- Extras como chips -->
+                <div v-if="adicionalItems(selectedPase.adicionales).length"
+                  style="display:flex;flex-wrap:wrap;gap:5px;margin-top:9px;">
+                  <span v-for="a in adicionalItems(selectedPase.adicionales)" :key="a.label"
+                    style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:100px;background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.35);color:var(--gold);">
+                    {{ a.label }}<span style="opacity:.75;">S/ {{ fmt(a.monto) }}</span>
+                  </span>
+                </div>
+
+                <!-- Total -->
+                <div style="border-top:1px solid var(--border);margin-top:10px;padding-top:9px;display:flex;justify-content:space-between;align-items:baseline;">
+                  <span style="font-size:11px;font-weight:800;letter-spacing:.06em;color:var(--text-muted);">TOTAL A COBRAR</span>
+                  <span style="font-size:22px;font-weight:900;color:#fb923c;">S/ {{ fmt(montoTotalMov(selectedPase)) }}</span>
+                </div>
+
+                <!-- Acciones de cobro (Cobrar primario + Adicionales secundario) -->
+                <div v-if="selectedPase.estado !== 'Cancelado' && (tipoEsCobrable(selectedPase.tipo) || canHaveAdicionales(selectedPase))"
+                  style="display:flex;gap:8px;margin-top:12px;">
+                  <button v-if="tipoEsCobrable(selectedPase.tipo)"
+                    @click="openPagoModalPase(selectedPase);selectedPase=null"
+                    style="flex:2;min-width:0;padding:11px 12px;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;background:rgba(74,222,128,0.16);border:1px solid rgba(74,222,128,0.42);color:#4ade80;display:flex;align-items:center;justify-content:center;gap:6px;">
+                    💰 Cobrar
+                  </button>
+                  <button v-if="canHaveAdicionales(selectedPase)"
+                    @click="openAdicionalesModal(selectedPase)"
+                    style="flex:1;min-width:0;padding:11px 10px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.34);color:var(--gold);display:flex;align-items:center;justify-content:center;gap:5px;white-space:nowrap;">
+                    {{ adicionalItems(selectedPase.adicionales).length ? '✎ Extras (' + adicionalItems(selectedPase.adicionales).length + ')' : '+ Extras' }}
                   </button>
                 </div>
               </div>
@@ -5638,13 +5649,8 @@ const ViewLanchas = {
                 </div>
               </div>
 
-              <!-- 6. Acciones -->
-              <div v-if="selectedPase.estado !== 'Cancelado'" style="display:flex;flex-wrap:wrap;gap:8px;border-top:1px solid var(--border);padding-top:12px;">
-                <button v-if="tipoEsCobrable(selectedPase.tipo)"
-                  @click="openPagoModalPase(selectedPase);selectedPase=null"
-                  style="flex:1;min-width:130px;padding:9px 12px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(74,222,128,0.12);border:1px solid rgba(74,222,128,0.3);color:#4ade80;">
-                  💰 Cobrar
-                </button>
+              <!-- 6. Gestión -->
+              <div v-if="selectedPase.estado !== 'Cancelado' && isAdmin" style="display:flex;flex-wrap:wrap;gap:8px;border-top:1px solid var(--border);padding-top:12px;">
                 <button v-if="isAdmin"
                   @click="confirmarAnularPaseMov(selectedPase.id_mov);selectedPase=null"
                   style="width:100%;padding:9px 12px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.25);color:#fbbf24;">
@@ -12167,7 +12173,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.51.0';
+const APP_VERSION = '1.51.1';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
