@@ -4237,12 +4237,20 @@ const ViewLanchas = {
       const pax   = parseInt(m.cant_pax) || 0;
       const monto = parseFloat(m.monto_total) || 0;
       const con   = contactosOps.value.find(c => c.id === m.id_contacto);
+      // Libre = walk-in público → se registra como VARIOS (CON-00) + "VARIOS:apellido" (igual que OPS)
+      let idContacto = m.id_contacto;
+      let nombreContacto = con?.nombre || m.nombre_contacto;
+      if (movEsLibre.value) {
+        idContacto = 'CON-00';
+        const apellido = String(m.nombre_contacto || '').trim().replace(/\s+/g, ' ').toUpperCase();
+        nombreContacto = apellido ? ('VARIOS:' + apellido) : 'VARIOS';
+      }
       const body  = {
         accion: m.mode === 'crear' ? 'crear_movimiento' : 'editar_movimiento',
         id_operacion: m.id_operacion,
         tipo: m.tipo,
-        id_contacto: m.id_contacto,
-        nombre_contacto: con?.nombre || m.nombre_contacto,
+        id_contacto: idContacto,
+        nombre_contacto: nombreContacto,
         cant_pax: pax,
         precio_unitario: pax > 0 ? (monto / pax).toFixed(2) : '0',
         monto_total: monto,
@@ -4266,8 +4274,8 @@ const ViewLanchas = {
         if (opIdx >= 0) {
           snapOp = JSON.parse(JSON.stringify(ops[opIdx]));
           const updMov = { ...ops[opIdx].movimientos[movIdx],
-            tipo: m.tipo, id_contacto: m.id_contacto,
-            nombre_contacto: con?.nombre || m.nombre_contacto,
+            tipo: m.tipo, id_contacto: idContacto,
+            nombre_contacto: nombreContacto,
             cant_pax: pax, precio_aplicado: pax > 0 ? monto / pax : 0, monto_total: monto
           };
           const newMovs = [...ops[opIdx].movimientos]; newMovs[movIdx] = updMov;
@@ -4277,8 +4285,8 @@ const ViewLanchas = {
         const snapSelMov = selectedMov.value ? JSON.parse(JSON.stringify(selectedMov.value)) : null;
         if (selectedMov.value?.mov.id_mov === m.id_mov)
           selectedMov.value = { ...selectedMov.value, mov: { ...selectedMov.value.mov,
-            tipo: m.tipo, id_contacto: m.id_contacto,
-            nombre_contacto: con?.nombre || m.nombre_contacto,
+            tipo: m.tipo, id_contacto: idContacto,
+            nombre_contacto: nombreContacto,
             cant_pax: pax, precio_aplicado: pax > 0 ? monto / pax : 0, monto_total: monto }};
         movFormModal.value.show = false;
         showToast('✅ Movimiento actualizado');
@@ -12451,7 +12459,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.59.0';
+const APP_VERSION = '1.60.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
