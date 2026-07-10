@@ -5050,13 +5050,18 @@ const ViewLanchas = {
                       <span style="font-size:12px;font-weight:800;color:var(--gold);">S/ {{ fmt(totalMovs((op.movimientos||[]).filter(m=>!esPaseOut(m.tipo))).monto) }}</span>
                     </div>
                   </div>
-                  <!-- Agregar movimiento -->
-                  <div v-if="op.estado === 'Abierta' || op.estado === 'En_Viaje'"
+                  <!-- Agregar movimiento: se decide por AFORO (no por estado). Admin puede retroactivo aunque esté cerrada. -->
+                  <div v-if="op.estado !== 'Cancelada' && op.estado !== 'Anulada' && (isAdmin || op.estado === 'Abierta' || op.estado === 'En_Viaje')"
                     style="padding-top:10px;border-top:1px solid var(--border);margin-top:4px;">
-                    <button @click.stop="openMovFormModal(op)"
+                    <button v-if="!op.capacidad || (op.pax_total||0) < op.capacidad"
+                      @click.stop="openMovFormModal(op)"
                       style="width:100%;padding:8px;border-radius:8px;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.25);color:var(--gold);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-weight:700;">
-                      ＋ Agregar movimiento
+                      ＋ Agregar movimiento<span v-if="op.capacidad" style="opacity:.6;font-weight:600;">· {{ Math.max(0, op.capacidad - (op.pax_total||0)) }} cupos</span><span v-if="op.estado !== 'Abierta' && op.estado !== 'En_Viaje'" style="opacity:.6;font-weight:600;">· retroactivo</span>
                     </button>
+                    <div v-else
+                      style="width:100%;padding:8px;border-radius:8px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);color:#f87171;font-size:12px;display:flex;align-items:center;justify-content:center;gap:6px;font-weight:700;">
+                      🚫 Bote lleno ({{ op.pax_total }}/{{ op.capacidad }})
+                    </div>
                   </div>
                   <!-- Anular operación (solo admin) -->
                   <div v-if="isAdmin" style="padding-top:10px;border-top:1px solid var(--border);margin-top:4px;">
@@ -12459,7 +12464,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.60.0';
+const APP_VERSION = '1.61.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
