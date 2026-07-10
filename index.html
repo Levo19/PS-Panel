@@ -12386,16 +12386,10 @@ createApp({
             break;
           }
           case 'hotel': {
-            const [habR, resR, dashR] = await Promise.all([
-              apiGet('hotel_habitaciones'),
-              apiGet('hotel_reservas', { fecha: today() }),
-              apiGet('dashboard', { fecha: today() })
-            ]);
-            result = {
-              habitaciones: habR.ok ? habR.data : [],
-              reservas: resR.ok ? resR.data : [],
-              dashboard: dashR.ok ? dashR.data : null
-            };
+            // Hotel = inversión FUTURA (aún no implementada). No hay endpoints propios;
+            // mostramos estado vacío sin error (antes hotel_* caía a GAS → "Error cargando datos").
+            const dashR = await apiGet('dashboard', { fecha: today() }).catch(() => ({ ok: false }));
+            result = { habitaciones: [], reservas: [], dashboard: dashR.ok ? dashR.data : null, _placeholder: true };
             break;
           }
           case 'finanzas': {
@@ -12618,7 +12612,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.65.0';
+const APP_VERSION = '1.66.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
