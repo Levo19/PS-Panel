@@ -3509,7 +3509,7 @@ const ViewLanchas = {
       });
       (d.pases_sueltos || []).forEach(m => {
         if (esPaseOut(String(m.tipo || '')) && m.estado !== 'Cancelado')
-          result.push({ ...m, _bote: '—', _hora: '—', _caja: [] });
+          result.push({ ...m, _bote: '—', _hora: '—', _caja: m._caja || [] });  // usa los cobros del pase (backend), no vacío
       });
       return result;
     }
@@ -12319,7 +12319,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.53.0';
+const APP_VERSION = '1.54.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
