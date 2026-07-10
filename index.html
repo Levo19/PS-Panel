@@ -3665,7 +3665,7 @@ const ViewLanchas = {
 
     function isIngreso(c) {
       const cat = String(c.categoria||'').toLowerCase();
-      if (cat === 'varios') return String(c.comentarios||'').trimStart().startsWith('[I]');
+      if (cat === 'varios') return !String(c.comentarios||'').trimStart().startsWith('[S]');   // varios = ingreso salvo marcador [S] (igual que backend/OPS)
       return cat.includes('cobro') || cat.includes('ingreso') || cat.includes('venta');
     }
     function metodoIcon(c) {
@@ -3860,14 +3860,14 @@ const ViewLanchas = {
         String(mov.adicionales).split(',').forEach(p => {
           const sep = p.indexOf(':');
           if (sep !== -1) {
-            const nombre = p.substring(0, sep).trim();
+            const nombre = p.substring(0, sep).trim().toLowerCase();   // clave case-insensitive (el backend guarda en minúscula)
             const total  = parseFloat(p.substring(sep + 1).trim()) || 0;
             currentMap[nombre] = total;
           }
         });
       }
       const items = impuestosCatalog.value.map(imp => {
-        const total = currentMap[imp.nombre] || 0;
+        const total = currentMap[String(imp.nombre).toLowerCase()] || 0;   // lookup case-insensitive
         const qty   = (total > 0 && imp.monto > 0) ? Math.round(total / imp.monto) : 0;   // guard div/0 si un extra tuviera monto 0
         return { id: imp.id, nombre: imp.nombre, montoUnit: imp.monto, qty };
       });
@@ -10593,7 +10593,7 @@ const InsightAgencias = {
             <div style="min-width:0;flex:1;">
               <div style="font-weight:800;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ a.nombre }}</div>
               <div style="font-size:11px;color:var(--text-muted);">{{ a.id }} · fact {{ fmt(a.facturado) }} · cobr {{ fmt(a.cobrado) }}</div>
-              <div v-if="a.saldo_inicial" style="font-size:10px;color:var(--gold);font-weight:700;margin-top:2px;">📌 saldo inicial: {{ a.saldo_inicial>0?'+':'' }}S/ {{ fmt(Math.abs(a.saldo_inicial)) }} ({{ a.saldo_inicial>0?'a favor':'les debes' }})</div>
+              <div v-if="a.saldo_inicial" style="font-size:10px;color:var(--gold);font-weight:700;margin-top:2px;">📌 saldo inicial: {{ a.saldo_inicial>0?'+':'' }}{{ fmt(Math.abs(a.saldo_inicial)) }} ({{ a.saldo_inicial>0?'a favor':'les debes' }})</div>
               <div style="height:6px;border-radius:4px;background:rgba(255,255,255,0.06);margin-top:5px;overflow:hidden;">
                 <div :style="{ width: pct(a)+'%', height:'100%', background:'linear-gradient(90deg,#16a34a,#4ade80)', transition:'width .6s cubic-bezier(.22,1,.36,1)' }"></div>
               </div>
@@ -10681,7 +10681,7 @@ const InsightAgencias = {
               <button @click="pago.show=false" style="font-size:18px;color:var(--text-muted);">✕</button>
             </div>
             <div style="padding:16px;display:flex;flex-direction:column;gap:13px;">
-              <div v-if="pago.ag" style="font-size:12px;color:var(--text-muted);">Debe actualmente: <b :style="{ color: pago.ag.te_debe>0?'#f87171':'#4ade80' }">S/ {{ fmt(pago.ag.te_debe) }}</b></div>
+              <div v-if="pago.ag" style="font-size:12px;color:var(--text-muted);">Debe actualmente: <b :style="{ color: pago.ag.te_debe>0?'#f87171':'#4ade80' }">{{ fmt(pago.ag.te_debe) }}</b></div>
               <div>
                 <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:5px;">MONTO (S/)</div>
                 <input v-model="pago.monto" type="number" inputmode="decimal" placeholder="0.00" class="reg-input" style="font-size:18px;font-weight:800;" />
@@ -12464,7 +12464,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.62.0';
+const APP_VERSION = '1.63.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
