@@ -3229,6 +3229,7 @@ const PS_POST = {
   crear_contacto: b => _psRpc('admin_crear_contacto', { p_nombre: b.nombre, p_tipo: b.tipo || 'Libre', p_precio: parseFloat(b.precio) || 0 }).then(id => ({ id })),
   crear_contacto_multi: b => _psRpc('admin_crear_contacto_multi', { p_nombre: b.nombre, p_items: b.items }).then(rows => ({ rows: rows || [] })),
   guardar_contacto_grupo: b => _psRpc('admin_guardar_contacto_grupo', { p_nombre_old: b.nombre_old, p_nombre: b.nombre, p_items: b.items }).then(res => ({ res: res || {} })),
+  fusionar_contactos: b => _psRpc('admin_fusionar_contactos', { p_origen: b.origen, p_destino: b.destino }).then(res => ({ res: res || {} })),
   actualizar_contacto: b => _psRpc('admin_editar_contacto', { p_id: b.id, p_nombre: b.nombre == null ? null : b.nombre, p_tipo: b.tipo == null ? null : b.tipo, p_precio: b.precio == null ? null : parseFloat(b.precio) }),
   crear_impuesto: b => _psRpc('admin_crear_impuesto', { p_nombre: b.nombre, p_monto: parseFloat(b.monto) || 0 }).then(id => ({ id })),
   actualizar_impuesto: b => _psRpc('admin_editar_impuesto', { p_id: b.id, p_nombre: b.nombre == null ? null : b.nombre, p_monto: b.monto == null ? null : parseFloat(b.monto) }),
@@ -12549,7 +12550,7 @@ createApp({
     const jadeMsgs      = ref([{ role: 'assistant', content: '¡Hola! Soy JADE 💎 Consúltame balances, KPIs o cómo hacer algo. También preparo acciones (siempre con tu confirmación). ¿En qué te ayudo?' }]);
     const jadePropuesta = ref(null);
     const jadeSug       = ['¿Cuánto nos debe cada agencia?', '¿Cómo va el día?', '¿Dónde registro un movimiento?'];
-    const JADE_WRITE_OK = ['registrar_pago', 'actualizar_contacto', 'crear_contacto_multi', 'actualizar_adicionales'];   // whitelist de escrituras confirmables
+    const JADE_WRITE_OK = ['registrar_pago', 'actualizar_contacto', 'crear_contacto_multi', 'actualizar_adicionales', 'fusionar_contactos'];   // whitelist de escrituras confirmables
     const jadeVoz       = ref(true);    // JADE responde por voz
     const jadeListening = ref(false);   // dictado activo
     let   _jadeRec      = null;
@@ -12624,7 +12625,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.67.0';
+const APP_VERSION = '1.68.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
