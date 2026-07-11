@@ -3123,6 +3123,18 @@ async function _psRpc(fn, body) {
     const t = await r.text(); return t ? JSON.parse(t) : null;
   } finally { clearTimeout(tid); }
 }
+// Log de eventos/errores en vivo → JADE (modo programador) los ve al instante. Throttle anti-spam.
+let _evLast = 0;
+async function logEvento(tipo, area, mensaje, detalle) {
+  try {
+    const now = Date.now(); if (tipo === 'error' && now - _evLast < 4000) return; if (tipo === 'error') _evLast = now;
+    const s = JSON.parse(localStorage.getItem('ps_session') || '{}');
+    await _psRpc('registrar_evento', { p: { tipo, app: 'ps', area: String(area || ''), mensaje: String(mensaje || '').slice(0, 300), detalle: String(detalle || '').slice(0, 1500), usuario: s.nombre || '' } });
+  } catch (e) {}
+}
+window.addEventListener('error', (e) => { if (e && e.message) logEvento('error', 'window', e.message, (e.error && e.error.stack) || ''); });
+window.addEventListener('unhandledrejection', (e) => { const r = e && e.reason; logEvento('error', 'promise', (r && (r.message || r)) || 'rejection', (r && r.stack) || ''); });
+window.logEvento = logEvento;
 async function _psSel(path) {
   const tok = await _psToken();
   const h = { apikey: SUPA_ANON }; if (tok) h.Authorization = 'Bearer ' + tok;
@@ -12612,7 +12624,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.66.0';
+const APP_VERSION = '1.67.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
