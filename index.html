@@ -3215,7 +3215,7 @@ const PS_POST = {
   cancelar_movimiento: b => _psRpc('eliminar_movimiento', { p_mov: b.id }),
   actualizar_adicionales: b => _psRpc('actualizar_adicionales', { p_mov: b.id_mov || b.id, p_adic: _adicObj(b.adicionales) }),
   derivar_pase_ps: b => _psRpc('derivar_pase', { p_mov: b.id_mov, p_aliado: b.aliado_id || b.aliado, p_operador: b.operador || 'PS' }),
-  anular_pase_ps: b => _psRpc('anular_pase', { p_mov: b.id_mov, p_op_nueva: b.id_operacion_nueva }).then(t => ({ tipo: t })),
+  anular_pago: b => _psRpc('eliminar_transaccion', { p_id: b.id }).then(() => ({ ok: true })),
   convertir_pase_compra: b => _psRpc('convertir_pase_compra', { p_mov: b.id_mov, p_agencia: b.id_agencia, p_monto: parseFloat(b.monto) || 0 }),
   crear_operacion: b => _psRpc('abrir_operacion', { p_bote: b.id_bote, p_capitan: b.id_capitan || null, p_guia: b.id_guia || null, p_hora: b.hora_salida || null, p_destino: b.destino || null, p_creador: b.creador || 'PS', p_local_id: b.localId || null, p_fecha: b.fecha || null }).then(id => ({ id })),
   actualizar_operacion: b => _psRpc('editar_operacion', { p_op: b.id_operacion || b.id, p_capitan: b.id_capitan == null ? null : b.id_capitan, p_guia: b.id_guia == null ? null : b.id_guia, p_hora: b.hora_salida == null ? null : b.hora_salida }),
@@ -4495,15 +4495,15 @@ const ViewLanchas = {
     }
 
     async function confirmarCancelarMov(id_mov) {
-      if (!confirm('¿Cancelar este movimiento? Se marcará como Cancelado.')) return;
+      if (!confirm('¿Anular este movimiento? Se marcará como Cancelado.')) return;
       try {
         const r = await apiPost({ accion: 'cancelar_movimiento', id: id_mov });
         if (!r.ok) throw new Error(r.error || 'Error');
-        selectedMov.value = null;
+        selectedMov.value = null; selectedPase.value = null;
         const fecha = currentFecha.value;
         cache.value = { ...cache.value, [fecha]: { loaded: false, loading: false } };
         loadFecha(fecha);
-      } catch(e) { alert(e.message); }
+      } catch(e) { alert(String(e.message || e).replace(/^[A-Z_]+:\s*/, '')); }   // muestra el motivo del guard sin el código
     }
 
     function openPagoModal(selMov, modo = 'cobro') {
@@ -4608,16 +4608,18 @@ const ViewLanchas = {
       finally    { d.saving = false; }
     }
 
-    async function confirmarAnularPaseMov(id_mov) {
-      if (!confirm('¿Anular este pase? El movimiento volverá a Embarcado.')) return;
+    // Anular un pago de caja_operador (dirección permitida: un pago SÍ se anula aunque tenga movimiento_id).
+    async function confirmarAnularPago(id) {
+      if (!id) return;
+      if (!confirm('¿Anular este pago? Se eliminará el registro de caja. Esta acción no se puede deshacer.')) return;
       try {
-        const r = await apiPost({ accion: 'anular_pase_ps', id_mov });
+        const r = await apiPost({ accion: 'anular_pago', id });
         if (!r.ok) throw new Error(r.error || 'Error');
-        selectedMov.value = null;
+        selectedCajaDia.value = null;
         const fecha = currentFecha.value;
         cache.value = { ...cache.value, [fecha]: { loaded: false, loading: false } };
         loadFecha(fecha);
-      } catch(e) { alert(e.message); }
+      } catch(e) { alert(String(e.message || e).replace(/^[A-Z_]+:\s*/, '')); }
     }
 
     const datesByMonth = computed(() => {
@@ -4867,7 +4869,7 @@ const ViewLanchas = {
              paseSueltoModal, contactosAliado, origenMatches, openPaseSueltoModal, pickOrigen, paseSueltoPaxStep, guardarPaseSuelto,
              openPagoModal, openPagoModalPase, guardarPago,
              openDerivarModal, openConvertirModal, guardarDerivarConvertir,
-             confirmarAnularPaseMov,
+             confirmarAnularPago,
              tabbarEl, tabIndStyle, switchTab, moveTabInd,
              fotoInput, fotoUp, fotoViewer, onFotoZarpe, onFotoPicked, reemplazarFoto,
              hasOps, jumpToFecha, today };
@@ -5388,11 +5390,6 @@ const ViewLanchas = {
                   style="flex:1;min-width:130px;padding:9px 12px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(168,85,247,0.12);border:1px solid rgba(168,85,247,0.3);color:#c084fc;">
                   🏢 Convertir
                 </button>
-                <button v-if="selectedMov.mov.id_contacto_pase && isAdmin"
-                  @click="confirmarAnularPaseMov(selectedMov.mov.id_mov);selectedMov=null"
-                  style="flex:1;min-width:130px;padding:9px 12px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.25);color:#fbbf24;">
-                  ↩ Anular pase
-                </button>
                 <button v-if="selectedMov.mov.id_agencia_comprada && !pagadoAgencia(selectedMov) && isAdmin"
                   @click="openPagoModal(selectedMov,'pago_agencia');selectedMov=null"
                   style="flex:1;min-width:130px;padding:9px 12px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);color:#f87171;">
@@ -5798,6 +5795,11 @@ const ViewLanchas = {
                   📎 Ver comprobante
                 </a>
               </div>
+              <!-- Anular pago (admin): un pago SÍ se puede anular aunque tenga movimiento anexado -->
+              <button v-if="isAdmin" @click="confirmarAnularPago(selectedCajaDia.id_transaccion)"
+                style="width:100%;margin-top:4px;padding:9px 12px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);color:#f87171;">
+                🗑 Anular pago
+              </button>
             </div>
           </div>
         </div>
@@ -5954,9 +5956,9 @@ const ViewLanchas = {
               <!-- 6. Gestión -->
               <div v-if="selectedPase.estado !== 'Cancelado' && isAdmin" style="display:flex;flex-wrap:wrap;gap:8px;border-top:1px solid var(--border);padding-top:12px;">
                 <button v-if="isAdmin"
-                  @click="confirmarAnularPaseMov(selectedPase.id_mov);selectedPase=null"
-                  style="width:100%;padding:9px 12px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.25);color:#fbbf24;">
-                  ↩ Anular pase
+                  @click="confirmarCancelarMov(selectedPase.id_mov)"
+                  style="width:100%;padding:9px 12px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);color:#f87171;">
+                  🗑 Anular pase
                 </button>
               </div>
 
@@ -12646,7 +12648,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.70.0';
+const APP_VERSION = '1.71.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
