@@ -3726,12 +3726,9 @@ const ViewLanchas = {
 
     function montoPayStyle(op, mov) {
       if (mov.estado === 'Cancelado') return 'color:#6b7280;text-decoration:line-through';
-      const paid  = movPayments(op, mov.id_mov).reduce((s,c) => s+(parseFloat(c.monto)||0), 0);
-      const total = montoTotalMov(mov);
-      if (total === 0)            return 'color:var(--text-muted)';
-      if (paid >= total * 0.99)   return 'color:#4ade80';
-      if (paid > 0)               return 'color:#fbbf24';
-      return 'color:#f87171';
+      const est = calcPagoEstado(mov, op);
+      if (!est.cobrable || est.total === 0) return 'color:var(--text-muted)';
+      return pagoMontoColor(est.estado);   // delega en el semáforo unificado (verde/ámbar/rojo)
     }
 
     function openMovModal(op, mov) {
@@ -4214,6 +4211,7 @@ const ViewLanchas = {
     function calcPagoEstado(mov, op) {
       if (!tipoEsCobrable(mov.tipo)) return { cobrable: false, estado: 'sin_cobro', pendiente: 0, total: 0, pagado: 0 };
       const total     = montoTotalMov(mov);
+      if (total <= 0) return { cobrable: false, estado: 'sin_cobro', pendiente: 0, total: 0, pagado: 0 };
       const pagado    = movPayments(op, mov.id_mov).reduce((s, c) => s + (parseFloat(c.monto) || 0), 0);
       const pendiente = Math.max(0, total - pagado);
       const estado    = pagado <= 0 ? 'por_cobrar' : pendiente > 0.01 ? 'pagado_parcial' : 'pagado_completo';
@@ -4223,10 +4221,22 @@ const ViewLanchas = {
     function calcPagoEstadoPase(p) {
       if (!tipoEsCobrable(p.tipo)) return { estado: 'sin_cobro' };
       const total  = montoTotalMov(p);
+      if (total <= 0) return { estado: 'sin_cobro' };
       const pagado = (p._caja || []).filter(c => String(c.id_movimiento || '') === String(p.id_mov || '')).reduce((s, c) => s + (parseFloat(c.monto) || 0), 0);
       const estado = pagado <= 0 ? 'por_cobrar' : (total - pagado) > 0.01 ? 'pagado_parcial' : 'pagado_completo';
       return { estado };
     }
+
+    // ── Semáforo de pago — fuente ÚNICA de color+ícono por estado (pases + movimientos). No duplicar inline. ──
+    const PAGO_SEMAFORO = {
+      pagado_completo: { color: '#4ade80', bg: 'rgba(74,222,128,0.18)',  icon: '✓' },  // verde  = ya pagó
+      pagado_parcial:  { color: '#fbbf24', bg: 'rgba(251,191,36,0.18)',  icon: '½' },  // ámbar  = parcial
+      por_cobrar:      { color: '#f87171', bg: 'rgba(248,113,113,0.18)', icon: '!' },  // rojo   = te deben
+      sin_cobro:       { color: 'var(--text-muted)', bg: 'transparent',   icon: ''  },
+    };
+    function pagoSem(estado)        { return PAGO_SEMAFORO[estado] || PAGO_SEMAFORO.sin_cobro; }
+    function pagoBadgeStyle(estado) { const s = pagoSem(estado); return `color:${s.color};background:${s.bg}`; }
+    function pagoMontoColor(estado) { return 'color:' + pagoSem(estado).color; }
 
     function pagadoAgencia(selMov) {
       return (selMov.op.caja || []).some(c =>
@@ -4834,7 +4844,7 @@ const ViewLanchas = {
              showDatePicker, datesByMonth, fmtMes, pickDate,
              pickerYear, pickerMonth, calTransName, calMonthLabel, calCells, calShift, calToday, calSelect,
              selectedMov, contactColorByTipo, movPayments, montoPayStyle, openMovModal, allCajaDia,
-             selectedPase, pagoStatusStyle, openPaseModal, calcPagoEstadoPase,
+             selectedPase, pagoStatusStyle, openPaseModal, calcPagoEstadoPase, pagoSem, pagoBadgeStyle, pagoMontoColor,
              isIngreso, metodoIcon, cajaRowStyle, selectedCajaDia, pulsMovId, irAMovimiento, fmtHora,
              pulsCajaId, irACajaPago, adicionalItems, pasePayments, movPaidPct, paidBarColor,
              canHaveAdicionales, impuestosCatalog, adicionalesModal, openAdicionalesModal, adicionalesSetQty, adicionalesTotal, guardarAdicionales,
@@ -4972,12 +4982,13 @@ const ViewLanchas = {
                   </div>
                   <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
                     <span style="font-size:12px;color:var(--text-muted);">{{ p.cant_pax }} pax</span>
-                    <span v-if="calcPagoEstadoPase(p).estado !== 'pagado_completo' && calcPagoEstadoPase(p).estado !== 'sin_cobro'"
+                    <span v-if="calcPagoEstadoPase(p).estado !== 'sin_cobro'"
                       style="font-size:10px;font-weight:900;padding:1px 6px;border-radius:4px;line-height:1.5;flex-shrink:0;"
-                      :style="calcPagoEstadoPase(p).estado==='pagado_parcial' ? 'color:#fbbf24;background:rgba(251,191,36,0.18)' : 'color:#f87171;background:rgba(248,113,113,0.18)'">
-                      {{ calcPagoEstadoPase(p).estado==='pagado_parcial' ? '½' : '!' }}
+                      :style="pagoBadgeStyle(calcPagoEstadoPase(p).estado)">
+                      {{ pagoSem(calcPagoEstadoPase(p).estado).icon }}
                     </span>
-                    <span style="font-size:14px;font-weight:800;color:#fb923c;">S/ {{ fmt(p.monto_total) }}</span>
+                    <span style="font-size:14px;font-weight:800;"
+                      :style="calcPagoEstadoPase(p).estado==='sin_cobro' ? 'color:#fb923c' : pagoMontoColor(calcPagoEstadoPase(p).estado)">S/ {{ fmt(p.monto_total) }}</span>
                     <span style="color:var(--text-muted);font-size:14px;">›</span>
                   </div>
                 </div>
@@ -5136,10 +5147,10 @@ const ViewLanchas = {
                       </div>
                       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
                         <span style="font-size:12px;color:var(--text-muted);">{{ m.cant_pax }} pax</span>
-                        <span v-if="tipoEsCobrable(m.tipo) && m.estado !== 'Cancelado' && calcPagoEstado(m,op).estado !== 'pagado_completo'"
+                        <span v-if="tipoEsCobrable(m.tipo) && m.estado !== 'Cancelado'"
                           style="font-size:10px;font-weight:900;padding:1px 6px;border-radius:4px;line-height:1.5;flex-shrink:0;"
-                          :style="calcPagoEstado(m,op).estado==='pagado_parcial' ? 'color:#fbbf24;background:rgba(251,191,36,0.18)' : 'color:#f87171;background:rgba(248,113,113,0.18)'">
-                          {{ calcPagoEstado(m,op).estado==='pagado_parcial' ? '½' : '!' }}
+                          :style="pagoBadgeStyle(calcPagoEstado(m,op).estado)">
+                          {{ pagoSem(calcPagoEstado(m,op).estado).icon }}
                         </span>
                         <span style="font-size:14px;font-weight:800;" :style="montoPayStyle(op,m)">S/ {{ fmt(m.monto_total) }}</span>
                         <span style="color:var(--text-muted);font-size:14px;">›</span>
@@ -12625,7 +12636,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.68.0';
+const APP_VERSION = '1.69.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
