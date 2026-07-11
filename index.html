@@ -3819,6 +3819,15 @@ const ViewLanchas = {
       return [...map.values()];
     }
 
+    // Chip "cobrado otra fecha": un cobro atribuido al día del movimiento pero pagado otro día (tracking).
+    function cajaFechaChip(g) {
+      const f = currentFecha.value;
+      const otras = [...new Set((g.entries || []).map(e => e.fecha_cobro).filter(d => d && d !== f))];
+      if (!otras.length) return null;
+      if (otras.length === 1) { const [, m, d] = otras[0].split('-'); return '🗓 cobrado ' + d + '/' + m; }
+      return '🗓 varias fechas';
+    }
+
     function groupIcon(g) {
       if (g.entries.length === 1) return metodoIcon(g.entries[0]);
       const first = metodoIcon(g.entries[0]);
@@ -4848,7 +4857,7 @@ const ViewLanchas = {
              isIngreso, metodoIcon, cajaRowStyle, selectedCajaDia, pulsMovId, irAMovimiento, fmtHora,
              pulsCajaId, irACajaPago, adicionalItems, pasePayments, movPaidPct, paidBarColor,
              canHaveAdicionales, impuestosCatalog, adicionalesModal, openAdicionalesModal, adicionalesSetQty, adicionalesTotal, guardarAdicionales,
-             resolveQuien, expandedCajaGroups, toggleCajaGroup, groupedCajaDia, groupIcon, cajaTipoPill, cajaDiaStats, cajaBgGradient,
+             resolveQuien, expandedCajaGroups, toggleCajaGroup, groupedCajaDia, groupIcon, cajaTipoPill, cajaDiaStats, cajaBgGradient, cajaFechaChip,
              chipStyle, esPaseOut, montoTotalMov,
              opModal, embarcaciones, personalOps, isAdmin, openOpModal, guardarOp, confirmarAnularOp,
              contactosOps, movFormModal, pagoModal, derivarModal,
@@ -5040,12 +5049,13 @@ const ViewLanchas = {
                             :style="cajaTipoPill(g).style">{{ cajaTipoPill(g).text }}</span>
                           <span style="font-weight:800;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ g.quien }}</span>
                         </div>
-                        <div style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text-muted);">
+                        <div style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text-muted);flex-wrap:wrap;">
                           <template v-if="g.entries[0]._bote"><span>⛵ {{ g.entries[0]._bote }}</span></template>
                           <template v-if="g.entries.length > 1">
                             <span v-if="g.entries[0]._bote">·</span>
                             <span style="color:var(--gold);font-weight:700;">{{ g.entries.length }} cobros</span>
                           </template>
+                          <span v-if="cajaFechaChip(g)" style="font-size:9px;font-weight:800;padding:1px 6px;border-radius:4px;color:#fbbf24;background:rgba(251,191,36,0.16);white-space:nowrap;">{{ cajaFechaChip(g) }}</span>
                         </div>
                       </div>
                     </div>
@@ -12636,7 +12646,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.69.0';
+const APP_VERSION = '1.70.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
