@@ -3059,7 +3059,7 @@ const API_URL_KEY = 'ps_api_url';
 let API_URL = localStorage.getItem(API_URL_KEY) || 'https://script.google.com/macros/s/AKfycby7_H2lEOweA4cpixzNUw_50EfuQtiSoIW2389U5Ipyic3GRmETSRgBYSpIAaMcARcMhA/exec';
 
 // ── Helper API ───────────────────────────────────────────────
-function fetchWithTimeout(resource, options = {}, ms = 20000) {
+function fetchWithTimeout(resource, options = {}, ms = 35000) {
   const ctrl = new AbortController();
   const id = setTimeout(() => ctrl.abort(), ms);
   return fetch(resource, { ...options, signal: ctrl.signal }).finally(() => clearTimeout(id));
@@ -6958,7 +6958,10 @@ async function _facAnular(id) {
   const S = _facState;
   if (S.anularId !== id) { S.anularId = id; sndTap(); haptic(8); _facRender(); clearTimeout(S._anularTo); S._anularTo = setTimeout(() => { if (_facState) { _facState.anularId = null; _facRender(); } }, 3500); return; }
   S.anularId = null; clearTimeout(S._anularTo); sndTap(); haptic(12);
-  const r = await apiPost({ accion: 'anular_comprobante', id, motivo: 'Anulación desde panel' });
+  // Motivo real (va literal a SUNAT en la comunicación de baja); si cancela el prompt, no anula
+  const motivo = (prompt('Motivo de la anulación (va a SUNAT):', 'Error en los datos del comprobante') || '').trim();
+  if (!motivo) { _facRender(); return; }
+  const r = await apiPost({ accion: 'anular_comprobante', id, motivo });
   if (r.ok) {
     sndDown(); if (typeof showToast === 'function') showToast('Comprobante anulado');
     var comp = (S.comprobantes || []).find(function (x) { return String(x.id) === String(id); });
@@ -7311,6 +7314,11 @@ function _facCfgActivo() { const S = _facState; return typeof S.cfgEdit.activo =
 async function _facGuardarConfig() {
   const S = _facState, c = S.cfgEdit;
   if (_facCfgActivo() && !(S.facCfg.tiene_nubefact || c.ruta || c.token)) return _facErr('Para emitir de verdad primero pega la RUTA y el TOKEN de NubeFact');
+  // Confirmación al pasar de demo/stub a emisión REAL (los CPE reales no se borran, solo se anulan)
+  const eraReal = !!(S.facCfg && S.facCfg.activo);
+  if (_facCfgActivo() && !eraReal) {
+    if (!confirm('⚠️ Vas a ACTIVAR la emisión REAL a SUNAT.\n\nCada comprobante emitido es oficial y NO se puede borrar (solo anular con nota de crédito). Verifica antes la ruta, el token y el correlativo.\n\n¿Activar emisión real?')) return;
+  }
   sndTap(); haptic(10);
   const r = await apiPost({ accion: 'set_facturacion_config', ruta: c.ruta || '', token: c.token || '', lookup_url: c.lkurl || '', lookup_token: c.lktoken || '', modo: _facCfgActivo() ? (c.modo || 'produccion') : 'demo', activo: _facCfgActivo() });
   if (r.ok) { sndOk(); haptic([15, 40, 15]); try { const cR = await apiGet('get_facturacion_config'); S.facCfg = (cR.ok && cR.data) || S.facCfg; } catch (e) {} S.cfgEdit = {}; _facRender(); if (typeof showToast === 'function') showToast('✓ Conexión guardada'); }
@@ -12648,7 +12656,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.71.0';
+const APP_VERSION = '1.72.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
