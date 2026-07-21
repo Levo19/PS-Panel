@@ -6328,6 +6328,235 @@ const ViewHotel = {
   }
 };
 
+// ── Módulo LANDING: edición cosmética de las webs públicas del grupo ─────────
+// Solo Administrador. Escribe vía RPCs web_* (gate es_admin, RLS) y Storage bucket 'web'.
+// Multi-landing: agregar un sitio = agregar entrada en `sitios` + fila en web_contenido.
+// NO gestiona reservas/calendario/cuartos/precios (parte operativa, módulo futuro).
+const ViewLanding = {
+  name: 'ViewLanding',
+  props: ['data', 'loading'],
+  emits: ['action'],
+  data() {
+    return {
+      sitios: [{ id: 'casamunay', label: 'Casa Munay', urlDef: 'https://casamunay.com' }],
+      sitio: 'casamunay',
+      cargando: true, guardando: false, subiendo: '', fb: null, confirmId: null,
+      c: {},               // web_contenido de la pestaña activa
+      pendientes: [], publicadas: []
+    };
+  },
+  computed: {
+    sitioLabel() { const s = this.sitios.find(x => x.id === this.sitio); return s ? s.label : this.sitio; },
+    otasList() { return Array.isArray(this.c.otas) ? this.c.otas : []; },
+    galeriaList() { return Array.isArray(this.c.galeria) ? this.c.galeria : []; }
+  },
+  mounted() { this.cargar(); },
+  methods: {
+    tap() { try { sndTap(); haptic(8); } catch (e) {} },
+    feed(msg, ok) { this.fb = { msg, ok: ok !== false }; clearTimeout(this._fbT); this._fbT = setTimeout(() => { this.fb = null; }, 3200); },
+    otaNombre(id) { return ({ booking: 'Booking.com', airbnb: 'Airbnb', tripadvisor: 'Tripadvisor', google: 'Google Maps' })[id] || id; },
+    async cargar() {
+      this.cargando = true;
+      try {
+        const { data, error } = await sbClient.rpc('web_get_admin', { p_sitio: this.sitio });
+        if (error) throw error;
+        const c = data && data.contenido ? data.contenido : {};
+        c.redes = c.redes || {}; c.otas = Array.isArray(c.otas) ? c.otas : []; c.galeria = Array.isArray(c.galeria) ? c.galeria : [];
+        this.c = c;
+        this.pendientes = (data && data.pendientes) || [];
+        this.publicadas = (data && data.publicadas) || [];
+      } catch (e) {
+        this.feed(/NO_ADMIN/.test(String(e.message || e)) ? 'Solo el Administrador puede editar la landing.' : '⚠️ No se pudo cargar (revisa tu sesión).', false);
+      } finally { this.cargando = false; }
+    },
+    cambiarSitio(id) { if (id === this.sitio) return; this.tap(); this.sitio = id; this.cargar(); },
+    async guardar() {
+      if (this.guardando) return;
+      this.guardando = true; this.tap();
+      try {
+        const p = {
+          sitio: this.sitio,
+          nombre: this.c.nombre || '', eslogan: this.c.eslogan || '', eslogan_en: this.c.eslogan_en || '',
+          descripcion: this.c.descripcion || '', whatsapp: this.c.whatsapp || '', correo: this.c.correo || '',
+          direccion: this.c.direccion || '', maps_query: this.c.maps_query || '',
+          checkin: this.c.checkin || '', checkout: this.c.checkout || '', horario: this.c.horario || '',
+          rating: this.c.rating === '' || this.c.rating == null ? '' : String(this.c.rating),
+          resenas_total: this.c.resenas_total === '' || this.c.resenas_total == null ? '' : String(this.c.resenas_total),
+          url: this.c.url || '', demo: !!this.c.demo, google_review_url: this.c.google_review_url || '',
+          hero_foto: this.c.hero_foto || '', galeria: this.galeriaList, redes: this.c.redes || {}, otas: this.otasList
+        };
+        const { error } = await sbClient.rpc('web_guardar_contenido', { p });
+        if (error) throw error;
+        this.feed('✅ Guardado — la web se actualiza en ~1 minuto');
+        try { sndUp(); } catch (e) {}
+      } catch (e) { this.feed('⚠️ Error al guardar: ' + String(e.message || e), false); }
+      finally { this.guardando = false; }
+    },
+    async subirFoto(ev, destino) {
+      const files = Array.from((ev.target && ev.target.files) || []); ev.target.value = '';
+      if (!files.length) return;
+      this.subiendo = destino;
+      try {
+        for (const file of files) {
+          const cmp = await comprimirFotoZarpe(file, { maxDim: 1800, quality: 0.82 });
+          const blob = (cmp && cmp.blob) || file;
+          const path = this.sitio + '/' + destino + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7) + '.jpg';
+          const { error } = await sbClient.storage.from('web').upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
+          if (error) throw error;
+          const url = sbClient.storage.from('web').getPublicUrl(path).data.publicUrl;
+          if (destino === 'hero') this.c.hero_foto = url;
+          else this.c.galeria = this.galeriaList.concat([url]);
+        }
+        await this.guardar();
+      } catch (e) { this.feed('⚠️ Error al subir foto: ' + String(e.message || e), false); }
+      finally { this.subiendo = ''; }
+    },
+    quitarGaleria(url) { this.tap(); this.c.galeria = this.galeriaList.filter(u => u !== url); this.guardar(); },
+    async moderar(tst, accion) {
+      if (accion === 'eliminar' && this.confirmId !== tst.id) { this.confirmId = tst.id; this.tap(); return; }
+      this.confirmId = null; this.tap();
+      try {
+        const { error } = await sbClient.rpc('web_testimonio_set', { p_id: tst.id, p_accion: accion, p_origen: tst.origen || '' });
+        if (error) throw error;
+        this.feed(accion === 'aprobar' ? '✅ Reseña publicada' : accion === 'ocultar' ? 'Reseña ocultada' : 'Reseña eliminada');
+        this.cargar();
+      } catch (e) { this.feed('⚠️ ' + String(e.message || e), false); }
+    }
+  },
+  template: `
+  <div class="ps-dash ps-enter">
+    <div class="ps-head">
+      <div class="ps-head-l">
+        <div class="ps-head-ico">🌐</div>
+        <div>
+          <div class="ps-head-title">Landing</div>
+          <div class="ps-head-sub">Webs públicas del grupo — solo lo cosmético</div>
+        </div>
+      </div>
+      <a v-if="c.url" :href="c.url" target="_blank" rel="noopener" class="ps-btn ps-btn-ghost" style="text-decoration:none;">Ver web ↗</a>
+    </div>
+
+    <div class="ps-tabbar" style="margin-bottom:14px;">
+      <button v-for="s in sitios" :key="s.id" class="ps-tab" :class="{on: sitio===s.id}" @click="cambiarSitio(s.id)">{{ s.label }}</button>
+    </div>
+
+    <div v-if="fb" class="ps-fb" :class="fb.ok ? 'ok' : 'err'">{{ fb.msg }}</div>
+    <div v-if="cargando" style="display:flex;justify-content:center;padding:60px 0;"><div class="spin"></div></div>
+
+    <template v-else>
+      <div class="ps-stagger" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;align-items:start;">
+
+        <div class="ps-card">
+          <div class="ps-list-head">✨ Identidad</div>
+          <label style="display:flex;flex-direction:column;gap:5px;margin-bottom:10px;"><span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">Nombre</span>
+            <input v-model="c.nombre" style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 10px;font-size:13px;color:var(--text);width:100%;" /></label>
+          <label style="display:flex;flex-direction:column;gap:5px;margin-bottom:10px;"><span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">Eslogan</span>
+            <input v-model="c.eslogan" style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 10px;font-size:13px;color:var(--text);width:100%;" /></label>
+          <label style="display:flex;flex-direction:column;gap:5px;margin-bottom:10px;"><span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">Eslogan · English</span>
+            <input v-model="c.eslogan_en" style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 10px;font-size:13px;color:var(--text);width:100%;" /></label>
+          <label style="display:flex;flex-direction:column;gap:5px;"><span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">Descripción (SEO)</span>
+            <textarea v-model="c.descripcion" rows="3" style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 10px;font-size:13px;color:var(--text);width:100%;resize:vertical;"></textarea></label>
+          <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:12px;color:var(--text-muted);cursor:pointer;">
+            <input type="checkbox" v-model="c.demo" /> Modo demo (muestra "foto referencial" en la web)</label>
+        </div>
+
+        <div class="ps-card">
+          <div class="ps-list-head">📞 Contacto</div>
+          <label style="display:flex;flex-direction:column;gap:5px;margin-bottom:10px;"><span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">WhatsApp (51 + número)</span>
+            <input v-model="c.whatsapp" inputmode="numeric" placeholder="51987654321" style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 10px;font-size:13px;color:var(--text);width:100%;" /></label>
+          <label style="display:flex;flex-direction:column;gap:5px;margin-bottom:10px;"><span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">Correo</span>
+            <input v-model="c.correo" type="email" style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 10px;font-size:13px;color:var(--text);width:100%;" /></label>
+          <label style="display:flex;flex-direction:column;gap:5px;margin-bottom:10px;"><span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">Dirección</span>
+            <input v-model="c.direccion" style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 10px;font-size:13px;color:var(--text);width:100%;" /></label>
+          <label style="display:flex;flex-direction:column;gap:5px;margin-bottom:10px;"><span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">Ubicación para el mapa (dirección o coordenadas)</span>
+            <input v-model="c.maps_query" placeholder="-13.8335,-76.2462 o dirección" style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 10px;font-size:13px;color:var(--text);width:100%;" /></label>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+            <label style="display:flex;flex-direction:column;gap:5px;"><span style="font-size:10px;color:var(--text-muted);text-transform:uppercase;">Check-in</span>
+              <input v-model="c.checkin" style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 10px;font-size:13px;color:var(--text);width:100%;" /></label>
+            <label style="display:flex;flex-direction:column;gap:5px;"><span style="font-size:10px;color:var(--text-muted);text-transform:uppercase;">Check-out</span>
+              <input v-model="c.checkout" style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 10px;font-size:13px;color:var(--text);width:100%;" /></label>
+            <label style="display:flex;flex-direction:column;gap:5px;"><span style="font-size:10px;color:var(--text-muted);text-transform:uppercase;">Horario</span>
+              <input v-model="c.horario" style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 10px;font-size:13px;color:var(--text);width:100%;" /></label>
+          </div>
+        </div>
+
+        <div class="ps-card">
+          <div class="ps-list-head">📣 Redes sociales</div>
+          <label v-for="red in ['facebook','instagram','tiktok']" :key="red" style="display:flex;flex-direction:column;gap:5px;margin-bottom:10px;">
+            <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">{{ red }}</span>
+            <input v-model="c.redes[red]" :placeholder="'https://' + red + '.com/...'" style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 10px;font-size:13px;color:var(--text);width:100%;" /></label>
+        </div>
+
+        <div class="ps-card">
+          <div class="ps-list-head">⭐ Plataformas (OTAs)</div>
+          <div v-for="o in otasList" :key="o.id" style="border-bottom:1px dashed var(--border);padding:8px 0 12px;margin-bottom:6px;">
+            <div style="font-size:12px;font-weight:700;color:var(--gold-light);margin-bottom:6px;">{{ otaNombre(o.id) }}</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+              <input v-model="o.nota" placeholder="Nota (ej. 8.9 / 10)" style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:8px 10px;font-size:12px;color:var(--text);" />
+              <input v-model="o.detalle" placeholder="Detalle (ej. Fabuloso)" style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:8px 10px;font-size:12px;color:var(--text);" />
+            </div>
+            <input v-model="o.url" placeholder="URL del perfil" style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:8px 10px;font-size:12px;color:var(--text);width:100%;" />
+          </div>
+          <label style="display:flex;flex-direction:column;gap:5px;margin-bottom:10px;"><span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">Rating mostrado</span>
+            <input v-model="c.rating" inputmode="decimal" placeholder="4.8" style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 10px;font-size:13px;color:var(--text);width:100%;" /></label>
+          <label style="display:flex;flex-direction:column;gap:5px;margin-bottom:10px;"><span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">Total de reseñas</span>
+            <input v-model="c.resenas_total" inputmode="numeric" placeholder="120" style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 10px;font-size:13px;color:var(--text);width:100%;" /></label>
+          <label style="display:flex;flex-direction:column;gap:5px;"><span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">Link "escribir reseña" en Google</span>
+            <input v-model="c.google_review_url" placeholder="https://g.page/r/..." style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 10px;font-size:13px;color:var(--text);width:100%;" /></label>
+        </div>
+
+        <div class="ps-card">
+          <div class="ps-list-head">📷 Fotos</div>
+          <div style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;margin-bottom:6px;">Foto principal (hero)</div>
+          <div v-if="c.hero_foto" style="border-radius:12px;overflow:hidden;margin-bottom:8px;"><img :src="c.hero_foto" style="width:100%;height:120px;object-fit:cover;display:block;" /></div>
+          <label class="ps-btn ps-btn-ghost" style="display:inline-flex;cursor:pointer;margin-bottom:14px;">
+            {{ subiendo==='hero' ? 'Subiendo…' : (c.hero_foto ? 'Cambiar foto hero' : 'Subir foto hero') }}
+            <input type="file" accept="image/*" style="display:none;" :disabled="!!subiendo" @change="subirFoto($event,'hero')" /></label>
+          <div style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;margin:4px 0 6px;">Galería ({{ galeriaList.length }})</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:6px;margin-bottom:8px;">
+            <div v-for="u in galeriaList" :key="u" style="position:relative;border-radius:9px;overflow:hidden;">
+              <img :src="u" style="width:100%;height:64px;object-fit:cover;display:block;" />
+              <button @click="quitarGaleria(u)" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.65);border:none;color:#fff;border-radius:50%;width:20px;height:20px;font-size:11px;cursor:pointer;">✕</button>
+            </div>
+          </div>
+          <label class="ps-btn ps-btn-ghost" style="display:inline-flex;cursor:pointer;">
+            {{ subiendo==='galeria' ? 'Subiendo…' : '+ Agregar fotos a la galería' }}
+            <input type="file" accept="image/*" multiple style="display:none;" :disabled="!!subiendo" @change="subirFoto($event,'galeria')" /></label>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:8px;">Se comprimen automáticamente y se sirven desde Supabase Storage.</div>
+        </div>
+
+        <div class="ps-card">
+          <div class="ps-list-head">💬 Reseñas por aprobar <span v-if="pendientes.length" class="ps-badge">{{ pendientes.length }}</span></div>
+          <div v-if="!pendientes.length" style="font-size:12px;color:var(--text-muted);padding:8px 0;">Sin reseñas nuevas.</div>
+          <div v-for="tst in pendientes" :key="'p'+tst.id" style="border-bottom:1px dashed var(--border);padding:10px 0;">
+            <div style="font-size:12px;color:var(--gold-light);">{{ '★'.repeat(tst.rating||5) }} · <b style="color:var(--text);">{{ tst.nombre }}</b></div>
+            <div style="font-size:12px;color:var(--text-muted);margin:5px 0;">"{{ tst.comentario }}"</div>
+            <input v-model="tst.origen" placeholder="Origen (ej. Lima · Familia)" style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:7px 10px;font-size:12px;color:var(--text);width:100%;margin-bottom:8px;" />
+            <div style="display:flex;gap:8px;">
+              <button class="ps-btn ps-btn-primary" style="flex:1;" @click="moderar(tst,'aprobar')">✓ Publicar</button>
+              <button class="ps-btn ps-btn-ghost" style="flex:1;" @click="moderar(tst,'eliminar')">{{ confirmId===tst.id ? '¿Seguro?' : '✕ Rechazar' }}</button>
+            </div>
+          </div>
+          <div class="ps-list-head" style="margin-top:16px;">Publicadas ({{ publicadas.length }})</div>
+          <div v-for="tst in publicadas" :key="'v'+tst.id" style="display:flex;align-items:center;gap:8px;border-bottom:1px dashed var(--border);padding:8px 0;">
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><b>{{ tst.nombre }}</b> · {{ '★'.repeat(tst.rating||5) }}</div>
+              <div style="font-size:11px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">"{{ tst.comentario }}"</div>
+            </div>
+            <button class="ps-btn ps-btn-ghost" @click="moderar(tst,'ocultar')">Ocultar</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="position:sticky;bottom:calc(74px + env(safe-area-inset-bottom));display:flex;justify-content:flex-end;margin-top:16px;z-index:5;">
+        <button class="ps-btn ps-btn-primary" style="min-width:200px;box-shadow:0 10px 30px -8px rgba(201,168,76,.5);" :disabled="guardando" @click="guardar">
+          {{ guardando ? 'Guardando…' : '💾 Guardar cambios' }}</button>
+      </div>
+    </template>
+  </div>
+  `
+};
+
 // ── Sonido (WebAudio, sin assets) ────────────────────────────
 let _audioCtx = null;
 function _ac() { try { _audioCtx = _audioCtx || new (window.AudioContext || window.webkitAudioContext)(); return _audioCtx; } catch(e){ return null; } }
@@ -12222,7 +12451,7 @@ const ViewFacturacion = {
 
 // ── Main app ─────────────────────────────────────────────────
 createApp({
-  components: { ViewDashboard, ViewLanchas, ViewHotel, ViewFinanzas, ViewFacturacion, ViewConfig, ViewCatalogos, ViewEmpleados },
+  components: { ViewDashboard, ViewLanchas, ViewHotel, ViewFinanzas, ViewFacturacion, ViewConfig, ViewCatalogos, ViewEmpleados, ViewLanding },
 
   setup() {
     const session        = ref(JSON.parse(localStorage.getItem('ps_session') || 'null'));
@@ -12289,6 +12518,7 @@ createApp({
       // Catálogo ahora es módulo de primer nivel (misma restricción que el dropdown: isAdminRoot).
       if (adminRoot) base.push({ id: 'catalogos', label: 'Catálogo' });
       if (admin)     base.push({ id: 'facturacion', label: 'Facturación' });
+      if (admin)     base.push({ id: 'landing', label: 'Landing' });
       return base;
     });
 
@@ -12311,12 +12541,13 @@ createApp({
       hotel:     `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V4.5A1.5 1.5 0 0 1 5.5 3h7A1.5 1.5 0 0 1 14 4.5V21"/><path d="M14 9.5h4.5A1.5 1.5 0 0 1 20 11v10"/><path d="M3 21h18"/><path d="M8 7h2M8 11h2M8 15h2"/></svg>`,
       finanzas:  `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 7 13.5 15 9 10.5 3 17"/><polyline points="15 7 21 7 21 13"/></svg>`,
       catalogos: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H6.5A1.5 1.5 0 0 0 5 19.5z"/><path d="M5 19.5A1.5 1.5 0 0 1 6.5 18H20"/><path d="M9 7.5h7M9 11h5"/></svg>`,
-      facturacion: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v18l2.5-1.5L10 21l2-1.5L14 21l2.5-1.5L19 21V3l-2.5 1.5L14 3l-2 1.5L10 3 7.5 4.5 5 3z"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="9" y1="12" x2="15" y2="12"/></svg>`
+      facturacion: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v18l2.5-1.5L10 21l2-1.5L14 21l2.5-1.5L19 21V3l-2.5 1.5L14 3l-2 1.5L10 3 7.5 4.5 5 3z"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="9" y1="12" x2="15" y2="12"/></svg>`,
+      landing: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18z"/></svg>`
     };
     function navIcon(id) { return NAV_ICONS[id] || ''; }
 
     const currentView = computed(() => {
-      const map = { dashboard: 'ViewDashboard', lanchas: 'ViewLanchas', hotel: 'ViewHotel', finanzas: 'ViewFinanzas', facturacion: 'ViewFacturacion', config: 'ViewConfig', catalogos: 'ViewCatalogos', empleados: 'ViewEmpleados' };
+      const map = { dashboard: 'ViewDashboard', lanchas: 'ViewLanchas', hotel: 'ViewHotel', finanzas: 'ViewFinanzas', facturacion: 'ViewFacturacion', config: 'ViewConfig', catalogos: 'ViewCatalogos', empleados: 'ViewEmpleados', landing: 'ViewLanding' };
       return map[currentModule.value] || 'ViewDashboard';
     });
 
@@ -12443,6 +12674,11 @@ createApp({
           }
           case 'facturacion': {
             // El componente ViewFacturacion carga su propio estado (bridge _facMountModule).
+            result = { _ts: Date.now() };
+            break;
+          }
+          case 'landing': {
+            // ViewLanding carga su propio estado vía RPCs web_* (Supabase directo).
             result = { _ts: Date.now() };
             break;
           }
@@ -12656,7 +12892,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.73.0';
+const APP_VERSION = '1.74.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
