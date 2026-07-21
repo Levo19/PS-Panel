@@ -521,6 +521,46 @@ input  { outline: none; border: none; background: none; color: inherit; font: in
 .lw-soc.off small::after { content:" — conectar"; color:var(--gold-light); }
 .lw-soc .lw-pen { top:6px; right:6px; font-size:9px; padding:2px 7px; }
 
+/* nuestra casa */
+.lw-sobre { display:grid; grid-template-columns:minmax(180px,320px) 1fr; gap:clamp(12px,2.5vw,24px); align-items:start; }
+@media (max-width:640px){ .lw-sobre { grid-template-columns:1fr; } }
+.lw-sobre-fotos { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+.lw-sobre-fotos .f { position:relative; aspect-ratio:4/3; border-radius:11px; overflow:hidden; background:#eee3cf; }
+.lw-sobre-fotos .f:first-child { grid-column:1/-1; aspect-ratio:16/9; }
+.lw-sobre-fotos img { width:100%; height:100%; object-fit:cover; display:block; }
+.lw-sobre-tx { border-radius:13px; padding:12px 14px; }
+.lw-sobre-tx p { font-size:12.5px; line-height:1.65; color:#5d4a41; margin:0 0 10px; }
+.lw-sobre-tx .fir { font-family:Georgia,serif; font-size:13px; color:#7B2030; }
+/* amenidades chips */
+.lw-amens { display:flex; flex-wrap:wrap; gap:8px; }
+.lw-amen { display:inline-flex; align-items:center; gap:7px; background:#fff; border:1px solid #e4d5b8; border-radius:100px; padding:7px 14px 7px 10px; font-size:12px; color:#6b543f; font-weight:600; cursor:pointer; font-family:inherit; }
+.lw-amen.hid { opacity:.45; border-style:dashed; }
+.lw-amen.hid::after { content:"oculto"; font-size:9px; color:#e5484d; font-weight:800; margin-left:4px; }
+/* un día en munay */
+.lw-dia { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:10px; }
+.lw-paso { position:relative; border-radius:14px; overflow:hidden; background:#fff; border:1px solid #e4d5b8; cursor:pointer; text-align:left; font-family:inherit; padding:0; }
+.lw-paso .ph { position:relative; aspect-ratio:16/8; background:#eee3cf; }
+.lw-paso .ph img { width:100%; height:100%; object-fit:cover; display:block; }
+.lw-paso .bd { padding:10px 12px 12px; }
+.lw-paso .bd b { display:block; font-size:12.5px; color:#7B2030; }
+.lw-paso .bd small { display:block; font-size:11px; color:#8a6f60; line-height:1.5; margin-top:3px; max-height:48px; overflow:hidden; }
+/* tours editables */
+.lw-tours { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:10px; }
+.lw-tour { position:relative; border-radius:14px; overflow:hidden; aspect-ratio:4/5; cursor:pointer; border:1px solid rgba(53,193,214,.35); background:#0E3A4D; padding:0; text-align:left; font-family:inherit; }
+.lw-tour img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:.85; }
+.lw-tour .ov { position:absolute; inset:0; background:linear-gradient(185deg, rgba(8,35,48,.05) 30%, rgba(8,35,48,.9) 85%); }
+.lw-tour .bd { position:absolute; left:0; right:0; bottom:0; padding:10px 12px; }
+.lw-tour .bd b { display:block; font-family:Georgia,serif; font-weight:400; font-size:13.5px; color:#E8C46A; }
+.lw-tour .bd span { font-size:12px; color:#fff; }
+.lw-tour .bd small { font-size:10px; color:#7fd4e2; margin-left:6px; }
+/* entrada escalonada del canvas */
+.lw-canvas > * { animation:lwIn .5s cubic-bezier(.2,.7,.2,1) both; }
+.lw-canvas > *:nth-child(2) { animation-delay:.05s; } .lw-canvas > *:nth-child(3) { animation-delay:.1s; }
+.lw-canvas > *:nth-child(4) { animation-delay:.15s; } .lw-canvas > *:nth-child(5) { animation-delay:.2s; }
+.lw-canvas > *:nth-child(6) { animation-delay:.25s; } .lw-canvas > *:nth-child(n+7) { animation-delay:.3s; }
+@keyframes lwIn { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:none; } }
+@media (prefers-reduced-motion:reduce){ .lw-canvas > * { animation:none; } }
+
 /* sheet de edición */
 .lw-sh-t { font-family:Georgia,serif; font-size:17px; color:var(--gold-light); margin-bottom:14px; }
 .lw-sh-lab { font-size:10.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--gold-light); font-weight:700; margin:12px 0 6px; display:flex; align-items:center; gap:8px; }
@@ -6477,6 +6517,11 @@ const ViewLanding = {
     galVista() { return this.gal.length ? this.gal.map(u => ({ u, muestra: false })) : this.cfg.fallbackGal.map(u => ({ u, muestra: true })); },
     otas() { return Array.isArray(this.c.otas) ? this.c.otas : []; },
     redes() { return this.c.redes || {}; },
+    sobreC() { return this.c.sobre || {}; },
+    sobreFotos() { return Array.isArray(this.sobreC.fotos) ? this.sobreC.fotos : []; },
+    amenC() { return Array.isArray(this.c.amenidades) ? this.c.amenidades : []; },
+    diaC() { return Array.isArray(this.c.dia) ? this.c.dia : []; },
+    toursC() { return Array.isArray(this.c.tours) ? this.c.tours : []; },
     saludPct() {
       const c = this.c, r = this.redes;
       const checks = [!!c.whatsapp, !!c.correo, !!c.hero_foto, this.gal.length >= 6,
@@ -6521,6 +6566,10 @@ const ViewLanding = {
       else if (tipo === 'red')         form = { url: this.redes[ctx] || '' };
       else if (tipo === 'whatsapp')    form = { whatsapp: c.whatsapp || '' };
       else if (tipo === 'correo')      form = { correo: c.correo || '' };
+      else if (tipo === 'sobreTexto') { const s = this.sobreC; form = { p1: s.p1 || '', p1_en: s.p1_en || '', p2: s.p2 || '', p2_en: s.p2_en || '', firma: s.firma || '' }; }
+      else if (tipo === 'amenidad')   { const a = this.amenC[ctx] || {}; form = { ic: a.ic || '', t: a.t || '', t_en: a.t_en || '', d: a.d || '', d_en: a.d_en || '', visible: a.visible !== false }; }
+      else if (tipo === 'paso')       { const p = this.diaC[ctx] || {}; form = { ic: p.ic || '', hora: p.hora || '', titulo: p.titulo || '', titulo_en: p.titulo_en || '', texto: p.texto || '', texto_en: p.texto_en || '' }; }
+      else if (tipo === 'tour')       { const tr = this.toursC[ctx] || {}; form = { titulo: tr.titulo || '', titulo_en: tr.titulo_en || '', precio: tr.precio == null ? '' : String(tr.precio), duracion: tr.duracion || '', duracion_en: tr.duracion_en || '', descripcion: tr.descripcion || '', descripcion_en: tr.descripcion_en || '', contenido: tr.contenido || '', contenido_en: tr.contenido_en || '' }; }
       this.form = form;
       this.sheet = { tipo, titulo, ctx };
     },
@@ -6553,6 +6602,23 @@ const ViewLanding = {
         const otas = this.otas.map(o => o.id === s.ctx.id ? Object.assign({}, o, { nota: f.nota, detalle: f.detalle, url: f.url }) : o);
         ok = await this.guardarCampos({ otas });
       }
+      else if (s.tipo === 'sobreTexto') {
+        const sobre = Object.assign({}, this.sobreC, { p1: f.p1, p1_en: f.p1_en, p2: f.p2, p2_en: f.p2_en, firma: f.firma });
+        ok = await this.guardarCampos({ sobre });
+      }
+      else if (s.tipo === 'amenidad') {
+        const amenidades = this.amenC.map((a, i) => i === s.ctx ? Object.assign({}, a, { ic: f.ic, t: f.t, t_en: f.t_en, d: f.d, d_en: f.d_en, visible: !!f.visible }) : a);
+        ok = await this.guardarCampos({ amenidades });
+      }
+      else if (s.tipo === 'paso') {
+        const dia = this.diaC.map((p, i) => i === s.ctx ? Object.assign({}, p, { ic: f.ic, hora: f.hora, titulo: f.titulo, titulo_en: f.titulo_en, texto: f.texto, texto_en: f.texto_en }) : p);
+        ok = await this.guardarCampos({ dia });
+      }
+      else if (s.tipo === 'tour') {
+        const precio = String(f.precio).trim() === '' ? null : Number(String(f.precio).replace(/[^0-9.]/g, '')) || null;
+        const tours = this.toursC.map((tr, i) => i === s.ctx ? Object.assign({}, tr, { titulo: f.titulo, titulo_en: f.titulo_en, precio, duracion: f.duracion, duracion_en: f.duracion_en, descripcion: f.descripcion, descripcion_en: f.descripcion_en, contenido: f.contenido, contenido_en: f.contenido_en }) : tr);
+        ok = await this.guardarCampos({ tours });
+      }
       if (ok) this.cerrar();
     },
     async subirFoto(ev, destino) {
@@ -6574,6 +6640,36 @@ const ViewLanding = {
       finally { this.subiendo = false; }
     },
     async quitarHero() { if (await this.guardarCampos({ hero_foto: '' }, 'Volvió la foto de muestra')) this.cerrar(); },
+    async _subirUna(ev, prefijo) {
+      const file = (ev.target.files || [])[0]; ev.target.value = '';
+      if (!file) return null;
+      this.subiendo = true;
+      try {
+        const cmp = await comprimirFotoZarpe(file, { maxDim: 1800, quality: 0.82 });
+        const path = this.sitio + '/' + prefijo + '_' + Date.now() + '.jpg';
+        const { error } = await sbClient.storage.from('web').upload(path, (cmp && cmp.blob) || file, { upsert: true, contentType: 'image/jpeg' });
+        if (error) throw error;
+        return sbClient.storage.from('web').getPublicUrl(path).data.publicUrl;
+      } catch (e) { this.feed('⚠️ Error al subir: ' + String(e.message || e), false); return null; }
+      finally { this.subiendo = false; }
+    },
+    async subirSobreFoto(ev) {
+      const url = await this._subirUna(ev, 'sobre'); if (!url || !this.sheet) return;
+      const fotos = this.sobreFotos.slice(); while (fotos.length < 3) fotos.push('');
+      fotos[this.sheet.ctx] = url;
+      const sobre = Object.assign({}, this.sobreC, { fotos });
+      if (await this.guardarCampos({ sobre }, '✅ Foto actualizada')) this.cerrar();
+    },
+    async subirPasoFoto(ev) {
+      const url = await this._subirUna(ev, 'dia'); if (!url || !this.sheet) return;
+      const dia = this.diaC.map((p, i) => i === this.sheet.ctx ? Object.assign({}, p, { foto: url }) : p);
+      if (await this.guardarCampos({ dia }, '✅ Foto del momento actualizada')) this.cerrar();
+    },
+    async subirTourFoto(ev) {
+      const url = await this._subirUna(ev, 'tour'); if (!url || !this.sheet) return;
+      const tours = this.toursC.map((tr, i) => i === this.sheet.ctx ? Object.assign({}, tr, { foto: url }) : tr);
+      if (await this.guardarCampos({ tours }, '✅ Foto del tour actualizada')) this.cerrar();
+    },
     async quitarGal() {
       const u = this.sheet && this.sheet.ctx;
       if (await this.guardarCampos({ galeria: this.gal.filter(x => x !== u) }, 'Foto quitada de la web')) this.cerrar();
@@ -6664,16 +6760,63 @@ const ViewLanding = {
         <span v-if="c.demo" class="lw-demo">MODO DEMO ACTIVO</span>
       </div>
 
-      <!-- CUARTOS (bloqueado) -->
+      <!-- AMENIDADES (chips editables con ocultar) -->
+      <div class="lw-sec arena" v-if="amenC.length">
+        <div class="lw-sec-t">Todo lo que necesitas <small>— toca un chip para editarlo u ocultarlo</small></div>
+        <div class="lw-amens">
+          <button v-for="(a,i) in amenC" :key="'am'+i" class="lw-amen ed" :class="{hid: a.visible===false}" @click="abrir('amenidad','Comodidad: ' + (a.t||''), i)">
+            <span>{{ a.ic }}</span>{{ a.t }}<span class="lw-pen" style="position:static;padding:2px 6px;font-size:8.5px;">✏️</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- NUESTRA CASA -->
+      <div class="lw-sec" v-if="c.sobre">
+        <div class="lw-sec-t">Munay: el arte de querer bien <small>— toca las fotos o el texto</small></div>
+        <div class="lw-sobre">
+          <div class="lw-sobre-fotos">
+            <div v-for="i in 3" :key="'sf'+i" class="f ed" @click="abrir('sobreFoto','Foto de Nuestra casa', i-1)">
+              <img v-if="sobreFotos[i-1]" :src="sobreFotos[i-1]" loading="lazy" />
+              <span class="lw-pen">✏️</span>
+            </div>
+          </div>
+          <div class="lw-sobre-tx ed" @click="abrir('sobreTexto','Texto de Nuestra casa')">
+            <span class="lw-pen">✏️ Texto</span>
+            <p>{{ sobreC.p1 }}</p>
+            <p>{{ sobreC.p2 }}</p>
+            <div class="fir">{{ sobreC.firma }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CUARTOS (bloqueado — operativo) -->
       <div class="lw-lock">
         <div class="lw-lock-cards"><i></i><i></i><i></i></div>
         <span>🔒 Cuartos, precios y sus fotos — módulo operativo (pronto)</span>
       </div>
 
-      <!-- TOURS (bloqueado) -->
-      <div class="lw-lock mar">
-        <div class="lw-lock-cards"><i></i><i></i><i></i></div>
-        <span>🔒 Tours y sus fotos — módulo operativo (pronto)</span>
+      <!-- UN DÍA EN MUNAY -->
+      <div class="lw-sec" v-if="diaC.length">
+        <div class="lw-sec-t">Un día en Munay <small>— toca un momento para editar su foto y texto</small></div>
+        <div class="lw-dia">
+          <button v-for="(p,i) in diaC" :key="'dp'+i" class="lw-paso ed" @click="abrir('paso', p.hora + ' — ' + (p.titulo||''), i)">
+            <div class="ph"><img v-if="p.foto" :src="p.foto" loading="lazy" /><span class="lw-pen">✏️</span></div>
+            <div class="bd"><b>{{ p.ic }} {{ p.hora }} — {{ p.titulo }}</b><small>{{ p.texto }}</small></div>
+          </button>
+        </div>
+      </div>
+
+      <!-- TOURS (cards editables: foto, textos, precio, texto largo) -->
+      <div class="lw-sec" style="background:linear-gradient(180deg,#0E3A4D,#082330);" v-if="toursC.length">
+        <div class="lw-sec-t" style="color:#E8C46A;">Tours con flota propia <small style="color:#7fa3b2;">— toca un tour: foto, textos, precio y su texto detallado</small></div>
+        <div class="lw-tours">
+          <button v-for="(tr,i) in toursC" :key="'tr'+i" class="lw-tour ed" @click="abrir('tour', tr.titulo || 'Tour', i)">
+            <img v-if="tr.foto" :src="tr.foto" loading="lazy" />
+            <div class="ov"></div>
+            <span class="lw-pen">✏️</span>
+            <div class="bd"><b>{{ tr.titulo }}</b><span>{{ tr.precio ? 'S/ ' + tr.precio : 'Consultar' }}</span><small>⏱ {{ tr.duracion }}</small></div>
+          </button>
+        </div>
       </div>
 
       <!-- GALERÍA -->
@@ -6744,7 +6887,8 @@ const ViewLanding = {
       </div>
     </div>
 
-    <!-- ═══════════ SHEET DE EDICIÓN ═══════════ -->
+    <!-- ═══════════ SHEET DE EDICIÓN (Teleport: siempre en TU pantalla, no en el centro del documento) ═══════════ -->
+    <teleport to="body">
     <div v-if="sheet" class="ps-sheet-overlay" @click.self="cerrar">
       <div class="ps-sheet">
         <div class="lw-sh-t">{{ sheet.titulo }}</div>
@@ -6860,6 +7004,93 @@ const ViewLanding = {
           <div class="lw-sh-help">Aparece en el pie de página y como alternativa para huéspedes extranjeros.</div>
         </template>
 
+        <!-- foto de Nuestra casa -->
+        <template v-else-if="sheet.tipo==='sobreFoto'">
+          <div class="lw-sh-img"><img v-if="sobreFotos[sheet.ctx]" :src="sobreFotos[sheet.ctx]" /></div>
+          <label class="ps-btn ps-btn-primary lw-sh-btn">
+            {{ subiendo ? '⏳ Subiendo…' : '📤 Cambiar esta foto' }}
+            <input type="file" accept="image/*" style="display:none;" :disabled="subiendo" @change="subirSobreFoto($event)" />
+          </label>
+          <div class="lw-sh-help">Foto {{ sheet.ctx + 1 }} de 3 del collage "Nuestra casa" (fachada / habitación / detalle).</div>
+        </template>
+
+        <!-- texto de Nuestra casa -->
+        <template v-else-if="sheet.tipo==='sobreTexto'">
+          <div class="lw-sh-lab">Párrafo 1 <span class="flag">🇵🇪</span></div>
+          <textarea class="lw-sh-in" rows="3" v-model="form.p1"></textarea>
+          <div class="lw-sh-lab">Párrafo 1 <span class="flag">🇺🇸</span></div>
+          <textarea class="lw-sh-in" rows="3" v-model="form.p1_en"></textarea>
+          <div class="lw-sh-lab">Párrafo 2 <span class="flag">🇵🇪</span></div>
+          <textarea class="lw-sh-in" rows="3" v-model="form.p2"></textarea>
+          <div class="lw-sh-lab">Párrafo 2 <span class="flag">🇺🇸</span></div>
+          <textarea class="lw-sh-in" rows="3" v-model="form.p2_en"></textarea>
+          <div class="lw-sh-lab">Firma</div>
+          <input class="lw-sh-in" v-model="form.firma" placeholder="— Paty & el equipo Munay" />
+        </template>
+
+        <!-- comodidad (chip) -->
+        <template v-else-if="sheet.tipo==='amenidad'">
+          <div class="lw-sh-2">
+            <div><div class="lw-sh-lab">Ícono (emoji)</div><input class="lw-sh-in" v-model="form.ic" maxlength="4" /></div>
+            <div><div class="lw-sh-lab">Título <span class="flag">🇵🇪</span></div><input class="lw-sh-in" v-model="form.t" /></div>
+          </div>
+          <div class="lw-sh-lab">Título <span class="flag">🇺🇸</span></div>
+          <input class="lw-sh-in" v-model="form.t_en" />
+          <div class="lw-sh-2">
+            <div><div class="lw-sh-lab">Detalle <span class="flag">🇵🇪</span></div><input class="lw-sh-in" v-model="form.d" /></div>
+            <div><div class="lw-sh-lab">Detalle <span class="flag">🇺🇸</span></div><input class="lw-sh-in" v-model="form.d_en" /></div>
+          </div>
+          <label class="lw-sh-check"><input type="checkbox" v-model="form.visible" /> Mostrar en la web</label>
+        </template>
+
+        <!-- paso de "Un día en Munay" -->
+        <template v-else-if="sheet.tipo==='paso'">
+          <div class="lw-sh-img" v-if="diaC[sheet.ctx] && diaC[sheet.ctx].foto"><img :src="diaC[sheet.ctx].foto" /></div>
+          <label class="ps-btn ps-btn-ghost lw-sh-btn">
+            {{ subiendo ? '⏳ Subiendo…' : '📤 Cambiar la foto de este momento' }}
+            <input type="file" accept="image/*" style="display:none;" :disabled="subiendo" @change="subirPasoFoto($event)" />
+          </label>
+          <div class="lw-sh-2">
+            <div><div class="lw-sh-lab">Ícono</div><input class="lw-sh-in" v-model="form.ic" maxlength="4" /></div>
+            <div><div class="lw-sh-lab">Hora</div><input class="lw-sh-in" v-model="form.hora" placeholder="8:00" /></div>
+          </div>
+          <div class="lw-sh-lab">Título <span class="flag">🇵🇪</span></div>
+          <input class="lw-sh-in" v-model="form.titulo" />
+          <div class="lw-sh-lab">Título <span class="flag">🇺🇸</span></div>
+          <input class="lw-sh-in" v-model="form.titulo_en" />
+          <div class="lw-sh-lab">Texto <span class="flag">🇵🇪</span></div>
+          <textarea class="lw-sh-in" rows="2" v-model="form.texto"></textarea>
+          <div class="lw-sh-lab">Texto <span class="flag">🇺🇸</span></div>
+          <textarea class="lw-sh-in" rows="2" v-model="form.texto_en"></textarea>
+        </template>
+
+        <!-- tour (card + texto detallado) -->
+        <template v-else-if="sheet.tipo==='tour'">
+          <div class="lw-sh-img" v-if="toursC[sheet.ctx] && toursC[sheet.ctx].foto"><img :src="toursC[sheet.ctx].foto" /></div>
+          <label class="ps-btn ps-btn-ghost lw-sh-btn">
+            {{ subiendo ? '⏳ Subiendo…' : '📤 Cambiar la foto del tour' }}
+            <input type="file" accept="image/*" style="display:none;" :disabled="subiendo" @change="subirTourFoto($event)" />
+          </label>
+          <div class="lw-sh-2">
+            <div><div class="lw-sh-lab">Precio (S/, vacío = "Consultar")</div><input class="lw-sh-in" v-model="form.precio" inputmode="numeric" placeholder="85" /></div>
+            <div><div class="lw-sh-lab">Duración <span class="flag">🇵🇪</span></div><input class="lw-sh-in" v-model="form.duracion" /></div>
+          </div>
+          <div class="lw-sh-lab">Título <span class="flag">🇵🇪</span></div>
+          <input class="lw-sh-in" v-model="form.titulo" />
+          <div class="lw-sh-lab">Título <span class="flag">🇺🇸</span></div>
+          <input class="lw-sh-in" v-model="form.titulo_en" />
+          <div class="lw-sh-lab">Texto de la card <span class="flag">🇵🇪</span></div>
+          <textarea class="lw-sh-in" rows="2" v-model="form.descripcion"></textarea>
+          <div class="lw-sh-lab">Texto de la card <span class="flag">🇺🇸</span></div>
+          <textarea class="lw-sh-in" rows="2" v-model="form.descripcion_en"></textarea>
+          <div class="lw-sh-lab">Texto GRANDE de la ficha (párrafos separados por línea en blanco) <span class="flag">🇵🇪</span></div>
+          <textarea class="lw-sh-in" rows="6" v-model="form.contenido"></textarea>
+          <div class="lw-sh-lab">Texto grande <span class="flag">🇺🇸</span></div>
+          <textarea class="lw-sh-in" rows="4" v-model="form.contenido_en"></textarea>
+          <div class="lw-sh-lab">Duración <span class="flag">🇺🇸</span></div>
+          <input class="lw-sh-in" v-model="form.duracion_en" placeholder="2 h · departs 8:00 am" />
+        </template>
+
         <!-- reseñas -->
         <template v-else-if="sheet.tipo==='resenas'">
           <div v-if="!pendientes.length" class="lw-sh-help" style="text-align:center;padding:10px 0;">
@@ -6882,7 +7113,7 @@ const ViewLanding = {
         </template>
 
         <!-- acciones -->
-        <div class="lw-sh-acts" v-if="!['heroFoto','galFoto','galAdd','resenas'].includes(sheet.tipo)">
+        <div class="lw-sh-acts" v-if="!['heroFoto','galFoto','galAdd','sobreFoto','resenas'].includes(sheet.tipo)">
           <button class="ps-btn ps-btn-ghost" @click="cerrar">Cancelar</button>
           <button class="ps-btn ps-btn-primary" style="flex:1;" @click="guardarSheet">💾 Guardar y publicar</button>
         </div>
@@ -6891,6 +7122,7 @@ const ViewLanding = {
         </div>
       </div>
     </div>
+    </teleport>
   </div>
   `
 };
@@ -13230,7 +13462,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.76.0';
+const APP_VERSION = '1.77.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
