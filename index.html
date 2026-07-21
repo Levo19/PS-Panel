@@ -433,51 +433,119 @@ input  { outline: none; border: none; background: none; color: inherit; font: in
   .shimmer { animation:none !important; }
 }
 
-/* ── Módulo Landing (.lnd-*): editor cosmético de webs públicas ── */
-.lnd-secnav { display:flex; gap:8px; overflow-x:auto; padding:2px 2px 8px; margin-bottom:14px; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
-.lnd-secnav::-webkit-scrollbar { display:none; }
-.lnd-secnav button { flex:none; display:inline-flex; align-items:center; gap:7px; padding:10px 16px; min-height:42px; border-radius:100px; border:1px solid var(--border); background:var(--surface); color:var(--text-muted); font-family:inherit; font-size:12.5px; font-weight:700; letter-spacing:.02em; cursor:pointer; transition:all .22s; }
-.lnd-secnav button.on { background:linear-gradient(120deg, var(--gold), var(--gold-light)); color:#2b1114; border-color:transparent; box-shadow:0 8px 22px -10px rgba(201,168,76,.6); }
-.lnd-secnav .n { background:#e5484d; color:#fff; font-size:10px; min-width:17px; height:17px; border-radius:100px; display:inline-flex; align-items:center; justify-content:center; padding:0 4px; }
-.lnd-wrap, .lnd-salud, .lnd-secnav { max-width:760px; margin-left:auto; margin-right:auto; }
-.lnd-field { margin-bottom:16px; }
-.lnd-lab { display:flex; align-items:center; gap:8px; font-size:10.5px; color:var(--gold-light); letter-spacing:.09em; text-transform:uppercase; font-weight:700; margin-bottom:6px; }
-.lnd-flag { font-size:10px; background:var(--surface2); border:1px solid var(--border); border-radius:6px; padding:2px 7px; color:var(--text-muted); letter-spacing:.04em; }
-.lnd-input, .lnd-area { width:100%; background:var(--surface); border:1px solid var(--border); border-radius:11px; padding:11px 13px; font-family:inherit; font-size:13.5px; color:var(--text); outline:none; transition:border-color .2s, box-shadow .2s; }
-.lnd-input:focus, .lnd-area:focus { border-color:var(--gold); box-shadow:0 0 0 3px rgba(201,168,76,.15); }
-.lnd-area { resize:vertical; min-height:74px; }
-.lnd-help { font-size:11px; color:var(--text-muted); opacity:.85; margin-top:5px; line-height:1.45; }
-.lnd-help b { color:var(--gold-light); font-weight:600; }
-.lnd-hero-prev { position:relative; border-radius:16px; overflow:hidden; aspect-ratio:16/8; background:#000; box-shadow:0 14px 34px -16px rgba(0,0,0,.6); }
-.lnd-hero-prev img { width:100%; height:100%; object-fit:cover; display:block; opacity:.92; }
-.lnd-hero-prev .ov { position:absolute; inset:0; background:linear-gradient(178deg, rgba(20,9,12,.55), rgba(123,32,48,.35) 70%, rgba(201,168,76,.25)); }
-.lnd-hero-prev .tx { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:10px; }
-.lnd-hero-prev .tx b { font-size:clamp(18px,4vw,26px); color:#fdf6e9; letter-spacing:.03em; text-shadow:0 2px 12px rgba(0,0,0,.5); }
-.lnd-hero-prev .tx span { font-size:11.5px; color:#f0dfc9; margin-top:4px; text-shadow:0 1px 8px rgba(0,0,0,.5); }
-.lnd-muestra { position:absolute; top:8px; left:8px; z-index:2; background:rgba(229,72,77,.92); color:#fff; font-size:9px; font-weight:800; letter-spacing:.12em; padding:3px 8px; border-radius:100px; }
-.lnd-gal { display:grid; grid-template-columns:repeat(auto-fill, minmax(88px,1fr)); gap:8px; }
-.lnd-gal .it { position:relative; border-radius:11px; overflow:hidden; aspect-ratio:1; background:var(--surface); }
-.lnd-gal img { width:100%; height:100%; object-fit:cover; display:block; }
-.lnd-gal .x { position:absolute; top:4px; right:4px; background:rgba(0,0,0,.7); border:none; color:#fff; border-radius:50%; width:22px; height:22px; font-size:11px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
-.lnd-up { display:inline-flex; align-items:center; gap:8px; border:1.5px dashed var(--border); background:var(--surface); color:var(--gold-light); border-radius:12px; padding:12px 18px; font-size:12.5px; font-weight:700; cursor:pointer; transition:.2s; }
-.lnd-up:hover { border-color:var(--gold); background:var(--surface2); }
-.lnd-ota { display:flex; align-items:flex-start; gap:10px; border:1px solid var(--border); border-radius:13px; padding:12px; margin-bottom:10px; background:var(--surface); }
-.lnd-ota .dot { width:34px; height:34px; border-radius:9px; flex:none; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:14px; }
-.lnd-save { position:sticky; bottom:calc(76px + env(safe-area-inset-bottom)); z-index:6; display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:18px; background:linear-gradient(180deg, rgba(28,14,18,.96), rgba(16,8,10,.96)); border:1px solid var(--border); border-radius:16px; padding:10px 10px 10px 16px; box-shadow:0 14px 40px -12px rgba(0,0,0,.65); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); }
-.lnd-save .st { font-size:11.5px; color:var(--text-muted); }
-.lnd-save .st.dirty { color:var(--gold-light); }
-.lnd-save .st.dirty::before { content:"● "; color:#e5484d; }
-.lnd-2col { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-@media (max-width:480px){ .lnd-2col { grid-template-columns:1fr; } }
-.lnd-salud { display:flex; align-items:center; gap:14px; border:1px solid var(--border); background:linear-gradient(120deg, rgba(201,168,76,.10), var(--surface)); border-radius:16px; padding:13px 15px; margin-bottom:14px; }
-.lnd-salud .ring { width:56px; height:56px; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center; }
-.lnd-salud .ring .in { width:44px; height:44px; border-radius:50%; background:var(--bg2); display:flex; align-items:center; justify-content:center; font-family:inherit; font-weight:800; font-size:14px; color:var(--gold-light); }
-.lnd-salud .ring .in small { font-size:9px; opacity:.8; }
-.lnd-salud .paso { border:1px solid var(--border); background:var(--surface); color:var(--gold-light); font-size:11px; font-weight:600; border-radius:100px; padding:5px 11px; cursor:pointer; transition:.2s; font-family:inherit; }
-.lnd-salud .paso:hover { border-color:var(--gold); background:var(--surface2); }
-.lnd-prevbox { border:1px solid var(--border); border-radius:18px; overflow:hidden; background:#0a0508; height:62vh; min-height:420px; display:flex; justify-content:center; }
-.lnd-prevbox iframe { border:0; width:100%; height:100%; background:#fff; }
-.lnd-prevbox.movil iframe { width:392px; max-width:100%; border-radius:0; box-shadow:0 0 0 1px rgba(255,255,255,.1); }
+/* ── Módulo Landing v3 (.lw-*): edición inmersiva — la web en miniatura ── */
+/* Full responsive: el canvas usa TODO el ancho disponible (móvil/tablet/PC). */
+.lw-pct { font-size:11px; font-weight:800; color:var(--gold-light); border:1px solid rgba(201,168,76,.5); border-radius:100px; padding:5px 11px; letter-spacing:.04em; }
+.lw-pct.full { background:linear-gradient(120deg,var(--gold),var(--gold-light)); color:#2b1114; border-color:transparent; }
+
+.lw-canvas { width:100%; background:#FDFBF6; color:#241418; border-radius:20px; overflow:hidden; box-shadow:0 24px 60px -24px rgba(0,0,0,.55), 0 0 0 1px rgba(201,168,76,.25); }
+
+/* zonas editables: borde punteado dorado al pasar/tocar + lápiz siempre visible */
+.ed { position:relative; cursor:pointer; -webkit-tap-highlight-color:transparent; transition:box-shadow .2s, transform .12s; }
+.ed:hover, .ed:focus-visible { box-shadow:inset 0 0 0 2px var(--gold), 0 0 0 2px rgba(201,168,76,.35); z-index:2; }
+/* respuesta táctil: la zona se "hunde" al presionar (complementa la vibración) */
+.ed:active { transform:scale(.985); }
+.lw-soc:active, .lw-ota:active, .lw-res:active, .lw-gal .it:active { transform:scale(.96); }
+.lw-pen { position:absolute; top:8px; right:8px; z-index:3; background:linear-gradient(120deg,var(--gold),var(--gold-light)); color:#2b1114; font-size:10px; font-weight:800; letter-spacing:.03em; padding:3px 9px; border-radius:100px; pointer-events:none; box-shadow:0 4px 12px -4px rgba(0,0,0,.4); opacity:.92; }
+.lw-pen.tx { position:static; display:inline-block; margin-bottom:4px; }
+.lw-muestra { position:absolute; top:8px; left:8px; z-index:3; background:rgba(229,72,77,.92); color:#fff; font-size:9px; font-weight:800; letter-spacing:.12em; padding:3px 8px; border-radius:100px; pointer-events:none; }
+.lw-muestra.mini { top:4px; left:4px; font-size:7.5px; padding:2px 6px; }
+
+/* hero */
+.lw-hero { width:100%; aspect-ratio:16/8; min-height:250px; max-height:440px; overflow:hidden; }
+.lw-hero > img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+.lw-hero-veil { position:absolute; inset:0; background:linear-gradient(178deg, rgba(20,9,12,.62), rgba(123,32,48,.42) 65%, rgba(201,168,76,.30)); pointer-events:none; }
+.lw-hero-tx { position:absolute; left:50%; top:44%; transform:translate(-50%,-50%); text-align:center; padding:10px 16px; border-radius:14px; max-width:92%; }
+.lw-hero-tx b { display:block; font-family:Georgia,'Times New Roman',serif; font-weight:400; font-size:clamp(24px,4.5vw,44px); color:#fdf6e9; letter-spacing:.03em; text-shadow:0 2px 14px rgba(0,0,0,.55); }
+.lw-hero-tx i { display:block; font-style:normal; font-size:clamp(11px,1.8vw,15px); color:#f0dfc9; margin-top:4px; text-shadow:0 1px 8px rgba(0,0,0,.5); }
+.lw-hero-tx em { display:block; font-style:normal; font-size:10px; color:rgba(240,223,201,.75); margin-top:3px; }
+.lw-hero-stars { position:absolute; left:50%; bottom:12px; transform:translateX(-50%); font-size:clamp(10px,1.6vw,13px); color:var(--gold-light); padding:5px 14px; border-radius:100px; white-space:nowrap; text-shadow:0 1px 8px rgba(0,0,0,.6); }
+
+/* franjas */
+.lw-strip { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:14px clamp(14px,3vw,26px); background:#F7F1E6; }
+.lw-chip { background:#fff; border:1px solid #e4d5b8; border-radius:100px; padding:6px 13px; font-size:12px; color:#6b543f; font-weight:600; }
+.lw-desc { padding:12px clamp(14px,3vw,26px); font-size:12.5px; line-height:1.55; color:#6b543f; border-bottom:1px dashed #e4d5b8; }
+.lw-desc b { color:#8a6f2f; }
+.lw-demo { display:inline-block; margin-left:8px; background:#e5484d; color:#fff; font-size:9px; font-weight:800; letter-spacing:.08em; padding:2px 8px; border-radius:100px; }
+
+/* bloqueados (operativo futuro) */
+.lw-lock { display:flex; flex-direction:column; align-items:center; gap:8px; padding:16px; background:repeating-linear-gradient(-45deg,#f4ede0,#f4ede0 12px,#efe6d5 12px,#efe6d5 24px); color:#8a6f60; font-size:11.5px; font-weight:600; letter-spacing:.03em; }
+.lw-lock.mar { background:repeating-linear-gradient(-45deg,#e8eef1,#e8eef1 12px,#dfe8ec 12px,#dfe8ec 24px); color:#5c7a87; }
+.lw-lock-cards { display:flex; gap:8px; width:min(420px,80%); }
+.lw-lock-cards i { flex:1; height:34px; border-radius:9px; background:rgba(0,0,0,.08); }
+
+/* secciones */
+.lw-sec { padding:clamp(14px,2.5vw,24px) clamp(14px,3vw,26px); }
+.lw-sec.arena { background:#F7F1E6; }
+.lw-sec-t { font-family:Georgia,serif; font-size:15px; color:#7B2030; margin-bottom:12px; }
+.lw-sec-t small { font-family:inherit; font-size:11px; color:#8a6f60; }
+
+/* galería fluida — usa todo el ancho */
+.lw-gal { display:grid; grid-template-columns:repeat(auto-fill,minmax(clamp(92px,12vw,150px),1fr)); gap:8px; }
+.lw-gal .it { position:relative; aspect-ratio:1; border-radius:12px; overflow:hidden; background:#eee3cf; border:none; padding:0; }
+.lw-gal .it img { width:100%; height:100%; object-fit:cover; display:block; }
+.lw-gal .it .lw-pen { top:6px; right:6px; font-size:9px; padding:2px 7px; }
+.lw-add { display:flex; flex-direction:column; align-items:center; justify-content:center; border:2px dashed #d9c9a8 !important; background:#faf5ea !important; color:#8a6f2f; font-size:26px; cursor:pointer; border-radius:12px; }
+.lw-add small { font-size:10px; font-weight:700; letter-spacing:.06em; }
+
+/* sellos OTA */
+.lw-otas { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:8px; }
+.lw-ota { display:flex; align-items:center; gap:10px; background:#fff; border:1px solid #e4d5b8; border-radius:13px; padding:10px 12px; cursor:pointer; text-align:left; font-family:inherit; }
+.lw-ota .dot { width:32px; height:32px; border-radius:9px; flex:none; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:14px; }
+.lw-ota .tx { min-width:0; }
+.lw-ota .tx b { display:block; font-size:13px; color:#241418; }
+.lw-ota .tx small { display:block; font-size:10.5px; color:#8a6f60; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.lw-ota .lw-pen { top:6px; right:6px; font-size:9px; padding:2px 7px; }
+
+/* reseñas */
+.lw-res { display:block; width:100%; background:#fff; border:1px solid #e4d5b8; border-radius:14px; padding:14px 16px; text-align:left; cursor:pointer; font-family:inherit; }
+.lw-res b { display:block; font-size:14px; color:#7B2030; }
+.lw-res small { display:block; font-size:11.5px; color:#8a6f60; margin-top:3px; }
+.lw-npend { display:inline-block; margin-top:8px; background:#e5484d; color:#fff; font-size:10.5px; font-weight:800; padding:4px 11px; border-radius:100px; animation:psBob 3.2s ease-in-out infinite; }
+
+/* mapa */
+.lw-map { display:flex; align-items:center; gap:10px; padding:14px clamp(14px,3vw,26px); background:#e8f0f3; color:#24444f; font-size:12.5px; font-weight:600; }
+.lw-map .pin { font-size:18px; }
+
+/* footer réplica */
+.lw-foot { background:#14090C; color:#cbb4a4; padding:16px clamp(14px,3vw,26px) 20px; }
+.lw-foot-t { font-family:Georgia,serif; font-size:13px; color:var(--gold-light); letter-spacing:.06em; }
+.lw-foot-t small { font-family:inherit; font-size:10.5px; color:#8f7a6b; letter-spacing:0; }
+.lw-socs { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:8px; margin-top:12px; }
+.lw-soc { display:flex; flex-direction:column; align-items:center; gap:5px; background:rgba(255,255,255,.05); border:1px solid rgba(201,168,76,.25); border-radius:13px; padding:12px 8px 10px; cursor:pointer; color:#eaddcd; font-family:inherit; min-height:74px; }
+.lw-soc small { font-size:10.5px; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.lw-soc .ic { width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:800; color:#fff; }
+.lw-soc .ic.wsp { background:#1FAF54; } .lw-soc .ic.mail { background:#7B2030; color:var(--gold-light); }
+.lw-soc .ic.fb { background:#1877F2; } .lw-soc .ic.ig { background:linear-gradient(45deg,#f09433,#dc2743,#bc1888); } .lw-soc .ic.tk { background:#111; }
+.lw-soc.off { border-style:dashed; opacity:.6; }
+.lw-soc.off small::after { content:" — conectar"; color:var(--gold-light); }
+.lw-soc .lw-pen { top:6px; right:6px; font-size:9px; padding:2px 7px; }
+
+/* sheet de edición */
+.lw-sh-t { font-family:Georgia,serif; font-size:17px; color:var(--gold-light); margin-bottom:14px; }
+.lw-sh-lab { font-size:10.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--gold-light); font-weight:700; margin:12px 0 6px; display:flex; align-items:center; gap:8px; }
+.lw-sh-lab .flag { font-size:9.5px; background:var(--surface2); border:1px solid var(--border); border-radius:6px; padding:2px 7px; color:var(--text-muted); text-transform:none; letter-spacing:.03em; }
+.lw-sh-in { width:100%; background:var(--surface); border:1px solid var(--border); border-radius:11px; padding:12px 13px; font-family:inherit; font-size:16px; color:var(--text); outline:none; transition:border-color .2s, box-shadow .2s; }
+.lw-sh-in:focus { border-color:var(--gold); box-shadow:0 0 0 3px rgba(201,168,76,.15); }
+textarea.lw-sh-in { resize:vertical; min-height:80px; }
+.lw-sh-2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+@media (max-width:420px){ .lw-sh-2 { grid-template-columns:1fr; } }
+.lw-sh-help { font-size:11.5px; color:var(--text-muted); margin-top:9px; line-height:1.5; display:block; }
+.lw-sh-check { display:flex; align-items:center; gap:9px; margin-top:14px; font-size:13px; color:var(--text); cursor:pointer; }
+.lw-sh-check input { width:18px; height:18px; accent-color:var(--gold); }
+.lw-sh-img { position:relative; border-radius:14px; overflow:hidden; margin-bottom:4px; }
+.lw-sh-img img { width:100%; height:min(240px,32vh); object-fit:cover; display:block; }
+.lw-sh-btn { width:100%; margin-top:10px; display:flex !important; justify-content:center; cursor:pointer; }
+.lw-sh-acts { display:flex; gap:10px; margin-top:18px; }
+.lw-sh-rescard { border:1px solid var(--border); border-radius:13px; padding:12px; margin-bottom:10px; background:var(--surface); }
+.lw-sh-rescard .st { font-size:13px; color:var(--gold-light); }
+.lw-sh-rescard .st b { color:var(--text); }
+.lw-sh-rescard .tx { font-size:12.5px; color:var(--text-muted); line-height:1.5; margin-top:4px; }
+.lw-sh-resrow { display:flex; align-items:center; justify-content:space-between; gap:10px; border-bottom:1px dashed var(--border); padding:9px 0; font-size:12px; color:var(--text-muted); }
+.lw-sh-resrow span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.lw-sh-resrow b { color:var(--text); }
+
+@media (prefers-reduced-motion: reduce){ .lw-npend { animation:none; } }
 
 /* ── Dashboard (F1): KPIs glass + charts enmarcados ── */
 .ps-dash .kpi-card.ps-card { border-radius:var(--radius); }
@@ -6375,12 +6443,13 @@ const ViewHotel = {
   }
 };
 
-// ── Módulo LANDING: edición cosmética de las webs públicas del grupo ─────────
-// Solo Administrador. Escribe vía RPCs web_* (gate es_admin, RLS) y Storage bucket 'web'.
-// Multi-landing: agregar un sitio = entrada en `sitios` + fila en web_contenido.
-// Organizado en SECTORES que espejan las secciones de la landing (Portada/Contacto/
-// Redes/Plataformas/Fotos/Reseñas) — cada campo dice DÓNDE aparece en la web.
-// NO gestiona reservas/calendario/cuartos/precios (parte operativa, módulo futuro).
+// ── Módulo LANDING v3: EDICIÓN INMERSIVA (WYSIWYG) ──────────────────────────
+// El módulo ES una réplica en miniatura de la web pública: tocas la parte que
+// quieres cambiar (foto del hero, textos, galería, sellos, íconos de contacto)
+// y se abre un sheet para editar/quitar/subir — con campos ES/EN donde aplica.
+// Cada sheet GUARDA SOLO su campo (web_guardar_contenido acepta payload parcial).
+// Cuartos y tours = 🔒 módulo operativo futuro (no cosmético).
+// Solo Administrador. RPCs web_* (gate es_admin) + Storage bucket 'web'.
 const ViewLanding = {
   name: 'ViewLanding',
   props: ['data', 'loading'],
@@ -6389,122 +6458,145 @@ const ViewLanding = {
     return {
       sitios: [{
         id: 'casamunay', label: 'Casa Munay', urlDef: 'https://casa-munay.vercel.app',
-        // Fotos DE MUESTRA que la web usa hoy como fallback (data.ts) — se muestran
-        // en el panel para que se vea "lo actual" aunque la BD esté vacía.
         fallbackHero: 'https://picsum.photos/seed/munaybay/1600/1000',
-        fallbackGal: Array.from({length:12}, (_,i)=>'https://picsum.photos/seed/mg'+(i+1)+'/400/400')
+        fallbackGal: Array.from({ length: 12 }, (_, i) => 'https://picsum.photos/seed/mg' + (i + 1) + '/400/400')
       }],
       sitio: 'casamunay',
-      sec: 'portada',
-      secciones: [
-        { id: 'portada',     ic: '🖼️', label: 'Portada' },
-        { id: 'contacto',    ic: '📞', label: 'Contacto' },
-        { id: 'redes',       ic: '📣', label: 'Redes' },
-        { id: 'plataformas', ic: '⭐', label: 'Plataformas' },
-        { id: 'fotos',       ic: '📷', label: 'Fotos' },
-        { id: 'resenas',     ic: '💬', label: 'Reseñas' },
-        { id: 'preview',     ic: '👁️', label: 'Vista previa' }
-      ],
-      cargando: true, guardando: false, subiendo: '', fb: null, confirmId: null,
-      c: {}, snap: '',
-      pendientes: [], publicadas: [],
-      device: 'movil', prevKey: 0
+      cargando: true, subiendo: false, fb: null, confirmSheet: false,
+      c: {}, pendientes: [], publicadas: [],
+      sheet: null,   // { tipo, titulo, ctx }
+      form: {}       // modelo del sheet abierto
     };
   },
   computed: {
-    sitioCfg() { return this.sitios.find(x => x.id === this.sitio) || this.sitios[0]; },
-    otasList() { return Array.isArray(this.c.otas) ? this.c.otas : []; },
-    galeriaList() { return Array.isArray(this.c.galeria) ? this.c.galeria : []; },
-    heroActual() { return this.c.hero_foto || this.sitioCfg.fallbackHero; },
-    heroEsMuestra() { return !this.c.hero_foto; },
-    dirty() { return !this.cargando && this.snap !== JSON.stringify(this.c); },
-    urlWeb() { return this.c.url || this.sitioCfg.urlDef; },
-    prevSrc() { return this.urlWeb + (this.urlWeb.includes('?') ? '&' : '?') + '_prev=' + this.prevKey; },
-    // Salud de la web: qué falta para estar 100% lista (cada ítem lleva a su sector)
-    salud() {
-      const c = this.c, g = this.galeriaList, redes = c.redes || {};
-      return [
-        { ok: !!c.whatsapp,                          txt: 'Poner el WhatsApp de reservas',        sec: 'contacto' },
-        { ok: !!c.correo,                            txt: 'Poner el correo',                      sec: 'contacto' },
-        { ok: !!c.hero_foto,                         txt: 'Subir la foto real de portada',        sec: 'fotos' },
-        { ok: g.length >= 6,                         txt: 'Subir al menos 6 fotos a la galería',  sec: 'fotos' },
-        { ok: this.otasList.some(o => o.url),        txt: 'Conectar Booking/Airbnb/TripAdvisor',  sec: 'plataformas' },
-        { ok: !!(redes.facebook || redes.instagram || redes.tiktok), txt: 'Conectar una red social', sec: 'redes' },
-        { ok: !c.demo,                               txt: 'Apagar el modo demo',                  sec: 'portada' }
-      ];
-    },
-    saludPct() { const s = this.salud; return Math.round((s.filter(x => x.ok).length / s.length) * 100); },
-    saludFaltan() { return this.salud.filter(x => !x.ok); }
+    cfg() { return this.sitios.find(x => x.id === this.sitio) || this.sitios[0]; },
+    urlWeb() { return this.c.url || this.cfg.urlDef; },
+    heroFoto() { return this.c.hero_foto || this.cfg.fallbackHero; },
+    heroMuestra() { return !this.c.hero_foto; },
+    gal() { return Array.isArray(this.c.galeria) ? this.c.galeria : []; },
+    galVista() { return this.gal.length ? this.gal.map(u => ({ u, muestra: false })) : this.cfg.fallbackGal.map(u => ({ u, muestra: true })); },
+    otas() { return Array.isArray(this.c.otas) ? this.c.otas : []; },
+    redes() { return this.c.redes || {}; },
+    saludPct() {
+      const c = this.c, r = this.redes;
+      const checks = [!!c.whatsapp, !!c.correo, !!c.hero_foto, this.gal.length >= 6,
+        this.otas.some(o => o.url), !!(r.facebook || r.instagram || r.tiktok), !c.demo];
+      return Math.round(checks.filter(Boolean).length / checks.length * 100);
+    }
   },
   mounted() { this.cargar(); },
   methods: {
-    tap() { try { sndTap(); haptic(8); } catch (e) {} },
-    feed(msg, ok) { this.fb = { msg, ok: ok !== false }; clearTimeout(this._fbT); this._fbT = setTimeout(() => { this.fb = null; }, 3600); },
+    tap() { try { sndTap(); haptic(10); } catch (e) {} },
+    tapOk() { try { sndUp(); haptic([14, 40, 18]); } catch (e) { try { haptic(20); } catch (e2) {} } },
+    feed(msg, ok) { this.fb = { msg, ok: ok !== false }; clearTimeout(this._fbT); this._fbT = setTimeout(() => { this.fb = null; }, 3400); },
     otaNombre(id) { return ({ booking: 'Booking.com', airbnb: 'Airbnb', tripadvisor: 'Tripadvisor', google: 'Google Maps' })[id] || id; },
-    otaColor(id) { return ({ booking: '#003580', airbnb: '#FF385C', tripadvisor: '#00AA6C', google: '#4285F4' })[id] || 'var(--gold)'; },
-    irSec(id) { this.tap(); this.sec = id; },
-    refrescarPrev() { this.tap(); this.prevKey = Date.now(); },
+    otaColor(id) { return ({ booking: '#003580', airbnb: '#FF385C', tripadvisor: '#00AA6C', google: '#4285F4' })[id] || '#C9A84C'; },
     async cargar() {
       this.cargando = true;
       try {
         const { data, error } = await sbClient.rpc('web_get_admin', { p_sitio: this.sitio });
         if (error) throw error;
-        const c = data && data.contenido ? data.contenido : {};
+        const c = (data && data.contenido) || {};
         c.redes = c.redes || {}; c.otas = Array.isArray(c.otas) ? c.otas : []; c.galeria = Array.isArray(c.galeria) ? c.galeria : [];
-        this.c = c; this.snap = JSON.stringify(c);
+        this.c = c;
         this.pendientes = (data && data.pendientes) || [];
         this.publicadas = (data && data.publicadas) || [];
       } catch (e) {
         this.feed(/NO_ADMIN/.test(String(e.message || e)) ? 'Solo el Administrador puede editar la landing.' : '⚠️ No se pudo cargar (revisa tu sesión).', false);
       } finally { this.cargando = false; }
     },
-    cambiarSitio(id) { if (id === this.sitio) return; this.tap(); this.sitio = id; this.sec = 'portada'; this.cargar(); },
-    async guardar() {
-      if (this.guardando) return;
-      this.guardando = true; this.tap();
+    cambiarSitio(id) { if (id !== this.sitio) { this.tap(); this.sitio = id; this.cargar(); } },
+
+    // ── sheets ──
+    abrir(tipo, titulo, ctx) {
+      this.tap(); this.confirmSheet = false;
+      const c = this.c;
+      let form = {};
+      if (tipo === 'identidad')        form = { nombre: c.nombre || '', eslogan: c.eslogan || '', eslogan_en: c.eslogan_en || '' };
+      else if (tipo === 'descripcion') form = { descripcion: c.descripcion || '', demo: !!c.demo };
+      else if (tipo === 'horarios')    form = { checkin: c.checkin || '', checkout: c.checkout || '', horario: c.horario || '' };
+      else if (tipo === 'rating')      form = { rating: c.rating == null ? '' : String(c.rating), resenas_total: c.resenas_total == null ? '' : String(c.resenas_total), google_review_url: c.google_review_url || '' };
+      else if (tipo === 'ota')         form = { nota: (ctx && ctx.nota) || '', detalle: (ctx && ctx.detalle) || '', url: (ctx && ctx.url) || '' };
+      else if (tipo === 'ubicacion')   form = { direccion: c.direccion || '', maps_query: c.maps_query || '' };
+      else if (tipo === 'red')         form = { url: this.redes[ctx] || '' };
+      else if (tipo === 'whatsapp')    form = { whatsapp: c.whatsapp || '' };
+      else if (tipo === 'correo')      form = { correo: c.correo || '' };
+      this.form = form;
+      this.sheet = { tipo, titulo, ctx };
+    },
+    cerrar() { this.sheet = null; this.confirmSheet = false; },
+    async guardarCampos(payload, msgOk) {
       try {
-        const p = {
-          sitio: this.sitio,
-          nombre: this.c.nombre || '', eslogan: this.c.eslogan || '', eslogan_en: this.c.eslogan_en || '',
-          descripcion: this.c.descripcion || '', whatsapp: this.c.whatsapp || '', correo: this.c.correo || '',
-          direccion: this.c.direccion || '', maps_query: this.c.maps_query || '',
-          checkin: this.c.checkin || '', checkout: this.c.checkout || '', horario: this.c.horario || '',
-          rating: this.c.rating === '' || this.c.rating == null ? '' : String(this.c.rating),
-          resenas_total: this.c.resenas_total === '' || this.c.resenas_total == null ? '' : String(this.c.resenas_total),
-          url: this.c.url || '', demo: !!this.c.demo, google_review_url: this.c.google_review_url || '',
-          hero_foto: this.c.hero_foto || '', galeria: this.galeriaList, redes: this.c.redes || {}, otas: this.otasList
-        };
-        const { error } = await sbClient.rpc('web_guardar_contenido', { p });
+        const { error } = await sbClient.rpc('web_guardar_contenido', { p: Object.assign({ sitio: this.sitio }, payload) });
         if (error) throw error;
-        this.snap = JSON.stringify(this.c);
-        this.feed('✅ Guardado — la web se actualiza en ~1 minuto');
-        try { sndUp(); } catch (e) {}
-      } catch (e) { this.feed('⚠️ Error al guardar: ' + String(e.message || e), false); }
-      finally { this.guardando = false; }
+        Object.keys(payload).forEach(k => { if (k !== 'sitio') this.c[k] = payload[k]; });
+        this.feed(msgOk || '✅ Guardado — la web se actualiza en ~1 min');
+        this.tapOk();
+        return true;
+      } catch (e) { this.feed('⚠️ ' + String(e.message || e), false); return false; }
+    },
+    async guardarSheet() {
+      const s = this.sheet; if (!s) return;
+      const f = this.form; let ok = false;
+      if (s.tipo === 'identidad')        ok = await this.guardarCampos({ nombre: f.nombre, eslogan: f.eslogan, eslogan_en: f.eslogan_en });
+      else if (s.tipo === 'descripcion') ok = await this.guardarCampos({ descripcion: f.descripcion, demo: !!f.demo });
+      else if (s.tipo === 'horarios')    ok = await this.guardarCampos({ checkin: f.checkin, checkout: f.checkout, horario: f.horario });
+      else if (s.tipo === 'rating')      ok = await this.guardarCampos({ rating: f.rating, resenas_total: f.resenas_total, google_review_url: f.google_review_url });
+      else if (s.tipo === 'ubicacion')   ok = await this.guardarCampos({ direccion: f.direccion, maps_query: f.maps_query });
+      else if (s.tipo === 'whatsapp')    ok = await this.guardarCampos({ whatsapp: f.whatsapp });
+      else if (s.tipo === 'correo')      ok = await this.guardarCampos({ correo: f.correo });
+      else if (s.tipo === 'red') {
+        const redes = Object.assign({}, this.redes); redes[s.ctx] = f.url;
+        ok = await this.guardarCampos({ redes });
+      }
+      else if (s.tipo === 'ota') {
+        const otas = this.otas.map(o => o.id === s.ctx.id ? Object.assign({}, o, { nota: f.nota, detalle: f.detalle, url: f.url }) : o);
+        ok = await this.guardarCampos({ otas });
+      }
+      if (ok) this.cerrar();
     },
     async subirFoto(ev, destino) {
       const files = Array.from((ev.target && ev.target.files) || []); ev.target.value = '';
       if (!files.length) return;
-      this.subiendo = destino;
+      this.subiendo = true;
       try {
+        const urls = [];
         for (const file of files) {
           const cmp = await comprimirFotoZarpe(file, { maxDim: 1800, quality: 0.82 });
-          const blob = (cmp && cmp.blob) || file;
           const path = this.sitio + '/' + destino + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7) + '.jpg';
-          const { error } = await sbClient.storage.from('web').upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
+          const { error } = await sbClient.storage.from('web').upload(path, (cmp && cmp.blob) || file, { upsert: true, contentType: 'image/jpeg' });
           if (error) throw error;
-          const url = sbClient.storage.from('web').getPublicUrl(path).data.publicUrl;
-          if (destino === 'hero') this.c.hero_foto = url;
-          else this.c.galeria = this.galeriaList.concat([url]);
+          urls.push(sbClient.storage.from('web').getPublicUrl(path).data.publicUrl);
         }
-        await this.guardar();
-      } catch (e) { this.feed('⚠️ Error al subir foto: ' + String(e.message || e), false); }
-      finally { this.subiendo = ''; }
+        if (destino === 'hero') { await this.guardarCampos({ hero_foto: urls[0] }, '✅ Nueva foto de portada publicada'); this.cerrar(); }
+        else { await this.guardarCampos({ galeria: this.gal.concat(urls) }, '✅ ' + urls.length + ' foto(s) agregadas'); this.cerrar(); }
+      } catch (e) { this.feed('⚠️ Error al subir: ' + String(e.message || e), false); }
+      finally { this.subiendo = false; }
     },
-    quitarGaleria(url) { this.tap(); this.c.galeria = this.galeriaList.filter(u => u !== url); },
+    async quitarHero() { if (await this.guardarCampos({ hero_foto: '' }, 'Volvió la foto de muestra')) this.cerrar(); },
+    async quitarGal() {
+      const u = this.sheet && this.sheet.ctx;
+      if (await this.guardarCampos({ galeria: this.gal.filter(x => x !== u) }, 'Foto quitada de la web')) this.cerrar();
+    },
+    async reemplazarGal(ev) {
+      const file = (ev.target.files || [])[0]; ev.target.value = '';
+      if (!file || !this.sheet) return;
+      this.subiendo = true;
+      try {
+        const cmp = await comprimirFotoZarpe(file, { maxDim: 1800, quality: 0.82 });
+        const path = this.sitio + '/galeria_' + Date.now() + '.jpg';
+        const { error } = await sbClient.storage.from('web').upload(path, (cmp && cmp.blob) || file, { upsert: true, contentType: 'image/jpeg' });
+        if (error) throw error;
+        const url = sbClient.storage.from('web').getPublicUrl(path).data.publicUrl;
+        const vieja = this.sheet.ctx;
+        const galeria = this.gal.length ? this.gal.map(x => x === vieja ? url : x) : [url];
+        if (await this.guardarCampos({ galeria }, '✅ Foto reemplazada')) this.cerrar();
+      } catch (e) { this.feed('⚠️ ' + String(e.message || e), false); }
+      finally { this.subiendo = false; }
+    },
     async moderar(tst, accion) {
-      if (accion === 'eliminar' && this.confirmId !== tst.id) { this.confirmId = tst.id; this.tap(); return; }
-      this.confirmId = null; this.tap();
+      if (accion === 'eliminar' && !this.confirmSheet) { this.confirmSheet = tst.id; this.tap(); return; }
+      this.confirmSheet = false; this.tap();
       try {
         const { error } = await sbClient.rpc('web_testimonio_set', { p_id: tst.id, p_accion: accion, p_origen: tst.origen || '' });
         if (error) throw error;
@@ -6520,10 +6612,13 @@ const ViewLanding = {
         <div class="ps-head-ico">🌐</div>
         <div>
           <div class="ps-head-title">Landing</div>
-          <div class="ps-head-sub">Edita tu web pública — sección por sección</div>
+          <div class="ps-head-sub">Toca cualquier parte con ✏️ para editarla</div>
         </div>
       </div>
-      <a :href="urlWeb" target="_blank" rel="noopener" class="ps-btn ps-btn-ghost" style="text-decoration:none;">Ver web ↗</a>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span class="lw-pct" :class="{full: saludPct===100}">{{ saludPct }}%</span>
+        <a :href="urlWeb" target="_blank" rel="noopener" class="ps-btn ps-btn-ghost" style="text-decoration:none;">Ver web ↗</a>
+      </div>
     </div>
 
     <div class="ps-tabbar" style="margin-bottom:12px;">
@@ -6533,255 +6628,269 @@ const ViewLanding = {
     <div v-if="fb" class="ps-fb" :class="fb.ok ? 'ok' : 'err'">{{ fb.msg }}</div>
     <div v-if="cargando" style="display:flex;justify-content:center;padding:60px 0;"><div class="spin"></div></div>
 
-    <template v-else>
-      <!-- Salud de la web: anillo de progreso + qué falta (nivel superior a Lourdes) -->
-      <div class="lnd-salud ps-enter">
-        <div class="ring" :style="{background: 'conic-gradient(var(--gold) ' + saludPct + '%, rgba(255,255,255,.08) 0)'}">
-          <div class="in">{{ saludPct }}<small>%</small></div>
+    <!-- ═══════════ LA LANDING EN MINIATURA (canvas editable) ═══════════ -->
+    <div v-else class="lw-canvas">
+
+      <!-- HERO -->
+      <div class="lw-hero ed" @click="abrir('heroFoto','Foto de portada')">
+        <img :src="heroFoto" alt="" />
+        <div class="lw-hero-veil"></div>
+        <span v-if="heroMuestra" class="lw-muestra">FOTO DE MUESTRA</span>
+        <span class="lw-pen">✏️ Foto</span>
+        <div class="lw-hero-tx ed edtx" @click.stop="abrir('identidad','Nombre y eslogan')">
+          <span class="lw-pen tx">✏️ Textos</span>
+          <b>{{ c.nombre || 'Casa Munay' }}</b>
+          <i>{{ c.eslogan || 'Donde el desierto abraza al mar' }}</i>
+          <em v-if="c.eslogan_en">EN: {{ c.eslogan_en }}</em>
         </div>
-        <div style="flex:1;min-width:0;">
-          <div style="font-size:13px;font-weight:700;color:var(--text);">{{ saludPct === 100 ? '🎉 ¡Tu web está lista y completa!' : 'Tu web está ' + saludPct + '% lista' }}</div>
-          <div v-if="saludFaltan.length" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:7px;">
-            <button v-for="f in saludFaltan.slice(0,3)" :key="f.txt" class="paso" @click="irSec(f.sec)">→ {{ f.txt }}</button>
-            <span v-if="saludFaltan.length > 3" style="font-size:11px;color:var(--text-muted);align-self:center;">+{{ saludFaltan.length - 3 }} más</span>
-          </div>
+        <div class="lw-hero-stars ed edtx" @click.stop="abrir('rating','Calificación y reseñas totales')">
+          <span class="lw-pen tx">✏️</span>
+          ★★★★★ {{ c.rating || '4.8' }} · {{ c.resenas_total || '120' }}+ huéspedes felices
         </div>
       </div>
 
-      <nav class="lnd-secnav">
-        <button v-for="s in secciones" :key="s.id" :class="{on: sec===s.id}" @click="irSec(s.id)">
-          <span>{{ s.ic }}</span>{{ s.label }}
-          <span v-if="s.id==='resenas' && pendientes.length" class="n">{{ pendientes.length }}</span>
+      <!-- CHIPS HORARIOS -->
+      <div class="lw-strip ed" @click="abrir('horarios','Horarios del hotel')">
+        <span class="lw-pen">✏️</span>
+        <span class="lw-chip">🕒 Check-in {{ c.checkin || '14:00' }}</span>
+        <span class="lw-chip">Check-out {{ c.checkout || '11:00' }}</span>
+        <span class="lw-chip">{{ c.horario || 'Recepción 7:00 – 23:00' }}</span>
+      </div>
+
+      <!-- DESCRIPCIÓN GOOGLE -->
+      <div class="lw-desc ed" @click="abrir('descripcion','Descripción para Google (SEO)')">
+        <span class="lw-pen">✏️</span>
+        <b>Google:</b> {{ c.descripcion || '(sin descripción — toca para escribirla)' }}
+        <span v-if="c.demo" class="lw-demo">MODO DEMO ACTIVO</span>
+      </div>
+
+      <!-- CUARTOS (bloqueado) -->
+      <div class="lw-lock">
+        <div class="lw-lock-cards"><i></i><i></i><i></i></div>
+        <span>🔒 Cuartos, precios y sus fotos — módulo operativo (pronto)</span>
+      </div>
+
+      <!-- TOURS (bloqueado) -->
+      <div class="lw-lock mar">
+        <div class="lw-lock-cards"><i></i><i></i><i></i></div>
+        <span>🔒 Tours y sus fotos — módulo operativo (pronto)</span>
+      </div>
+
+      <!-- GALERÍA -->
+      <div class="lw-sec">
+        <div class="lw-sec-t">Postales de la casa y el mar <small>— toca una foto para cambiarla o quitarla</small></div>
+        <div class="lw-gal">
+          <div v-for="g in galVista" :key="g.u" class="it ed" @click="abrir(g.muestra ? 'galAdd' : 'galFoto', g.muestra ? 'Foto de muestra' : 'Foto de la galería', g.u)">
+            <img :src="g.u" loading="lazy" />
+            <span v-if="g.muestra" class="lw-muestra mini">MUESTRA</span>
+            <span class="lw-pen">✏️</span>
+          </div>
+          <label class="it lw-add">
+            <span v-if="!subiendo">＋<small>Agregar</small></span><span v-else>⏳</span>
+            <input type="file" accept="image/*" multiple style="display:none;" :disabled="subiendo" @change="subirFoto($event,'galeria')" />
+          </label>
+        </div>
+      </div>
+
+      <!-- SELLOS OTA -->
+      <div class="lw-sec arena">
+        <div class="lw-sec-t">Sellos de confianza <small>— toca cada plataforma para poner su nota y link</small></div>
+        <div class="lw-otas">
+          <button v-for="o in otas" :key="o.id" class="lw-ota ed" @click="abrir('ota', otaNombre(o.id), o)">
+            <span class="dot" :style="{background: otaColor(o.id)}">{{ otaNombre(o.id)[0] }}</span>
+            <span class="tx"><b>{{ o.nota || '—' }}</b><small>{{ o.detalle || otaNombre(o.id) }}</small></span>
+            <span class="lw-pen">✏️</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- RESEÑAS -->
+      <div class="lw-sec">
+        <button class="lw-res ed" @click="abrir('resenas','Reseñas de huéspedes')">
+          <span class="lw-pen">✏️</span>
+          <b>💬 Reseñas de huéspedes</b>
+          <small>{{ publicadas.length }} publicadas en la web</small>
+          <span v-if="pendientes.length" class="lw-npend">{{ pendientes.length }} nueva{{ pendientes.length>1?'s':'' }} por aprobar</span>
         </button>
-      </nav>
+      </div>
 
-      <div class="lnd-wrap">
+      <!-- UBICACIÓN -->
+      <div class="lw-map ed" @click="abrir('ubicacion','Dirección y punto del mapa')">
+        <span class="lw-pen">✏️</span>
+        <span class="pin">📍</span>
+        <span>{{ c.direccion || '(sin dirección — toca para ponerla)' }}</span>
+      </div>
 
-        <!-- ═══ PORTADA ═══ -->
-        <div v-if="sec==='portada'" class="ps-card ps-enter">
-          <div class="lnd-field">
-            <div class="lnd-lab">Vista previa de la portada</div>
-            <div class="lnd-hero-prev">
-              <span v-if="heroEsMuestra" class="lnd-muestra">FOTO DE MUESTRA</span>
-              <img :src="heroActual" alt="" />
-              <div class="ov"></div>
-              <div class="tx"><b>{{ c.nombre || 'Casa Munay' }}</b><span>{{ c.eslogan || '—' }}</span></div>
-            </div>
-            <div class="lnd-help">Así se ve el inicio de tu web. La foto se cambia en el sector <b>📷 Fotos</b>.</div>
-          </div>
-          <div class="lnd-field">
-            <div class="lnd-lab">Nombre del hotel</div>
-            <input class="lnd-input" v-model="c.nombre" placeholder="Casa Munay" />
-            <div class="lnd-help">Aparece en el <b>título grande de la portada</b>, el menú y el pie de página.</div>
-          </div>
-          <div class="lnd-field">
-            <div class="lnd-lab">Eslogan <span class="lnd-flag">🇵🇪 Español</span></div>
-            <input class="lnd-input" v-model="c.eslogan" placeholder="Donde el desierto abraza al mar" />
-            <div class="lnd-help">La frase bajo el título de la portada, en la <b>versión en español</b>.</div>
-          </div>
-          <div class="lnd-field">
-            <div class="lnd-lab">Eslogan <span class="lnd-flag">🇺🇸 English</span></div>
-            <input class="lnd-input" v-model="c.eslogan_en" placeholder="Where the desert meets the sea" />
-            <div class="lnd-help">Lo que ven los visitantes cuando cambian la web a <b>inglés (botón EN)</b>. Los textos fijos (menú, botones, secciones) ya se traducen solos.</div>
-          </div>
-          <div class="lnd-field">
-            <div class="lnd-lab">Descripción para Google (SEO)</div>
-            <textarea class="lnd-area" v-model="c.descripcion" rows="3"></textarea>
-            <div class="lnd-help">El texto que muestra <b>Google</b> bajo el nombre de tu web en los resultados de búsqueda.</div>
-          </div>
-          <div class="lnd-field" style="margin-bottom:0;">
-            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;color:var(--text);">
-              <input type="checkbox" v-model="c.demo" style="width:18px;height:18px;accent-color:var(--gold);" />
-              Modo demo (la web muestra etiquetas "foto referencial")
-            </label>
-            <div class="lnd-help">Apágalo cuando ya estén subidas las <b>fotos reales</b>.</div>
-          </div>
+      <!-- FOOTER RÉPLICA: contacto y redes, cada ícono se edita al toque -->
+      <div class="lw-foot">
+        <div class="lw-foot-t">CASA MUNAY <small>· toca un ícono para conectarlo</small></div>
+        <div class="lw-socs">
+          <button class="lw-soc ed" :class="{off: !c.whatsapp}" @click="abrir('whatsapp','WhatsApp de reservas')">
+            <span class="ic wsp">✆</span><small>{{ c.whatsapp ? '+'+c.whatsapp : 'WhatsApp' }}</small><span class="lw-pen">✏️</span>
+          </button>
+          <button class="lw-soc ed" :class="{off: !c.correo}" @click="abrir('correo','Correo del hotel')">
+            <span class="ic mail">✉</span><small>{{ c.correo || 'Correo' }}</small><span class="lw-pen">✏️</span>
+          </button>
+          <button class="lw-soc ed" :class="{off: !redes.facebook}" @click="abrir('red','Facebook','facebook')">
+            <span class="ic fb">f</span><small>Facebook</small><span class="lw-pen">✏️</span>
+          </button>
+          <button class="lw-soc ed" :class="{off: !redes.instagram}" @click="abrir('red','Instagram','instagram')">
+            <span class="ic ig">◎</span><small>Instagram</small><span class="lw-pen">✏️</span>
+          </button>
+          <button class="lw-soc ed" :class="{off: !redes.tiktok}" @click="abrir('red','TikTok','tiktok')">
+            <span class="ic tk">♪</span><small>TikTok</small><span class="lw-pen">✏️</span>
+          </button>
         </div>
+      </div>
+    </div>
 
-        <!-- ═══ CONTACTO ═══ -->
-        <div v-if="sec==='contacto'" class="ps-card ps-enter">
-          <div class="lnd-field">
-            <div class="lnd-lab">WhatsApp de reservas</div>
-            <input class="lnd-input" v-model="c.whatsapp" inputmode="numeric" placeholder="51987654321 (51 + número, sin espacios)" />
-            <div class="lnd-help">El número que recibe TODAS las consultas: <b>botón verde flotante, barra de reserva y cada "Reservar"</b> de la web.
-              <a v-if="c.whatsapp" :href="'https://wa.me/' + c.whatsapp" target="_blank" rel="noopener" style="color:var(--gold-light);">Probar chat ↗</a></div>
-          </div>
-          <div class="lnd-field">
-            <div class="lnd-lab">Correo</div>
-            <input class="lnd-input" v-model="c.correo" type="email" placeholder="reservas@casamunay.com" />
-            <div class="lnd-help">Aparece en el <b>pie de página</b> y como alternativa al WhatsApp para extranjeros.</div>
-          </div>
-          <div class="lnd-field">
-            <div class="lnd-lab">Dirección</div>
-            <input class="lnd-input" v-model="c.direccion" />
-            <div class="lnd-help">Se muestra en <b>Ubicación</b> y el pie de página.</div>
-          </div>
-          <div class="lnd-field">
-            <div class="lnd-lab">Punto del mapa</div>
-            <input class="lnd-input" v-model="c.maps_query" placeholder="-13.8335,-76.2462 o dirección exacta" />
-            <div class="lnd-help">Controla dónde cae el <b>pin del mapa de Google</b> en la web. Coordenadas = más preciso.
-              <a v-if="c.maps_query" :href="'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(c.maps_query)" target="_blank" rel="noopener" style="color:var(--gold-light);">Ver en Maps ↗</a></div>
-          </div>
-          <div class="lnd-2col">
-            <div class="lnd-field">
-              <div class="lnd-lab">Check-in</div>
-              <input class="lnd-input" v-model="c.checkin" placeholder="14:00" />
-            </div>
-            <div class="lnd-field">
-              <div class="lnd-lab">Check-out</div>
-              <input class="lnd-input" v-model="c.checkout" placeholder="11:00" />
-            </div>
-          </div>
-          <div class="lnd-field" style="margin-bottom:0;">
-            <div class="lnd-lab">Horario de recepción</div>
-            <input class="lnd-input" v-model="c.horario" placeholder="Recepción 7:00 – 23:00" />
-            <div class="lnd-help">Aparece en <b>Comodidades</b> y el pie de página.</div>
-          </div>
-        </div>
+    <!-- ═══════════ SHEET DE EDICIÓN ═══════════ -->
+    <div v-if="sheet" class="ps-sheet-overlay" @click.self="cerrar">
+      <div class="ps-sheet">
+        <div class="lw-sh-t">{{ sheet.titulo }}</div>
 
-        <!-- ═══ REDES ═══ -->
-        <div v-if="sec==='redes'" class="ps-card ps-enter">
-          <div class="lnd-help" style="margin:0 0 14px;">Los íconos aparecen en el <b>pie de página</b> de la web. Si dejas un campo vacío, ese ícono simplemente no se muestra.</div>
-          <div class="lnd-field">
-            <div class="lnd-lab"><span style="color:#1877F2;">●</span> Facebook</div>
-            <input class="lnd-input" v-model="c.redes.facebook" placeholder="https://facebook.com/casamunay" />
-          </div>
-          <div class="lnd-field">
-            <div class="lnd-lab"><span style="color:#E4405F;">●</span> Instagram</div>
-            <input class="lnd-input" v-model="c.redes.instagram" placeholder="https://instagram.com/casamunay" />
-          </div>
-          <div class="lnd-field" style="margin-bottom:0;">
-            <div class="lnd-lab"><span style="color:#69C9D0;">●</span> TikTok</div>
-            <input class="lnd-input" v-model="c.redes.tiktok" placeholder="https://tiktok.com/@casamunay" />
-          </div>
-        </div>
+        <!-- foto hero -->
+        <template v-if="sheet.tipo==='heroFoto'">
+          <div class="lw-sh-img"><img :src="heroFoto" /><span v-if="heroMuestra" class="lw-muestra">FOTO DE MUESTRA</span></div>
+          <label class="ps-btn ps-btn-primary lw-sh-btn">
+            {{ subiendo ? '⏳ Subiendo…' : '📤 Subir nueva foto de portada' }}
+            <input type="file" accept="image/*" style="display:none;" :disabled="subiendo" @change="subirFoto($event,'hero')" />
+          </label>
+          <button v-if="!heroMuestra" class="ps-btn ps-btn-ghost lw-sh-btn" @click="quitarHero">🗑 Quitar y volver a la de muestra</button>
+          <div class="lw-sh-help">Ideal: foto horizontal del atardecer o la bahía. Se comprime y publica sola.</div>
+        </template>
 
-        <!-- ═══ PLATAFORMAS ═══ -->
-        <div v-if="sec==='plataformas'" class="ps-card ps-enter">
-          <div class="lnd-help" style="margin:0 0 14px;">Los <b>sellos de confianza</b> que aparecen junto a las reseñas de la web. Pon la nota REAL de cada plataforma y el link a tu perfil.</div>
-          <div v-for="o in otasList" :key="o.id" class="lnd-ota">
-            <div class="dot" :style="{background: otaColor(o.id)}">{{ otaNombre(o.id)[0] }}</div>
-            <div style="flex:1;min-width:0;">
-              <div style="font-size:12.5px;font-weight:700;color:var(--text);margin-bottom:7px;">{{ otaNombre(o.id) }}</div>
-              <div class="lnd-2col" style="margin-bottom:8px;">
-                <input class="lnd-input" v-model="o.nota" :placeholder="o.id==='booking' ? 'Nota — ej. 8.9 / 10' : 'Nota — ej. 4.8 ★'" style="padding:9px 11px;font-size:12.5px;" />
-                <input class="lnd-input" v-model="o.detalle" placeholder="Detalle — ej. Fabuloso" style="padding:9px 11px;font-size:12.5px;" />
-              </div>
-              <input class="lnd-input" v-model="o.url" placeholder="https://... (link a tu perfil)" style="padding:9px 11px;font-size:12.5px;" />
-            </div>
-          </div>
-          <div class="lnd-2col" style="margin-top:14px;">
-            <div class="lnd-field">
-              <div class="lnd-lab">Calificación general</div>
-              <input class="lnd-input" v-model="c.rating" inputmode="decimal" placeholder="4.8" />
-              <div class="lnd-help">El número grande junto a <b>"Huéspedes que vuelven"</b> y las estrellas de la portada.</div>
-            </div>
-            <div class="lnd-field">
-              <div class="lnd-lab">Total de reseñas</div>
-              <input class="lnd-input" v-model="c.resenas_total" inputmode="numeric" placeholder="120" />
-              <div class="lnd-help">El "120+ reseñas verificadas".</div>
-            </div>
-          </div>
-          <div class="lnd-field" style="margin-bottom:0;">
-            <div class="lnd-lab">Link "escribir reseña" de Google</div>
-            <input class="lnd-input" v-model="c.google_review_url" placeholder="https://g.page/r/..." />
-            <div class="lnd-help">Si lo pones, la web muestra un botón <b>"Déjanos tu reseña en Google"</b>.</div>
-          </div>
-        </div>
+        <!-- foto de muestra: invita a subir las reales -->
+        <template v-else-if="sheet.tipo==='galAdd'">
+          <div class="lw-sh-img"><img :src="sheet.ctx" /><span class="lw-muestra">FOTO DE MUESTRA</span></div>
+          <div class="lw-sh-help" style="margin:10px 0 4px;">Esta es una foto de relleno. En cuanto subas tus <b style="color:var(--gold-light);">fotos reales</b>, las de muestra desaparecen de la web.</div>
+          <label class="ps-btn ps-btn-primary lw-sh-btn">
+            {{ subiendo ? '⏳ Subiendo…' : '📤 Subir mis fotos reales (varias a la vez)' }}
+            <input type="file" accept="image/*" multiple style="display:none;" :disabled="subiendo" @change="subirFoto($event,'galeria')" />
+          </label>
+        </template>
 
-        <!-- ═══ FOTOS ═══ -->
-        <div v-if="sec==='fotos'" class="ps-card ps-enter">
-          <div class="lnd-field">
-            <div class="lnd-lab">Foto de portada (hero)</div>
-            <div class="lnd-hero-prev" style="aspect-ratio:16/7;">
-              <span v-if="heroEsMuestra" class="lnd-muestra">FOTO DE MUESTRA</span>
-              <img :src="heroActual" alt="" />
-            </div>
-            <div style="margin-top:10px;">
-              <label class="lnd-up">
-                {{ subiendo==='hero' ? '⏳ Subiendo…' : '📤 ' + (c.hero_foto ? 'Cambiar foto de portada' : 'Subir foto de portada real') }}
-                <input type="file" accept="image/*" style="display:none;" :disabled="!!subiendo" @change="subirFoto($event,'hero')" />
-              </label>
-            </div>
-            <div class="lnd-help">La imagen a pantalla completa con la que abre la web. Ideal: <b>horizontal, del atardecer o la bahía</b>. Se comprime sola.</div>
-          </div>
-          <div class="lnd-field" style="margin-bottom:0;">
-            <div class="lnd-lab">Galería ({{ galeriaList.length ? galeriaList.length + ' fotos reales' : 'usando 12 de muestra' }})</div>
-            <div class="lnd-gal" v-if="galeriaList.length">
-              <div v-for="u in galeriaList" :key="u" class="it">
-                <img :src="u" />
-                <button class="x" @click="quitarGaleria(u)" aria-label="Quitar">✕</button>
-              </div>
-            </div>
-            <div class="lnd-gal" v-else>
-              <div v-for="(u,i) in sitioCfg.fallbackGal" :key="'f'+i" class="it" style="opacity:.55;">
-                <span class="lnd-muestra" style="top:4px;left:4px;">MUESTRA</span>
-                <img :src="u" />
-              </div>
-            </div>
-            <div style="margin-top:10px;">
-              <label class="lnd-up">
-                {{ subiendo==='galeria' ? '⏳ Subiendo…' : '📤 Agregar fotos reales (varias a la vez)' }}
-                <input type="file" accept="image/*" multiple style="display:none;" :disabled="!!subiendo" @change="subirFoto($event,'galeria')" />
-              </label>
-            </div>
-            <div class="lnd-help">La sección <b>"Postales de la casa y el mar"</b>. En cuanto subas la primera real, las de muestra desaparecen de la web. Las fotos <b>de los cuartos</b> NO van aquí — irán en el módulo operativo de cuartos y precios.</div>
-          </div>
-        </div>
+        <!-- foto galería -->
+        <template v-else-if="sheet.tipo==='galFoto'">
+          <div class="lw-sh-img"><img :src="sheet.ctx" /></div>
+          <label class="ps-btn ps-btn-primary lw-sh-btn">
+            {{ subiendo ? '⏳ Subiendo…' : '🔁 Reemplazar por otra foto' }}
+            <input type="file" accept="image/*" style="display:none;" :disabled="subiendo" @change="reemplazarGal($event)" />
+          </label>
+          <button class="ps-btn ps-btn-ghost lw-sh-btn" @click="quitarGal">🗑 Quitar de la web</button>
+        </template>
 
-        <!-- ═══ RESEÑAS ═══ -->
-        <div v-if="sec==='resenas'" class="ps-card ps-enter">
-          <div class="lnd-lab" style="margin-bottom:10px;">Nuevas por aprobar <span v-if="pendientes.length" class="n" style="background:#e5484d;color:#fff;border-radius:100px;font-size:10px;padding:1px 7px;">{{ pendientes.length }}</span></div>
-          <div v-if="!pendientes.length" style="text-align:center;padding:18px 0;color:var(--text-muted);font-size:12.5px;">
-            <div class="ps-float-ico" style="font-size:26px;">💬</div>
-            Sin reseñas nuevas. Cuando alguien escriba una en la web, aparecerá aquí para que la apruebes.
+        <!-- identidad -->
+        <template v-else-if="sheet.tipo==='identidad'">
+          <div class="lw-sh-lab">Nombre del hotel</div>
+          <input class="lw-sh-in" v-model="form.nombre" />
+          <div class="lw-sh-lab">Eslogan <span class="flag">🇵🇪 Español</span></div>
+          <input class="lw-sh-in" v-model="form.eslogan" />
+          <div class="lw-sh-lab">Eslogan <span class="flag">🇺🇸 English</span></div>
+          <input class="lw-sh-in" v-model="form.eslogan_en" placeholder="Where the desert meets the sea" />
+          <div class="lw-sh-help">Es lo que ven los visitantes cuando cambian la web a inglés (botón EN).</div>
+        </template>
+
+        <!-- descripción -->
+        <template v-else-if="sheet.tipo==='descripcion'">
+          <div class="lw-sh-lab">Texto que Google muestra bajo tu web</div>
+          <textarea class="lw-sh-in" rows="4" v-model="form.descripcion"></textarea>
+          <label class="lw-sh-check"><input type="checkbox" v-model="form.demo" /> Modo demo (etiquetas "foto referencial" en la web)</label>
+        </template>
+
+        <!-- horarios -->
+        <template v-else-if="sheet.tipo==='horarios'">
+          <div class="lw-sh-2">
+            <div><div class="lw-sh-lab">Check-in</div><input class="lw-sh-in" v-model="form.checkin" placeholder="14:00" /></div>
+            <div><div class="lw-sh-lab">Check-out</div><input class="lw-sh-in" v-model="form.checkout" placeholder="11:00" /></div>
           </div>
-          <div v-for="tst in pendientes" :key="'p'+tst.id" style="border:1px solid var(--border);border-radius:13px;padding:13px;margin-bottom:10px;background:var(--surface);">
-            <div style="font-size:13px;color:var(--gold-light);margin-bottom:4px;">{{ '★'.repeat(tst.rating||5) }}<span style="opacity:.35;">{{ '★'.repeat(5-(tst.rating||5)) }}</span> · <b style="color:var(--text);">{{ tst.nombre }}</b></div>
-            <div style="font-size:12.5px;color:var(--text-muted);line-height:1.5;margin-bottom:9px;">"{{ tst.comentario }}"</div>
-            <input class="lnd-input" v-model="tst.origen" placeholder="Origen para mostrar — ej. Lima · Familia" style="padding:8px 11px;font-size:12px;margin-bottom:9px;" />
+          <div class="lw-sh-lab">Horario de recepción</div>
+          <input class="lw-sh-in" v-model="form.horario" placeholder="Recepción 7:00 – 23:00" />
+        </template>
+
+        <!-- rating -->
+        <template v-else-if="sheet.tipo==='rating'">
+          <div class="lw-sh-2">
+            <div><div class="lw-sh-lab">Calificación (★)</div><input class="lw-sh-in" v-model="form.rating" inputmode="decimal" placeholder="4.8" /></div>
+            <div><div class="lw-sh-lab">Total de reseñas</div><input class="lw-sh-in" v-model="form.resenas_total" inputmode="numeric" placeholder="120" /></div>
+          </div>
+          <div class="lw-sh-lab">Link "escribir reseña" en Google (opcional)</div>
+          <input class="lw-sh-in" v-model="form.google_review_url" placeholder="https://g.page/r/..." />
+        </template>
+
+        <!-- ota -->
+        <template v-else-if="sheet.tipo==='ota'">
+          <div class="lw-sh-2">
+            <div><div class="lw-sh-lab">Nota real</div><input class="lw-sh-in" v-model="form.nota" :placeholder="sheet.ctx.id==='booking' ? '8.9 / 10' : '4.8 ★'" /></div>
+            <div><div class="lw-sh-lab">Detalle</div><input class="lw-sh-in" v-model="form.detalle" placeholder="Fabuloso / Superhost" /></div>
+          </div>
+          <div class="lw-sh-lab">Link a tu perfil</div>
+          <input class="lw-sh-in" v-model="form.url" placeholder="https://..." />
+          <div class="lw-sh-help">Con nota y link, el sello aparece activo en la web y lleva a tu perfil real.</div>
+        </template>
+
+        <!-- ubicación -->
+        <template v-else-if="sheet.tipo==='ubicacion'">
+          <div class="lw-sh-lab">Dirección (se muestra en la web)</div>
+          <input class="lw-sh-in" v-model="form.direccion" />
+          <div class="lw-sh-lab">Punto del mapa (coordenadas o dirección exacta)</div>
+          <input class="lw-sh-in" v-model="form.maps_query" placeholder="-13.8335,-76.2462" />
+          <a v-if="form.maps_query" class="lw-sh-help" style="color:var(--gold-light);" :href="'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(form.maps_query)" target="_blank" rel="noopener">Ver dónde cae el pin ↗</a>
+        </template>
+
+        <!-- red social -->
+        <template v-else-if="sheet.tipo==='red'">
+          <div class="lw-sh-lab">Link del perfil</div>
+          <input class="lw-sh-in" v-model="form.url" :placeholder="'https://' + sheet.ctx + '.com/...'" />
+          <div class="lw-sh-help">Déjalo vacío para que el ícono salga apagado en la web.</div>
+        </template>
+
+        <!-- whatsapp -->
+        <template v-else-if="sheet.tipo==='whatsapp'">
+          <div class="lw-sh-lab">Número (51 + celular, sin espacios)</div>
+          <input class="lw-sh-in" v-model="form.whatsapp" inputmode="numeric" placeholder="51987654321" />
+          <div class="lw-sh-help">Recibe TODAS las consultas de la web: botón verde, barra de reserva y cada "Reservar".
+            <a v-if="form.whatsapp" :href="'https://wa.me/' + String(form.whatsapp).replace(/\\D/g,'')" target="_blank" rel="noopener" style="color:var(--gold-light);">Probar chat ↗</a></div>
+        </template>
+
+        <!-- correo -->
+        <template v-else-if="sheet.tipo==='correo'">
+          <div class="lw-sh-lab">Correo del hotel</div>
+          <input class="lw-sh-in" type="email" v-model="form.correo" placeholder="reservas@casamunay.com" />
+          <div class="lw-sh-help">Aparece en el pie de página y como alternativa para huéspedes extranjeros.</div>
+        </template>
+
+        <!-- reseñas -->
+        <template v-else-if="sheet.tipo==='resenas'">
+          <div v-if="!pendientes.length" class="lw-sh-help" style="text-align:center;padding:10px 0;">
+            <span class="ps-float-ico" style="font-size:24px;">💬</span><br>Sin reseñas nuevas por aprobar.
+          </div>
+          <div v-for="tst in pendientes" :key="'p'+tst.id" class="lw-sh-rescard">
+            <div class="st">{{ '★'.repeat(tst.rating||5) }} · <b>{{ tst.nombre }}</b></div>
+            <div class="tx">"{{ tst.comentario }}"</div>
+            <input class="lw-sh-in" v-model="tst.origen" placeholder="Origen — ej. Lima · Familia" style="margin:8px 0;" />
             <div style="display:flex;gap:8px;">
-              <button class="ps-btn ps-btn-primary" style="flex:1;" @click="moderar(tst,'aprobar')">✓ Publicar en la web</button>
-              <button class="ps-btn ps-btn-ghost" style="flex:1;" @click="moderar(tst,'eliminar')">{{ confirmId===tst.id ? '¿Seguro? Toca de nuevo' : '✕ Rechazar' }}</button>
+              <button class="ps-btn ps-btn-primary" style="flex:1;" @click="moderar(tst,'aprobar')">✓ Publicar</button>
+              <button class="ps-btn ps-btn-ghost" style="flex:1;" @click="moderar(tst,'eliminar')">{{ confirmSheet===tst.id ? '¿Seguro?' : '✕ Rechazar' }}</button>
             </div>
           </div>
-          <div class="lnd-lab" style="margin:18px 0 10px;">Publicadas en la web ({{ publicadas.length }})</div>
-          <div v-if="!publicadas.length" style="color:var(--text-muted);font-size:12.5px;padding:6px 0;">Aún no hay reseñas publicadas — la web muestra las de muestra mientras tanto.</div>
-          <div v-for="tst in publicadas" :key="'v'+tst.id" style="display:flex;align-items:center;gap:10px;border-bottom:1px dashed var(--border);padding:10px 2px;">
-            <div style="flex:1;min-width:0;">
-              <div style="font-size:12.5px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><b>{{ tst.nombre }}</b> <span style="color:var(--gold-light);">{{ '★'.repeat(tst.rating||5) }}</span> <span style="color:var(--text-muted);">· {{ tst.origen }}</span></div>
-              <div style="font-size:11.5px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">"{{ tst.comentario }}"</div>
-            </div>
+          <div v-if="publicadas.length" class="lw-sh-lab" style="margin-top:14px;">Publicadas ({{ publicadas.length }})</div>
+          <div v-for="tst in publicadas" :key="'v'+tst.id" class="lw-sh-resrow">
+            <span><b>{{ tst.nombre }}</b> {{ '★'.repeat(tst.rating||5) }} · <i>"{{ tst.comentario }}"</i></span>
             <button class="ps-btn ps-btn-ghost" @click="moderar(tst,'ocultar')">Ocultar</button>
           </div>
-        </div>
+        </template>
 
-        <!-- ═══ VISTA PREVIA EN VIVO ═══ -->
-        <div v-if="sec==='preview'" class="ps-card ps-enter">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
-            <div class="ps-tabbar" style="margin:0;">
-              <button class="ps-tab" :class="{on: device==='movil'}" @click="tap(); device='movil'">📱 Móvil</button>
-              <button class="ps-tab" :class="{on: device==='pc'}" @click="tap(); device='pc'">🖥️ Escritorio</button>
-            </div>
-            <div style="display:flex;gap:8px;">
-              <button class="ps-btn ps-btn-ghost" @click="refrescarPrev">↻ Refrescar</button>
-              <a :href="urlWeb" target="_blank" rel="noopener" class="ps-btn ps-btn-ghost" style="text-decoration:none;">Abrir ↗</a>
-            </div>
-          </div>
-          <div class="lnd-prevbox" :class="{movil: device==='movil'}">
-            <iframe :key="prevKey" :src="prevSrc" title="Vista previa de la web" loading="lazy"></iframe>
-          </div>
-          <div class="lnd-help" style="margin-top:10px;">Es tu web REAL, en vivo. Después de guardar cambios espera ~1 minuto y toca <b>↻ Refrescar</b>. (Funciona cuando la web esté publicada en su dominio.)</div>
+        <!-- acciones -->
+        <div class="lw-sh-acts" v-if="!['heroFoto','galFoto','galAdd','resenas'].includes(sheet.tipo)">
+          <button class="ps-btn ps-btn-ghost" @click="cerrar">Cancelar</button>
+          <button class="ps-btn ps-btn-primary" style="flex:1;" @click="guardarSheet">💾 Guardar y publicar</button>
         </div>
-
-        <!-- barra de guardado -->
-        <div class="lnd-save" v-if="sec!=='resenas' && sec!=='preview'">
-          <span class="st" :class="{dirty}">{{ dirty ? 'Tienes cambios sin guardar' : 'Todo guardado' }}</span>
-          <button class="ps-btn ps-btn-primary" style="min-width:170px;" :disabled="guardando || !dirty" @click="guardar">
-            {{ guardando ? 'Guardando…' : '💾 Guardar y publicar' }}</button>
+        <div class="lw-sh-acts" v-else>
+          <button class="ps-btn ps-btn-ghost" style="flex:1;" @click="cerrar">Cerrar</button>
         </div>
       </div>
-    </template>
+    </div>
   </div>
   `
 };
@@ -13121,7 +13230,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.75.1';
+const APP_VERSION = '1.76.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
