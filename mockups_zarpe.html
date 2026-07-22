@@ -1,0 +1,139 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PS · Jalar zarpe → CPEs (flujo)</title>
+<style>
+ :root{--guinda:#7B2030;--guinda2:#56070c;--gold:#C9A84C;--gold2:#e6c869;--bg:#0b0507;--panel:#150c10;--panel2:#1e1218;--line:#382330;--tx:#f4ece3;--mut:#b096a0;--ok:#34C759;--bad:#FF453A;--info:#5aa9e6}
+ *{box-sizing:border-box;font-family:-apple-system,'Segoe UI',system-ui,Arial,sans-serif}
+ body{margin:0;background:radial-gradient(1100px 640px at 50% -12%,#22111b,var(--bg));color:var(--tx);padding:0 0 60px}
+ header{padding:16px 20px;border-bottom:1px solid var(--line)}h1{margin:0;font-size:19px}h1 span{color:var(--gold)}.sub{color:var(--mut);font-size:12px;margin-top:3px}
+ .wrap{max-width:1180px;margin:18px auto;padding:0 16px}
+ .tabs{display:flex;gap:7px;margin-bottom:16px;flex-wrap:wrap}
+ .tabs a{padding:7px 12px;border-radius:10px;background:var(--panel);border:1px solid var(--line);color:var(--mut);font-size:12px;font-weight:700;cursor:pointer}
+ .tabs a.on{background:linear-gradient(90deg,var(--guinda),var(--guinda2));color:#fff;border-color:var(--gold)}
+ .screen{display:none;animation:f .3s}.screen.on{display:block}@keyframes f{from{opacity:0;transform:translateY(8px)}to{opacity:1}}
+ .stitle{font-size:16px;font-weight:800;margin:0 0 3px}.sdesc{color:var(--mut);font-size:12px;margin:0 0 14px;max-width:760px;line-height:1.5}
+ .phone{max-width:400px;margin:0 auto;background:linear-gradient(160deg,#1a0e13,#120a0e);border:1px solid var(--line);border-radius:26px;padding:16px;box-shadow:0 20px 60px #0009}
+ .glass{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:16px;padding:13px;backdrop-filter:blur(10px)}
+ .mut{color:var(--mut);font-size:11.5px}.gold{color:var(--gold)}.b{font-weight:800}
+ .cta{width:100%;padding:13px;border:none;border-radius:14px;background:linear-gradient(90deg,var(--guinda),#b0295e);color:#fff;font-weight:800;font-size:14px;cursor:pointer;box-shadow:0 8px 22px rgba(176,41,94,.45)}
+ .cta.gold{background:linear-gradient(90deg,#8a6d1e,var(--gold));color:#2a1e05}
+ .dash{width:100%;padding:11px;border:1px dashed var(--gold);border-radius:12px;background:rgba(201,168,76,.08);color:var(--gold2);font-weight:800;font-size:13px;cursor:pointer}
+ .zcard{display:flex;gap:10px;align-items:center;padding:9px;border:1px solid var(--line);border-radius:13px;margin-bottom:9px;background:var(--panel2);cursor:pointer;transition:transform .12s}
+ .zcard:hover{transform:translateY(-1px);border-color:var(--gold)}
+ .thumb{width:52px;height:52px;border-radius:10px;flex:0 0 auto;background:linear-gradient(135deg,#3a2530,#241419);display:flex;align-items:center;justify-content:center;font-size:22px;border:1px solid var(--line)}
+ .pill{font-size:9.5px;font-weight:800;padding:2px 8px;border-radius:999px}.p-warn{background:#3a2e12;color:var(--gold2)}.p-ok{background:#123a2a;color:var(--ok)}
+ .prow{display:flex;align-items:center;gap:9px;padding:9px 8px;border-bottom:1px solid #241419}
+ .prow .n{flex:1;min-width:0}
+ .svc{font-size:11px;padding:5px 8px;border-radius:9px;background:var(--panel2);border:1px solid var(--line);color:var(--tx)}
+ .step{display:flex;align-items:center;gap:6px}
+ .step button{width:26px;height:26px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--tx);font-weight:800;cursor:pointer}
+ .step .q{width:26px;text-align:center;font-weight:800}
+ .conc{border-radius:13px;padding:11px 13px;margin:12px 0;border:1px solid var(--line)}
+ .bar{height:12px;border-radius:8px;background:var(--panel2);overflow:hidden;display:flex;margin-top:7px;border:1px solid var(--line)}
+ .bar>i{display:block;height:100%}
+ .note{background:linear-gradient(90deg,#241419,transparent);border-left:3px solid var(--gold);border-radius:0 10px 10px 0;padding:9px 12px;margin:10px 0;font-size:12px}.note b{color:var(--gold2)}
+ .fx{background:var(--panel);border:1px dashed var(--line);border-radius:12px;padding:11px;font-size:11.5px;color:var(--mut);margin-top:12px}.fx h4{margin:0 0 6px;color:var(--gold);font-size:11.5px}.fx div{padding:2px 0}
+ .in{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--tx);font-size:13px;margin-bottom:8px}
+ .chip{font-size:10px;padding:4px 9px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);color:var(--mut);cursor:pointer}.chip.on{background:rgba(201,168,76,.15);color:var(--gold);border-color:var(--gold)}
+</style></head><body>
+<header><h1>Jalar zarpe → <span>CPEs del grupo</span></h1><div class="sub">Dentro de "Emitir CPE" · la conciliación vive AQUÍ (adiós pestaña Conciliar)</div></header>
+<div class="wrap">
+ <div class="tabs">
+   <a class="on" data-s="s1">1 · Botón en Emitir CPE</a><a data-s="s2">2 · Elegir zarpe (con fotos)</a>
+   <a data-s="s3">3 · IA lee (intensa)</a><a data-s="s4">4 · Tablilla + conciliar</a><a data-s="s5">5 · Emitido + anexado</a>
+ </div>
+
+ <!-- 1 -->
+ <section class="screen on" id="s1">
+  <div class="stitle">1 · Dentro del modal "Emitir CPE" → botón "Jalar zarpe"</div>
+  <p class="sdesc">Además de emitir a un cliente suelto, arriba aparece el botón para traer un zarpe entero y facturar al grupo de una.</p>
+  <div class="phone">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div class="b" style="font-size:16px">🧾 Emitir CPE</div><div class="mut">✕</div></div>
+    <button class="dash" style="margin-bottom:12px">📸 Jalar zarpe con IA — facturar el grupo</button>
+    <div class="mut" style="text-align:center;margin:8px 0">— o emite a un cliente suelto —</div>
+    <input class="in" placeholder="DNI / RUC del cliente 🔍" style="margin-top:6px">
+    <input class="in" placeholder="Nombre / Razón social">
+    <div class="mut" style="text-align:center">Servicios · Totales · Emitir</div>
+  </div>
+  <div class="note">El flujo del muelle ya existe; lo traemos al <b>panel</b> mejorado (picker con fotos + cantidad por pax + emisión en lote + conciliación).</div>
+ </section>
+
+ <!-- 2 -->
+ <section class="screen" id="s2">
+  <div class="stitle">2 · Elegir el zarpe — solo los NO jalados, con foto y filtro por fecha</div>
+  <p class="sdesc">Lista los zarpes de la tabla Operaciones que aún no terminaste de facturar (tienen foto de zarpe). Preview chico → click para agrandar. Filtro por fecha.</p>
+  <div class="phone">
+    <div class="b" style="margin-bottom:8px">📸 Zarpes por facturar</div>
+    <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap"><span class="chip on">Hoy</span><span class="chip">Ayer</span><span class="chip">Semana</span><span class="chip">📅 Fecha…</span></div>
+    <div class="zcard"><div class="thumb">🖼️</div><div class="n"><div class="b">Lancha "Perla" · 08:30</div><div class="mut">04 jul · 45 PAX declarados</div></div><span class="pill p-warn">sin jalar</span></div>
+    <div class="zcard"><div class="thumb">🖼️</div><div class="n"><div class="b">Lancha "Delfín" · 10:00</div><div class="mut">04 jul · 30 PAX declarados</div></div><span class="pill p-warn">jalado · 0/30 facturado</span></div>
+    <div class="zcard"><div class="thumb">🖼️</div><div class="n"><div class="b">Lancha "Perla" · 14:00</div><div class="mut">03 jul · 12 PAX</div></div><span class="pill p-ok">18/18 ✓ (no aparece)</span></div>
+    <div class="mut" style="text-align:center;margin-top:6px">Los 100% facturados desaparecen de la lista.</div>
+  </div>
+  <div class="note">Al tocar un zarpe → su foto pasa por la IA. Marcamos la operación como <b>"jalado"</b> para no repetir; si lo dejas a medias, reaparece con su avance.</div>
+ </section>
+
+ <!-- 3 -->
+ <section class="screen" id="s3">
+  <div class="stitle">3 · La IA lee el zarpe — exhaustiva (letra a mano, mal escrita)</div>
+  <p class="sdesc">Análisis intenso: rescata nombre + documento de cada pasajero + fecha del zarpe, sin perder datos. Si el zarpe dice 45 pero solo pudo leer 10 bien, te avisa.</p>
+  <div class="phone" style="text-align:center;padding:34px 16px">
+    <div style="font-size:40px;margin-bottom:10px">🤖</div>
+    <div class="b" style="font-size:15px;margin-bottom:6px">Leyendo pasajeros…</div>
+    <div class="bar" style="max-width:220px;margin:0 auto"><i style="width:62%;background:linear-gradient(90deg,var(--gold),var(--gold2))"></i></div>
+    <div class="mut" style="margin-top:10px">Rescatados <b class="gold">10</b> de <b>45</b> declarados</div>
+    <div class="mut" style="margin-top:4px;font-size:10.5px">Los ilegibles quedan como "revisar" para que los completes a mano.</div>
+  </div>
+  <div class="note">Endurezco el prompt del OCR de zarpe: exhaustivo, tolerante a letra manuscrita, no inventa documentos, marca dudosos.</div>
+ </section>
+
+ <!-- 4 -->
+ <section class="screen" id="s4">
+  <div class="stitle">4 · Tablilla — servicio + cantidad por pax → conciliación EN VIVO</div>
+  <p class="sdesc">Cada pax leído = una fila. Eliges servicio (por defecto el <b>paquete: Tour Ballestas + Guía</b>) y la <b>cantidad de pax</b> que cubre ese CPE (0 = no facturar). La barra concilia: PAX del zarpe vs PAX facturados (no CPEs).</p>
+  <div class="phone">
+    <div class="b" style="margin-bottom:4px">Lancha "Perla" · 45 PAX</div>
+    <div class="mut" style="margin-bottom:8px">Paquete por defecto: 🎫 Tour Ballestas + 🧑‍✈️ Guía</div>
+    <div class="prow"><div class="n"><div class="b" style="font-size:12.5px">Juan Pérez Q.</div><div class="mut">DNI 45678912</div></div><span class="svc">Paquete ▾</span><div class="step"><button>−</button><span class="q">2</span><button>+</button></div></div>
+    <div class="prow"><div class="n"><div class="b" style="font-size:12.5px">María Salas R.</div><div class="mut">DNI 09112233</div></div><span class="svc">Paquete ▾</span><div class="step"><button>−</button><span class="q">2</span><button>+</button></div></div>
+    <div class="prow"><div class="n"><div class="b" style="font-size:12.5px">Agencia Sol SAC</div><div class="mut">RUC 205… · factura</div></div><span class="svc">Paquete ▾</span><div class="step"><button>−</button><span class="q">3</span><button>+</button></div></div>
+    <div class="prow" style="opacity:.5"><div class="n"><div class="b" style="font-size:12.5px">(ilegible) revisar</div><div class="mut">sin doc</div></div><span class="svc">Paquete ▾</span><div class="step"><button>−</button><span class="q" style="color:var(--bad)">0</span><button>+</button></div></div>
+    <div class="conc" style="background:rgba(255,69,58,.08);border-color:rgba(255,69,58,.3)">
+      <div style="display:flex;justify-content:space-between"><span class="b">Conciliación</span><span class="b" style="color:var(--bad)">25 / 45 PAX</span></div>
+      <div class="bar"><i style="width:55%;background:linear-gradient(90deg,var(--gold),var(--bad))"></i></div>
+      <div class="mut" style="margin-top:6px">Faltan <b style="color:var(--bad)">20 PAX</b> por facturar u omitir. (PAX facturados = Σ cantidad, no # de CPEs.)</div>
+    </div>
+    <button class="cta">⚡ Emitir 3 CPEs de este zarpe</button>
+    <div class="mut" style="text-align:center;margin-top:6px">3 filas con cantidad&gt;0 → 3 CPEs (con RUC = factura, resto = boleta).</div>
+  </div>
+  <div class="note">El sistema emite <b>1 CPE por fila</b> (cantidad&gt;0) automáticamente, en lote. Cantidad = pax que factura ese CPE (paquete × cantidad).</div>
+ </section>
+
+ <!-- 5 -->
+ <section class="screen" id="s5">
+  <div class="stitle">5 · Emitido — los CPEs quedan ANEXADOS al zarpe</div>
+  <p class="sdesc">Los ids de los CPEs se guardan en la fila del zarpe (otro JSON). Sabes que ya está facturado, puedes reabrir y revisar, y la conciliación queda registrada.</p>
+  <div class="phone">
+    <div class="glass" style="text-align:center;margin-bottom:10px">
+      <div style="font-size:32px">✅</div><div class="b" style="font-size:15px">3 CPEs emitidos</div>
+      <div class="mut">Anexados a: Lancha "Perla" · 04 jul</div>
+    </div>
+    <div class="conc" style="background:rgba(52,199,89,.08);border-color:rgba(52,199,89,.3)">
+      <div style="display:flex;justify-content:space-between"><span class="b">Conciliado</span><span class="b" style="color:var(--ok)">25 / 45 · 20 omitidos</span></div>
+      <div class="bar"><i style="width:100%;background:linear-gradient(90deg,var(--gold),var(--ok))"></i></div>
+    </div>
+    <div style="margin-top:10px">
+      <div class="prow"><div class="n b" style="font-size:12px">B002-00000101 · Juan Pérez</div><span class="pill p-ok">✓</span></div>
+      <div class="prow"><div class="n b" style="font-size:12px">B002-00000102 · María Salas</div><span class="pill p-ok">✓</span></div>
+      <div class="prow"><div class="n b" style="font-size:12px">F002-00000045 · Agencia Sol</div><span class="pill p-ok">✓</span></div>
+    </div>
+    <div class="mut" style="text-align:center;margin-top:8px">Cada CPE abre su PDF (80mm/A4) · WhatsApp · etc.</div>
+  </div>
+  <div class="fx"><h4>EFECTOS iOS (todo el flujo)</h4>
+    <div>• Sheet spring · thumbs con zoom (lightbox blur) · barra de conciliación que se llena animada.</div>
+    <div>• Al emitir en lote: cada fila hace "check" verde en cascada + háptica · sonido al completar.</div>
+    <div>• Cantidad con stepper táctil · servicio con segmented/selector · conciliación cambia de rojo→verde en vivo.</div>
+  </div>
+ </section>
+</div>
+<script>document.querySelector('.tabs').addEventListener('click',e=>{var a=e.target.closest('a[data-s]');if(!a)return;document.querySelectorAll('.tabs>a').forEach(x=>x.classList.remove('on'));a.classList.add('on');document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));document.getElementById(a.dataset.s).classList.add('on');});</script>
+</body></html>
