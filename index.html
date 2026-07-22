@@ -7127,6 +7127,156 @@ const ViewLanding = {
   `
 };
 
+// ── Módulo EQUIPO: identidad única del grupo (Google por invitación) ─────────
+// Solo admin. Una persona = una fila en `equipo`; acceso por app (ps/muelle/hotel/landing).
+// RPCs: equipo_lista / equipo_invitar / equipo_toggle (gate es_admin). Sheets con Teleport.
+const ViewEquipo = {
+  name: 'ViewEquipo',
+  props: ['data', 'loading'],
+  emits: ['action'],
+  data() {
+    return {
+      APPS: [
+        { id: 'ps', ic: '🖥️', label: 'PS Panel' }, { id: 'muelle', ic: '🚤', label: 'Muelle' },
+        { id: 'hotel', ic: '🏨', label: 'Hotel' }, { id: 'landing', ic: '🌐', label: 'Landing' }
+      ],
+      cargando: true, lista: [], fb: null, sheet: false, guardando: false, confirmId: null,
+      form: { id: '', nombre: '', email: '', telefono: '', accesos: {} }
+    };
+  },
+  mounted() { this.cargar(); },
+  methods: {
+    tap() { try { sndTap(); haptic(10); } catch (e) {} },
+    feed(msg, ok) { this.fb = { msg, ok: ok !== false }; clearTimeout(this._fbT); this._fbT = setTimeout(() => { this.fb = null; }, 3200); },
+    async cargar() {
+      this.cargando = true;
+      try {
+        const { data, error } = await sbClient.rpc('equipo_lista');
+        if (error) throw error;
+        this.lista = Array.isArray(data) ? data : [];
+      } catch (e) { this.feed(/NO_ADMIN/.test(String(e.message || e)) ? 'Solo el Administrador gestiona el equipo.' : '⚠️ ' + String(e.message || e), false); }
+      finally { this.cargando = false; }
+    },
+    estadoDe(p) {
+      if (!p.activo) return { t: 'PAUSADO', c: '#e5484d' };
+      if (p.aceptado) return { t: '✓ conectado', c: '#4ade80' };
+      if (p.email) return { t: '✉ invitado', c: 'var(--gold-light)' };
+      return { t: 'sin Gmail', c: 'var(--text-muted)' };
+    },
+    abrir(p) {
+      this.tap();
+      const acc = {};
+      if (p) this.APPS.forEach(a => { const x = (p.accesos || {})[a.id]; acc[a.id] = x && x.activo ? x.rol : null; });
+      this.form = p
+        ? { id: String(p.id), nombre: p.nombre, email: p.email || '', telefono: p.telefono || '', accesos: acc }
+        : { id: '', nombre: '', email: '', telefono: '', accesos: {} };
+      this.sheet = true;
+    },
+    ciclo(app) {
+      this.tap();
+      const v = this.form.accesos[app];
+      this.form.accesos = Object.assign({}, this.form.accesos, { [app]: v === null || v === undefined ? 'operador' : v === 'operador' ? 'admin' : null });
+    },
+    async guardar() {
+      if (this.guardando || !this.form.nombre.trim()) return;
+      this.guardando = true; this.tap();
+      try {
+        const accesos = this.APPS.map(a => ({ app: a.id, rol: this.form.accesos[a.id] || 'operador', activo: !!this.form.accesos[a.id] }));
+        const p = { nombre: this.form.nombre.trim(), email: this.form.email.trim(), telefono: this.form.telefono.trim(), accesos };
+        if (this.form.id) p.id = this.form.id;
+        const { error } = await sbClient.rpc('equipo_invitar', { p });
+        if (error) throw error;
+        this.feed('✅ Guardado'); try { sndUp(); haptic([12, 40, 16]); } catch (e) {}
+        this.sheet = false; this.cargar();
+      } catch (e) { this.feed('⚠️ ' + String(e.message || e), false); }
+      finally { this.guardando = false; }
+    },
+    async toggle(p) {
+      if (p.activo && this.confirmId !== p.id) { this.confirmId = p.id; this.tap(); return; }
+      this.confirmId = null; this.tap();
+      try {
+        const { error } = await sbClient.rpc('equipo_toggle', { p: { equipo_id: p.id, activo: !p.activo } });
+        if (error) throw error;
+        this.feed(p.activo ? 'Acceso pausado' : '✅ Acceso reactivado'); this.cargar();
+      } catch (e) { this.feed('⚠️ ' + String(e.message || e), false); }
+    },
+    invitarWA(p) {
+      this.tap();
+      const txt = encodeURIComponent('¡Hola ' + p.nombre + '! Te invité al sistema del Grupo PS. Entra con tu Gmail (' + p.email + ') aquí: https://munay-ops.vercel.app — botón "Entrar con Google".');
+      window.open('https://wa.me/' + String(p.telefono || '').replace(/\D/g, '') + '?text=' + txt, '_blank', 'noopener');
+    }
+  },
+  template: `
+  <div class="ps-dash ps-enter">
+    <div class="ps-head">
+      <div class="ps-head-l">
+        <div class="ps-head-ico">👥</div>
+        <div>
+          <div class="ps-head-title">Equipo</div>
+          <div class="ps-head-sub">Una identidad para todo el grupo — Google por invitación</div>
+        </div>
+      </div>
+      <button class="ps-btn ps-btn-primary" @click="abrir(null)">＋ Invitar</button>
+    </div>
+    <div v-if="fb" class="ps-fb" :class="fb.ok ? 'ok' : 'err'">{{ fb.msg }}</div>
+    <div v-if="cargando" style="display:flex;justify-content:center;padding:60px 0;"><div class="spin"></div></div>
+    <div v-else class="ps-stagger" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px;">
+      <div v-for="p in lista" :key="p.id" class="ps-card" :style="p.activo ? '' : 'opacity:.55;'">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:9px;">
+          <div style="width:38px;height:38px;border-radius:50%;background:var(--guinda);color:var(--gold-light);display:flex;align-items:center;justify-content:center;font-family:Georgia,serif;font-size:1.05rem;flex:none;">{{ (p.nombre||'?')[0].toUpperCase() }}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13.5px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ p.nombre }}</div>
+            <div style="font-size:11px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ p.email || '— agrega su Gmail para invitarlo —' }}</div>
+          </div>
+          <span style="font-size:9.5px;font-weight:800;letter-spacing:.06em;" :style="{color: estadoDe(p).c}">{{ estadoDe(p).t }}</span>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:11px;">
+          <template v-for="a in APPS" :key="a.id">
+            <span v-if="(p.accesos||{})[a.id] && p.accesos[a.id].activo" class="ps-chip" :class="p.accesos[a.id].rol==='admin' ? 'gold' : ''">
+              {{ a.ic }} {{ a.label }}<b v-if="p.accesos[a.id].rol==='admin'" style="margin-left:3px;">★</b>
+            </span>
+          </template>
+          <span v-if="!Object.values(p.accesos||{}).some(x=>x&&x.activo)" style="font-size:11px;color:var(--text-muted);">sin accesos</span>
+        </div>
+        <div style="display:flex;gap:7px;">
+          <button class="ps-btn ps-btn-ghost" style="flex:1;" @click="abrir(p)">✏️ Editar</button>
+          <button v-if="p.email && !p.aceptado && p.telefono" class="ps-btn ps-btn-ghost" @click="invitarWA(p)">📲</button>
+          <button class="ps-btn ps-btn-ghost" @click="toggle(p)">{{ p.activo ? (confirmId===p.id ? '¿Seguro?' : '⏸') : '▶' }}</button>
+        </div>
+      </div>
+    </div>
+
+    <teleport to="body">
+      <div v-if="sheet" class="ps-sheet-overlay" @click.self="sheet=false">
+        <div class="ps-sheet">
+          <div class="lw-sh-t">{{ form.id ? 'Editar miembro' : '＋ Invitar al equipo' }}</div>
+          <div class="lw-sh-lab">Nombre</div>
+          <input class="lw-sh-in" v-model="form.nombre" placeholder="Nombre y apellido" />
+          <div class="lw-sh-lab">Gmail (con este correo entrará)</div>
+          <input class="lw-sh-in" v-model="form.email" type="email" placeholder="persona@gmail.com" autocapitalize="none" />
+          <div class="lw-sh-lab">WhatsApp (para mandarle la invitación)</div>
+          <input class="lw-sh-in" v-model="form.telefono" inputmode="tel" placeholder="51 9…" />
+          <div class="lw-sh-lab">Accesos — toca para ciclar: — → operador → ★ admin</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <button v-for="a in APPS" :key="a.id" class="ps-btn" style="justify-content:space-between;display:flex;align-items:center;"
+              :class="form.accesos[a.id] ? 'ps-btn-primary' : 'ps-btn-ghost'" @click="ciclo(a.id)">
+              <span>{{ a.ic }} {{ a.label }}</span>
+              <b style="font-size:10px;letter-spacing:.05em;">{{ form.accesos[a.id]==='admin' ? '★ ADMIN' : form.accesos[a.id]==='operador' ? 'OPERADOR' : '—' }}</b>
+            </button>
+          </div>
+          <div class="lw-sh-help">El acceso se activa solo: cuando esa persona entre con su Gmail, el sistema la reconoce. Sin invitación, nadie entra.</div>
+          <div class="lw-sh-acts">
+            <button class="ps-btn ps-btn-ghost" @click="tap(); sheet=false">Cancelar</button>
+            <button class="ps-btn ps-btn-primary" style="flex:1;" :disabled="guardando || !form.nombre.trim()" @click="guardar">
+              {{ guardando ? 'Guardando…' : '💾 Guardar' }}</button>
+          </div>
+        </div>
+      </div>
+    </teleport>
+  </div>
+  `
+};
+
 // ── Sonido (WebAudio, sin assets) ────────────────────────────
 let _audioCtx = null;
 function _ac() { try { _audioCtx = _audioCtx || new (window.AudioContext || window.webkitAudioContext)(); return _audioCtx; } catch(e){ return null; } }
@@ -13021,7 +13171,7 @@ const ViewFacturacion = {
 
 // ── Main app ─────────────────────────────────────────────────
 createApp({
-  components: { ViewDashboard, ViewLanchas, ViewHotel, ViewFinanzas, ViewFacturacion, ViewConfig, ViewCatalogos, ViewEmpleados, ViewLanding },
+  components: { ViewDashboard, ViewLanchas, ViewHotel, ViewFinanzas, ViewFacturacion, ViewConfig, ViewCatalogos, ViewEmpleados, ViewLanding, ViewEquipo },
 
   setup() {
     const session        = ref(JSON.parse(localStorage.getItem('ps_session') || 'null'));
@@ -13089,6 +13239,7 @@ createApp({
       if (adminRoot) base.push({ id: 'catalogos', label: 'Catálogo' });
       if (admin)     base.push({ id: 'facturacion', label: 'Facturación' });
       if (admin)     base.push({ id: 'landing', label: 'Landing' });
+      if (admin)     base.push({ id: 'equipo', label: 'Equipo' });
       return base;
     });
 
@@ -13112,12 +13263,13 @@ createApp({
       finanzas:  `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 7 13.5 15 9 10.5 3 17"/><polyline points="15 7 21 7 21 13"/></svg>`,
       catalogos: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H6.5A1.5 1.5 0 0 0 5 19.5z"/><path d="M5 19.5A1.5 1.5 0 0 1 6.5 18H20"/><path d="M9 7.5h7M9 11h5"/></svg>`,
       facturacion: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v18l2.5-1.5L10 21l2-1.5L14 21l2.5-1.5L19 21V3l-2.5 1.5L14 3l-2 1.5L10 3 7.5 4.5 5 3z"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="9" y1="12" x2="15" y2="12"/></svg>`,
-      landing: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18z"/></svg>`
+      landing: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18z"/></svg>`,
+      equipo: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17.5" cy="9.5" r="2.6"/><path d="M14.8 15.6a5.4 5.4 0 0 1 6.7 4.4"/></svg>`
     };
     function navIcon(id) { return NAV_ICONS[id] || ''; }
 
     const currentView = computed(() => {
-      const map = { dashboard: 'ViewDashboard', lanchas: 'ViewLanchas', hotel: 'ViewHotel', finanzas: 'ViewFinanzas', facturacion: 'ViewFacturacion', config: 'ViewConfig', catalogos: 'ViewCatalogos', empleados: 'ViewEmpleados', landing: 'ViewLanding' };
+      const map = { dashboard: 'ViewDashboard', lanchas: 'ViewLanchas', hotel: 'ViewHotel', finanzas: 'ViewFinanzas', facturacion: 'ViewFacturacion', config: 'ViewConfig', catalogos: 'ViewCatalogos', empleados: 'ViewEmpleados', landing: 'ViewLanding', equipo: 'ViewEquipo' };
       return map[currentModule.value] || 'ViewDashboard';
     });
 
@@ -13244,6 +13396,10 @@ createApp({
           }
           case 'facturacion': {
             // El componente ViewFacturacion carga su propio estado (bridge _facMountModule).
+            result = { _ts: Date.now() };
+            break;
+          }
+          case 'equipo': {
             result = { _ts: Date.now() };
             break;
           }
@@ -13462,7 +13618,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.77.0';
+const APP_VERSION = '1.78.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
