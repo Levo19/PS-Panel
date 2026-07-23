@@ -562,41 +562,42 @@ input  { outline: none; border: none; background: none; color: inherit; font: in
 @keyframes lwIn { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:none; } }
 @media (prefers-reduced-motion:reduce){ .lw-canvas > * { animation:none; } }
 
-/* ── Módulo Equipo v2 (.eq-*): niveles de app por empleado ── */
-.eq-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px; margin-bottom:14px; }
-.eq-stat { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:11px; text-align:center; }
-.eq-stat b { display:block; font-family:Georgia,serif; font-size:22px; color:var(--gold-light); }
-.eq-stat span { font-size:9.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--text-muted); }
-.eq-stat.ok b { color:#4ade80; } .eq-stat.inv b { color:var(--gold-light); } .eq-stat.off b { color:var(--text-muted); }
-.eq-card { display:flex; flex-direction:column; gap:10px; }
-.eq-top { display:flex; align-items:center; gap:11px; }
-.eq-av { width:44px; height:44px; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center; font-family:Georgia,serif; font-size:19px; color:var(--gold-light); background:var(--surface2); border:2px solid var(--border); }
-.eq-av.admin { background:linear-gradient(135deg,var(--guinda),#9d2a3e); border-color:var(--gold); box-shadow:0 6px 16px -6px rgba(201,168,76,.5); }
-.eq-nom { font-size:14px; font-weight:800; color:var(--text); display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-.eq-nivel { font-size:8.5px; font-weight:800; letter-spacing:.1em; border-radius:100px; padding:3px 9px; }
+/* ── Módulo Equipo v3 (.eq-*): cards profesionales, aireados ── */
+.eq-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(330px,1fr)); gap:18px; }
+.eq-card { display:flex; flex-direction:column; gap:16px; padding:20px !important; }
+.eq-top { display:flex; align-items:center; gap:13px; }
+.eq-av { width:50px; height:50px; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center; font-family:Georgia,serif; font-size:21px; color:var(--gold-light); background:var(--surface2); border:2px solid var(--border); }
+.eq-av.admin { background:linear-gradient(135deg,var(--guinda),var(--guinda-light)); border-color:var(--gold); box-shadow:0 8px 20px -8px rgba(201,168,76,.45); }
+.eq-nom { font-size:15px; font-weight:800; color:var(--text); margin-bottom:5px; }
+.eq-nivel { font-size:8.5px; font-weight:800; letter-spacing:.12em; border-radius:100px; padding:3px 10px; }
 .eq-nivel.admin { background:linear-gradient(120deg,var(--gold),var(--gold-light)); color:#2b1114; }
 .eq-nivel.operador { background:var(--surface2); border:1px solid var(--border); color:var(--text-muted); }
-.eq-mail { font-size:11px; color:#9fd4e0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.eq-mail.off { color:var(--gold-light); opacity:.8; }
-.eq-apps { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
-.eq-app { display:flex; flex-direction:column; align-items:center; gap:2px; border:1px dashed var(--border); border-radius:11px; padding:7px 3px; opacity:.4; }
+.eq-estado { font-size:9.5px; font-weight:800; letter-spacing:.06em; white-space:nowrap; }
+.eq-datos { display:flex; flex-direction:column; gap:7px; padding:12px 14px; background:rgba(0,0,0,.18); border:1px solid var(--border); border-radius:14px; }
+.eq-dato { display:flex; gap:9px; font-size:12px; color:var(--text-muted); align-items:center; }
+.eq-dato span { color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.eq-apps { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+.eq-app { display:flex; flex-direction:column; align-items:center; gap:3px; border:1px dashed var(--border); border-radius:12px; padding:9px 3px; opacity:.35; }
 .eq-app.on { opacity:1; border-style:solid; background:var(--surface); }
-.eq-app.on.adm { border-color:var(--gold); background:rgba(201,168,76,.1); }
-.eq-app .ic { font-size:15px; }
-.eq-app .lb { font-size:8px; letter-spacing:.04em; color:var(--text-muted); text-transform:uppercase; }
-.eq-app .rl { font-size:10px; font-weight:800; color:var(--gold-light); }
-.eq-meta { font-size:10px; color:var(--text-muted); }
-.eq-acts { display:flex; gap:7px; }
+.eq-app.on.adm { border-color:var(--gold); background:rgba(201,168,76,.10); }
+.eq-app .ic { font-size:16px; }
+.eq-app .lb { font-size:8px; letter-spacing:.05em; color:var(--text-muted); text-transform:uppercase; }
+.eq-app .rl { font-size:11px; font-weight:800; color:var(--gold-light); }
+.eq-acts { display:flex; gap:8px; flex-wrap:wrap; align-items:center; border-top:1px dashed var(--border); padding-top:14px; }
+.eq-tag { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:700; color:var(--text); background:var(--surface); border:1px solid var(--border); border-radius:100px; padding:8px 13px; cursor:pointer; transition:.15s; font-family:inherit; min-height:34px; }
+.eq-tag:active { transform:scale(.93); }
+.eq-tag:disabled { opacity:.35; cursor:default; }
+.eq-tag.wsp { border-color:rgba(74,222,128,.45); color:#86efac; }
+.eq-tag.gold { background:linear-gradient(120deg,var(--gold),var(--gold-light)); color:#2b1114; border-color:transparent; }
 .eq-niveles { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:4px; }
 .eq-niveles button { border:1.5px solid var(--border); background:var(--surface); border-radius:13px; padding:11px 8px; color:var(--text); font-family:inherit; font-weight:800; font-size:12.5px; cursor:pointer; transition:.15s; }
 .eq-niveles button small { display:block; font-weight:400; font-size:9.5px; color:var(--text-muted); margin-top:2px; }
 .eq-niveles button.on { background:linear-gradient(120deg,var(--gold),var(--gold-light)); color:#2b1114; border-color:transparent; }
 .eq-niveles button.on small { color:#5c4508; }
-.eq-niveles button:active { transform:scale(.96); }
 .eq-appbtn { display:flex; align-items:center; justify-content:space-between; gap:6px; border:1.5px solid var(--border); background:var(--surface); border-radius:12px; padding:10px 12px; color:var(--text); font-family:inherit; font-size:12px; cursor:pointer; transition:.15s; }
 .eq-appbtn b { font-size:9px; letter-spacing:.05em; color:var(--text-muted); }
 .eq-appbtn.op { border-color:rgba(53,193,214,.5); } .eq-appbtn.op b { color:#7fd4e2; }
-.eq-appbtn.adm { border-color:var(--gold); background:rgba(201,168,76,.1); } .eq-appbtn.adm b { color:var(--gold-light); }
+.eq-appbtn.adm { border-color:var(--gold); background:rgba(201,168,76,.10); } .eq-appbtn.adm b { color:var(--gold-light); }
 .eq-appbtn:active { transform:scale(.96); }
 
 /* sheet de edición */
@@ -7126,10 +7127,10 @@ const ViewLanding = {
   `
 };
 
-// ── Módulo EQUIPO v2: identidad única del grupo — niveles de app por empleado ─
-// Solo admin. Modelo simple: ★ ADMIN entra a PS Panel; OPERADOR entra a Muelle y
-// Hotel — con afinado por app. Invitación por Gmail + mensaje WhatsApp con links.
-// RPCs: equipo_lista / equipo_invitar / equipo_toggle (gate es_admin). Teleport.
+// ── Módulo EQUIPO v3: cards profesionales + acciones directas ─────────────────
+// Teléfono SIN prefijo (el 51 se agrega solo para llamar/WhatsApp).
+// Obligatorios al guardar: nombre + Gmail + teléfono + al menos una app.
+// Compartir = plantilla automática con los links de SUS apps y qué es cada una.
 const ViewEquipo = {
   name: 'ViewEquipo',
   props: ['data', 'loading'],
@@ -7137,10 +7138,10 @@ const ViewEquipo = {
   data() {
     return {
       APPS: [
-        { id: 'ps', ic: '🖥️', label: 'PS Panel', url: 'https://ps-panel.vercel.app/' },
-        { id: 'muelle', ic: '🚤', label: 'Muelle', url: 'https://operaciones-ps.vercel.app' },
-        { id: 'hotel', ic: '🏨', label: 'Hotel', url: 'https://munay-ops.vercel.app' },
-        { id: 'landing', ic: '🌐', label: 'Landing', url: '' }
+        { id: 'ps', ic: '🖥️', label: 'PS Panel', url: 'https://ps-panel.vercel.app', desc: 'el panel de administración del grupo' },
+        { id: 'muelle', ic: '🚤', label: 'Muelle', url: 'https://operaciones-ps.vercel.app', desc: 'la app del muelle: botes, pasajeros y caja' },
+        { id: 'hotel', ic: '🏨', label: 'Hotel', url: 'https://munay-ops.vercel.app', desc: 'la gestión del hotel: reservas, check-in y cobros' },
+        { id: 'landing', ic: '🌐', label: 'Landing', url: '', desc: 'la web pública (se edita desde PS Panel → Landing)' }
       ],
       cargando: true, lista: [], fb: null, sheet: false, guardando: false, confirmId: null,
       form: { id: '', nombre: '', email: '', telefono: '', accesos: {} }
@@ -7149,25 +7150,35 @@ const ViewEquipo = {
   computed: {
     stats() {
       const l = this.lista;
-      return {
-        total: l.length,
-        conectados: l.filter(p => p.aceptado && p.activo).length,
-        invitados: l.filter(p => p.email && !p.aceptado && p.activo).length,
-        sinGmail: l.filter(p => !p.email && p.activo).length
-      };
+      return { total: l.length, conectados: l.filter(p => p.aceptado && p.activo).length,
+               invitados: l.filter(p => p.email && !p.aceptado && p.activo).length };
+    },
+    formValido() {
+      return this.form.nombre.trim().length >= 3
+        && /.+@.+\..+/.test(this.form.email.trim())
+        && this.form.telefono.replace(/\D/g, '').length >= 9
+        && this.APPS.some(a => this.form.accesos[a.id]);
     }
   },
   mounted() { this.cargar(); },
   methods: {
     tap() { try { sndTap(); haptic(10); } catch (e) {} },
     feed(msg, ok) { this.fb = { msg, ok: ok !== false }; clearTimeout(this._fbT); this._fbT = setTimeout(() => { this.fb = null; }, 3400); },
-    nivelDe(p) {
-      const ps = (p.accesos || {}).ps;
-      return ps && ps.activo && ps.rol === 'admin' ? 'admin' : 'operador';
-    },
-    appEstado(p, appId) {
-      const a = (p.accesos || {})[appId];
-      return a && a.activo ? a.rol : null;
+    nivelDe(p) { const ps = (p.accesos || {}).ps; return ps && ps.activo && ps.rol === 'admin' ? 'admin' : 'operador'; },
+    appEstado(p, appId) { const a = (p.accesos || {})[appId]; return a && a.activo ? a.rol : null; },
+    // teléfono sin prefijo → E.164 peruano para tel:/wa.me
+    telDigits(t) { const d = String(t || '').replace(/\D/g, ''); return d.length === 9 ? '51' + d : d; },
+    llamar(p) { this.tap(); location.href = 'tel:+' + this.telDigits(p.telefono); },
+    whatsapp(p) { this.tap(); window.open('https://wa.me/' + this.telDigits(p.telefono), '_blank', 'noopener'); },
+    compartir(p) {
+      this.tap();
+      const acc = p.accesos || {};
+      const mias = this.APPS.filter(a => { const v = acc[a.id]; return v && v.activo; });
+      const lineas = mias.map(a => a.ic + ' *' + a.label + '* — ' + a.desc + (a.url ? ':%0A' + a.url : '')).join('%0A%0A');
+      const yo = (JSON.parse(localStorage.getItem('ps_session') || '{}').nombre) || 'El administrador';
+      const txt = '¡Hola ' + encodeURIComponent(p.nombre) + '! 👋%0A%0ATe invité al sistema del *Grupo Paracas Sights*. Estas son tus apps:%0A%0A' +
+        lineas + '%0A%0A👉 En cada una toca *Entrar con Google* y usa tu Gmail (' + encodeURIComponent(p.email) + ').%0ASin contraseñas nuevas — solo tu cuenta de Google. ✨%0A%0A— ' + encodeURIComponent(yo);
+      window.open('https://wa.me/' + this.telDigits(p.telefono) + '?text=' + txt, '_blank', 'noopener');
     },
     async cargar() {
       this.cargando = true;
@@ -7202,19 +7213,18 @@ const ViewEquipo = {
       const v = this.form.accesos[app];
       this.form.accesos = Object.assign({}, this.form.accesos, { [app]: !v ? 'operador' : v === 'operador' ? 'admin' : null });
     },
-    async guardar(abrirWA) {
-      if (this.guardando || !this.form.nombre.trim()) return;
+    async guardar() {
+      if (this.guardando || !this.formValido) return;
       this.guardando = true; this.tap();
       try {
         const accesos = this.APPS.map(a => ({ app: a.id, rol: this.form.accesos[a.id] || 'operador', activo: !!this.form.accesos[a.id] }));
-        const p = { nombre: this.form.nombre.trim(), email: this.form.email.trim(), telefono: this.form.telefono.trim(), accesos };
+        const p = { nombre: this.form.nombre.trim(), email: this.form.email.trim(),
+                    telefono: this.form.telefono.replace(/\D/g, ''), accesos };
         if (this.form.id) p.id = this.form.id;
         const { error } = await sbClient.rpc('equipo_invitar', { p });
         if (error) throw error;
         this.feed('✅ Guardado'); try { sndUp(); haptic([12, 40, 16]); } catch (e) {}
-        this.sheet = false;
-        if (abrirWA && this.form.telefono) this.enviarWA(this.form);
-        this.cargar();
+        this.sheet = false; this.cargar();
       } catch (e) { this.feed('⚠️ ' + String(e.message || e), false); }
       finally { this.guardando = false; }
     },
@@ -7226,90 +7236,72 @@ const ViewEquipo = {
         if (error) throw error;
         this.feed(p.activo ? '⏸ Acceso pausado' : '✅ Acceso reactivado'); this.cargar();
       } catch (e) { this.feed('⚠️ ' + String(e.message || e), false); }
-    },
-    mensajeWA(p) {
-      const acc = p.accesos || {};
-      const activos = this.APPS.filter(a => {
-        const v = acc[a.id];
-        return v && (typeof v === 'string' ? true : v.activo) && a.url;
-      });
-      const lineas = activos.map(a => '• ' + a.ic + ' ' + a.label + ': ' + a.url).join('%0A');
-      const yo = (JSON.parse(localStorage.getItem('ps_session') || '{}').nombre) || 'El administrador';
-      return '¡Hola ' + encodeURIComponent(p.nombre) + '! 👋%0A%0ATe invité al sistema del *Grupo Paracas Sights*.%0A%0AEntra con tu Gmail (' + encodeURIComponent(p.email) + ') tocando el botón *Entrar con Google* aquí:%0A' + lineas + '%0A%0ANo necesitas contraseña nueva — solo tu cuenta de Google. ✨%0A— ' + encodeURIComponent(yo);
-    },
-    enviarWA(p) {
-      this.tap();
-      window.open('https://wa.me/' + String(p.telefono || '').replace(/\D/g, '') + '?text=' + this.mensajeWA(p), '_blank', 'noopener');
     }
   },
   template: `
-  <div class="ps-dash ps-enter">
-    <div class="ps-head">
-      <div class="ps-head-l">
-        <div class="ps-head-ico">👥</div>
-        <div>
-          <div class="ps-head-title">Equipo</div>
-          <div class="ps-head-sub">Una identidad para todo el grupo — Gmail por invitación</div>
-        </div>
+  <div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
+      <div style="font-size:12px;color:var(--text-muted);">
+        {{ stats.total }} en el equipo · <span style="color:#4ade80;">{{ stats.conectados }} conectados</span>
+        <span v-if="stats.invitados"> · <span style="color:var(--gold-light);">{{ stats.invitados }} por aceptar</span></span>
       </div>
-      <button class="ps-btn ps-btn-primary" @click="abrir(null)">＋ Invitar</button>
+      <button class="ps-btn ps-btn-primary" @click="abrir(null)">＋ Invitar miembro</button>
     </div>
 
     <div v-if="fb" class="ps-fb" :class="fb.ok ? 'ok' : 'err'">{{ fb.msg }}</div>
     <div v-if="cargando" style="display:flex;justify-content:center;padding:60px 0;"><div class="spin"></div></div>
 
-    <template v-else>
-      <div class="eq-stats ps-stagger">
-        <div class="eq-stat"><b>{{ stats.total }}</b><span>En el equipo</span></div>
-        <div class="eq-stat ok"><b>{{ stats.conectados }}</b><span>✓ Conectados</span></div>
-        <div class="eq-stat inv"><b>{{ stats.invitados }}</b><span>✉ Invitados</span></div>
-        <div class="eq-stat off"><b>{{ stats.sinGmail }}</b><span>Sin Gmail</span></div>
-      </div>
+    <div v-else class="ps-stagger eq-grid">
+      <div v-for="p in lista" :key="p.id" class="ps-card eq-card" :style="p.activo ? '' : 'opacity:.5;filter:grayscale(.4);'">
+        <div class="eq-top">
+          <div class="eq-av" :class="nivelDe(p)">{{ (p.nombre||'?')[0].toUpperCase() }}</div>
+          <div style="flex:1;min-width:0;">
+            <div class="eq-nom">{{ p.nombre }}</div>
+            <span class="eq-nivel" :class="nivelDe(p)">{{ nivelDe(p)==='admin' ? '★ ADMIN' : 'OPERADOR' }}</span>
+          </div>
+          <span class="eq-estado" :style="{color: p.aceptado ? '#4ade80' : (p.email ? 'var(--gold-light)' : 'var(--text-muted)')}">
+            {{ p.aceptado ? '✓ conectado' : (p.email ? '✉ invitado' : 'sin invitar') }}</span>
+        </div>
 
-      <div class="ps-stagger" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;">
-        <div v-for="p in lista" :key="p.id" class="ps-card eq-card" :style="p.activo ? '' : 'opacity:.5;filter:grayscale(.4);'">
-          <div class="eq-top">
-            <div class="eq-av" :class="nivelDe(p)">{{ (p.nombre||'?')[0].toUpperCase() }}</div>
-            <div style="flex:1;min-width:0;">
-              <div class="eq-nom">{{ p.nombre }}
-                <span class="eq-nivel" :class="nivelDe(p)">{{ nivelDe(p)==='admin' ? '★ ADMIN' : 'OPERADOR' }}</span>
-              </div>
-              <div class="eq-mail" :class="{off: !p.email}">{{ p.email || 'sin Gmail — toca ✏️ para invitarlo' }}</div>
-            </div>
-          </div>
-          <div class="eq-apps">
-            <div v-for="a in APPS" :key="a.id" class="eq-app" :class="appEstado(p, a.id) ? (appEstado(p,a.id)==='admin' ? 'on adm' : 'on') : ''">
-              <span class="ic">{{ a.ic }}</span>
-              <span class="lb">{{ a.label }}</span>
-              <span class="rl">{{ appEstado(p,a.id) === 'admin' ? '★' : appEstado(p,a.id) ? '✓' : '—' }}</span>
-            </div>
-          </div>
-          <div class="eq-meta">
-            <span>{{ p.aceptado ? '✓ conectado' : (p.email ? '✉ invitación pendiente' : '👤 sin invitar') }}</span>
-            <span v-if="p.creado">· registrado {{ p.creado }}</span>
-          </div>
-          <div class="eq-acts">
-            <button class="ps-btn ps-btn-ghost" style="flex:1;" @click="abrir(p)">✏️ Editar</button>
-            <button v-if="p.email && p.telefono" class="ps-btn ps-btn-ghost" @click="enviarWA(p)" title="Enviar invitación por WhatsApp">📲 Invitar</button>
-            <button class="ps-btn ps-btn-ghost" @click="toggle(p)">{{ p.activo ? (confirmId===p.id ? '¿Seguro?' : '⏸') : '▶' }}</button>
+        <div class="eq-datos">
+          <div class="eq-dato">✉️ <span>{{ p.email || '—' }}</span></div>
+          <div class="eq-dato">📱 <span>{{ p.telefono || '—' }}</span></div>
+          <div class="eq-dato" v-if="p.creado">🗓 <span>registrado {{ p.creado }}</span></div>
+        </div>
+
+        <div class="eq-apps">
+          <div v-for="a in APPS" :key="a.id" class="eq-app" :class="appEstado(p, a.id) ? (appEstado(p,a.id)==='admin' ? 'on adm' : 'on') : ''">
+            <span class="ic">{{ a.ic }}</span>
+            <span class="lb">{{ a.label }}</span>
+            <span class="rl">{{ appEstado(p,a.id) === 'admin' ? '★' : appEstado(p,a.id) ? '✓' : '—' }}</span>
           </div>
         </div>
+
+        <div class="eq-acts">
+          <button class="eq-tag" @click="llamar(p)" :disabled="!p.telefono" title="Llamar">📞 Llamar</button>
+          <button class="eq-tag wsp" @click="whatsapp(p)" :disabled="!p.telefono" title="Abrir WhatsApp">💬 WhatsApp</button>
+          <button class="eq-tag gold" @click="compartir(p)" :disabled="!p.telefono || !p.email" title="Enviar sus accesos">📤 Compartir</button>
+          <span style="flex:1"></span>
+          <button class="eq-tag" @click="abrir(p)" title="Editar">✏️</button>
+          <button class="eq-tag" @click="toggle(p)">{{ p.activo ? (confirmId===p.id ? '¿Seguro?' : '⏸') : '▶' }}</button>
+        </div>
       </div>
-    </template>
+    </div>
 
     <teleport to="body">
       <div v-if="sheet" class="ps-sheet-overlay" @click.self="sheet=false">
         <div class="ps-sheet">
           <div class="lw-sh-t">{{ form.id ? '✏️ Editar miembro' : '＋ Invitar al equipo' }}</div>
+          <div class="lw-sh-help" style="margin:0 0 6px;">Todos los campos son obligatorios.</div>
 
-          <div class="lw-sh-lab">Nombre</div>
+          <div class="lw-sh-lab">Nombre completo *</div>
           <input class="lw-sh-in" v-model="form.nombre" placeholder="Nombre y apellido" />
-          <div class="lw-sh-lab">Gmail — con este correo entrará</div>
+          <div class="lw-sh-lab">Gmail * — con este correo entrará</div>
           <input class="lw-sh-in" v-model="form.email" type="email" placeholder="persona@gmail.com" autocapitalize="none" />
-          <div class="lw-sh-lab">WhatsApp — para mandarle su invitación</div>
-          <input class="lw-sh-in" v-model="form.telefono" inputmode="tel" placeholder="51 9…" />
+          <div class="lw-sh-lab">Teléfono * — sin prefijo (para llamar y WhatsApp)</div>
+          <input class="lw-sh-in" v-model="form.telefono" inputmode="numeric" placeholder="987 654 321" />
 
-          <div class="lw-sh-lab">Nivel</div>
+          <div class="lw-sh-lab">Nivel *</div>
           <div class="eq-niveles">
             <button :class="{on: nivelForm()==='admin'}" @click="nivelRapido('admin')">★ Admin<small>PS Panel + todo</small></button>
             <button :class="{on: nivelForm()==='operador'}" @click="nivelRapido('operador')">Operador<small>Muelle + Hotel</small></button>
@@ -7321,12 +7313,11 @@ const ViewEquipo = {
               <b>{{ form.accesos[a.id]==='admin' ? '★ ADMIN' : form.accesos[a.id] ? '✓ OPERADOR' : '—' }}</b>
             </button>
           </div>
-          <div class="lw-sh-help">Al guardar, la invitación queda activa: cuando entre con su Gmail, el sistema la reconoce sola. Nadie sin invitación puede entrar.</div>
-          <div class="lw-sh-acts" style="flex-wrap:wrap;">
+          <div class="lw-sh-help">Al guardar, la invitación queda activa: cuando entre con su Gmail el sistema la reconoce sola. Usa 📤 Compartir en su card para enviarle sus accesos.</div>
+          <div class="lw-sh-acts">
             <button class="ps-btn ps-btn-ghost" @click="tap(); sheet=false">Cancelar</button>
-            <button class="ps-btn ps-btn-ghost" style="flex:1;" :disabled="guardando || !form.nombre.trim()" @click="guardar(false)">💾 Guardar</button>
-            <button class="ps-btn ps-btn-primary" style="flex:1 1 100%;" :disabled="guardando || !form.nombre.trim() || !form.telefono.trim() || !form.email.trim()" @click="guardar(true)">
-              💾 Guardar y 📲 enviar invitación por WhatsApp</button>
+            <button class="ps-btn ps-btn-primary" style="flex:1;" :disabled="guardando || !formValido" @click="guardar">
+              {{ guardando ? 'Guardando…' : '💾 Guardar' }}</button>
           </div>
         </div>
       </div>
@@ -13494,7 +13485,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.83.0';
+const APP_VERSION = '1.84.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
