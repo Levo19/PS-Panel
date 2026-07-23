@@ -2857,106 +2857,8 @@ body { background: radial-gradient(120% 90% at 50% -10%, #1c2030 0%, var(--bg) 5
             Entrar con Google
           </button>
           <div v-if="loginError" style="font-size:11.5px;color:#fca5a5;text-align:center;margin-bottom:8px;">{{ loginError }}</div>
-          <button @click="mostrarPin = !mostrarPin" style="display:block;margin:10px auto 0;background:none;border:none;color:var(--text-muted);font-size:10.5px;letter-spacing:.06em;cursor:pointer;text-decoration:underline;text-underline-offset:3px;">
-            {{ mostrarPin ? 'Ocultar acceso con PIN' : '¿Sin Google? Acceso temporal con PIN' }}
-          </button>
-          <div v-show="mostrarPin">
-          <div style="font-size:13px;color:var(--text-muted);margin:14px 0;text-align:center;">
-            Selecciona tu perfil
-          </div>
-          <div v-if="loadingPersonal" style="display:flex;justify-content:center;padding:30px 0;">
-            <div class="spin"></div>
-          </div>
-          <div v-else-if="personalList.length === 0" class="empty-state">
-            <div class="empty-icon">👤</div>
-            <p>Sin usuarios aún</p>
-            <button class="btn-ingresar" style="margin-top:12px;" @click="loginStep='bootstrap'">
-              Crear primer administrador
-            </button>
-          </div>
-          <div v-else class="staff-grid">
-            <button
-              v-for="p in personalList" :key="p.id"
-              class="staff-btn"
-              :class="{ selected: loginSelected?.id === p.id }"
-              @click="loginSelected = p"
-            >
-              <div class="staff-avatar">{{ iniciales(p.nombre) }}</div>
-              <div class="staff-name">{{ p.nombre }}</div>
-              <div class="staff-rol">{{ p.rol }}</div>
-            </button>
-          </div>
-          <button
-            v-if="loginSelected"
-            class="btn-ingresar"
-            @click="loginStep = 'pin'"
-          >
-            Continuar →
-          </button>
-          </div>
         </div>
 
-        <!-- Step 2: PIN -->
-        <div v-else-if="loginStep === 'pin'">
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
-            <button @click="loginStep='select';loginPin='';" style="color:var(--text-muted);font-size:18px;">←</button>
-            <div>
-              <div style="font-size:15px;font-weight:700;">{{ loginSelected.nombre }}</div>
-              <div style="font-size:12px;color:var(--text-muted);">{{ loginSelected.rol }}</div>
-            </div>
-          </div>
-          <div style="text-align:center;font-size:13px;color:var(--text-muted);margin-bottom:10px;">
-            Ingresa tu PIN
-          </div>
-          <div class="pin-display">
-            <div v-for="i in 4" :key="i" class="pin-dot" :class="{ filled: loginPin.length >= i }"></div>
-          </div>
-          <div class="pin-pad">
-            <button v-for="n in [1,2,3,4,5,6,7,8,9]" :key="n" class="pin-key" @click="pinPress(String(n))">{{ n }}</button>
-            <button class="pin-key" @click="pinPress('clear')" style="color:var(--text-muted);font-size:13px;">CLR</button>
-            <button class="pin-key" @click="pinPress('0')">0</button>
-            <button class="pin-key del" @click="pinPress('del')">⌫</button>
-          </div>
-          <div v-if="loginError" class="login-error">{{ loginError }}</div>
-          <button
-            class="btn-ingresar"
-            :disabled="loginPin.length !== 4 || loginLoading"
-            @click="verificarPin"
-          >
-            <span v-if="loginLoading">Verificando...</span>
-            <span v-else>INGRESAR</span>
-          </button>
-        </div>
-
-        <!-- Bootstrap: crear primer administrador sin login -->
-        <div v-else-if="loginStep === 'bootstrap'">
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
-            <button @click="loginStep='select'" style="color:var(--text-muted);font-size:18px;">←</button>
-            <div style="font-size:15px;font-weight:700;">Primer administrador</div>
-          </div>
-          <div class="config-section" style="margin-bottom:14px;">
-            <div class="config-label">Nombre</div>
-            <input v-model="bootstrapNombre" class="config-input" placeholder="Tu nombre">
-          </div>
-          <div class="config-section" style="margin-bottom:14px;">
-            <div class="config-label">Rol</div>
-            <select v-model="bootstrapRol" class="config-input">
-              <option value="Administrador">Administrador</option>
-              <option value="Supervisor">Supervisor</option>
-            </select>
-          </div>
-          <div class="config-section" style="margin-bottom:14px;">
-            <div class="config-label">PIN (4 dígitos)</div>
-            <input v-model="bootstrapPin" class="config-input" type="password" maxlength="4" placeholder="····">
-          </div>
-          <div v-if="loginError" class="login-error">{{ loginError }}</div>
-          <button class="btn-ingresar" :disabled="!bootstrapNombre || bootstrapPin.length !== 4 || loginLoading" @click="crearPrimerAdmin">
-            <span v-if="loginLoading">Creando...</span>
-            <span v-else>Crear y entrar</span>
-          </button>
-        </div>
-
-        <!-- Setup URL (solo si URL no configurada) -->
         <div v-else-if="loginStep === 'setup'">
           <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">
             Configura la URL del servidor primero
@@ -3057,9 +2959,7 @@ body { background: radial-gradient(120% 90% at 50% -10%, #1c2030 0%, var(--bg) 5
               </div>
             </div>
             <div class="user-menu-sep"></div>
-            <button v-if="session.rol === 'Administrador'" class="user-menu-item" @click="goModule('empleados'); showUserMenu=false">
-              <span class="mi-icon">🧑‍✈️</span> Empleados
-            </button>
+
             <button class="user-menu-item" @click="goModule('config'); showUserMenu=false">
               <span class="mi-icon">⚙️</span> Configuración
             </button>
@@ -3207,33 +3107,6 @@ Deuda comisionado = (precio_aplicado − precio_pax_defecto) × cant_pax
         </div>
       </transition>
 
-      <!-- Modal de Personal Master -->
-      <div v-if="pmModal.show" class="modal-overlay" @click.self="pmModal.show=false">
-        <div class="modal-box glass-strong">
-          <div class="modal-title">{{ pmModal.editId ? 'Editar' : 'Nuevo' }} Usuario</div>
-          <div class="config-section">
-            <div class="config-label">Nombre</div>
-            <input v-model="pmModal.nombre" class="config-input" placeholder="Nombre completo">
-          </div>
-          <div class="config-section">
-            <div class="config-label">Rol</div>
-            <select v-model="pmModal.rol" class="config-input">
-              <option value="Administrador">Administrador</option>
-              <option value="Supervisor">Supervisor</option>
-              <option value="Operador">Operador</option>
-            </select>
-          </div>
-          <div class="config-section">
-            <div class="config-label">PIN (4 dígitos){{ pmModal.editId ? ' — dejar vacío para no cambiar' : '' }}</div>
-            <input v-model="pmModal.pin" class="config-input" type="password" maxlength="4" placeholder="····">
-          </div>
-          <div class="modal-actions">
-            <button class="btn-secondary" @click="pmModal.show=false">Cancelar</button>
-            <button class="btn-primary" @click="guardarPersonal">Guardar</button>
-          </div>
-        </div>
-      </div>
-
       <!-- Toast -->
       <transition name="fade">
         <div v-if="toast.show" class="toast">{{ toast.msg }}</div>
@@ -3374,11 +3247,6 @@ const sbClient  = window.supabase.createClient(SUPA_URL, SUPA_ANON, {
   auth: { persistSession: true, autoRefreshToken: true, storageKey: 'ps_supa_auth',
           lock: (name, acquireTimeout, fn) => fn() }   // evita cuelgue de supabase-js (navigator.locks)
 });
-// Patricia (Administrador) entra a Supabase con su mismo id/PIN para poder gestionar empleados.
-async function supaLoginAdmin(id, pin) {
-  try { const { error } = await sbClient.auth.signInWithPassword({ email: String(id).toLowerCase() + '@paracas.local', password: String(pin) });
-        return !error; } catch (e) { return false; }
-}
 
 // ── Routing operaciones → Supabase (cierra la fuente partida) ────────────────
 const USE_SUPABASE_PS = true;   // operaciones (lanchas/finanzas/pagos/catálogo) van a Supabase
@@ -13156,28 +13024,6 @@ const ViewConfig = {
       <!-- Apps del ecosistema (estado + horario) -->
       <apps-control />
 
-      <!-- Personal Master -->
-      <div class="section-card glass" style="margin-bottom:24px;">
-        <div class="section-title" style="justify-content:space-between;">
-          <span>Personal Master</span>
-          <button class="btn-icon" @click="$emit('action',{type:'pm_nuevo'})" style="width:auto;padding:4px 12px;font-size:12px;font-weight:700;color:var(--gold);">+ Nuevo</button>
-        </div>
-        <div v-if="!data?.personal?.length" class="empty-state" style="padding:20px 0;">
-          <p>Sin usuarios configurados</p>
-        </div>
-        <div v-for="p in (data?.personal || [])" :key="p.id" class="pm-card glass" style="margin-bottom:8px;">
-          <div class="pm-avatar">{{ iniciales(p.nombre) }}</div>
-          <div class="pm-info">
-            <div class="pm-name">{{ p.nombre }}</div>
-            <div class="pm-rol">{{ p.rol }}</div>
-          </div>
-          <div class="pm-actions">
-            <button class="btn-icon" @click="$emit('action',{type:'pm_editar',personal:p})">✏️</button>
-            <button class="btn-icon" @click="$emit('action',{type:'pm_eliminar',id:p.id})">🗑</button>
-          </div>
-        </div>
-      </div>
-
       <!-- Cerrar sesión -->
       <div style="padding:0 0 32px;">
         <button class="btn-secondary" style="width:100%;padding:14px;" @click="$emit('action',{type:'logout'})">
@@ -13192,160 +13038,6 @@ const ViewConfig = {
   methods: { iniciales(n) { if (!n) return '?'; return n.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase(); } }
 };
 
-// ── Empleados (gestión de operadores/PINs en Supabase) ───────
-const ViewEmpleados = {
-  name: 'ViewEmpleados',
-  props: ['data', 'loading'],
-  emits: ['action'],
-  setup() {
-    const lista    = ref([]);
-    const cargando = ref(true);
-    const errMsg   = ref('');
-    const toast    = ref({ show: false, msg: '', tipo: 'ok' });
-    const modal    = ref(null);   // { id, nombre, rol, pin, esNuevo } | null
-    const guardando= ref(false);
-    const needPin  = ref(false);  // sesión Supabase admin ausente → pedir PIN
-    const pinReauth= ref('');
-    const reauthBusy = ref(false);
-    let toastTimer = null;
-    const _sess = () => { try { return JSON.parse(localStorage.getItem('ps_session') || '{}'); } catch(e){ return {}; } };
-
-    function notify(msg, tipo = 'ok') {
-      if (toastTimer) clearTimeout(toastTimer);
-      toast.value = { show: true, msg, tipo };
-      toastTimer = setTimeout(() => { toast.value.show = false; }, 2800);
-    }
-    function iniciales(n) { return (n || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase(); }
-
-    async function cargar() {
-      cargando.value = true; errMsg.value = '';
-      // si no hay sesión Supabase, pedir PIN para reconectar (sesión vieja restaurada o expirada)
-      const { data: sess } = await sbClient.auth.getSession();
-      if (!sess || !sess.session) { cargando.value = false; needPin.value = true; return; }
-      const { data, error } = await sbClient.rpc('admin_listar_empleados');
-      cargando.value = false;
-      if (error) {
-        if (/NO_ADMIN|JWT|401|denied/i.test(error.message)) { needPin.value = true; return; }
-        errMsg.value = error.message; lista.value = []; return;
-      }
-      needPin.value = false; lista.value = data || [];
-    }
-
-    async function reconectar() {
-      const s = _sess();
-      if (!s.id) { notify('No encuentro tu sesión. Cierra y vuelve a entrar.', 'err'); return; }
-      if (!/^\d{4}$/.test(pinReauth.value)) { notify('PIN de 4 dígitos', 'err'); return; }
-      reauthBusy.value = true;
-      const { error } = await sbClient.auth.signInWithPassword({ email: String(s.id).toLowerCase() + '@paracas.local', password: pinReauth.value });
-      reauthBusy.value = false;
-      if (error) { notify('PIN incorrecto', 'err'); return; }
-      pinReauth.value = ''; needPin.value = false; cargar();
-    }
-
-    function nuevo()  { modal.value = { id: 'USR_' + Date.now(), nombre: '', rol: 'Operador', pin: '', esNuevo: true }; }
-    function editar(e){ modal.value = { id: e.id, nombre: e.nombre, rol: e.rol, pin: '', esNuevo: false }; }
-    function cerrar() { modal.value = null; }
-
-    async function guardar() {
-      const m = modal.value; if (!m) return;
-      if (!m.nombre.trim()) { notify('Falta el nombre', 'err'); return; }
-      if (!/^\d{4}$/.test(m.pin)) { notify('PIN de 4 dígitos', 'err'); return; }
-      guardando.value = true;
-      const { error } = await sbClient.rpc('admin_set_pin', { p_id: m.id, p_nombre: m.nombre.trim(), p_rol: m.rol, p_pin: m.pin });
-      guardando.value = false;
-      if (error) { notify(error.message.replace(/^[A-Z_]+:\s*/, '') || 'Error', 'err'); return; }
-      cerrar(); notify(m.esNuevo ? '✅ Empleado creado' : '✅ PIN actualizado'); cargar();
-    }
-
-    async function toggle(e) {
-      const nuevoEstado = !e.activo;
-      e.activo = nuevoEstado;   // optimista
-      const { error } = await sbClient.rpc('admin_toggle_activo', { p_id: e.id, p_activo: nuevoEstado });
-      if (error) { e.activo = !nuevoEstado; notify('No se pudo cambiar', 'err'); return; }
-      notify(nuevoEstado ? '✅ Activado' : '🚫 Desactivado');
-    }
-
-    const revelado = ref({});
-    function toggleVer(id) { revelado.value = Object.assign({}, revelado.value, { [id]: !revelado.value[id] }); }
-    onMounted(cargar);
-    return { lista, cargando, errMsg, toast, modal, guardando, needPin, pinReauth, reauthBusy, revelado, toggleVer, iniciales, cargar, reconectar, nuevo, editar, cerrar, guardar, toggle };
-  },
-  template: `
-    <div>
-      <div class="section-card glass" style="margin-bottom:16px;">
-        <div class="section-title" style="justify-content:space-between;">
-          <span>Empleados · Operaciones</span>
-          <button class="btn-icon" @click="nuevo()" style="width:auto;padding:4px 12px;font-size:12px;font-weight:700;color:var(--gold);">+ Nuevo</button>
-        </div>
-        <p style="font-size:12px;color:var(--text-muted);margin:4px 0 0;">Operadores que entran a OperacionesPS. El PIN se guarda cifrado en Supabase.</p>
-      </div>
-
-      <div v-if="cargando" class="empty-state" style="padding:30px 0;"><p>Cargando…</p></div>
-      <div v-else-if="needPin" class="section-card glass">
-        <div class="section-title">Confirma tu PIN</div>
-        <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;">Para gestionar empleados necesitamos reabrir tu sesión segura.</p>
-        <input v-model="pinReauth" class="config-input" type="tel" inputmode="numeric" maxlength="4" placeholder="••••" style="letter-spacing:.3em;text-align:center;" @keyup.enter="reconectar()">
-        <button class="btn-primary" style="width:100%;padding:12px;margin-top:10px;" :disabled="reauthBusy" @click="reconectar()">{{ reauthBusy ? '…' : 'Continuar' }}</button>
-      </div>
-      <div v-else-if="errMsg" class="section-card glass" style="border-color:rgba(248,113,113,.4);">
-        <p style="color:#f87171;font-size:13px;">{{ errMsg }}</p>
-        <button class="btn-secondary" style="width:100%;padding:10px;margin-top:10px;" @click="cargar()">Reintentar</button>
-      </div>
-      <template v-else>
-        <div v-for="e in lista" :key="e.id" class="pm-card glass" :style="{marginBottom:'8px', opacity: e.activo ? 1 : .5}">
-          <div class="pm-avatar">{{ iniciales(e.nombre) }}</div>
-          <div class="pm-info">
-            <div class="pm-name">{{ e.nombre }}</div>
-            <div class="pm-rol">{{ e.rol }}<span v-if="!e.activo"> · inactivo</span></div>
-            <div style="display:flex;align-items:center;gap:6px;margin-top:3px;">
-              <span style="font-size:11px;color:var(--text-muted);">PIN</span>
-              <span style="font-family:monospace;letter-spacing:.18em;font-weight:700;font-size:13px;">{{ revelado[e.id] ? (e.pin || '—') : '••••' }}</span>
-              <button class="btn-icon" style="width:auto;padding:0 4px;font-size:13px;" :title="revelado[e.id] ? 'Ocultar' : 'Ver PIN'" @click="toggleVer(e.id)">{{ revelado[e.id] ? '🙈' : '👁️' }}</button>
-            </div>
-          </div>
-          <div class="pm-actions">
-            <button class="btn-icon" title="Resetear PIN / editar" @click="editar(e)">🔑</button>
-            <button class="btn-icon" :title="e.activo ? 'Desactivar' : 'Activar'" @click="toggle(e)">{{ e.activo ? '🚫' : '✅' }}</button>
-          </div>
-        </div>
-        <div v-if="!lista.length" class="empty-state" style="padding:20px 0;"><p>Sin empleados</p></div>
-      </template>
-
-      <!-- Modal alta / reset PIN -->
-      <transition name="fade">
-        <div v-if="modal" style="position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:9999;padding:18px;" @click.self="cerrar()">
-          <div class="section-card glass" style="width:min(94vw,380px);">
-            <div class="section-title">{{ modal.esNuevo ? 'Nuevo empleado' : 'Editar · ' + modal.nombre }}</div>
-            <div class="config-section">
-              <div class="config-label">Nombre</div>
-              <input v-model="modal.nombre" class="config-input" :disabled="!modal.esNuevo" placeholder="Nombre y apellido">
-            </div>
-            <div class="config-section">
-              <div class="config-label">Rol</div>
-              <select v-model="modal.rol" class="config-input">
-                <option value="Operador">Operador (OperacionesPS)</option>
-                <option value="Administrador">Administrador (PS)</option>
-              </select>
-            </div>
-            <div class="config-section">
-              <div class="config-label">{{ modal.esNuevo ? 'PIN' : 'Nuevo PIN' }} (4 dígitos)</div>
-              <input v-model="modal.pin" class="config-input" type="tel" inputmode="numeric" maxlength="4" placeholder="••••" style="letter-spacing:.3em;">
-            </div>
-            <div style="display:flex;gap:8px;margin-top:12px;">
-              <button class="btn-secondary" style="flex:1;padding:12px;" @click="cerrar()">Cancelar</button>
-              <button class="btn-primary" style="flex:2;padding:12px;" :disabled="guardando" @click="guardar()">{{ guardando ? '…' : 'Guardar' }}</button>
-            </div>
-          </div>
-        </div>
-      </transition>
-
-      <!-- Toast local -->
-      <transition name="fade">
-        <div v-if="toast.show" :style="{position:'fixed',bottom:'90px',left:'50%',transform:'translateX(-50%)',zIndex:10000,padding:'12px 20px',borderRadius:'14px',fontWeight:'700',fontSize:'13px',color:'#fff',background: toast.tipo==='err' ? '#b91c1c' : '#15803d',boxShadow:'0 8px 24px rgba(0,0,0,.4)'}">{{ toast.msg }}</div>
-      </transition>
-    </div>
-  `
-};
 
 // ── Facturación como MÓDULO de primer nivel (full-page) ──────
 // Host Vue liviano: el HUB se pinta imperativamente dentro del contenedor via el
@@ -13361,7 +13053,7 @@ const ViewFacturacion = {
 
 // ── Main app ─────────────────────────────────────────────────
 createApp({
-  components: { ViewDashboard, ViewLanchas, ViewHotel, ViewFinanzas, ViewFacturacion, ViewConfig, ViewCatalogos, ViewEmpleados, ViewLanding, ViewEquipo },
+  components: { ViewDashboard, ViewLanchas, ViewHotel, ViewFinanzas, ViewFacturacion, ViewConfig, ViewCatalogos, ViewLanding, ViewEquipo },
 
   setup() {
     const session        = ref(JSON.parse(localStorage.getItem('ps_session') || 'null'));
@@ -13394,21 +13086,12 @@ createApp({
     }
 
     // Login state
-    const personalList   = ref([]);
-    const loadingPersonal= ref(false);
     const loginStep      = ref('select');
-    const loginSelected  = ref(null);
-    const mostrarPin     = ref(false);   // PIN oculto: Google es la puerta principal
-    const loginPin       = ref('');
     const loginError     = ref('');
     const loginLoading   = ref(false);
     const setupApiUrl    = ref('');
-    const bootstrapNombre = ref('');
-    const bootstrapRol    = ref('Administrador');
-    const bootstrapPin    = ref('');
 
     // Personal Master modal
-    const pmModal = ref({ show: false, editId: null, nombre: '', rol: 'Operador', pin: '' });
 
     // Toast
     const toast = ref({ show: false, msg: '' });
@@ -13460,7 +13143,7 @@ createApp({
     function navIcon(id) { return NAV_ICONS[id] || ''; }
 
     const currentView = computed(() => {
-      const map = { dashboard: 'ViewDashboard', lanchas: 'ViewLanchas', hotel: 'ViewHotel', finanzas: 'ViewFinanzas', facturacion: 'ViewFacturacion', config: 'ViewConfig', catalogos: 'ViewCatalogos', empleados: 'ViewEmpleados', landing: 'ViewLanding', equipo: 'ViewEquipo' };
+      const map = { dashboard: 'ViewDashboard', lanchas: 'ViewLanchas', hotel: 'ViewHotel', finanzas: 'ViewFinanzas', facturacion: 'ViewFacturacion', config: 'ViewConfig', catalogos: 'ViewCatalogos', landing: 'ViewLanding', equipo: 'ViewEquipo' };
       return map[currentModule.value] || 'ViewDashboard';
     });
 
@@ -13477,36 +13160,18 @@ createApp({
 
     // ── Login ─────────────────────────────────────────────────
     async function cargarPersonal() {
-      if (API_URL.includes('ENLACE_DE_TU')) { loginStep.value = 'setup'; return; }
-      loadingPersonal.value = true;
-      try {
-        const r = await apiGet('listar_personal');
-        personalList.value = (r.ok && Array.isArray(r.data)) ? r.data : [];
-      } catch(e) {
-        // Timeout o error de red — mostramos lista vacía con opción de crear admin
-        personalList.value = [];
-      } finally {
-        loadingPersonal.value = false;
-      }
+      if (API_URL.includes('ENLACE_DE_TU')) { loginStep.value = 'setup'; }
     }
 
-    function pinPress(key) {
-      loginError.value = '';
-      if (key === 'del') { loginPin.value = loginPin.value.slice(0, -1); return; }
-      if (key === 'clear') { loginPin.value = ''; return; }
-      if (loginPin.value.length < 4) loginPin.value += key;
-    }
-
-    // ── Equipo Único: login con Google (Gmail por invitación) ──
+        // ── Equipo Único: login con Google (Gmail por invitación) — ÚNICA puerta ──
     async function loginGoogle() {
       try { sndTap(); haptic(10); } catch (e) {}
       loginError.value = '';
       await sbClient.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin + location.pathname } });
     }
-    // Al volver del redirect de Google (o si ya hay sesión Google): resolver identidad
     async function resolverGoogle() {
       try {
-        if (session.value) return;  // ya hay sesión PS (PIN u otra pestaña)
+        if (session.value) return;
         const { data } = await sbClient.auth.getSession();
         const su = data && data.session && data.session.user;
         if (!su || (su.app_metadata && su.app_metadata.provider) !== 'google') return;
@@ -13530,44 +13195,6 @@ createApp({
       } catch (e) {}
     }
     resolverGoogle();
-
-    async function verificarPin() {
-      if (loginPin.value.length !== 4 || !loginSelected.value) return;
-      loginLoading.value = true; loginError.value = '';
-      try {
-        const r = await apiPost({ accion: 'verificar_pin', nombre: loginSelected.value.nombre, pin: loginPin.value });
-        if (r.ok && r.data.ok) {
-          session.value = { ...r.data, loginAt: Date.now() };
-          localStorage.setItem('ps_session', JSON.stringify(session.value));
-          // Administrador: abrir sesión Supabase ANTES de cargar (las lecturas la necesitan)
-          if ((r.data.rol || '') === 'Administrador' && r.data.id) await supaLoginAdmin(r.data.id, loginPin.value);
-          preloadCatalogos();
-          await loadModuleData('dashboard');
-          preloadModules();
-        } else {
-          loginError.value = 'PIN incorrecto. Intenta de nuevo.';
-          loginPin.value = '';
-        }
-      } catch(e) { loginError.value = 'Error de conexión.'; }
-      finally { loginLoading.value = false; }
-    }
-
-    async function crearPrimerAdmin() {
-      if (!bootstrapNombre.value || bootstrapPin.value.length !== 4) return;
-      loginLoading.value = true; loginError.value = '';
-      try {
-        const r = await apiPost({ accion: 'crear_personal', nombre: bootstrapNombre.value, rol: bootstrapRol.value, pin: bootstrapPin.value });
-        if (r.ok && r.data.ok) {
-          // Auto-login con el usuario recién creado
-          session.value = { ok: true, id: r.data.id, nombre: bootstrapNombre.value, rol: bootstrapRol.value, loginAt: Date.now() };
-          localStorage.setItem('ps_session', JSON.stringify(session.value));
-          preloadCatalogos();
-          await loadModuleData('dashboard');
-          preloadModules();
-        } else { loginError.value = 'Error al crear usuario: ' + (r.error || ''); }
-      } catch(e) { loginError.value = 'Error de conexión con el servidor.'; }
-      finally { loginLoading.value = false; }
-    }
 
     function guardarSetupUrl() {
       if (!setupApiUrl.value.includes('script.google.com')) { showToast('URL inválida'); return; }
@@ -13688,7 +13315,7 @@ createApp({
           try { sbClient.auth.signOut(); } catch(e) {}
           session.value = null;
           localStorage.removeItem('ps_session');
-          loginStep.value = 'select'; loginPin.value = ''; loginSelected.value = null;
+          loginStep.value = 'select';
           break;
 
         case 'save_api_url':
@@ -13696,40 +13323,9 @@ createApp({
           localStorage.setItem(API_URL_KEY, ev.url);
           showToast('URL guardada ✓');
           break;
-
-        case 'pm_nuevo':
-          pmModal.value = { show: true, editId: null, nombre: '', rol: 'Operador', pin: '' };
-          break;
-        case 'pm_editar':
-          pmModal.value = { show: true, editId: ev.personal.id, nombre: ev.personal.nombre, rol: ev.personal.rol, pin: '' };
-          break;
-        case 'pm_eliminar':
-          if (confirm('¿Eliminar usuario?')) {
-            await apiPost({ accion: 'eliminar_personal', id: ev.id });
-            await loadModuleData('config');
-            showToast('Usuario eliminado');
-          }
-          break;
       }
     }
 
-    async function guardarPersonal() {
-      if (!pmModal.value.nombre) { showToast('Ingresa un nombre'); return; }
-      if (!pmModal.value.editId && pmModal.value.pin.length !== 4) { showToast('El PIN debe tener 4 dígitos'); return; }
-      try {
-        let r;
-        if (pmModal.value.editId) {
-          r = await apiPost({ accion: 'actualizar_personal', id: pmModal.value.editId, nombre: pmModal.value.nombre, rol: pmModal.value.rol, pin: pmModal.value.pin || null });
-        } else {
-          r = await apiPost({ accion: 'crear_personal', nombre: pmModal.value.nombre, rol: pmModal.value.rol, pin: pmModal.value.pin });
-        }
-        if (r.ok) {
-          pmModal.value.show = false;
-          await loadModuleData('config');
-          showToast('Guardado ✓');
-        } else { showToast('Error: ' + r.error); }
-      } catch(e) { showToast('Error de conexión'); }
-    }
 
     // Debug hook (browsercheck / diagnóstico): inspección de caché y estado de carga.
     try { window.__psDebug = { moduleCache, get moduleLoading(){ return moduleLoading.value; }, get currentModule(){ return currentModule.value; }, keys(){ return Object.keys(moduleCache); } }; } catch(e) {}
@@ -13830,11 +13426,10 @@ createApp({
       session, currentModule, currentView, navModules,
       moduleData, moduleLoading, showInfoPanel,
       isOnline, orbitDotState, showUserMenu, canInstall, installPWA,
-      personalList, loadingPersonal, loginStep, loginSelected, loginPin, loginError, loginLoading, setupApiUrl,
-      bootstrapNombre, bootstrapRol, bootstrapPin, crearPrimerAdmin,
-      pmModal, toast, isAdminRoot,
-      navIcon, iniciales, pinPress, verificarPin, loginGoogle, mostrarPin, guardarSetupUrl,
-      goModule, handleAction, guardarPersonal,
+      loginStep, loginError, loginLoading, setupApiUrl,
+      toast, isAdminRoot,
+      navIcon, iniciales, loginGoogle, guardarSetupUrl,
+      goModule, handleAction,
       jadeOpen, jadeInput, jadeLoading, jadeMsgs, jadePropuesta, jadeSug, jadeToggle, jadeSend, jadeConfirmar, jadeCancelar,
       jadeVoz, jadeListening, jadeMic, jadeVozToggle,
       abrirFacturacion: () => window.abrirFacturacion()
@@ -13843,7 +13438,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.81.0';
+const APP_VERSION = '1.82.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
