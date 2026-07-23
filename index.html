@@ -2860,14 +2860,6 @@ body { background: radial-gradient(120% 90% at 50% -10%, #1c2030 0%, var(--bg) 5
           <div v-if="loginError" style="font-size:11.5px;color:#fca5a5;text-align:center;margin-bottom:8px;">{{ loginError }}</div>
         </div>
 
-        <div v-else-if="loginStep === 'setup'">
-          <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">
-            Configura la URL del servidor primero
-          </div>
-          <div class="config-label">URL del servidor GAS</div>
-          <input v-model="setupApiUrl" class="config-input" placeholder="https://script.google.com/macros/s/...">
-          <button class="btn-ingresar" style="margin-top:14px;" @click="guardarSetupUrl">Guardar y continuar</button>
-        </div>
       </div>
     </div>
 
@@ -3214,31 +3206,11 @@ _setAppH();
 window.addEventListener('resize', _setAppH);
 window.addEventListener('orientationchange', () => { _setAppH(); setTimeout(_setAppH, 300); });
 
-// ── API URL ──────────────────────────────────────────────────
-const API_URL_KEY = 'ps_api_url';
-let API_URL = localStorage.getItem(API_URL_KEY) || 'https://script.google.com/macros/s/AKfycby7_H2lEOweA4cpixzNUw_50EfuQtiSoIW2389U5Ipyic3GRmETSRgBYSpIAaMcARcMhA/exec';
-
 // ── Helper API ───────────────────────────────────────────────
 function fetchWithTimeout(resource, options = {}, ms = 35000) {
   const ctrl = new AbortController();
   const id = setTimeout(() => ctrl.abort(), ms);
   return fetch(resource, { ...options, signal: ctrl.signal }).finally(() => clearTimeout(id));
-}
-
-async function _gasGet(accion, params = {}) {
-  const url = new URL(API_URL);
-  url.searchParams.set('accion', accion);
-  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
-  const r = await fetchWithTimeout(url.toString());
-  return r.json();
-}
-async function _gasPost(body) {
-  const r = await fetchWithTimeout(API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify(body)
-  });
-  return r.json();
 }
 
 // ── Supabase (gestión de empleados/PINs de OperacionesPS) ────
@@ -3438,7 +3410,7 @@ async function apiGet(accion, params = {}) {
     try { return { ok: true, data: await PS_GET[accion](params) }; }
     catch (e) { return { ok: false, error: (e && e.message) || 'Error' }; }
   }
-  return _gasGet(accion, params);
+  return { ok: false, error: 'accion_no_soportada_get: ' + accion };
 }
 async function apiPost(body) {
   const acc = body && (body.accion || body.action);
@@ -3446,7 +3418,7 @@ async function apiPost(body) {
     try { const d = await PS_POST[acc](body); return { ok: true, data: Object.assign({ ok: true }, d || {}) }; }
     catch (e) { return { ok: false, error: (e && e.message) || 'Error' }; }
   }
-  return _gasPost(body);
+  return { ok: false, error: 'accion_no_soportada_post: ' + (body.accion || body.action || '?') };
 }
 
 // ── Catálogos: cache global precargado al login ──────────────
@@ -3809,7 +3781,7 @@ const ViewLanchas = {
     }
 
     function openReport(fecha) {
-      window.open(`./report.html?fecha=${fecha}&api=${encodeURIComponent(API_URL)}`, '_blank');
+      window.open(`./report.html?fecha=${fecha}`, '_blank');
     }
 
     function openTicket() {
@@ -13138,7 +13110,6 @@ createApp({
     const loginStep      = ref('select');
     const loginError     = ref('');
     const loginLoading   = ref(false);
-    const setupApiUrl    = ref('');
 
     // Personal Master modal
 
@@ -13206,10 +13177,6 @@ createApp({
     }
 
     // ── Login ─────────────────────────────────────────────────
-    async function cargarPersonal() {
-      if (API_URL.includes('ENLACE_DE_TU')) { loginStep.value = 'setup'; }
-    }
-
         // ── Equipo Único: login con Google (Gmail por invitación) — ÚNICA puerta ──
     async function loginGoogle() {
       try { sndTap(); haptic(10); } catch (e) {}
@@ -13242,14 +13209,6 @@ createApp({
       } catch (e) {}
     }
     resolverGoogle();
-
-    function guardarSetupUrl() {
-      if (!setupApiUrl.value.includes('script.google.com')) { showToast('URL inválida'); return; }
-      API_URL = setupApiUrl.value;
-      localStorage.setItem(API_URL_KEY, API_URL);
-      loginStep.value = 'select';
-      cargarPersonal();
-    }
 
     // ── Module loading ────────────────────────────────────────
     const today = () => new Date().toISOString().slice(0, 10);
@@ -13308,8 +13267,7 @@ createApp({
             break;
           }
           case 'config': {
-            const pmR = await apiGet('listar_personal');
-            result = { personal: pmR.ok ? pmR.data : [] };
+            result = {};   // hub: Equipo/Catálogo/Apps se autoalimentan por Supabase
             break;
           }
         }
@@ -13365,11 +13323,6 @@ createApp({
           loginStep.value = 'select';
           break;
 
-        case 'save_api_url':
-          API_URL = ev.url;
-          localStorage.setItem(API_URL_KEY, ev.url);
-          showToast('URL guardada ✓');
-          break;
       }
     }
 
@@ -13378,11 +13331,11 @@ createApp({
     try { window.__psDebug = { moduleCache, get moduleLoading(){ return moduleLoading.value; }, get currentModule(){ return currentModule.value; }, keys(){ return Object.keys(moduleCache); } }; } catch(e) {}
 
     onMounted(async () => {
-      if (!session.value) cargarPersonal();
+      if (!session.value) { /* sin sesión: la puerta Google la maneja resolverGoogle() */ }
       else if (USE_SUPABASE_PS && session.value.rol === 'Administrador') {
         // si la sesión Supabase no sobrevivió al reload (o getSession se colgó), re-login
         let s = await _sbSessionSafe(4000);
-        if (!s) { session.value = null; localStorage.removeItem('ps_session'); loginStep.value = 'select'; cargarPersonal(); }
+        if (!s) { session.value = null; localStorage.removeItem('ps_session'); loginStep.value = 'select'; }
         else { loadModuleData('dashboard'); preloadCatalogos(); preloadModules(); }
       }
       else { loadModuleData('dashboard'); preloadCatalogos(); preloadModules(); }
@@ -13473,9 +13426,9 @@ createApp({
       session, currentModule, currentView, navModules,
       moduleData, moduleLoading, showInfoPanel,
       isOnline, orbitDotState, showUserMenu, canInstall, installPWA,
-      loginStep, loginError, loginLoading, setupApiUrl,
+      loginStep, loginError, loginLoading,
       toast, isAdminRoot,
-      navIcon, iniciales, loginGoogle, guardarSetupUrl,
+      navIcon, iniciales, loginGoogle,
       goModule, handleAction,
       jadeOpen, jadeInput, jadeLoading, jadeMsgs, jadePropuesta, jadeSug, jadeToggle, jadeSend, jadeConfirmar, jadeCancelar,
       jadeVoz, jadeListening, jadeMic, jadeVozToggle,
@@ -13485,7 +13438,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.84.0';
+const APP_VERSION = '1.85.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');

@@ -241,8 +241,6 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 const params  = new URLSearchParams(location.search);
 function localDateStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 const fecha   = params.get('fecha') || localDateStr();
-const PS_GAS  = 'https://script.google.com/macros/s/AKfycby7_H2lEOweA4cpixzNUw_50EfuQtiSoIW2389U5Ipyic3GRmETSRgBYSpIAaMcARcMhA/exec';
-const API_URL = params.get('api') || localStorage.getItem('ps_api_url') || PS_GAS;
 
 const REFRESH = 60;
 const TIPOS_SIN_COBRO = ['Aliado(PaseIn)','Pase_Recibido','Aliado'];
