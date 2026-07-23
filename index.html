@@ -2775,10 +2775,11 @@ select.config-input option { background: #1e0a10; color: var(--text); }
             Entrar con Google
           </button>
           <div v-if="loginError" style="font-size:11.5px;color:#fca5a5;text-align:center;margin-bottom:8px;">{{ loginError }}</div>
-          <div style="display:flex;align-items:center;gap:10px;color:var(--text-muted);font-size:10px;letter-spacing:.12em;margin:8px 0 12px;">
-            <span style="flex:1;height:1px;background:var(--border);"></span>ACCESO TEMPORAL CON PIN<span style="flex:1;height:1px;background:var(--border);"></span>
-          </div>
-          <div style="font-size:13px;color:var(--text-muted);margin-bottom:14px;text-align:center;">
+          <button @click="mostrarPin = !mostrarPin" style="display:block;margin:10px auto 0;background:none;border:none;color:var(--text-muted);font-size:10.5px;letter-spacing:.06em;cursor:pointer;text-decoration:underline;text-underline-offset:3px;">
+            {{ mostrarPin ? 'Ocultar acceso con PIN' : '¿Sin Google? Acceso temporal con PIN' }}
+          </button>
+          <div v-show="mostrarPin">
+          <div style="font-size:13px;color:var(--text-muted);margin:14px 0;text-align:center;">
             Selecciona tu perfil
           </div>
           <div v-if="loadingPersonal" style="display:flex;justify-content:center;padding:30px 0;">
@@ -2810,6 +2811,7 @@ select.config-input option { background: #1e0a10; color: var(--text); }
           >
             Continuar →
           </button>
+          </div>
         </div>
 
         <!-- Step 2: PIN -->
@@ -13314,6 +13316,7 @@ createApp({
     const loadingPersonal= ref(false);
     const loginStep      = ref('select');
     const loginSelected  = ref(null);
+    const mostrarPin     = ref(false);   // PIN oculto: Google es la puerta principal
     const loginPin       = ref('');
     const loginError     = ref('');
     const loginLoading   = ref(false);
@@ -13748,7 +13751,7 @@ createApp({
       personalList, loadingPersonal, loginStep, loginSelected, loginPin, loginError, loginLoading, setupApiUrl,
       bootstrapNombre, bootstrapRol, bootstrapPin, crearPrimerAdmin,
       pmModal, toast, isAdminRoot,
-      navIcon, iniciales, pinPress, verificarPin, loginGoogle, guardarSetupUrl,
+      navIcon, iniciales, pinPress, verificarPin, loginGoogle, mostrarPin, guardarSetupUrl,
       goModule, handleAction, guardarPersonal,
       jadeOpen, jadeInput, jadeLoading, jadeMsgs, jadePropuesta, jadeSug, jadeToggle, jadeSend, jadeConfirmar, jadeCancelar,
       jadeVoz, jadeListening, jadeMic, jadeVozToggle,
@@ -13758,7 +13761,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.79.1';
+const APP_VERSION = '1.79.2';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
