@@ -16,26 +16,27 @@
 <style>
 /* ── Variables ──────────────────────────────────────────── */
 :root {
-  --guinda:       #7B2030;
+  /* RETHEME 2.0: guinda = ACENTO de marca (no pintura de fondo); base carbón neutro elegante */
+  --guinda:       #8A2438;
   --guinda-dark:  #5a1722;
   --guinda-deep:  #3e0f17;
-  --guinda-light: #9d2a3e;
+  --guinda-light: #a83a50;
   --gold:         #C9A84C;
   --gold-light:   #e8c46a;
   --gold-dark:    #a88835;
   --gold-pale:    #f5e9c8;
-  --bg:           #0e0608;
-  --bg2:          #160a0d;
-  --surface:      rgba(255,255,255,0.04);
-  --surface2:     rgba(255,255,255,0.08);
-  --border:       rgba(201,168,76,0.18);
-  --text:         #f0e6d3;
-  --text-muted:   rgba(240,230,211,0.55);
-  --radius:       14px;
-  --radius-sm:    8px;
+  --bg:           #121014;
+  --bg2:          #1a1519;
+  --surface:      rgba(255,255,255,0.05);
+  --surface2:     rgba(255,255,255,0.09);
+  --border:       rgba(255,255,255,0.09);
+  --text:         #F1ECE6;
+  --text-muted:   rgba(238,232,226,0.52);
+  --radius:       18px;
+  --radius-sm:    10px;
   --nav-h:        64px;
   --sidebar-w:    220px;
-  --shadow:       0 8px 32px rgba(0,0,0,0.6);
+  --shadow:       0 14px 44px rgba(0,0,0,0.55);
 }
 
 /* ── Reset + Base ───────────────────────────────────────── */
@@ -2633,6 +2634,87 @@ select.config-input option { background: #1e0a10; color: var(--text); }
   animation: toast-in 0.25s ease;
 }
 @keyframes toast-in { from { opacity: 0; transform: translateX(-50%) translateY(10px); } }
+</style>
+<style id="retheme">
+/* ═══════════ RETHEME 2.0 — moderno, guinda como acento, cabeceras hero ═══════════ */
+/* fondo: carbón con aurora sutil (GPU: solo transform/opacity) */
+body { background: radial-gradient(120% 90% at 50% -10%, #1c1420 0%, var(--bg) 55%); }
+#app::before { content:''; position:fixed; top:-160px; left:0; right:0; height:340px; pointer-events:none; z-index:0;
+  background: radial-gradient(42% 80% at 18% 0%, rgba(201,168,76,.10), transparent 70%),
+              radial-gradient(38% 70% at 82% 0%, rgba(138,36,56,.14), transparent 70%),
+              radial-gradient(30% 60% at 55% 0%, rgba(53,193,214,.05), transparent 70%);
+  animation: rtAurora 14s ease-in-out infinite alternate; will-change: transform; }
+@keyframes rtAurora { from { transform: translateX(-3%) scale(1); } to { transform: translateX(3%) scale(1.06); } }
+
+/* ── CABECERAS HERO: fuera la caja roja cuadrada ── */
+.ps-head { background: none; border: none; box-shadow: none; border-radius: 0;
+  padding: 4px 2px 16px; overflow: visible; }
+.ps-head::before { inset: -18px -10px; border-radius: 28px;
+  background: radial-gradient(60% 120% at 0% 0%, rgba(138,36,56,.14), transparent 65%),
+              radial-gradient(50% 110% at 100% 0%, rgba(201,168,76,.09), transparent 60%); }
+.ps-head::after { display: none; }
+.ps-head-ico { width: 52px; height: 52px; display: flex; align-items: center; justify-content: center;
+  font-size: 26px; border-radius: 17px;
+  background: linear-gradient(145deg, rgba(255,255,255,.09), rgba(255,255,255,.03));
+  border: 1px solid rgba(255,255,255,.12);
+  box-shadow: 0 10px 26px -10px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.12);
+  filter: none; }
+.ps-head-title { font-family: Georgia, 'Times New Roman', serif; font-weight: 400; font-size: 24px;
+  letter-spacing: .02em; line-height: 1.1;
+  background: linear-gradient(100deg, var(--gold-pale) 20%, var(--gold-light) 70%);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.ps-head-sub { color: var(--text-muted); }
+.ps-head-l { position: relative; }
+.ps-head-l::after { content: ''; position: absolute; left: 67px; bottom: -8px; width: 46px; height: 3px;
+  border-radius: 3px; background: linear-gradient(90deg, var(--guinda-light), var(--gold)); opacity: .85; }
+
+/* ── cards: neutras, hover con vida ── */
+.ps-card { border-radius: 20px; border-color: var(--border);
+  background: linear-gradient(165deg, rgba(255,255,255,.055), rgba(255,255,255,.028));
+  transition: transform .25s cubic-bezier(.22,1,.36,1), box-shadow .25s, border-color .25s; }
+@media (hover:hover) {
+  .ps-card:hover { transform: translateY(-2px); border-color: rgba(201,168,76,.28);
+    box-shadow: 0 18px 44px -18px rgba(0,0,0,.65); }
+}
+
+/* ── botones: dorado = acción principal; guinda queda para marca/peligro ── */
+.ps-btn { border-radius: 13px; }
+.ps-btn-primary { background: linear-gradient(120deg, var(--gold), var(--gold-light)) !important;
+  color: #2b1114 !important; border: none !important; font-weight: 800;
+  box-shadow: 0 10px 26px -10px rgba(201,168,76,.55); }
+.ps-btn-primary:active { transform: scale(.96); }
+.btn-ingresar { background: linear-gradient(120deg, var(--gold), var(--gold-light)); color: #2b1114; }
+
+/* ── tab bar segmentada: pastilla flotante ── */
+.ps-tabbar { background: rgba(255,255,255,.05); border: 1px solid var(--border); border-radius: 100px; padding: 4px; }
+.ps-tab.on, .ps-tab.on * { color: #2b1114 !important; }
+.ps-tab.on { background: linear-gradient(120deg, var(--gold), var(--gold-light)); border-radius: 100px; }
+.ps-tab-ind { background: linear-gradient(120deg, var(--gold), var(--gold-light)); border-radius: 100px; }
+
+/* ── dock de navegación: isla flotante ── */
+.bottom-nav { margin: 0 10px calc(8px + env(safe-area-inset-bottom)); height: var(--nav-h);
+  padding-bottom: 0; border-radius: 24px; border: 1px solid rgba(255,255,255,.10);
+  background: rgba(22,17,21,.82);
+  box-shadow: 0 18px 44px -12px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.07); }
+.bottom-nav-ind { border-radius: 18px; }
+
+/* ── login: neutro elegante ── */
+.login-card { background: linear-gradient(170deg, rgba(255,255,255,.06), rgba(255,255,255,.025));
+  border: 1px solid rgba(255,255,255,.10); border-radius: 26px;
+  box-shadow: 0 30px 80px -30px rgba(0,0,0,.8); }
+
+/* ── sheets/modales: bordes neutros, radios generosos ── */
+.ps-sheet { border-radius: 28px 28px 0 0; border-color: rgba(255,255,255,.12);
+  background: linear-gradient(180deg, rgba(30,24,28,.98), rgba(18,14,17,.98)); }
+@media (min-width: 640px) { .ps-sheet { border-radius: 28px; } }
+.ps-sheet-overlay { background: rgba(8,6,8,.6); }
+
+/* ── detalles ── */
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,.16); }
+.ps-chip { border-radius: 100px; }
+.ps-fb.ok { border-color: rgba(74,222,128,.4); }
+.lw-canvas { box-shadow: 0 26px 64px -26px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.08); }
+@media (prefers-reduced-motion: reduce) { #app::before { animation: none; } }
 </style>
 </head>
 <body>
@@ -13761,7 +13843,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.79.2';
+const APP_VERSION = '1.80.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#7B2030;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
