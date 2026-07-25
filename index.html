@@ -3822,6 +3822,10 @@ const ViewLanchas = {
     function montoTotalMov(mov) {
       return (parseFloat(mov.monto_total) || 0) + parseAdicionales(mov.adicionales);
     }
+    // Resumen legible de los adicionales para el tooltip del chip (sin abrir el detalle).
+    function adicResumen(str) {
+      return adicionalItems(str).map(x => x.label + ' S/' + (parseFloat(x.monto) || 0).toFixed(2)).join(' · ');
+    }
 
     function totalMovs(movs) {
       const activos = movs.filter(m => m.estado !== 'Cancelado');
@@ -4425,6 +4429,7 @@ const ViewLanchas = {
       if (m.id_contacto && f && (!sel || String(sel.tipo || '').toLowerCase() !== f)) {
         m.id_contacto = ''; m.nombre_contacto = ''; m.precio_unit = '';   // el contacto elegido no calza con el nuevo tipo
       }
+      movBuscaContacto.value = '';   // el buscador arranca limpio al cambiar de tipo
       if (String(t).toLowerCase().includes('pasein')) { m.precio_unit = '0'; m.monto_total = '0'; }  // pases van en PAX
       try { sndTap(); haptic(6); } catch (e) {}
     }
@@ -4437,6 +4442,28 @@ const ViewLanchas = {
         const p = parseFloat(c.precio_defecto ?? c.precio) || 0;   // precio por defecto del contacto (editable)
         if (p > 0) { m.precio_unit = String(p); movRecalc(); }
       }
+    }
+    // ── Buscador inteligente de contacto (reemplaza el <select>): filtra al escribir, respetando el tipo ──
+    const movBuscaContacto = ref('');
+    const movContactosBuscados = computed(() => {
+      const q = movBuscaContacto.value.trim().toLowerCase();
+      const base = movContactosFiltrados.value;                    // ya viene filtrado por tipo (agencia/comisionado/aliado)
+      if (!q) return base.slice(0, 40);
+      return base.filter(c => c.id === 'CON-00'
+        ? 'varios publico rapido'.includes(q)
+        : (String(c.nombre || '').toLowerCase().includes(q) || String(c.tipo || '').toLowerCase().includes(q))
+      ).slice(0, 40);
+    });
+    function seleccionarMovContacto(c) {
+      movFormModal.value.id_contacto = c.id;
+      onMovContacto();
+      movBuscaContacto.value = '';
+      try { sndTap(); haptic(6); } catch (e) {}
+    }
+    function limpiarMovContacto() {
+      movFormModal.value.id_contacto = ''; movFormModal.value.nombre_contacto = '';
+      movBuscaContacto.value = '';
+      try { sndTap(); haptic(6); } catch (e) {}
     }
     function movRecalc() {                  // monto = pax × precio, en vivo
       const m = movFormModal.value;
@@ -4934,9 +4961,11 @@ const ViewLanchas = {
     }
 
     // ── Foto de zarpe (subir a Supabase Storage · bucket operaciones/zarpes) ──
-    const fotoInput  = ref(null);
-    const fotoUp     = ref({ opId: null });          // op en subida (spinner)
-    const fotoViewer = ref({ op: null });            // visor (op con foto)
+    const fotoInput    = ref(null);                  // input CÁMARA (capture)
+    const fotoInputGal = ref(null);                  // input GALERÍA (sin capture)
+    const fotoUp       = ref({ opId: null });        // op en subida (spinner)
+    const fotoViewer   = ref({ op: null });          // visor (op con foto)
+    const fotoChooser  = ref({ op: null });          // selector cámara/galería
     let _fotoTargetOp = null;                         // op para la que se abrió el picker
 
     function onFotoZarpe(op) {
@@ -4945,11 +4974,16 @@ const ViewLanchas = {
       _pickFotoFor(op);
     }
     function reemplazarFoto(op) { _pickFotoFor(op); }
-    function _pickFotoFor(op) {
-      _fotoTargetOp = op;
-      const el = fotoInput.value;
+    function _pickFotoFor(op) {                       // abre el selector (permite elegir cámara O galería)
+      fotoChooser.value = { op };
+      try { sndTap(); haptic(8); } catch (e) {}
+    }
+    function _dispararInput(el, op) {
+      _fotoTargetOp = op; fotoChooser.value = { op: null };
       if (el) { el.value = ''; el.click(); }
     }
+    function elegirCamara()  { _dispararInput(fotoInput.value,    fotoChooser.value.op); }
+    function elegirGaleria() { _dispararInput(fotoInputGal.value, fotoChooser.value.op); }
     async function onFotoPicked(e) {
       const file = e.target && e.target.files && e.target.files[0];
       const op = _fotoTargetOp; _fotoTargetOp = null;
@@ -4991,9 +5025,10 @@ const ViewLanchas = {
              pulsCajaId, irACajaPago, adicionalItems, pasePayments, movPaidPct, paidBarColor,
              canHaveAdicionales, impuestosCatalog, adicionalesModal, openAdicionalesModal, adicionalesSetQty, adicionalesTotal, guardarAdicionales,
              resolveQuien, expandedCajaGroups, toggleCajaGroup, groupedCajaDia, groupIcon, cajaTipoPill, cajaDiaStats, cajaBgGradient, cajaFechaChip,
-             chipStyle, esPaseOut, montoTotalMov,
+             chipStyle, esPaseOut, montoTotalMov, parseAdicionales, adicResumen,
              opModal, embarcaciones, personalOps, isAdmin, openOpModal, guardarOp, confirmarAnularOp,
              contactosOps, movFormModal, pagoModal, derivarModal,
+             movBuscaContacto, movContactosBuscados, seleccionarMovContacto, limpiarMovContacto,
              tipoEsCobrable, calcPagoEstado, pagadoAgencia,
              openMovFormModal, guardarMov, confirmarCancelarMov,
              movTipos, movTipoLabel, movContactosFiltrados, movEsPaseIn, movEsLibre, setMovTipo, onMovContacto, movRecalc, esRetro,
@@ -5002,7 +5037,7 @@ const ViewLanchas = {
              openDerivarModal, openConvertirModal, guardarDerivarConvertir,
              confirmarAnularPago,
              tabbarEl, tabIndStyle, switchTab, moveTabInd,
-             fotoInput, fotoUp, fotoViewer, onFotoZarpe, onFotoPicked, reemplazarFoto,
+             fotoInput, fotoInputGal, fotoUp, fotoViewer, fotoChooser, onFotoZarpe, onFotoPicked, reemplazarFoto, elegirCamara, elegirGaleria,
              hasOps, jumpToFecha, today };
   },
   template: `
@@ -5295,6 +5330,9 @@ const ViewLanchas = {
                           :style="pagoBadgeStyle(calcPagoEstado(m,op).estado)">
                           {{ pagoSem(calcPagoEstado(m,op).estado).icon }}
                         </span>
+                        <span v-if="m.estado !== 'Cancelado' && parseAdicionales(m.adicionales) > 0"
+                          style="font-size:10px;font-weight:800;padding:1px 6px;border-radius:5px;line-height:1.6;flex-shrink:0;white-space:nowrap;background:rgba(201,168,76,0.14);border:1px solid rgba(201,168,76,0.35);color:var(--gold);"
+                          :title="'Adicionales: ' + adicResumen(m.adicionales)">+S/ {{ fmt(parseAdicionales(m.adicionales)) }} adic.</span>
                         <span style="font-size:14px;font-weight:800;" :style="montoPayStyle(op,m)">S/ {{ fmt(m.monto_total) }}</span>
                         <span style="color:var(--text-muted);font-size:14px;">›</span>
                       </div>
@@ -5335,8 +5373,26 @@ const ViewLanchas = {
         </div>
       </div>
 
-      <!-- Foto de zarpe: input oculto + visor -->
+      <!-- Foto de zarpe: inputs ocultos (cámara y galería) + selector + visor -->
       <input ref="fotoInput" type="file" accept="image/*" capture="environment" style="display:none" @change="onFotoPicked">
+      <input ref="fotoInputGal" type="file" accept="image/*" style="display:none" @change="onFotoPicked">
+      <teleport to="body">
+        <div v-if="fotoChooser.op" class="ps-sheet-overlay" @click.self="fotoChooser.op=null">
+          <div class="ps-sheet" style="text-align:center;">
+            <div style="font-weight:800;font-size:15px;color:var(--gold);margin-bottom:4px;">📷 Foto de zarpe</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">¿De dónde tomas la foto?</div>
+            <div style="display:flex;gap:10px;">
+              <button @click="elegirCamara()" style="flex:1;padding:16px 8px;border-radius:12px;background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.4);color:var(--gold);font-weight:800;font-size:13px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;">
+                <span style="font-size:24px;">📷</span>Cámara
+              </button>
+              <button @click="elegirGaleria()" style="flex:1;padding:16px 8px;border-radius:12px;background:rgba(96,165,250,0.12);border:1px solid rgba(96,165,250,0.4);color:#60a5fa;font-weight:800;font-size:13px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;">
+                <span style="font-size:24px;">🖼️</span>Galería
+              </button>
+            </div>
+            <button @click="fotoChooser.op=null" style="margin-top:14px;width:100%;padding:11px;border-radius:10px;background:transparent;border:1px solid var(--border);color:var(--text-muted);font-size:13px;cursor:pointer;">Cancelar</button>
+          </div>
+        </div>
+      </teleport>
       <teleport to="body">
         <div v-if="fotoViewer.op" class="ps-sheet-overlay" @click.self="fotoViewer.op=null">
           <div class="ps-sheet" style="text-align:center;">
@@ -5577,13 +5633,26 @@ const ViewLanchas = {
               <!-- Contacto (filtrado por tipo) / texto libre -->
               <div v-if="!movEsLibre" style="display:flex;flex-direction:column;gap:5px;">
                 <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">{{ movEsPaseIn ? 'Aliado que lo trae *' : 'Contacto *' }}</span>
-                <select v-model="movFormModal.id_contacto"
-                  @change="onMovContacto()"
-                  style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 10px;font-size:13px;color:var(--text);appearance:none;">
-                  <option value="">— seleccionar —</option>
-                  <option v-for="c in movContactosFiltrados" :key="c.id" :value="c.id">{{ c.id==='CON-00' ? '⭐ VARIOS · público (rápido)' : c.nombre + (c.tipo ? '  ·  '+c.tipo : '') }}</option>
-                </select>
-                <span v-if="!movContactosFiltrados.length" style="font-size:11px;color:#f87171;">Sin contactos de este tipo en el catálogo</span>
+                <!-- Contacto SELECCIONADO: pill con opción de cambiar -->
+                <div v-if="movFormModal.id_contacto" style="display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--gold);border-radius:9px;padding:9px 10px;">
+                  <span style="width:8px;height:8px;border-radius:50%;flex-shrink:0;" :style="'background:'+(movFormModal.id_contacto==='CON-00'?'var(--gold)':contactColorByTipo(movFormModal.tipo))"></span>
+                  <span style="flex:1;min-width:0;font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ movFormModal.id_contacto==='CON-00' ? '⭐ VARIOS · público' : (contactosOps.find(x=>x.id===movFormModal.id_contacto)?.nombre || movFormModal.nombre_contacto) }}</span>
+                  <button type="button" @click="limpiarMovContacto()" style="flex-shrink:0;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:7px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">cambiar</button>
+                </div>
+                <!-- BUSCADOR inteligente: escribe y filtra por nombre (dentro del tipo elegido) -->
+                <div v-else>
+                  <input type="text" v-model="movBuscaContacto" :placeholder="'Escribe para buscar ' + (movEsPaseIn ? 'aliado' : 'contacto') + '…'"
+                    style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 10px;font-size:13px;color:var(--text);" />
+                  <div style="display:flex;flex-direction:column;gap:3px;margin-top:5px;max-height:190px;overflow-y:auto;-webkit-overflow-scrolling:touch;">
+                    <button v-for="c in movContactosBuscados" :key="c.id" type="button" @click="seleccionarMovContacto(c)"
+                      style="display:flex;align-items:center;gap:8px;text-align:left;width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:9px 10px;cursor:pointer;">
+                      <span style="width:7px;height:7px;border-radius:50%;flex-shrink:0;" :style="'background:'+(c.id==='CON-00'?'var(--gold)':contactColorByTipo(c.tipo))"></span>
+                      <span style="flex:1;min-width:0;font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);">{{ c.id==='CON-00' ? '⭐ VARIOS · público (rápido)' : c.nombre }}</span>
+                      <span v-if="c.id!=='CON-00' && c.tipo" style="font-size:10px;color:var(--text-muted);flex-shrink:0;">{{ c.tipo }}</span>
+                    </button>
+                    <div v-if="!movContactosBuscados.length" style="font-size:11px;color:#f87171;padding:6px 2px;">{{ movBuscaContacto.trim() ? 'Sin resultados para "' + movBuscaContacto.trim() + '"' : 'Sin contactos de este tipo en el catálogo' }}</div>
+                  </div>
+                </div>
                 <div v-if="movFormModal.id_contacto && !movEsPaseIn" style="display:flex;align-items:center;justify-content:space-between;">
                   <span style="font-size:11px;color:var(--text-muted);">
                     Precio ref: <span style="color:var(--gold);font-weight:700;">S/ {{ fmt(contactosOps.find(x=>x.id===movFormModal.id_contacto)?.precio || 0) }}</span> / pax
@@ -12296,8 +12365,17 @@ const ViewCatalogos = {
     }
 
     // Refresca la fuente única (catálogo + picker de lanchas) tras cualquier alta/edición de contacto.
+    // NUNCA reemplaza la lista por una vacía (un fallo puntual de RLS/red no debe borrar la vista).
     async function _refetchContactos() {
-      try { const rr = await apiGet('listar_contactos_ops'); if (rr && rr.ok && Array.isArray(rr.data)) catalogosCache.contactos = rr.data; } catch (e) {}
+      try { const rr = await apiGet('listar_contactos_ops'); if (rr && rr.ok && Array.isArray(rr.data) && rr.data.length) catalogosCache.contactos = rr.data; } catch (e) {}
+    }
+    // Inserta de inmediato el contacto guardado en la fuente única (no espera el round-trip de lectura):
+    // quita las filas del mismo nombre y agrega las nuevas con id temporal; el refetch luego reconcilia los IDs reales.
+    function _mergeContactoOptimista(nombre, items) {
+      const nk = String(nombre || '').trim().toLowerCase();
+      const otras = (catalogosCache.contactos || []).filter(c => String(c.nombre || '').trim().toLowerCase() !== nk);
+      const nuevas = (items || []).map((it, i) => ({ id: 'TMP-' + Date.now() + '-' + i, nombre, tipo: it.tipo, precio: it.precio || 0, precio_defecto: it.precio || 0 }));
+      catalogosCache.contactos = otras.concat(nuevas);
     }
 
     // VARIOS: solo se edita el precio (el tipo es único, no se agrega ni quita).
@@ -12331,9 +12409,10 @@ const ViewCatalogos = {
       try {
         const r = await apiPost({ accion: 'guardar_contacto_grupo', nombre_old: m.nombreOld || nombre, nombre, items });
         if (!r.ok) throw new Error(r.error || 'Error');
+        _mergeContactoOptimista(nombre, items);        // aparece YA en el catálogo y en el picker de lanchas
         catModal.value.show = false;
         emit('action', { type: 'toast', msg: '✅ Guardado' });
-        await _refetchContactos();
+        _refetchContactos();                            // reconcilia IDs reales (no bloquea; si falla, queda lo optimista)
       } catch (e) {
         m.saving = false;
         const msg = (e && e.message) || 'Error';
@@ -13485,7 +13564,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.86.0';
+const APP_VERSION = '1.87.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
