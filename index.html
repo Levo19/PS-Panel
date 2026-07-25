@@ -3108,7 +3108,10 @@ Deuda comisionado = (precio_aplicado − precio_pax_defecto) × cant_pax
       <!-- JADE 💎 asistente flotante -->
       <teleport to="body">
         <div v-if="session">
-          <button v-if="!jadeOpen" @click="jadeToggle" class="jade-fab" title="JADE — asistente PS">
+          <button v-if="!jadeOpen" @click="jadeFabClick"
+                  @pointerdown="jadeDragStart" @pointermove="jadeDragMove" @pointerup="jadeDragEnd" @pointercancel="jadeDragEnd"
+                  class="jade-fab" :class="{'jade-dragging':jadeDragging}" :style="jadeFabStyle"
+                  title="JADE — asistente PS · mantén presionado para moverme">
             <span>💎</span><span class="jade-fab-ping"></span>
           </button>
           <transition name="jade-slide">
@@ -3152,7 +3155,8 @@ Deuda comisionado = (precio_aplicado − precio_pax_defecto) × cant_pax
 </div>
 
 <style>
-.jade-fab{position:fixed;right:18px;bottom:80px;z-index:9998;width:56px;height:56px;border-radius:50%;border:none;cursor:pointer;background:linear-gradient(135deg,#0f766e,#0891b2,#2dd4bf,#0891b2);background-size:220% 220%;box-shadow:0 8px 28px rgba(8,145,178,.5);display:flex;align-items:center;justify-content:center;font-size:26px;animation:jadeFloat 3.5s ease-in-out infinite,jadeShine 5s ease infinite}
+.jade-fab{position:fixed;right:18px;bottom:80px;z-index:9998;width:56px;height:56px;border-radius:50%;border:none;cursor:grab;touch-action:none;background:linear-gradient(135deg,#0f766e,#0891b2,#2dd4bf,#0891b2);background-size:220% 220%;box-shadow:0 8px 28px rgba(8,145,178,.5);display:flex;align-items:center;justify-content:center;font-size:26px;animation:jadeFloat 3.5s ease-in-out infinite,jadeShine 5s ease infinite}
+.jade-fab.jade-dragging{animation:none;cursor:grabbing;transform:scale(1.14);box-shadow:0 14px 40px rgba(8,145,178,.7),0 0 0 6px rgba(45,212,191,.28);transition:transform .12s}
 .jade-fab>span:first-child{animation:jadeSpark 2.4s ease-in-out infinite;display:inline-block}
 @keyframes jadeFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
 @keyframes jadeShine{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
@@ -13395,6 +13399,48 @@ createApp({
       try { _jadeRec.start(); } catch (e) { jadeListening.value = false; }
     }
     function jadeToggle() { jadeOpen.value = !jadeOpen.value; if (jadeOpen.value) jadeScroll(); }
+
+    // ── FAB arrastrable: mantener presionado (~320ms) → mover a otra zona ──
+    const jadePos      = ref(null);     // {x,y} en px (left/top) ó null = posición por defecto (CSS)
+    const jadeDragging = ref(false);
+    const JADE_FAB     = 56;
+    let   _jadeLP = null, _jadeStart = null, _jadeMoved = false, _jadeSuppressClick = false;
+    function _jadeClamp(x, y) {
+      const m = 8, w = window.innerWidth, h = window.innerHeight;
+      return { x: Math.max(m, Math.min(x, w - JADE_FAB - m)), y: Math.max(m, Math.min(y, h - JADE_FAB - m)) };
+    }
+    // restaurar posición guardada, ya recortada al viewport actual (evita que quede fuera de vista)
+    try { const s = localStorage.getItem('ps_jade_pos'); if (s) { const p = JSON.parse(s); if (p && typeof p.x === 'number') jadePos.value = _jadeClamp(p.x, p.y); } } catch (e) {}
+    const jadeFabStyle = computed(() => jadePos.value
+      ? { left: jadePos.value.x + 'px', top: jadePos.value.y + 'px', right: 'auto', bottom: 'auto' }
+      : {});
+    function jadeDragStart(e) {
+      const r = e.currentTarget.getBoundingClientRect();
+      _jadeStart = { px: e.clientX, py: e.clientY, ox: r.left, oy: r.top };
+      _jadeMoved = false;
+      try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_) {}
+      clearTimeout(_jadeLP);
+      _jadeLP = setTimeout(() => { jadeDragging.value = true; try { navigator.vibrate && navigator.vibrate(15); } catch (_) {} }, 320);
+    }
+    function jadeDragMove(e) {
+      if (!_jadeStart) return;
+      const dx = e.clientX - _jadeStart.px, dy = e.clientY - _jadeStart.py;
+      if (Math.abs(dx) > 10 || Math.abs(dy) > 10) _jadeMoved = true;   // hubo gesto de movimiento → no es un toque
+      if (!jadeDragging.value) { if (_jadeMoved) clearTimeout(_jadeLP); return; }   // se movió sin mantener → cancela; no arrastra ni abre
+      jadePos.value = _jadeClamp(_jadeStart.ox + dx, _jadeStart.oy + dy);
+    }
+    function jadeDragEnd(e) {
+      clearTimeout(_jadeLP);
+      try { e.currentTarget.releasePointerCapture && e.currentTarget.releasePointerCapture(e.pointerId); } catch (_) {}
+      if (jadeDragging.value) {
+        jadeDragging.value = false;
+        if (_jadeMoved && jadePos.value) { try { localStorage.setItem('ps_jade_pos', JSON.stringify(jadePos.value)); } catch (_) {} }
+      }
+      if (_jadeMoved) { _jadeSuppressClick = true; setTimeout(() => { _jadeSuppressClick = false; }, 320); }   // cualquier arrastre → no abrir
+      _jadeStart = null;
+    }
+    function jadeFabClick() { if (_jadeSuppressClick) { _jadeSuppressClick = false; return; } jadeToggle(); }
+    window.addEventListener('resize', () => { if (jadePos.value) jadePos.value = _jadeClamp(jadePos.value.x, jadePos.value.y); });
     async function jadeSend(texto) {
       const q = String(texto != null ? texto : jadeInput.value).trim();
       if (!q || jadeLoading.value) return;
@@ -13432,13 +13478,14 @@ createApp({
       goModule, handleAction,
       jadeOpen, jadeInput, jadeLoading, jadeMsgs, jadePropuesta, jadeSug, jadeToggle, jadeSend, jadeConfirmar, jadeCancelar,
       jadeVoz, jadeListening, jadeMic, jadeVozToggle,
+      jadeDragging, jadeFabStyle, jadeFabClick, jadeDragStart, jadeDragMove, jadeDragEnd,
       abrirFacturacion: () => window.abrirFacturacion()
     };
   }
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.85.0';
+const APP_VERSION = '1.86.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
