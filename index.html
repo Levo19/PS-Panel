@@ -4447,7 +4447,8 @@ const ViewLanchas = {
     const movBuscaContacto = ref('');
     const movContactosBuscados = computed(() => {
       const q = movBuscaContacto.value.trim().toLowerCase();
-      const base = movContactosFiltrados.value;                    // ya viene filtrado por tipo (agencia/comisionado/aliado)
+      // excluye ids temporales del alta optimista: no se puede referenciar un contacto aún sin id real (FK)
+      const base = movContactosFiltrados.value.filter(c => !String(c.id).startsWith('TMP-'));
       if (!q) return base.slice(0, 40);
       return base.filter(c => c.id === 'CON-00'
         ? 'varios publico rapido'.includes(q)
@@ -4474,6 +4475,7 @@ const ViewLanchas = {
 
     function openMovFormModal(op, mov = null) {
       loadContactos();
+      movBuscaContacto.value = '';   // el buscador de contacto arranca limpio en cada apertura
       const opLabel = (op.nombre_bote || op.id_bote || '') + (op.hora_salida ? ' · ' + op.hora_salida : '');
       if (mov) {
         const pax0 = parseInt(mov.cant_pax) || 0, monto0 = parseFloat(mov.monto_total) || 0;
@@ -12371,9 +12373,10 @@ const ViewCatalogos = {
     }
     // Inserta de inmediato el contacto guardado en la fuente única (no espera el round-trip de lectura):
     // quita las filas del mismo nombre y agrega las nuevas con id temporal; el refetch luego reconcilia los IDs reales.
-    function _mergeContactoOptimista(nombre, items) {
+    function _mergeContactoOptimista(nombreOld, nombre, items) {
       const nk = String(nombre || '').trim().toLowerCase();
-      const otras = (catalogosCache.contactos || []).filter(c => String(c.nombre || '').trim().toLowerCase() !== nk);
+      const ok = String(nombreOld || '').trim().toLowerCase();   // en renombre: quita también el nombre viejo (no deja fantasma)
+      const otras = (catalogosCache.contactos || []).filter(c => { const k = String(c.nombre || '').trim().toLowerCase(); return k !== nk && k !== ok; });
       const nuevas = (items || []).map((it, i) => ({ id: 'TMP-' + Date.now() + '-' + i, nombre, tipo: it.tipo, precio: it.precio || 0, precio_defecto: it.precio || 0 }));
       catalogosCache.contactos = otras.concat(nuevas);
     }
@@ -12409,10 +12412,10 @@ const ViewCatalogos = {
       try {
         const r = await apiPost({ accion: 'guardar_contacto_grupo', nombre_old: m.nombreOld || nombre, nombre, items });
         if (!r.ok) throw new Error(r.error || 'Error');
-        _mergeContactoOptimista(nombre, items);        // aparece YA en el catálogo y en el picker de lanchas
+        _mergeContactoOptimista(m.nombreOld || nombre, nombre, items);   // aparece YA en catálogo+picker; en renombre quita el nombre viejo
         catModal.value.show = false;
         emit('action', { type: 'toast', msg: '✅ Guardado' });
-        _refetchContactos();                            // reconcilia IDs reales (no bloquea; si falla, queda lo optimista)
+        await _refetchContactos();                       // reconcilia IDs reales (cierra la ventana de ids TMP); si falla, queda lo optimista
       } catch (e) {
         m.saving = false;
         const msg = (e && e.message) || 'Error';
@@ -13504,7 +13507,7 @@ createApp({
     function jadeDragMove(e) {
       if (!_jadeStart) return;
       const dx = e.clientX - _jadeStart.px, dy = e.clientY - _jadeStart.py;
-      if (Math.abs(dx) > 10 || Math.abs(dy) > 10) _jadeMoved = true;   // hubo gesto de movimiento → no es un toque
+      if (Math.abs(dx) > 14 || Math.abs(dy) > 14) _jadeMoved = true;   // umbral cómodo p/ dedo: un toque con jitter aún abre
       if (!jadeDragging.value) { if (_jadeMoved) clearTimeout(_jadeLP); return; }   // se movió sin mantener → cancela; no arrastra ni abre
       jadePos.value = _jadeClamp(_jadeStart.ox + dx, _jadeStart.oy + dy);
     }
@@ -13564,7 +13567,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.87.0';
+const APP_VERSION = '1.88.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
