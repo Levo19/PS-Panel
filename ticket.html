@@ -158,7 +158,7 @@ const $ = id => document.getElementById(id);
 const SB_URL  = 'https://lintmcxqxnrholslatul.supabase.co';
 const SB_ANON = 'sb_publishable_9dpGbh-aKwTxC8gvOk8Muw_aSpMby0G';
 const sb = window.supabase.createClient(SB_URL, SB_ANON, {
-  auth: { persistSession:true, autoRefreshToken:true, storageKey:'ps_report_auth', lock:(n,t,fn)=>fn() }
+  auth: { persistSession:true, autoRefreshToken:true, storageKey:'ps_supa_auth', lock:(n,t,fn)=>fn() }   // MISMA sesión del PS Panel (mismo origen) → abre directo, sin login
 });
 async function sbAnon(fn, body){
   const r = await fetch(SB_URL+'/rest/v1/rpc/'+fn,{method:'POST',headers:{apikey:SB_ANON,'Content-Type':'application/json'},body:JSON.stringify(body||{})});
@@ -169,7 +169,7 @@ async function _sbToken(){
   try{
     const r = await Promise.race([ sb.auth.getSession(), new Promise((_,rej)=>setTimeout(()=>rej(new Error('SESSION_TIMEOUT')),4000)) ]);
     return (r && r.data && r.data.session && r.data.session.access_token) || null;
-  }catch(e){ try{ localStorage.removeItem('ps_report_auth'); }catch(_){} return null; }
+  }catch(e){ return null; }   // NO borrar la sesión compartida (nukearía el login del panel)
 }
 async function sbRpc(fn, body){
   const token = await _sbToken();
@@ -185,9 +185,15 @@ async function sbRpc(fn, body){
 let _ops=[], _sel=null, _pin='', _busy=false;
 const _ini = n => (n||'?').split(' ').filter(Boolean).map(w=>w[0]).join('').slice(0,2).toUpperCase();
 async function showLogin(){
-  if(!_ops.length){ try{ _ops=(await sbAnon('listar_operadores'))||[]; }catch(e){ _ops=[]; } }
-  _renderPick();
+  // Cero PIN: el ticket hereda tu sesión (PS Panel o muelle). Si de verdad no hay, ofrecemos Google.
+  $('root').innerHTML =
+    '<div class="rl-wrap"><div class="rl-logo">Ticket · PS</div>'+
+    '<div class="rl-h">Abre desde tu app</div>'+
+    '<div class="rl-sub">Este ticket usa tu sesión del PS Panel o del muelle. Si llegaste directo, entra con tu Gmail.</div>'+
+    '<button class="rl-card" style="max-width:280px;margin:16px auto 0;justify-content:center" onclick="_loginGoogle()"><span class="rl-nm">Entrar con Google</span></button>'+
+    '</div>';
 }
+function _loginGoogle(){ try{ sb.auth.signInWithOAuth({ provider:'google', options:{ redirectTo: location.href } }); }catch(e){} }
 function _renderPick(){
   _sel=null; _pin='';
   $('root').innerHTML =
@@ -647,7 +653,16 @@ function renderError(msg) {
   </div>`;
 }
 
-loadData();   // gatea login PIN (Supabase) si no hay sesión; comparte sesión con el reporte
+// Arranque: si vengo del muelle (otro dominio) recibo el token por el enlace (#at=..&rt=..).
+// Si vengo del PS Panel (mismo origen) ya comparto la sesión. En ambos casos: abre directo.
+(async function _boot(){
+  try{
+    const h = new URLSearchParams((location.hash||'').replace(/^#/,''));
+    const at = h.get('at'), rt = h.get('rt');
+    if(at && rt){ await sb.auth.setSession({ access_token: at, refresh_token: rt }); try{ history.replaceState(null,'',location.pathname+location.search); }catch(_){} }
+  }catch(e){}
+  loadData();
+})();
 </script>
 </body>
 </html>
