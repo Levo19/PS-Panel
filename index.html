@@ -3269,7 +3269,7 @@ window.logEvento = logEvento;
 async function _psSel(path) {
   const tok = await _psToken();
   const h = { apikey: SUPA_ANON }; if (tok) h.Authorization = 'Bearer ' + tok;
-  const r = await fetch(SUPA_URL + '/rest/v1/' + path, { headers: h });
+  const r = await fetch(SUPA_URL + '/rest/v1/' + path, { headers: h, cache: 'no-store' });   // lectura SIEMPRE fresca (nada de caché HTTP/SW)
   if (!r.ok) throw new Error('select ' + r.status); return r.json();
 }
 const _cap = s => s ? (s.charAt(0).toUpperCase() + s.slice(1)) : s;
@@ -13567,7 +13567,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.88.0';
+const APP_VERSION = '1.89.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
