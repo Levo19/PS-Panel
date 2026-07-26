@@ -3451,6 +3451,24 @@ async function preloadCatalogos() {
   } finally {
     catalogosCache.loading = false;
   }
+  subscribeContactosRT();   // deja la fuente de contactos viva por realtime
+}
+
+// ── Realtime de contactos: cualquier alta/edición (en PS Panel o en OperacionesPS)
+//    refresca la fuente única al INSTANTE → catálogo + picker de lanchas, sin recargar. ──
+let _contactosRTCh = null, _contactosRTT = null;
+function subscribeContactosRT() {
+  if (_contactosRTCh || typeof sbClient === 'undefined' || !sbClient) return;
+  try {
+    _contactosRTCh = sbClient.channel('ps-contactos-rt')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'contactos' }, () => {
+        clearTimeout(_contactosRTT);
+        _contactosRTT = setTimeout(() => {
+          apiGet('listar_contactos_ops').then(r => { if (r && r.ok && Array.isArray(r.data) && r.data.length) catalogosCache.contactos = r.data; }).catch(() => {});
+        }, 250);
+      })
+      .subscribe();
+  } catch (e) {}
 }
 
 // ── Lanchas: precalentado liviano al login (semilla del 1er montaje) ──
@@ -13567,7 +13585,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.89.0';
+const APP_VERSION = '1.90.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
