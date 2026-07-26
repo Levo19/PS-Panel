@@ -158,7 +158,7 @@ const $ = id => document.getElementById(id);
 const SB_URL  = 'https://lintmcxqxnrholslatul.supabase.co';
 const SB_ANON = 'sb_publishable_9dpGbh-aKwTxC8gvOk8Muw_aSpMby0G';
 const sb = window.supabase.createClient(SB_URL, SB_ANON, {
-  auth: { persistSession:true, autoRefreshToken:true, storageKey:'ps_supa_auth', lock:(n,t,fn)=>fn() }   // MISMA sesión del PS Panel (mismo origen) → abre directo, sin login
+  auth: { persistSession:true, autoRefreshToken:false, storageKey:'ps_supa_auth', lock:(n,t,fn)=>fn() }   // MISMA sesión del PS Panel; refresh OFF (pestaña efímera; no rota el token compartido)
 });
 async function sbAnon(fn, body){
   const r = await fetch(SB_URL+'/rest/v1/rpc/'+fn,{method:'POST',headers:{apikey:SB_ANON,'Content-Type':'application/json'},body:JSON.stringify(body||{})});
@@ -181,9 +181,7 @@ async function sbRpc(fn, body){
     return t ? JSON.parse(t) : null;
   } finally { clearTimeout(tid); }
 }
-// ── Login PIN (sesión compartida con el reporte) ──
-let _ops=[], _sel=null, _pin='', _busy=false;
-const _ini = n => (n||'?').split(' ').filter(Boolean).map(w=>w[0]).join('').slice(0,2).toUpperCase();
+// ── Sin PIN: el ticket hereda la sesión (PS Panel/muelle) o la recibe por el enlace ──
 async function showLogin(){
   // Cero PIN: el ticket hereda tu sesión (PS Panel o muelle). Si de verdad no hay, ofrecemos Google.
   $('root').innerHTML =
@@ -194,44 +192,6 @@ async function showLogin(){
     '</div>';
 }
 function _loginGoogle(){ try{ sb.auth.signInWithOAuth({ provider:'google', options:{ redirectTo: location.href } }); }catch(e){} }
-function _renderPick(){
-  _sel=null; _pin='';
-  $('root').innerHTML =
-    '<div class="rl-wrap"><div class="rl-logo">Ticket · PS</div>'+
-    '<div class="rl-h">¿Quién eres?</div><div class="rl-sub">Toca tu usuario para ver el ticket</div>'+
-    '<div class="rl-grid">'+ (_ops.length
-      ? _ops.map(o=>'<button class="rl-card" data-id="'+o.id+'"><span class="rl-av">'+_ini(o.nombre)+'</span><span class="rl-nm">'+o.nombre+'</span></button>').join('')
-      : '<p style="grid-column:1/-1;color:var(--muted)">No se pudo cargar la lista. <button onclick="showLogin()" style="color:var(--gold);background:none;border:none;cursor:pointer;text-decoration:underline">Reintentar</button></p>')+
-    '</div></div>';
-  document.querySelectorAll('.rl-card').forEach(el=>el.onclick=()=>{ _sel=_ops.find(o=>String(o.id)===el.dataset.id); _pin=''; _renderPin(); });
-}
-function _renderPin(){
-  $('root').innerHTML =
-    '<div class="rl-wrap"><button class="rl-back" type="button">←</button>'+
-    '<div class="rl-av rl-big">'+_ini(_sel.nombre)+'</div>'+
-    '<div class="rl-h">'+_sel.nombre+'</div><div class="rl-sub">Ingresa tu PIN</div>'+
-    '<div class="rl-dots" id="rl-dots">'+[0,1,2,3].map(()=>'<span class="rl-dot"></span>').join('')+'</div>'+
-    '<div class="rl-keys">'+['1','2','3','4','5','6','7','8','9'].map(d=>'<button class="rl-key" data-k="'+d+'">'+d+'</button>').join('')+
-    '<span></span><button class="rl-key" data-k="0">0</button><button class="rl-key" data-k="del">⌫</button></div>'+
-    '<div class="rl-err" id="rl-err"></div></div>';
-  document.querySelector('.rl-back').onclick = _renderPick;
-  document.querySelectorAll('.rl-key').forEach(b=>b.onclick=()=>_key(b.dataset.k));
-}
-function _paintDots(){ document.querySelectorAll('#rl-dots .rl-dot').forEach((d,i)=>d.classList.toggle('on', i<_pin.length)); }
-async function _key(k){
-  if(_busy) return;
-  if(k==='del'){ _pin=_pin.slice(0,-1); _paintDots(); return; }
-  if(_pin.length>=4) return;
-  _pin+=k; _paintDots();
-  if(_pin.length===4){ _busy=true; try{ await _submitPin(); } finally { _busy=false; } }
-}
-async function _submitPin(){
-  const { error } = await sb.auth.signInWithPassword({ email:String(_sel.id).toLowerCase()+'@paracas.local', password:String(_pin) });
-  const errEl = $('rl-err');
-  if(error){ if(errEl) errEl.textContent='PIN incorrecto'; _pin=''; _paintDots(); return; }
-  $('root').innerHTML = '<div class="loading"><div class="spin"></div><p style="color:var(--muted);font-size:17px;">Cargando ticket…</p></div>';
-  loadData();
-}
 // ── Red de seguridad: nunca quedar en "Cargando" infinito ──
 (function(){
   function fatal(what){
@@ -239,7 +199,7 @@ async function _submitPin(){
     r.innerHTML = '<div style="padding:60px 20px;text-align:center"><div style="font-size:36px">⚠️</div>'
       + '<p style="color:var(--red);font-weight:700;margin:14px 0 6px">Se atascó la carga</p>'
       + '<p style="font-size:12px;color:var(--muted);word-break:break-word">'+what+'</p>'
-      + '<button onclick="try{localStorage.removeItem(\'ps_report_auth\')}catch(e){};location.reload()" style="margin-top:18px;padding:10px 20px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:8px;font-weight:700">Limpiar sesión y reintentar</button></div>';
+      + '<button onclick="location.reload()" style="margin-top:18px;padding:10px 20px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:8px;font-weight:700">Reintentar</button></div>';
   }
   window.addEventListener('error', function(e){ fatal('JS: '+(e.message||e.error||'error')); });
   window.addEventListener('unhandledrejection', function(e){ fatal('Promesa: '+((e.reason&&e.reason.message)||e.reason)); });
@@ -659,7 +619,12 @@ function renderError(msg) {
   try{
     const h = new URLSearchParams((location.hash||'').replace(/^#/,''));
     const at = h.get('at'), rt = h.get('rt');
-    if(at && rt){ await sb.auth.setSession({ access_token: at, refresh_token: rt }); try{ history.replaceState(null,'',location.pathname+location.search); }catch(_){} }
+    if(at && rt){
+      // Solo aplico el token del enlace si NO hay ya sesión propia (no pisar la del PS Panel).
+      let yaHay=false; try{ const s=await sb.auth.getSession(); yaHay=!!(s&&s.data&&s.data.session); }catch(_){}
+      if(!yaHay){ try{ await sb.auth.setSession({ access_token: at, refresh_token: rt }); }catch(_){} }
+      try{ history.replaceState(null,'',location.pathname+location.search); }catch(_){}
+    }
   }catch(e){}
   loadData();
 })();

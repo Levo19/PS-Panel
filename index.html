@@ -4410,7 +4410,7 @@ const ViewLanchas = {
       // Fuente única = catalogosCache.contactos (misma que Catálogos). Si aún no hay, precargar.
       if (!catalogosCache.contactos.length) { await preloadCatalogos(); return; }
       // stale-while-revalidate: refresca en 2º plano por si hubo altas desde otro dispositivo
-      apiGet('listar_contactos_ops').then(r => { if (r && r.ok && Array.isArray(r.data)) catalogosCache.contactos = r.data; }).catch(() => {});
+      apiGet('listar_contactos_ops').then(r => { if (r && r.ok && Array.isArray(r.data) && r.data.length) catalogosCache.contactos = r.data; }).catch(() => {});
     }
 
     // ── Tipos de movimiento + filtrado de contactos por tipo ──
@@ -4617,15 +4617,17 @@ const ViewLanchas = {
     }
 
     // ── Pase suelto (sin reserva): origen opcional + aliado que lo lleva + PAX ──
+    // excluye ids optimistas TMP- de los pickers de dinero (aún sin id real → FK inválida)
+    const _sinTmp = c => !String(c.id).startsWith('TMP-');
     const contactosAliado = computed(() =>
-      contactosOps.value.filter(c => String(c.tipo || '').toLowerCase() === 'aliado'));
+      contactosOps.value.filter(c => _sinTmp(c) && String(c.tipo || '').toLowerCase() === 'aliado'));
     const origenMatches = computed(() => {
       const p = paseSueltoModal.value;
       if (p.origenId) return [];
       const q = String(p.origenQ || '').trim().toLowerCase();
       if (q.length < 1) return [];   // sin interacción no abre dropdown
       const varios = contactosOps.value.find(c => c.id === 'CON-00');
-      const matches = q.length < 2 ? [] : contactosOps.value.filter(c => c.id !== 'CON-00' && String(c.nombre || '').toLowerCase().includes(q)).slice(0, 8);
+      const matches = q.length < 2 ? [] : contactosOps.value.filter(c => c.id !== 'CON-00' && _sinTmp(c) && String(c.nombre || '').toLowerCase().includes(q)).slice(0, 8);
       return varios ? [varios, ...matches] : matches;   // VARIOS fijo al inicio (aunque busques otro)
     });
     function openPaseSueltoModal() {
@@ -5928,7 +5930,7 @@ const ViewLanchas = {
                 <select v-model="derivarModal.id_aliado"
                   style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);appearance:none;">
                   <option value="">— seleccionar —</option>
-                  <option v-for="c in contactosOps.filter(x => String(x.tipo||'').toLowerCase() === (derivarModal.mode==='derivar' ? 'aliado' : 'agencia'))" :key="c.id" :value="c.id">{{ c.nombre }}</option>
+                  <option v-for="c in contactosOps.filter(x => !String(x.id).startsWith('TMP-') && String(x.tipo||'').toLowerCase() === (derivarModal.mode==='derivar' ? 'aliado' : 'agencia'))" :key="c.id" :value="c.id">{{ c.nombre }}</option>
                 </select>
               </label>
 
@@ -13421,6 +13423,7 @@ createApp({
         case 'toast': showToast(ev.msg, ev.dur || 2500); break;
 
         case 'logout':
+          try { if (_contactosRTCh) { sbClient.removeChannel(_contactosRTCh); _contactosRTCh = null; } } catch(e) {}   // libera el canal realtime (se re-suscribe al volver a loguear)
           try { sbClient.auth.signOut(); } catch(e) {}
           session.value = null;
           localStorage.removeItem('ps_session');
@@ -13585,7 +13588,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.91.0';
+const APP_VERSION = '1.92.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
