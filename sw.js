@@ -2,7 +2,7 @@
 // PS Panel — Service Worker
 // Bumpa VERSION en cada deploy para invalidar caché
 // ============================================================
-const VERSION = '1.92.0';
+const VERSION = '1.93.0';
 const CACHE   = 'ps-panel-v' + VERSION;
 const ASSETS  = [
   './',
@@ -38,7 +38,9 @@ self.addEventListener('fetch', e => {
   // API de Supabase (REST/RPC/auth/storage): SIEMPRE red, NUNCA caché.
   // Antes caía en el cache-first de abajo → las lecturas (contactos, etc.) devolvían
   // lista vieja y un alta nueva "no aparecía" hasta el próximo deploy. Nunca más.
-  if (url.hostname.endsWith('.supabase.co')) return;
+  // API dinámica de Supabase (REST/RPC/auth/functions) SIEMPRE a red, NUNCA caché. Pero las imágenes
+  // públicas de Storage (assets inmutables) SÍ se cachean → offline + sin re-descarga.
+  if (url.hostname.endsWith('.supabase.co') && !url.pathname.startsWith('/storage/v1/object/public/')) return;
   if (url.pathname.endsWith('version.json')) {
     // Siempre red sin caché; fallback a version.json sin query params
     e.respondWith(

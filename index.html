@@ -3441,10 +3441,11 @@ async function preloadCatalogos() {
       apiGet('listar_personal_catalogo'),
       apiGet('listar_contactos_ops')
     ]);
-    catalogosCache.impuestos     = imp.ok && Array.isArray(imp.data) ? imp.data : [];
-    catalogosCache.embarcaciones = emb.ok && Array.isArray(emb.data) ? emb.data : [];
-    catalogosCache.personal      = per.ok && Array.isArray(per.data) ? per.data : [];
-    catalogosCache.contactos     = con.ok && Array.isArray(con.data) ? con.data : [];
+    // No pisar una lista buena con vacío por un fallo transitorio (RLS/red): solo reemplaza si trae datos.
+    if (imp.ok && Array.isArray(imp.data) && imp.data.length) catalogosCache.impuestos     = imp.data;
+    if (emb.ok && Array.isArray(emb.data) && emb.data.length) catalogosCache.embarcaciones = emb.data;
+    if (per.ok && Array.isArray(per.data) && per.data.length) catalogosCache.personal      = per.data;
+    if (con.ok && Array.isArray(con.data) && con.data.length) catalogosCache.contactos     = con.data;
     catalogosCache.loaded = true;
   } catch(e) {
     // silencioso — los catálogos se rehacen cuando el usuario abra el módulo
@@ -12293,10 +12294,8 @@ const ViewCatalogos = {
       try { haptic(6); } catch (e) {}
       view.value = 'hub';
       search.value = '';
-      // Refresca silenciosamente si ya hay cache
-      if (catalogosCache.loaded) preloadCatalogos();
-      else preloadCatalogos();
-      loadServicios();   // para el contador de la card (silencioso)
+      preloadCatalogos();   // refresca la fuente única (silencioso; guardado contra vaciar por fallo transitorio)
+      loadServicios();      // para el contador de la card (silencioso)
     }
 
     function openCat(type) {
@@ -13423,7 +13422,7 @@ createApp({
         case 'toast': showToast(ev.msg, ev.dur || 2500); break;
 
         case 'logout':
-          try { if (_contactosRTCh) { sbClient.removeChannel(_contactosRTCh); _contactosRTCh = null; } } catch(e) {}   // libera el canal realtime (se re-suscribe al volver a loguear)
+          try { clearTimeout(_contactosRTT); if (_contactosRTCh) { sbClient.removeChannel(_contactosRTCh); _contactosRTCh = null; } } catch(e) {}   // libera el canal realtime + refetch pendiente (se re-suscribe al volver a loguear)
           try { sbClient.auth.signOut(); } catch(e) {}
           session.value = null;
           localStorage.removeItem('ps_session');
@@ -13588,7 +13587,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.92.0';
+const APP_VERSION = '1.93.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');

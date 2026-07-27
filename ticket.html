@@ -116,25 +116,14 @@ body{
   .caja-total,.balance-row{padding:6px 10px;}
   .tk-logo{font-size:20px;color:#000;} .tk-fecha{font-size:14px;}
 }
-/* ── Login PIN del ticket ── */
+/* ── Pantalla de sesión (fallback Gmail) ── */
 .rl-wrap{max-width:430px;margin:0 auto;padding:44px 20px;text-align:center;position:relative;}
 .rl-logo{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--gold);font-weight:800;margin-bottom:14px;}
 .rl-h{font-size:22px;font-weight:900;margin:0 0 4px;color:var(--text);}
 .rl-sub{font-size:13px;color:var(--muted);margin-bottom:24px;}
-.rl-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
 .rl-card{display:flex;flex-direction:column;align-items:center;gap:7px;padding:15px 6px;border-radius:16px;background:var(--surface);border:1px solid var(--border);cursor:pointer;color:var(--text);}
 .rl-card:active{transform:scale(.93);border-color:var(--gold);}
-.rl-av{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;background:linear-gradient(135deg,var(--gold),#8a6a10);color:#1e1c18;}
-.rl-av.rl-big{width:80px;height:80px;font-size:28px;margin:0 auto 14px;}
 .rl-nm{font-size:12px;font-weight:700;line-height:1.2;}
-.rl-dots{display:flex;gap:14px;justify-content:center;margin:18px 0 24px;}
-.rl-dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--border);}
-.rl-dot.on{background:var(--gold);border-color:var(--gold);transform:scale(1.12);}
-.rl-keys{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;max-width:300px;margin:0 auto;}
-.rl-key{aspect-ratio:1;max-width:72px;width:100%;margin:0 auto;border-radius:50%;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:23px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent;}
-.rl-key:active{transform:scale(.9);background:rgba(232,184,64,.2);}
-.rl-back{position:absolute;top:6px;left:8px;background:none;border:none;color:var(--text);font-size:24px;cursor:pointer;opacity:.7;padding:6px;}
-.rl-err{color:var(--red);font-size:13px;height:18px;margin-top:14px;font-weight:600;}
 </style>
 </head>
 <body>
@@ -154,22 +143,23 @@ const ORDINAL = ['1RA','2DA','3RA','4TA','5TA','6TA','7MA','8VA','9NA','10MA'];
 
 const $ = id => document.getElementById(id);
 
-// ════════ SUPABASE (cutover jun-2026) — el ticket lee de Supabase con login PIN ════════
+// ════════ SUPABASE — el ticket lee de Supabase con la sesión heredada (PS Panel/muelle), SIN PIN ════════
 const SB_URL  = 'https://lintmcxqxnrholslatul.supabase.co';
 const SB_ANON = 'sb_publishable_9dpGbh-aKwTxC8gvOk8Muw_aSpMby0G';
 const sb = window.supabase.createClient(SB_URL, SB_ANON, {
-  auth: { persistSession:true, autoRefreshToken:false, storageKey:'ps_supa_auth', lock:(n,t,fn)=>fn() }   // MISMA sesión del PS Panel; refresh OFF (pestaña efímera; no rota el token compartido)
+  auth: { persistSession:true, autoRefreshToken:false, storageKey:'ps_supa_auth', lock:(n,t,fn)=>fn() }   // MISMA sesión del PS Panel; pestaña efímera
 });
-async function sbAnon(fn, body){
-  const r = await fetch(SB_URL+'/rest/v1/rpc/'+fn,{method:'POST',headers:{apikey:SB_ANON,'Content-Type':'application/json'},body:JSON.stringify(body||{})});
-  const t = await r.text(); if(!r.ok){ let m='Error'; try{ m=JSON.parse(t).message||m; }catch(e){} throw new Error(m); }
-  return t ? JSON.parse(t) : null;
-}
 async function _sbToken(){
+  // Lee el token de la sesión compartida DIRECTO del storage (no gatilla refresh → nunca rota el token del Panel).
   try{
-    const r = await Promise.race([ sb.auth.getSession(), new Promise((_,rej)=>setTimeout(()=>rej(new Error('SESSION_TIMEOUT')),4000)) ]);
+    const raw = localStorage.getItem('ps_supa_auth');
+    if(raw){ const j = JSON.parse(raw); const s = (j && (j.currentSession || j.session)) || j; const t = s && s.access_token; if(t) return t; }
+  }catch(_){}
+  // fallback (por si el formato de storage cambia) con timeout; NO borra nada de la sesión compartida.
+  try{
+    const r = await Promise.race([ sb.auth.getSession(), new Promise((_,rej)=>setTimeout(()=>rej(new Error('T')),4000)) ]);
     return (r && r.data && r.data.session && r.data.session.access_token) || null;
-  }catch(e){ return null; }   // NO borrar la sesión compartida (nukearía el login del panel)
+  }catch(e){ return null; }
 }
 async function sbRpc(fn, body){
   const token = await _sbToken();
@@ -196,6 +186,7 @@ function _loginGoogle(){ try{ sb.auth.signInWithOAuth({ provider:'google', optio
 (function(){
   function fatal(what){
     var r = document.getElementById('root'); if(!r) return;
+    if(!/Cargando/.test(r.textContent)) return;   // solo actúa si aún está en pantalla de carga (no pisar un render bueno por un error tardío)
     r.innerHTML = '<div style="padding:60px 20px;text-align:center"><div style="font-size:36px">⚠️</div>'
       + '<p style="color:var(--red);font-weight:700;margin:14px 0 6px">Se atascó la carga</p>'
       + '<p style="font-size:12px;color:var(--muted);word-break:break-word">'+what+'</p>'
@@ -621,7 +612,7 @@ function renderError(msg) {
     const at = h.get('at'), rt = h.get('rt');
     if(at && rt){
       // Solo aplico el token del enlace si NO hay ya sesión propia (no pisar la del PS Panel).
-      let yaHay=false; try{ const s=await sb.auth.getSession(); yaHay=!!(s&&s.data&&s.data.session); }catch(_){}
+      let yaHay=false; try{ const s=await Promise.race([sb.auth.getSession(), new Promise((_,rej)=>setTimeout(()=>rej(new Error('T')),4000))]); yaHay=!!(s&&s.data&&s.data.session); }catch(_){}
       if(!yaHay){ try{ await sb.auth.setSession({ access_token: at, refresh_token: rt }); }catch(_){} }
       try{ history.replaceState(null,'',location.pathname+location.search); }catch(_){}
     }
