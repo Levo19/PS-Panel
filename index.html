@@ -2851,6 +2851,11 @@ body { background: radial-gradient(120% 90% at 50% -10%, #1c2030 0%, var(--bg) 5
 
         <!-- Step 1: seleccionar personal -->
         <div v-if="loginStep === 'select'">
+          <!-- Aviso amable: la sesión se cerró sola (token vencido) — no es un error del usuario -->
+          <div v-if="sesionExpirada" style="display:flex;gap:9px;align-items:flex-start;background:rgba(201,168,76,.12);border:1px solid rgba(201,168,76,.35);border-radius:12px;padding:11px 13px;margin-bottom:14px;text-align:left;">
+            <span style="font-size:16px;line-height:1.2;">🔒</span>
+            <span style="font-size:12px;color:#e9dcc0;line-height:1.45;">Por seguridad tu sesión se cerró sola. Vuelve a entrar con Google para continuar — no perdiste nada, nada quedó a medias.</span>
+          </div>
           <!-- Equipo Único: entrada con Gmail por invitación -->
           <button @click="loginGoogle" :disabled="loginLoading"
             style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;color:#222;border:none;border-radius:14px;padding:14px;font-weight:800;font-size:14px;cursor:pointer;margin-bottom:6px;box-shadow:0 8px 24px -10px rgba(0,0,0,.5);">
@@ -3243,7 +3248,28 @@ async function _sbSessionSafe(ms) {
     return null;
   }
 }
-async function _psToken() { const s = await _sbSessionSafe(4000); return s && s.access_token; }
+// Devuelve una sesión con token VIGENTE, refrescándolo si está vencido o por vencer (<90s).
+// getSession() no refresca de forma confiable (y puede colgarse), así que forzamos
+// refreshSession() con su propio timeout. null = sesión muerta → hay que re-entrar con Gmail.
+async function _sbFreshSession(ms) {
+  const s = await _sbSessionSafe(ms || 4000);
+  const vigente = t => t && t.expires_at && (t.expires_at * 1000 - Date.now() > 90 * 1000);
+  if (vigente(s)) return s;                                   // aún válido con margen → tal cual
+  try {
+    const r = await Promise.race([
+      sbClient.auth.refreshSession(),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('REFRESH_TIMEOUT')), ms || 6000))
+    ]);
+    const ns = r && r.data && r.data.session;
+    if (ns && ns.access_token) return ns;                     // refrescado OK
+  } catch (e) { /* refresh colgado/fallido → cae abajo */ }
+  // no se pudo refrescar: usa el token viejo solo si TODAVÍA no venció; si venció, null.
+  if (s && s.expires_at && s.expires_at * 1000 > Date.now()) return s;
+  return null;
+}
+// ¿la sesión de Gmail sigue viva (con refresco)? Para el chequeo proactivo del panel.
+async function _sesionViva() { const s = await _sbFreshSession(6000); return !!(s && s.access_token); }
+async function _psToken() { const s = await _sbFreshSession(4000); return s && s.access_token; }
 async function _psRpc(fn, body) {
   const tok = await _psToken();
   const h = { apikey: SUPA_ANON, 'Content-Type': 'application/json' }; if (tok) h.Authorization = 'Bearer ' + tok;
@@ -3409,10 +3435,15 @@ async function comprimirFotoZarpe(file, opts) {
   }
 }
 
+// El server levanta 'NO_AUTH: sesión no autorizada' (o error JWT/401) cuando la petición
+// llega sin sesión válida. Lo detectamos acá y avisamos a la app (→ pantalla de re-login)
+// en vez de dejar al usuario con un mensaje rojo sin salida.
+function _esErrorAuth(msg) { return /NO_AUTH|no autoriz|jwt|JWT|401/i.test(String(msg || '')); }
+function _avisarAuthPerdida(msg) { try { window.dispatchEvent(new CustomEvent('ps-auth-lost', { detail: String(msg || '') })); } catch (_) {} }
 async function apiGet(accion, params = {}) {
   if (USE_SUPABASE_PS && PS_GET[accion]) {
     try { return { ok: true, data: await PS_GET[accion](params) }; }
-    catch (e) { return { ok: false, error: (e && e.message) || 'Error' }; }
+    catch (e) { const m = (e && e.message) || 'Error'; if (_esErrorAuth(m)) _avisarAuthPerdida(m); return { ok: false, error: m }; }
   }
   return { ok: false, error: 'accion_no_soportada_get: ' + accion };
 }
@@ -3420,7 +3451,7 @@ async function apiPost(body) {
   const acc = body && (body.accion || body.action);
   if (USE_SUPABASE_PS && acc && PS_POST[acc]) {
     try { const d = await PS_POST[acc](body); return { ok: true, data: Object.assign({ ok: true }, d || {}) }; }
-    catch (e) { return { ok: false, error: (e && e.message) || 'Error' }; }
+    catch (e) { const m = (e && e.message) || 'Error'; if (_esErrorAuth(m)) _avisarAuthPerdida(m); return { ok: false, error: m }; }
   }
   return { ok: false, error: 'accion_no_soportada_post: ' + (body.accion || body.action || '?') };
 }
@@ -13215,6 +13246,26 @@ createApp({
     const loginStep      = ref('select');
     const loginError     = ref('');
     const loginLoading   = ref(false);
+    const sesionExpirada = ref(false);   // true → mostramos aviso amable "tu sesión se cerró" en el login
+
+    // La sesión de Gmail se venció/cayó: cerramos limpio y volvemos al login con aviso amable.
+    function marcarSesionCerrada() {
+      if (!session.value && sesionExpirada.value) return;   // ya está marcada
+      try { clearTimeout(_contactosRTT); if (_contactosRTCh) { sbClient.removeChannel(_contactosRTCh); _contactosRTCh = null; } } catch (e) {}
+      session.value = null;
+      localStorage.removeItem('ps_session');
+      loginStep.value = 'select';
+      sesionExpirada.value = true;
+    }
+    // Chequeo proactivo: ¿sigue viva la sesión? Si no, avisa ANTES de que el usuario intente operar.
+    let _chkSesionAt = 0;
+    async function verificarSesion(force) {
+      if (!session.value) return;                                  // aún sin loguear → login normal
+      if (!force && Date.now() - _chkSesionAt < 20000) return;     // no spamear (resume repetido)
+      _chkSesionAt = Date.now();
+      const viva = await _sesionViva();
+      if (!viva) marcarSesionCerrada();
+    }
 
     // Personal Master modal
 
@@ -13307,6 +13358,7 @@ createApp({
         session.value = { ok: true, id: 'GML-' + (su.email || '').split('@')[0], nombre: j.nombre,
                           rol: rolPs === 'admin' ? 'Administrador' : 'Supervisor', loginAt: Date.now(), google: true };
         localStorage.setItem('ps_session', JSON.stringify(session.value));
+        sesionExpirada.value = false;   // sesión recuperada → fuera el aviso
         try { sndUp(); haptic([12, 40, 16]); } catch (e) {}
         preloadCatalogos();
         await loadModuleData('dashboard');
@@ -13438,13 +13490,22 @@ createApp({
 
     onMounted(async () => {
       if (!session.value) { /* sin sesión: la puerta Google la maneja resolverGoogle() */ }
-      else if (USE_SUPABASE_PS && session.value.rol === 'Administrador') {
-        // si la sesión Supabase no sobrevivió al reload (o getSession se colgó), re-login
-        let s = await _sbSessionSafe(4000);
-        if (!s) { session.value = null; localStorage.removeItem('ps_session'); loginStep.value = 'select'; }
-        else { loadModuleData('dashboard'); preloadCatalogos(); preloadModules(); }
+      else if (USE_SUPABASE_PS) {
+        // Chequeo proactivo AL ENTRAR: si la sesión de Gmail no sobrevivió (reload, token
+        // vencido o getSession colgado) avisamos amablemente y NO cargamos con sesión muerta.
+        const viva = await _sesionViva();
+        if (!viva) { marcarSesionCerrada(); }
+        else { _chkSesionAt = Date.now(); loadModuleData('dashboard'); preloadCatalogos(); preloadModules(); }
       }
       else { loadModuleData('dashboard'); preloadCatalogos(); preloadModules(); }
+      // Re-chequeo al volver al panel (foco/visibilidad) + ronda suave cada 5 min: así el aviso
+      // aparece ANTES de intentar operar, no como sorpresa a mitad de un registro.
+      const _chkResume = () => { if (!document.hidden) verificarSesion(); };
+      document.addEventListener('visibilitychange', _chkResume);
+      window.addEventListener('focus', _chkResume);
+      setInterval(() => { if (!document.hidden) verificarSesion(true); }, 5 * 60 * 1000);
+      // Red de seguridad: si una lectura/escritura recibe NO_AUTH del server, re-login inmediato.
+      window.addEventListener('ps-auth-lost', () => { if (session.value) marcarSesionCerrada(); });
       window.addEventListener('online',  () => isOnline.value = true);
       window.addEventListener('offline', () => isOnline.value = false);
       window.addEventListener('beforeinstallprompt', e => {
@@ -13574,7 +13635,7 @@ createApp({
       session, currentModule, currentView, navModules,
       moduleData, moduleLoading, showInfoPanel,
       isOnline, orbitDotState, showUserMenu, canInstall, installPWA,
-      loginStep, loginError, loginLoading,
+      loginStep, loginError, loginLoading, sesionExpirada,
       toast, isAdminRoot,
       navIcon, iniciales, loginGoogle,
       goModule, handleAction,
@@ -13587,7 +13648,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.93.0';
+const APP_VERSION = '1.94.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
