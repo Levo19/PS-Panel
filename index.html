@@ -5108,7 +5108,7 @@ const ViewLanchas = {
       if (!fechas.value.length) loadFechas();
       loadCatalogos();
       loadContactos();
-      refreshInterval = setInterval(silentRefresh, 60000);
+      refreshInterval = setInterval(silentRefresh, 25000);
       lanchasRTSubscribe();
       nextTick(moveTabInd);
     });
@@ -5116,7 +5116,7 @@ const ViewLanchas = {
       if (!fechas.value.length && !loadingFechas.value) loadFechas();
       loadCatalogos();
       loadContactos();
-      if (!refreshInterval) refreshInterval = setInterval(silentRefresh, 60000);
+      if (!refreshInterval) refreshInterval = setInterval(silentRefresh, 25000);
       // Al volver (keep-alive) mostramos lo que ya hay AL INSTANTE y refrescamos en el fondo (sin spinner).
       if (fechas.value.length) silentRefresh();
       lanchasRTSubscribe();
@@ -13766,14 +13766,9 @@ createApp({
       document.addEventListener('visibilitychange', _chkResume);
       window.addEventListener('focus', _chkResume);
       setInterval(() => { if (!document.hidden) verificarSesion(true); }, 5 * 60 * 1000);
-      // Propagación PS↔OPS: refresco SILENCIOSO de la fecha visible cada 15s (OPS jala su
-      // dashboard cada 10s → un cambio de cualquiera de los dos lados se ve en segundos).
-      // Se salta si hay un modal/sheet abierto para no mover datos bajo los dedos del admin.
-      setInterval(() => {
-        if (document.hidden || currentModule.value !== 'lanchas' || !currentFecha.value) return;
-        if (document.querySelector('.date-picker-overlay, .ps-sheet-overlay')) return;
-        loadFecha(currentFecha.value, true);   // force + contenido previo intacto = sin spinner
-      }, 15000);
+      // Propagación PS↔OPS: la maneja el componente Lanchas (realtime postgres_changes en
+      // operaciones/movimientos/caja → silentRefresh ~1s, + poll de respaldo 60s). currentFecha
+      // y loadFecha viven en ESE scope — un interval aquí revienta con ReferenceError (v1.96.0).
       // Red de seguridad: si una lectura/escritura recibe NO_AUTH del server, re-login inmediato.
       window.addEventListener('ps-auth-lost', () => { if (session.value) marcarSesionCerrada(); });
       window.addEventListener('online',  () => isOnline.value = true);
@@ -13918,7 +13913,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.96.0';
+const APP_VERSION = '1.96.1';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
