@@ -3375,7 +3375,7 @@ const PS_POST = {
   anular_pago: b => _psRpc('eliminar_transaccion', { p_id: b.id }).then(() => ({ ok: true })),
   convertir_pase_compra: b => _psRpc('convertir_pase_compra', { p_mov: b.id_mov, p_agencia: b.id_agencia, p_monto: parseFloat(b.monto) || 0 }),
   crear_operacion: b => _psRpc('abrir_operacion', { p_bote: b.id_bote, p_capitan: b.id_capitan || null, p_guia: b.id_guia || null, p_hora: b.hora_salida || null, p_destino: b.destino || null, p_creador: b.creador || 'PS', p_local_id: b.localId || null, p_fecha: b.fecha || null }).then(id => ({ id })),
-  actualizar_operacion: b => _psRpc('editar_operacion', { p_op: b.id_operacion || b.id, p_capitan: b.id_capitan == null ? null : b.id_capitan, p_guia: b.id_guia == null ? null : b.id_guia, p_hora: b.hora_salida == null ? null : b.hora_salida }),
+  actualizar_operacion: b => _psRpc('editar_operacion', { p_op: b.id_operacion || b.id, p_capitan: b.id_capitan == null ? null : b.id_capitan, p_guia: b.id_guia == null ? null : b.id_guia, p_hora: b.hora_salida == null ? null : b.hora_salida, p_bote: b.id_bote || null, p_destino: b.destino || null, p_fecha: b.fecha || null, p_estado: b.estado || null }),
   crear_movimiento: b => { const args = { p_op: b.id_operacion, p_tipo: b.tipo, p_contacto: b.id_contacto || null, p_nombre: b.nombre_contacto || b.id_contacto || null, p_pax: parseInt(b.cant_pax) || 0, p_precio: parseFloat(b.precio_aplicado || b.precio_unitario) || 0, p_monto: parseFloat(b.monto_total) || 0, p_operador: b.operador || 'PS', p_local_id: b.localId || null }; if (b.registrado_at) args.p_registrado_at = b.registrado_at; return _psRpc('registrar_movimiento', args).then(id => ({ id_mov: id })); },
   crear_pase_directo: b => _psRpc('registrar_pase_directo', { p_contacto: b.id_contacto || null, p_nombre: b.nombre_contacto || null, p_aliado: b.id_aliado, p_pax: parseInt(b.cant_pax) || 0, p_operador: b.operador || 'PS', p_fecha: b.fecha, p_local_id: b.localId || null }).then(id => ({ id_mov: id })),
   crear_compra_espacio: b => _psRpc('registrar_compra_espacio', { p_contacto: b.id_contacto || null, p_nombre: b.nombre_contacto || null, p_agencia: b.id_agencia, p_pax: parseInt(b.cant_pax) || 0, p_monto_compra: parseFloat(b.monto_compra) || 0, p_monto_cobro: b.monto_cobro == null ? null : (parseFloat(b.monto_cobro) || 0), p_operador: b.operador || 'PS', p_fecha: b.fecha, p_local_id: b.localId || null }).then(id => ({ id_mov: id })),
@@ -4327,6 +4327,7 @@ const ViewLanchas = {
       body.id_capitan  = m.id_capitan;
       body.id_guia     = m.id_guia;
       body.destino     = m.destino;
+      body.id_bote     = m.id_bote;   // editar también puede cambiar la embarcación
 
       if (!creating) {
         // ── Optimistic update ──────────────────────────────────────
@@ -4343,6 +4344,8 @@ const ViewLanchas = {
             id_guia:        m.id_guia,
             nombre_guia:    m.id_guia ? ((personalOps.value.find(p => p.id === m.id_guia) || {}).nombre || ops[idx].nombre_guia) : '',
             destino:        m.destino,
+            id_bote:        m.id_bote || ops[idx].id_bote,
+            nombre_bote:    (embarcaciones.value.find(b => b.id === m.id_bote) || {}).nombre || ops[idx].nombre_bote,
             ...(admin ? { fecha: m.fecha, estado: m.estado } : {})
           };
           const newOps = [...ops]; newOps[idx] = updated;
@@ -6592,9 +6595,9 @@ const ViewLanchas = {
                 </div>
               </div>
 
-              <!-- Embarcación (solo crear) -->
-              <label v-if="opModal.mode==='crear'" style="display:flex;flex-direction:column;gap:5px;">
-                <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">Embarcación *</span>
+              <!-- Embarcación (crear y editar) -->
+              <label style="display:flex;flex-direction:column;gap:5px;">
+                <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;">Embarcación{{ opModal.mode==='crear' ? ' *' : '' }}</span>
                 <select v-model="opModal.id_bote"
                   style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 10px;font-size:13px;color:var(--text);appearance:none;">
                   <option value="">— seleccionar —</option>
@@ -13763,6 +13766,14 @@ createApp({
       document.addEventListener('visibilitychange', _chkResume);
       window.addEventListener('focus', _chkResume);
       setInterval(() => { if (!document.hidden) verificarSesion(true); }, 5 * 60 * 1000);
+      // Propagación PS↔OPS: refresco SILENCIOSO de la fecha visible cada 15s (OPS jala su
+      // dashboard cada 10s → un cambio de cualquiera de los dos lados se ve en segundos).
+      // Se salta si hay un modal/sheet abierto para no mover datos bajo los dedos del admin.
+      setInterval(() => {
+        if (document.hidden || currentModule.value !== 'lanchas' || !currentFecha.value) return;
+        if (document.querySelector('.date-picker-overlay, .ps-sheet-overlay')) return;
+        loadFecha(currentFecha.value, true);   // force + contenido previo intacto = sin spinner
+      }, 15000);
       // Red de seguridad: si una lectura/escritura recibe NO_AUTH del server, re-login inmediato.
       window.addEventListener('ps-auth-lost', () => { if (session.value) marcarSesionCerrada(); });
       window.addEventListener('online',  () => isOnline.value = true);
@@ -13907,7 +13918,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.95.0';
+const APP_VERSION = '1.96.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
