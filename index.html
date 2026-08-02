@@ -2050,6 +2050,18 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 .fac-cli-addrow-s { font-size:10px; color:var(--text-muted); font-weight:600; }
 .fac-fb.sending { border-color:rgba(201,168,76,.4); background:rgba(201,168,76,.07); }
 .fac-chip-emit.errch { color:#f87171; border-color:rgba(248,113,113,.4); background:rgba(248,113,113,.1); }
+/* cliente INVÁLIDO para el modo → el chip palpita rojo con su motivo (el error se marca donde está) */
+.fac-cli-chip.inv { border-color:rgba(248,113,113,.65); animation:cliInvPulse 1.4s ease-in-out infinite; }
+@keyframes cliInvPulse { 0%,100%{box-shadow:0 0 0 0 rgba(248,113,113,0)} 50%{box-shadow:0 0 0 4px rgba(248,113,113,.16), 0 0 14px rgba(248,113,113,.25)} }
+.fac-cli-inv-hint { font-size:10.5px; color:#f87171; font-weight:700; margin-top:3px; }
+/* chip 🌎 exportación junto al IGV: apagado = sugerencia sutil; activo = celeste encendido */
+.fac-exp-chip { padding:2px 9px; border-radius:999px; font-size:10px; font-weight:800; cursor:pointer; letter-spacing:.02em;
+  border:1px solid rgba(56,189,248,.35); background:transparent; color:rgba(56,189,248,.75);
+  transition:transform .15s, background .18s, color .18s, box-shadow .2s; -webkit-tap-highlight-color:transparent; }
+.fac-exp-chip:hover { transform:scale(1.05); }
+.fac-exp-chip:active { transform:scale(.93); }
+.fac-exp-chip.on { background:rgba(56,189,248,.18); color:#38bdf8; border-color:#38bdf8; box-shadow:0 0 10px rgba(56,189,248,.28); }
+@media (prefers-reduced-motion: reduce) { .fac-cli-chip.inv { animation:none; box-shadow:0 0 0 2px rgba(248,113,113,.3); } }
 .fac-z-view { animation:facZView .34s cubic-bezier(.34,1.56,.64,1) both; }
 @keyframes facZView { from{opacity:0;transform:translateX(16px)} to{opacity:1;transform:none} }
 .fac-z-back, .fac-z-back2 { -webkit-tap-highlight-color:transparent; }
@@ -8060,29 +8072,53 @@ function _facSetFormaPago(v) {
   try { sndTap(); haptic(8); } catch (e) {}
   _facRender();
 }
-// Segmento Boleta / Factura / Exportación.
-// REGLA DE ORO: JAMÁS mutar el docTipo de un cliente SELECCIONADO (antes un DNI elegido se
-// "convertía" en RUC al pasar a Factura — bug reportado). Si el cliente no es compatible con
-// el modo, se LIMPIA la selección (Varios en silencio porque es el default; persona con aviso).
+// Toggle Boleta / Factura — MISMO layout, solo cambian los requisitos (decisión dueño).
+// REGLA DE ORO: JAMÁS mutar ni limpiar el cliente seleccionado — si es incompatible con el
+// modo, su chip PALPITA en rojo con el motivo (el error se marca DONDE está) y Emitir se
+// bloquea por reglas. Exportación ya no es un modo: es un chip contextual junto al IGV.
 function _facSetModo(m) {
   const S = _facState;
-  const limpiar = () => { S.cliSel = false; S.cliQuery = ''; S.cliResults = []; S.doc = ''; S.nombre = ''; S.dir = ''; S.email = ''; S.tel = ''; S.esExtranjero = false; S.cliManual = false; };
-  if ((m === 'factura' || m === 'export') && S.cliSel && S.docTipo === '0') {
-    limpiar();   // Varios es el default del form — soltar sin drama
-    try { sndTap(); haptic(8); } catch (e) {}
-  } else if (S.cliSel && ((m === 'factura' && S.docTipo !== '6') || (m === 'export' && S.docTipo !== '7'))) {
-    limpiar();   // cliente incompatible (p.ej. DNI en factura): limpiar y avisar — NUNCA convertirle el documento
-    S.shake = true; setTimeout(() => { if (_facState) { _facState.shake = false; _facRender(); } }, 450);
-    try { sndErr(); haptic([60, 30, 60]); } catch (e) {}
-    if (typeof showToast === 'function') showToast(m === 'factura' ? '⚠️ Factura exige RUC — busca a la empresa' : '⚠️ Exportación exige pasaporte del turista');
-  } else { try { sndTap(); haptic(8); } catch (e) {} }
+  try { sndTap(); haptic(8); } catch (e) {}
   S.facModo = m;
   if (m !== 'factura') { S.formaPago = 'CONTADO'; S.creditoVenc = ''; }   // crédito solo aplica a factura nacional
   if (m === 'boleta') { S.tipo = 2; S.exportacion = false; S.esExtranjero = false; }
-  else if (m === 'factura') { S.tipo = 1; S.exportacion = false; S.esExtranjero = false; if (!S.cliSel) S.docTipo = '6'; }
-  else if (m === 'export') { S.tipo = 1; S.exportacion = true; S.esExtranjero = true; if (!S.cliSel) S.docTipo = '7'; }
+  else if (m === 'factura') { S.tipo = 1; if (!S.cliSel) S.docTipo = '6'; }
   S.lookupState = 'idle';
   _facRender();
+  // si el cliente quedó inválido para el nuevo modo, marcarlo con feedback (visual+sonoro suave)
+  if (_facCliInvalidez()) { try { sndDown(); haptic([25, 20, 25]); } catch (e) {} }
+}
+// ¿El cliente SELECCIONADO es inválido para el modo actual? → razón para el hint del chip.
+function _facCliInvalidez() {
+  const S = _facState; if (!S || !S.cliSel) return null;
+  const tot = _facTotales();
+  if (S.exportacion) {
+    if (S.docTipo !== '7' && S.docTipo !== '0') return 'Exportación exige pasaporte del turista — cámbialo o desactiva 🌎';
+    return null;
+  }
+  if (S.tipo === 1 && S.docTipo !== '6') return S.docTipo === '0' ? 'Factura exige RUC — Varios no factura' : 'Factura exige RUC — este documento no sirve aquí';
+  if (S.tipo === 2 && S.docTipo === '0' && tot.total > 700) return 'Boleta > S/700 exige identificar al cliente';
+  return null;
+}
+// Chip 🌎 Exportación (vive junto al IGV, SOLO en factura): aparece cuando la venta "huele" a
+// exportación — cliente pasaporte/tax-id o paquete de 2+ servicios — o si ya está activa.
+function _facExportEligible() {
+  const S = _facState;
+  return S.tipo === 1 && (S.exportacion || S.docTipo === '7' || S.docTipo === '0' || (S.items && S.items.length >= 2));
+}
+function _facExpChipHTML() {
+  const S = _facState;
+  if (!_facExportEligible()) return '';
+  return `<button class="fac-exp-chip${S.exportacion ? ' on' : ''}" onclick="_facToggleExport()" title="${S.exportacion ? 'Desactivar exportación (volver a 18%)' : 'Facturar como exportación de paquete turístico (0% IGV)'}">🌎 ${S.exportacion ? 'Exportación 0%' : '¿Exportación?'}</button>`;
+}
+function _facToggleExport() {
+  const S = _facState;
+  S.exportacion = !S.exportacion;
+  S.esExtranjero = S.exportacion;
+  if (S.exportacion) { S.formaPago = 'CONTADO'; S.creditoVenc = ''; }
+  try { if (S.exportacion) { sndUp(); haptic([12, 30, 12]); } else { sndTap(); haptic(8); } } catch (e) {}
+  _facRender();
+  if (_facCliInvalidez()) { try { sndDown(); } catch (e) {} }
 }
 // Bloque visual de requisitos (va DEBAJO del botón Emitir). Sin pendientes → línea verde
 // tranquilizadora: una boleta simple no tiene requisitos y eso también hay que decirlo.
@@ -8269,7 +8305,14 @@ function _facEmitLite() {
   const tt = document.getElementById('fac-tt'); if (tt) tt.textContent = 'S/ ' + t.total.toFixed(2);
   const needMedio = !S.exportacion && t.total >= 2000, hasMedio = !!document.getElementById('fac-medio');
   if (needMedio !== hasMedio) { _facRender(); return true; }   // cruzó S/2000 → estructura cambia
+  const es = document.getElementById('fac-exp-slot'); if (es) es.innerHTML = _facExpChipHTML();   // el chip 🌎 depende del nº de ítems
   const rg = document.getElementById('fac-reglas'); if (rg) rg.innerHTML = _facReglasHTML();
+  // el chip del cliente puede volverse inválido al cambiar el total (Varios cruza S/700) → refrescar en sitio
+  const chip = document.querySelector('#fac-emit-modal .fac-cli-chip, .fac-mod-shell2 .fac-cli-chip');
+  if (chip) { const inv = _facCliInvalidez(); chip.classList.toggle('inv', !!inv);
+    let h = chip.querySelector('.fac-cli-inv-hint');
+    if (inv && !h) { h = document.createElement('div'); h.className = 'fac-cli-inv-hint'; chip.querySelector('.fac-cli-chip-main').appendChild(h); }
+    if (h) { if (inv) h.textContent = '⚠ ' + inv; else h.remove(); } }
   const btn = document.getElementById('fac-emitir');
   if (btn) { const ok = _facReglasOk(); btn.disabled = !ok; btn.style.opacity = ok ? '' : '.5'; btn.style.cursor = ok ? '' : 'not-allowed'; btn.textContent = ok ? '🧾 Emitir comprobante' : '⛔ Faltan requisitos SUNAT'; }
   return false;
@@ -8393,7 +8436,7 @@ function _facCliDropHTML(S) {
 }
 // Cajón manual (aparece cuando RENIEC/SUNAT no devuelven nada, o no es 8/11 dígitos).
 function _facCliManualHTML(S) {
-  const seg = [['1', 'DNI'], ['4', 'CE'], ['7', 'Pasaporte']].map(([t, l]) => `<button class="fac-cli-seg${S.manualTipo === t ? ' on' : ''}" onclick="_facCliManualTipo('${t}')">${l}</button>`).join('');
+  const seg = [['1', 'DNI'], ['4', 'CE'], ['7', 'Pasaporte'], ['6', 'RUC']].map(([t, l]) => `<button class="fac-cli-seg${S.manualTipo === t ? ' on' : ''}" onclick="_facCliManualTipo('${t}')">${l}</button>`).join('');
   return `<div class="fac-cli-manual">
     <div class="fac-cli-manual-h">Sin datos en RENIEC / SUNAT · regístralo a mano</div>
     <input id="fac-cli-mdoc" class="fac-cli-minput" placeholder="N° de documento" value="${_facEsc(S.manualDoc || '')}" autocomplete="off">
@@ -8406,6 +8449,7 @@ function _facCliManualHTML(S) {
 function _facCliDefaultHTML(S) {
   const empty = !(S.cliQuery || '').trim() && !S.cliManual;
   if (!empty) return '';
+  if (S.tipo === 1 || S.exportacion) return '';   // factura exige RUC (y export pasaporte) → Varios no aplica, no confundir
   return `<button class="fac-cli-varios" onclick="_facCliSetVarios()" aria-label="Clientes varios sin documento">
     <span class="fac-cli-varios-ico">👥</span>
     <span class="fac-cli-varios-main"><span class="fac-cli-varios-t">Clientes varios · sin documento</span><span class="fac-cli-varios-s">Boleta simple hasta S/700</span></span>
@@ -8415,25 +8459,30 @@ function _facCliDefaultHTML(S) {
 // Componente único: renderiza el estado correcto (chip seleccionado vs búsqueda+dropdown+manual+varios).
 function _facCliBox(S) {
   if (S.cliSel) {
-    const esVarios = S.docTipo === '0';
+    const inv = _facCliInvalidez();   // cliente incompatible con el modo → chip PALPITA rojo + motivo
+    const invCls = inv ? ' inv' : '';
+    const invHint = inv ? `<div class="fac-cli-inv-hint">⚠ ${_facEsc(inv)}</div>` : '';
+    const esVarios = S.docTipo === '0' && !S.exportacion;
     if (esVarios) {
-      return `<div class="fac-cli-chip varios" data-cli="sel">
+      return `<div class="fac-cli-chip varios${invCls}" data-cli="sel">
         <div class="fac-cli-chip-ico">👥</div>
         <div class="fac-cli-chip-main">
           <div class="fac-cli-chip-t"><span class="fac-cli-tag">Varios</span></div>
           <div class="fac-cli-chip-n">Clientes varios · sin documento</div>
+          ${invHint}
         </div>
         <button class="fac-cli-x" onclick="_facCliClear()" aria-label="Cambiar cliente" title="Cambiar cliente">×</button>
       </div>`;
     }
     const esRuc = S.docTipo === '6';
     const dir = (esRuc && S.dir) ? `<div class="fac-cli-chip-dir">📍 ${_facEsc(S.dir)}</div>` : '';
-    return `<div class="fac-cli-chip" data-cli="sel">
+    return `<div class="fac-cli-chip${invCls}" data-cli="sel">
       <div class="fac-cli-chip-ico">${esRuc ? '🏢' : '👤'}</div>
       <div class="fac-cli-chip-main">
         <div class="fac-cli-chip-t"><span class="fac-cli-tag${esRuc ? ' ruc' : ''}">${_facCliTipoLabel(S.docTipo)}${S.doc ? ' ' + _facEsc(S.doc) : ''}</span></div>
         <div class="fac-cli-chip-n">${_facEsc(S.nombre) || '—'}</div>
         ${dir}
+        ${invHint}
       </div>
       <button class="fac-cli-x" onclick="_facCliClear()" aria-label="Cambiar cliente" title="Cambiar cliente">×</button>
     </div>`;
@@ -9056,9 +9105,8 @@ function _facSectionBody(S) {
       <div style="display:flex;gap:6px;margin-bottom:12px">
         ${segBtn('boleta', 'Boleta · ' + ((S.facCfg&&S.facCfg.serie_boleta)||'B002'))}
         ${segBtn('factura', 'Factura · ' + ((S.facCfg&&S.facCfg.serie_factura)||'F002'))}
-        ${segBtn('export', '🌎 Exportación')}
       </div>
-      ${S.exportacion ? '<div style="font-size:11px;color:var(--text-muted);background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.25);border-radius:9px;padding:8px 10px;margin-bottom:10px;line-height:1.5">Turismo receptivo (0% IGV). Requiere <b>pasaporte</b> del turista y un <b>paquete de 2 o más servicios</b>. La afectación la fija el sistema.</div>' : ''}
+      ${S.exportacion ? '<div style="font-size:11px;color:var(--text-muted);background:rgba(56,189,248,0.07);border:1px solid rgba(56,189,248,0.3);border-radius:9px;padding:8px 10px;margin-bottom:10px;line-height:1.5">🌎 <b>Exportación activa</b> (0% IGV, turismo receptivo). Requiere <b>pasaporte</b> del turista y un <b>paquete de 2+ servicios</b>.</div>' : ''}
       ${_facCliBox(S)}
       <div style="display:flex;align-items:center;justify-content:space-between;margin:14px 0 6px">
         <div style="font-size:11px;font-weight:800;color:var(--gold);letter-spacing:.04em">SERVICIOS</div>
@@ -9072,7 +9120,12 @@ function _facSectionBody(S) {
       </div>
       <div style="background:var(--bg2,rgba(255,255,255,0.03));border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:12px">
         <div style="display:flex;justify-content:space-between;color:var(--text-muted)"><span>${S.exportacion?'Exportación':'Gravada'}</span><span id="fac-tg">S/ ${(S.exportacion?tot.total:tot.grav).toFixed(2)}</span></div>
-        <div style="display:flex;justify-content:space-between;color:var(--text-muted)"><span>IGV ${S.exportacion?'(0% · exportación)':'(18%)'}</span><span id="fac-ti">S/ ${tot.igv.toFixed(2)}</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;color:var(--text-muted)">
+          <span style="display:flex;align-items:center;gap:7px">IGV ${S.exportacion?'(0% · exportación)':'(18%)'}
+            <span id="fac-exp-slot">${_facExpChipHTML()}</span>
+          </span>
+          <span id="fac-ti">S/ ${tot.igv.toFixed(2)}</span>
+        </div>
         <div style="display:flex;justify-content:space-between;font-weight:900;color:var(--text);margin-top:4px;font-size:15px"><span>TOTAL</span><span id="fac-tt">S/ ${tot.total.toFixed(2)}</span></div>
       </div>
       ${(!S.exportacion && tot.total >= 2000) ? `<div style="margin-bottom:12px">
@@ -14259,7 +14312,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.99.1';
+const APP_VERSION = '2.0.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
