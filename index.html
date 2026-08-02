@@ -9535,11 +9535,28 @@ async function _facZarpeEmitir() {
     const esFactura = !!(f.empresa || String(f.tipo_doc) === '6');
     const tipo = esFactura ? 1 : 2;
     const serie = esFactura ? ((S.facCfg && S.facCfg.serie_factura) || 'F002') : ((S.facCfg && S.facCfg.serie_boleta) || 'B002');
+    // FACTURA exige dirección fiscal (guard server FACTURA_REQUIERE_DIRECCION — sin esto TODA
+    // factura del lote fallaba). Cadena: clientes propios → consulta RUC (SUNAT) → '-' (la
+    // dirección del adquirente no es requisito SUNAT de validez). Cacheada en la fila p/ reintento.
+    let dirFactura = '';
+    if (esFactura) {
+      dirFactura = f._dir || '';
+      const rucF = String(f.documento || '').trim();
+      if (!dirFactura && rucF) {
+        try { const rc = await apiGet('buscar_cliente', { doc_tipo: '6', doc: rucF }); dirFactura = (rc.ok && rc.data && rc.data.direccion) || ''; } catch (e) {}
+      }
+      if (!dirFactura && rucF) {
+        try { const rl = await apiGet('consultar_documento', { numero: rucF, tipo: 'ruc' }); const d = (rl.ok && rl.data) || {}; dirFactura = d.direccion || d.direccion_completa || d.dir || ''; } catch (e) {}
+      }
+      if (!dirFactura) dirFactura = '-';
+      f._dir = dirFactura;
+    }
     let r;
     try {
       r = await apiPost({ accion: 'emitir_comprobante', tipo, serie,
         cliente_doc_tipo: f.tipo_doc || (esFactura ? '6' : '1'), cliente_doc: String(f.documento || '').trim(),
         cliente_nombre: f.nombre || f.empresa || 'Cliente', items, moneda: 'PEN',
+        cliente_dir: esFactura ? dirFactura : '',
         operador: (S.ses && S.ses.nombre) || 'PS', localId: 'zarpe-' + f.id });
     } catch (e) { r = { ok: false, error: (e && e.message) || 'error' }; }
     if (r && r.ok && r.data) {
@@ -13942,7 +13959,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.97.0';
+const APP_VERSION = '1.97.1';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
