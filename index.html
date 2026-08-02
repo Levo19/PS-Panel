@@ -7914,17 +7914,21 @@ function _facTotales() {
 }
 function _facErr(msg) { sndErr(); haptic([60, 30, 60]); if (typeof showToast === 'function') showToast('⚠️ ' + msg); if (_facState) { _facState.shake = true; _facRender(); setTimeout(() => { if (_facState) { _facState.shake = false; _facRender(); } }, 450); } }
 // Chip de estado SUNAT para el historial
+// Chip de estado VERAZ: "SUNAT ✓" solo cuando SUNAT de verdad aceptó (CDR). Un doc emitido con
+// PDF/QR es VÁLIDO desde ya, pero las boletas viajan por Resumen Diario y SUNAT las confirma
+// después (horas) — ese estado intermedio se muestra "válida · ⏳ SUNAT", no "aceptada" a secas.
 function _facChipEstado(c) {
   const est = String((c && c.estado) || '').toLowerCase();
-  const aceptada = est === 'aceptada' || c.aceptada_por_sunat === true;
+  const sunatOk = !!(c && c.aceptada_por_sunat === true);
   const rechazada = est === 'rechazada' || est === 'error';
   const anulada = est === 'anulada';
-  let ico = '🟡', col = '#fbbf24', txt = est || 'pendiente';
-  if (aceptada) { ico = '🟢'; col = '#4ade80'; txt = 'aceptada'; }
-  else if (rechazada) { ico = '🔴'; col = '#f87171'; txt = 'rechazada'; }
-  else if (anulada) { ico = '⊘'; col = 'var(--text-muted)'; txt = 'anulada'; }
-  else if (est === 'stub') { ico = '🧪'; col = 'var(--text-muted)'; txt = 'demo'; }
-  return `<span style="font-size:9px;font-weight:800;padding:1px 7px;border-radius:999px;background:rgba(255,255,255,0.06);color:${col}">${ico} ${txt}</span>`;
+  let ico = '🟡', col = '#fbbf24', txt = est || 'pendiente', tip = 'Esperando respuesta';
+  if (anulada) { ico = '⊘'; col = 'var(--text-muted)'; txt = 'anulada'; tip = 'Comprobante anulado'; }
+  else if (sunatOk) { ico = '🟢'; col = '#4ade80'; txt = 'SUNAT ✓'; tip = 'Aceptada por SUNAT (con CDR)'; }
+  else if (est === 'aceptada') { ico = '🟢'; col = '#a3e635'; txt = 'válida · ⏳ SUNAT'; tip = 'Emitida y válida (PDF/QR). SUNAT la confirma con el Resumen Diario — normal en boletas; el sistema la actualiza solo.'; }
+  else if (rechazada) { ico = '🔴'; col = '#f87171'; txt = 'rechazada'; tip = 'Rechazada — revisar'; }
+  else if (est === 'stub') { ico = '🧪'; col = 'var(--text-muted)'; txt = 'demo'; tip = 'Emisión de prueba'; }
+  return `<span title="${tip}" style="font-size:9px;font-weight:800;padding:1px 7px;border-radius:999px;background:rgba(255,255,255,0.06);color:${col}">${ico} ${txt}</span>`;
 }
 window.cerrarFacturacion = function () { const ov = document.getElementById('fac-ov'); if (ov) ov.style.display = 'none'; try { const S = _facState; if (S && S._iaTimer) { clearInterval(S._iaTimer); S._iaTimer = null; } if (S && S.ia && S.ia.previewUrl) URL.revokeObjectURL(S.ia.previewUrl); } catch (e) {} haptic(8); };
 window._tribDiscardIA = function () { const S = _facState; try { if (S._iaTimer) { clearInterval(S._iaTimer); S._iaTimer = null; } if (S.ia && S.ia.previewUrl) URL.revokeObjectURL(S.ia.previewUrl); } catch (e) {} S.ia = null; _facRender(); };
@@ -13959,7 +13963,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.97.1';
+const APP_VERSION = '1.97.2';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
