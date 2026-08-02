@@ -8384,8 +8384,7 @@ function _facCliDropHTML(S) {
   const r = S.cliResults || [];
   if (!r.length) {
     if (S._cliLupaLoading) return `<div class="fac-cli-drop-empty"><span class="spin fac-cli-spin"></span> Consultando RENIEC / SUNAT…</div>`;
-    return `<div class="fac-cli-drop-empty">Sin coincidencias</div>
-      <button class="fac-cli-addrow" onclick="_facCliOpenManual()">＋ Agregar cliente nuevo <span class="fac-cli-addrow-s">se guarda nombre + documento</span></button>`;
+    return `<div class="fac-cli-drop-empty">Sin coincidencias</div>`;   // el "＋" del casillero es el camino para registrar
   }
   return r.map((c, i) => { const esRuc = String(c.doc_tipo) === '6'; return `<button class="fac-cli-row" onclick="_facCliPick(${i})">
       <span class="fac-cli-row-ico">${esRuc ? '🏢' : '👤'}</span>
@@ -8461,6 +8460,7 @@ function _facCliRefreshDrop() {
 function _facCliInput(v) {
   const S = _facState; if (!S) return;
   S.cliQuery = v; S.cliSel = false; S.cliShowLupa = false; S.cliManual = false; S._lkFail = null;
+  clearTimeout(S._autoLkTimer);   // cada tecla cancela el disparo pendiente (no cortar el tipeo del RUC)
   clearTimeout(S._cliTimer); S._cliTimer = setTimeout(_facCliArmLupa, 3000);
   clearTimeout(S._cliDebounce);
   const q = v.trim();
@@ -8471,14 +8471,21 @@ function _facCliInput(v) {
     try { const r = await apiGet('buscar_clientes_like', { q: qq }); _facState.cliResults = (r.ok && Array.isArray(r.data)) ? r.data : []; }
     catch (e) { _facState.cliResults = []; }
     _facState._cliLoading = false; _facCliRefreshDrop();
-    // AUTO-BÚSQUEDA: si el texto ES un DNI (8 díg.) o RUC (11 díg.) y no está en clientes,
-    // dispara RENIEC/SUNAT solo — sin esperar la lupa ni el click (la lupa aparece cargando).
+    // AUTO-BÚSQUEDA: si el texto ES un doc y no está en clientes, dispara RENIEC/SUNAT solo.
+    // OJO tipeo: 8 dígitos puede ser un RUC A MEDIO ESCRIBIR → el DNI espera una PAUSA real
+    // (~1.1s sin teclear) antes de disparar; el RUC (11 = largo máximo) dispara casi al toque.
+    clearTimeout(_facState._autoLkTimer);
     const digits = qq.replace(/\D/g, '');
     if (!_facState.cliSel && !_facState.cliResults.length && digits === qq && (digits.length === 8 || digits.length === 11)
         && _facState._autoLkq !== qq && !_facState._cliLupaLoading) {
-      _facState._autoLkq = qq;                 // una sola vez por texto (evita loops si no existe)
-      _facState.cliShowLupa = true;
-      _facCliLupa();
+      const quiet = digits.length === 11 ? 150 : 1100;
+      _facState._autoLkTimer = setTimeout(() => {
+        const cur = (_facState.cliQuery || '').trim();
+        if (cur !== qq || _facState.cliSel || _facState._cliLupaLoading) return;   // siguió escribiendo → abortar
+        _facState._autoLkq = qq;              // una sola vez por texto (evita loops si no existe)
+        _facState.cliShowLupa = true;
+        _facCliLupa();
+      }, quiet);
     }
   }, 250);
 }
@@ -14252,7 +14259,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.99.0';
+const APP_VERSION = '1.99.1';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
