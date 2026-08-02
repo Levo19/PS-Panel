@@ -2021,6 +2021,30 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 .fac-svcpick-go:disabled { opacity:.45; cursor:not-allowed; }
 .fac-svcpick-go:not(:disabled):active { transform:scale(.97); }
 .fac-cli-btn.plus { color:var(--gold); font-size:17px; font-weight:900; }
+
+/* ── Robot IA "Zarpe" en el header del modal Emitir — el asistente se siente VIVO:
+      idle = respira (glow suave) + parpadea ojos + antena late · hover = saluda
+      (cabeceo) + brillo que barre · press = squash. Reduced-motion lo calma. ── */
+.fac-z-bot { position:relative; display:flex; align-items:center; gap:6px; padding:7px 12px; border-radius:999px; flex:0 0 auto;
+  border:1px solid rgba(201,168,76,.45); background:linear-gradient(135deg, rgba(201,168,76,.16), rgba(147,51,234,.10));
+  color:var(--gold); font-size:11.5px; font-weight:800; letter-spacing:.05em; cursor:pointer; overflow:hidden;
+  -webkit-tap-highlight-color:transparent; transition:transform .18s cubic-bezier(.34,1.56,.64,1), box-shadow .22s, border-color .2s;
+  animation:zbotBreath 3.4s ease-in-out infinite; }
+@keyframes zbotBreath { 0%,100%{box-shadow:0 0 0 0 rgba(201,168,76,0)} 50%{box-shadow:0 0 14px 2px rgba(201,168,76,.22)} }
+.fac-z-bot:hover { transform:translateY(-1px) scale(1.05); border-color:var(--gold); box-shadow:0 6px 20px rgba(201,168,76,.4); }
+.fac-z-bot:active { transform:scale(.92); }
+.fac-z-bot::after { content:""; position:absolute; top:0; left:-60%; width:40%; height:100%; pointer-events:none;
+  background:linear-gradient(100deg, transparent, rgba(255,255,255,.28), transparent); transform:skewX(-20deg); opacity:0; }
+.fac-z-bot:hover::after { animation:zbotShine .65s ease forwards; }
+@keyframes zbotShine { from{left:-60%;opacity:1} to{left:120%;opacity:0} }
+.fac-z-bot svg { display:block; flex:0 0 auto; }
+.fac-z-bot:hover .zbot-head { animation:zbotWiggle .55s ease; transform-origin:50% 85%; }
+@keyframes zbotWiggle { 0%,100%{transform:rotate(0)} 28%{transform:rotate(-11deg)} 66%{transform:rotate(9deg)} }
+.zbot-eye { animation:zbotBlink 4.2s infinite; transform-origin:center; transform-box:fill-box; }
+@keyframes zbotBlink { 0%,91%,100%{transform:scaleY(1)} 94%{transform:scaleY(.12)} }
+.zbot-dot { animation:zbotDot 2.2s ease-in-out infinite; }
+@keyframes zbotDot { 0%,100%{opacity:.45} 50%{opacity:1} }
+@media (prefers-reduced-motion: reduce) { .fac-z-bot, .zbot-eye, .zbot-dot { animation:none; } .fac-z-bot:hover .zbot-head, .fac-z-bot:hover::after { animation:none; } }
 .fac-cli-addrow { display:flex; align-items:center; gap:8px; width:100%; text-align:left; padding:11px 13px; border:none; border-top:1px solid var(--border); background:rgba(201,168,76,.08); color:var(--gold); font-size:12.5px; font-weight:800; cursor:pointer; -webkit-tap-highlight-color:transparent; }
 .fac-cli-addrow:active { background:rgba(201,168,76,.16); }
 .fac-cli-addrow-s { font-size:10px; color:var(--text-muted); font-weight:600; }
@@ -8981,8 +9005,6 @@ function _facSectionBody(S) {
       const segBtn = (m, label) => { const on = S.facModo === m; return `<button onclick="_facSetModo('${m}')" style="flex:1;padding:9px 4px;border-radius:10px;font-weight:800;font-size:12px;cursor:pointer;border:1px solid ${on?'var(--gold)':'var(--border)'};background:${on?'rgba(201,168,76,0.16)':'transparent'};color:${on?'var(--gold)':'var(--text-muted)'}">${label}</button>`; };
       body = `<div class="fac-emit-stable">
       ${_facEmitFeedHTML(S)}
-      ${S._emitOpen ? `<button class="fac-z-dash" onclick="_facZarpeAbrir()">📸 Jalar zarpe con IA — facturar el grupo</button>
-      <div class="fac-z-or">— o emite a un cliente suelto —</div>` : ''}
       <div style="display:flex;gap:6px;margin-bottom:12px">
         ${segBtn('boleta', 'Boleta · ' + ((S.facCfg&&S.facCfg.serie_boleta)||'B002'))}
         ${segBtn('factura', 'Factura · ' + ((S.facCfg&&S.facCfg.serie_factura)||'F002'))}
@@ -9428,7 +9450,19 @@ window._facOpenEmit = function () {
   ov.innerHTML = `<div class="fac-emit-box" role="dialog" aria-modal="true">
     <div class="fac-emit-head">
       <div style="font-size:22px">🧾</div>
-      <div style="flex:1;min-width:0"><div class="fac-emit-title">Emitir CPE</div><div class="fac-emit-sub">Boleta · Factura · Exportación — NubeFact</div></div>
+      <div style="flex:1;min-width:0"><div class="fac-emit-title">Emitir CPE</div></div>
+      <button class="fac-z-bot" onclick="_facZarpeAbrir()" title="Jalar zarpe con IA — facturar al grupo" aria-label="Jalar zarpe con IA">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+          <g class="zbot-head">
+            <rect x="5" y="8" width="14" height="10" rx="3.2"/>
+            <circle class="zbot-eye" cx="9.6" cy="13" r="1.15" fill="currentColor" stroke="none"/>
+            <circle class="zbot-eye" cx="14.4" cy="13" r="1.15" fill="currentColor" stroke="none"/>
+            <path d="M12 8V5.4"/>
+            <circle class="zbot-dot" cx="12" cy="4" r="1.3" fill="currentColor" stroke="none"/>
+          </g>
+        </svg>
+        <span>Zarpe</span>
+      </button>
       <button class="fac-emit-x" onclick="_facCloseEmit()" aria-label="Cerrar">×</button>
     </div>
     <div class="fac-emit-box-inner"></div>
@@ -14177,7 +14211,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.98.1';
+const APP_VERSION = '1.98.2';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
