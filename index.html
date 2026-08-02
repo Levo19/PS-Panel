@@ -1964,6 +1964,62 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 .fac-z-dash:hover { background:rgba(201,168,76,.15); box-shadow:0 6px 22px rgba(201,168,76,.22); }
 .fac-z-dash:active { transform:scale(.98); }
 .fac-z-or { text-align:center; font-size:11px; color:var(--text-muted); margin:0 0 12px; }
+
+/* ── Emitir CPE: TAMAÑO FIJO — cambiar Boleta/Factura/Exportación no deforma el modal;
+      si el modo trae más campos (condiciones de factura), scrollean DENTRO del mismo alto ── */
+.fac-emit-stable { height:min(640px, 72vh); overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; display:flex; flex-direction:column; padding-right:2px; }
+.fac-emit-stable > :last-child { margin-top:auto; }
+
+/* ── Servicios: filas rediseñadas (título+lugar · chip precio · stepper) ── */
+.fac-svc-addbtn { width:30px; height:30px; border-radius:9px; border:1px solid var(--gold); background:rgba(201,168,76,.14); color:var(--gold); font-size:16px; font-weight:900; cursor:pointer; line-height:1; transition:transform .14s; -webkit-tap-highlight-color:transparent; }
+.fac-svc-addbtn:active { transform:scale(.88); }
+.fac-svc-librebtn { padding:0 12px; height:30px; border-radius:9px; border:1px dashed var(--border); background:none; color:var(--text-muted); font-size:11px; font-weight:700; cursor:pointer; }
+.fac-it-list { border:1px solid var(--border); border-radius:12px; overflow:hidden; margin-bottom:12px; }
+.fac-it { display:flex; align-items:center; gap:9px; padding:9px 10px; border-bottom:1px solid var(--border); animation:facItIn .3s cubic-bezier(.34,1.56,.64,1) both; }
+.fac-it:last-child { border-bottom:none; }
+@keyframes facItIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+.fac-it-main { flex:1; min-width:0; position:relative; }
+.fac-it-t { font-size:13px; font-weight:700; color:var(--text); position:relative; overflow:visible; white-space:nowrap; text-overflow:ellipsis; }
+.fac-it-s { font-size:10.5px; color:var(--text-muted); margin-top:1px; }
+.fac-it-tin { width:100%; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:7px 9px; font-size:12.5px; color:var(--text); }
+.fac-it-price { flex:0 0 auto; padding:5px 10px; border-radius:999px; border:1px solid rgba(201,168,76,.4); background:rgba(201,168,76,.1); color:var(--gold); font-size:12px; font-weight:800; cursor:pointer; -webkit-tap-highlight-color:transparent; transition:transform .14s; }
+.fac-it-price:active { transform:scale(.92); }
+.fac-it-pin { width:74px; background:var(--surface); border:1.5px solid var(--gold); border-radius:999px; padding:5px 9px; font-size:12.5px; font-weight:800; color:var(--gold); text-align:right; }
+.fac-it-qty { flex:0 0 auto; display:flex; align-items:center; gap:2px; background:var(--surface); border:1px solid var(--border); border-radius:999px; padding:2px; }
+.fac-it-qbtn { width:30px; height:30px; border-radius:50%; border:none; background:transparent; font-size:16px; font-weight:900; cursor:pointer; line-height:1; -webkit-tap-highlight-color:transparent; transition:transform .12s, background .15s; }
+.fac-it-qbtn.minus { color:#f87171; }
+.fac-it-qbtn.plus { color:#4ade80; }
+.fac-it-qbtn:active { transform:scale(.82); }
+.fac-it-qbtn.plus:active { background:rgba(74,222,128,.16); }
+.fac-it-qbtn.minus:active { background:rgba(248,113,113,.16); }
+.fac-it-qn { min-width:24px; text-align:center; font-size:14px; font-weight:900; color:var(--text); }
+.fac-it-empty { padding:16px; text-align:center; color:var(--text-muted); font-size:12px; }
+.fac-it-fx { position:absolute; top:-4px; margin-left:6px; pointer-events:none; }
+.fac-fx { display:inline-block; font-size:12px; font-weight:900; animation:facFxUp .7s ease-out both; }
+.fac-fx.up { color:#4ade80; }
+.fac-fx.down { color:#f87171; }
+@keyframes facFxUp { 0%{opacity:0;transform:translateY(4px) scale(.7)} 25%{opacity:1;transform:translateY(-2px) scale(1.15)} 100%{opacity:0;transform:translateY(-14px) scale(1)} }
+
+/* ── Picker de servicios (overlay multi-selección) ── */
+.fac-svcpick-ov { position:fixed; inset:0; z-index:100020; background:rgba(10,6,8,.66); backdrop-filter:blur(3px); display:flex; align-items:center; justify-content:center; padding:20px; animation:facPickOv .2s ease both; }
+@keyframes facPickOv { from{opacity:0} to{opacity:1} }
+.fac-svcpick { width:100%; max-width:400px; background:var(--bg2,#17141a); border:1px solid rgba(201,168,76,.3); border-radius:18px; overflow:hidden; box-shadow:0 24px 64px rgba(0,0,0,.7); animation:facPickIn .28s cubic-bezier(.34,1.56,.64,1) both; }
+@keyframes facPickIn { from{opacity:0;transform:scale(.92) translateY(10px)} to{opacity:1;transform:none} }
+.fac-svcpick-h { display:flex; align-items:center; justify-content:space-between; padding:13px 16px; font-size:13px; font-weight:800; color:var(--gold); border-bottom:1px solid var(--border); }
+.fac-svcpick-x { background:none; border:none; color:var(--text-muted); font-size:20px; cursor:pointer; line-height:1; padding:2px 6px; }
+.fac-svcpick-list { max-height:52vh; overflow-y:auto; padding:8px; display:flex; flex-direction:column; gap:6px; }
+.fac-svcpick-it { display:flex; align-items:center; gap:10px; width:100%; text-align:left; padding:11px 12px; border-radius:12px; border:1px solid var(--border); background:rgba(255,255,255,.03); cursor:pointer; transition:background .15s, border-color .15s, transform .12s; -webkit-tap-highlight-color:transparent; }
+.fac-svcpick-it:active { transform:scale(.98); }
+.fac-svcpick-it.on { background:rgba(201,168,76,.14); border-color:var(--gold); }
+.fac-svcpick-chk { width:22px; height:22px; border-radius:50%; border:1.5px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:900; color:#1a0a05; flex:0 0 auto; transition:background .15s, border-color .15s; }
+.fac-svcpick-it.on .fac-svcpick-chk { background:var(--gold); border-color:var(--gold); }
+.fac-svcpick-main { flex:1; min-width:0; display:flex; flex-direction:column; }
+.fac-svcpick-t { font-size:13px; font-weight:700; color:var(--text); }
+.fac-svcpick-s { font-size:10.5px; color:var(--text-muted); }
+.fac-svcpick-p { font-size:12px; font-weight:800; color:var(--gold); flex:0 0 auto; }
+.fac-svcpick-go { display:block; width:calc(100% - 24px); margin:4px 12px 12px; padding:12px; border-radius:12px; border:none; background:var(--gold); color:#1a0a05; font-size:13.5px; font-weight:800; cursor:pointer; transition:opacity .15s, transform .14s; }
+.fac-svcpick-go:disabled { opacity:.45; cursor:not-allowed; }
+.fac-svcpick-go:not(:disabled):active { transform:scale(.97); }
 .fac-z-view { animation:facZView .34s cubic-bezier(.34,1.56,.64,1) both; }
 @keyframes facZView { from{opacity:0;transform:translateX(16px)} to{opacity:1;transform:none} }
 .fac-z-back, .fac-z-back2 { -webkit-tap-highlight-color:transparent; }
@@ -7974,22 +8030,27 @@ function _facSetFormaPago(v) {
   try { sndTap(); haptic(8); } catch (e) {}
   _facRender();
 }
-// Segmento Boleta / Factura / Exportación
+// Segmento Boleta / Factura / Exportación.
+// REGLA DE ORO: JAMÁS mutar el docTipo de un cliente SELECCIONADO (antes un DNI elegido se
+// "convertía" en RUC al pasar a Factura — bug reportado). Si el cliente no es compatible con
+// el modo, se LIMPIA la selección (Varios en silencio porque es el default; persona con aviso).
 function _facSetModo(m) {
   const S = _facState;
-  // LEGAL (money-crítico): el cliente Varios (docTipo '0') es SOLO para boletas. Al pasar a Factura/Exportación
-  // se limpia el cliente (esos comprobantes exigen RUC o pasaporte real, nunca "varios").
+  const limpiar = () => { S.cliSel = false; S.cliQuery = ''; S.cliResults = []; S.doc = ''; S.nombre = ''; S.dir = ''; S.email = ''; S.tel = ''; S.esExtranjero = false; S.cliManual = false; };
   if ((m === 'factura' || m === 'export') && S.cliSel && S.docTipo === '0') {
-    S.cliSel = false; S.cliQuery = ''; S.cliResults = []; S.doc = ''; S.nombre = ''; S.dir = ''; S.email = ''; S.tel = ''; S.esExtranjero = false;
+    limpiar();   // Varios es el default del form — soltar sin drama
+    try { sndTap(); haptic(8); } catch (e) {}
+  } else if (S.cliSel && ((m === 'factura' && S.docTipo !== '6') || (m === 'export' && S.docTipo !== '7'))) {
+    limpiar();   // cliente incompatible (p.ej. DNI en factura): limpiar y avisar — NUNCA convertirle el documento
     S.shake = true; setTimeout(() => { if (_facState) { _facState.shake = false; _facRender(); } }, 450);
     try { sndErr(); haptic([60, 30, 60]); } catch (e) {}
-    if (typeof showToast === 'function') showToast('⚠️ Factura / Exportación exigen RUC o pasaporte — elige un cliente');
+    if (typeof showToast === 'function') showToast(m === 'factura' ? '⚠️ Factura exige RUC — busca a la empresa' : '⚠️ Exportación exige pasaporte del turista');
   } else { try { sndTap(); haptic(8); } catch (e) {} }
   S.facModo = m;
   if (m !== 'factura') { S.formaPago = 'CONTADO'; S.creditoVenc = ''; }   // crédito solo aplica a factura nacional
   if (m === 'boleta') { S.tipo = 2; S.exportacion = false; S.esExtranjero = false; }
-  else if (m === 'factura') { S.tipo = 1; S.exportacion = false; S.esExtranjero = false; if (S.docTipo === '1' || S.docTipo === '0') S.docTipo = '6'; }
-  else if (m === 'export') { S.tipo = 1; S.exportacion = true; S.esExtranjero = true; S.docTipo = '7'; }
+  else if (m === 'factura') { S.tipo = 1; S.exportacion = false; S.esExtranjero = false; if (!S.cliSel) S.docTipo = '6'; }
+  else if (m === 'export') { S.tipo = 1; S.exportacion = true; S.esExtranjero = true; if (!S.cliSel) S.docTipo = '7'; }
   S.lookupState = 'idle';
   _facRender();
 }
@@ -8111,13 +8172,99 @@ function _facRefreshAnulSheet() {
   if (((_facState.solicitudes) || []).length === 0) { _facCerrarAnulSheet(); return; }
   ov.innerHTML = _facAnulSheetHTML(_facState);
 }
-function _facSetTipo(n) { sndTap(); haptic(8); _facState.tipo = n; if (n === 1 && _facState.docTipo === '1') _facState.docTipo = '6'; _facRender(); }
+function _facSetTipo(n) { sndTap(); haptic(8); _facState.tipo = n; if (n === 1 && !_facState.cliSel && (_facState.docTipo === '1' || _facState.docTipo === '0')) _facState.docTipo = '6'; _facRender(); }   // jamás mutar el doc de un cliente YA seleccionado
 function _facAddServicio(id) {
   const sv = _facState.servicios.find(s => s.id === id); if (!sv) return;
   sndTap(); haptic(8); _facState.items.push({ descripcion: sv.nombre, cantidad: 1, precio: sv.precio || 0 }); _facRender();
 }
 function _facAddLibre() { sndTap(); haptic(8); _facState.items.push({ descripcion: '', cantidad: 1, precio: 0 }); _facRender(); }
 function _facDelItem(i) { sndTap(); haptic(8); _facState.items.splice(i, 1); _facRender(); }
+// ── Fila de servicio rediseñada: título+lugar · chip de precio (toca para editar) · stepper −/＋
+//    con efecto flotante "+1"/"−1" (colores y sonidos distintos); a CERO se elimina sola. ──
+function _facItRow(it, i) {
+  const d = String(it.descripcion || '');
+  const sep = d.indexOf(' — ');
+  const tit = sep > 0 ? d.slice(0, sep) : d;
+  const sub = sep > 0 ? d.slice(sep + 3) : '';
+  const libre = !d.trim();
+  const q = Number(it.cantidad) || 0;
+  const editP = _facState._priceEdit === i;
+  return `<div class="fac-it" data-itrow="${i}">
+    <div class="fac-it-main">
+      ${libre
+        ? `<input data-it="${i}" data-f="descripcion" class="fac-it-tin" placeholder="Nombre del servicio…" value="${_facEsc(d)}" autocomplete="off">`
+        : `<div class="fac-it-t">${_facEsc(tit)}<span class="fac-it-fx" id="fac-itfx-${i}"></span></div>${sub ? `<div class="fac-it-s">${_facEsc(sub)}</div>` : ''}`}
+    </div>
+    ${editP
+      ? `<input id="fac-pedit-${i}" class="fac-it-pin" type="number" inputmode="decimal" value="${it.precio}" onblur="_facPrecioSet(${i},this.value)" onkeydown="if(event.key==='Enter'){this.blur()}">`
+      : `<button class="fac-it-price" onclick="_facPrecioEdit(${i})" title="Toca para editar el precio">S/ ${Number(it.precio) || 0}</button>`}
+    <div class="fac-it-qty">
+      <button class="fac-it-qbtn minus" onclick="_facQty(${i},-1)" aria-label="Quitar uno">−</button>
+      <span class="fac-it-qn">${q}</span>
+      <button class="fac-it-qbtn plus" onclick="_facQty(${i},1)" aria-label="Agregar uno">＋</button>
+    </div>
+  </div>`;
+}
+function _facQty(i, d) {
+  const S = _facState; const it = S.items[i]; if (!it) return;
+  const q = (Number(it.cantidad) || 0) + d;
+  if (q <= 0) {   // llegó a cero → se elimina sola (sonido/vibración distintos)
+    try { sndErr(); haptic([35, 25, 35]); } catch (e) {}
+    S.items.splice(i, 1); _facRender(); return;
+  }
+  it.cantidad = q;
+  try { if (d > 0) { sndUp(); haptic(10); } else { sndTap(); haptic([14, 20, 14]); } } catch (e) {}
+  _facRender();
+  requestAnimationFrame(() => {   // efecto flotante sobre el nombre del servicio
+    const fx = document.getElementById('fac-itfx-' + i);
+    if (fx) { fx.innerHTML = `<span class="fac-fx ${d > 0 ? 'up' : 'down'}">${d > 0 ? '+1' : '−1'}</span>`; setTimeout(() => { if (fx.isConnected) fx.innerHTML = ''; }, 750); }
+  });
+}
+function _facPrecioEdit(i) {
+  try { sndTap(); haptic(8); } catch (e) {}
+  _facState._priceEdit = i; _facRender();
+  requestAnimationFrame(() => { const el = document.getElementById('fac-pedit-' + i); if (el) { el.focus(); el.select(); } });
+}
+function _facPrecioSet(i, v) {
+  const S = _facState;
+  if (S.items[i]) S.items[i].precio = Math.max(0, parseFloat(v) || 0);
+  S._priceEdit = null;
+  try { sndOk(); haptic(10); } catch (e) {}
+  _facRender();
+}
+// ── Picker de servicios del catálogo: overlay con selección múltiple (sombreado + check) ──
+function _facSvcPickOpen() { const S = _facState; S._svcPick = { sel: {} }; try { sndTap(); haptic(10); } catch (e) {} _facRender(); }
+function _facSvcPickToggle(id) {
+  const P = _facState._svcPick; if (!P) return;
+  if (P.sel[id]) delete P.sel[id]; else P.sel[id] = true;
+  try { sndTap(); haptic(8); } catch (e) {}
+  _facRender();
+}
+function _facSvcPickAdd() {
+  const S = _facState, P = S._svcPick; if (!P) return;
+  const ids = Object.keys(P.sel);
+  ids.forEach(id => { const sv = S.servicios.find(s => String(s.id) === String(id)); if (sv) S.items.push({ descripcion: sv.nombre, cantidad: 1, precio: sv.precio || 0 }); });
+  S._svcPick = null;
+  try { if (ids.length) { sndOk(); haptic([12, 30, 12]); } } catch (e) {}
+  _facRender();
+}
+function _facSvcPickHTML(S) {
+  const P = S._svcPick; const n = Object.keys(P.sel).length;
+  return `<div class="fac-svcpick-ov" onclick="if(event.target===this){_facState._svcPick=null;_facRender()}">
+    <div class="fac-svcpick">
+      <div class="fac-svcpick-h"><span>Servicios del catálogo</span><button class="fac-svcpick-x" onclick="_facState._svcPick=null;_facRender()" aria-label="Cerrar">×</button></div>
+      <div class="fac-svcpick-list">
+        ${S.servicios.length ? S.servicios.map(s => { const on = !!P.sel[s.id]; const d = String(s.nombre || ''); const sp = d.indexOf(' — '); const tit = sp > 0 ? d.slice(0, sp) : d; const sub = sp > 0 ? d.slice(sp + 3) : ''; return `
+        <button class="fac-svcpick-it${on ? ' on' : ''}" onclick="_facSvcPickToggle('${String(s.id).replace(/'/g, '')}')">
+          <span class="fac-svcpick-chk">${on ? '✓' : ''}</span>
+          <span class="fac-svcpick-main"><span class="fac-svcpick-t">${_facEsc(tit)}</span>${sub ? `<span class="fac-svcpick-s">${_facEsc(sub)}</span>` : ''}</span>
+          <span class="fac-svcpick-p">S/ ${s.precio}</span>
+        </button>`; }).join('') : '<div class="fac-it-empty">No hay servicios en el catálogo — agrégalos en Catálogo → Servicios</div>'}
+      </div>
+      <button class="fac-svcpick-go" onclick="_facSvcPickAdd()" ${n ? '' : 'disabled'}>${n ? '✓ Agregar ' + n + ' servicio' + (n === 1 ? '' : 's') : 'Elige uno o más servicios'}</button>
+    </div>
+  </div>`;
+}
 // ═══════════════════════════════════════════════════════════════════════════
 // BUSCADOR DE CLIENTE UNIFICADO — una sola barra inteligente (documento O nombre)
 // 3 estados sin duplicar markup: búsqueda+dropdown / seleccionado-chip / manual-unfold.
@@ -8391,9 +8538,12 @@ async function _facEmitir() {
     S._emitFeed = { type: 'ok', comp };
     S._emitidos.unshift({ serie: comp.serie, numero: comp.numero, total: comp.total, estado: comp.estado, comp });
     if (S._emitidos.length > 20) S._emitidos.length = 20;
-    // reset del form para el SIGUIENTE comprobante — el modal SIGUE ABIERTO
-    S.items = []; S.doc = ''; S.nombre = ''; S.email = ''; S.tel = ''; S.dir = ''; S.medioPago = ''; S.formaPago = 'CONTADO'; S.creditoVenc = ''; S.lookupState = 'idle';
-    S.cliQuery = ''; S.cliResults = []; S.cliSel = false; S.cliShowLupa = false; S.cliManual = false; S.manualDoc = ''; S.manualNombre = '';
+    // reset del form para el SIGUIENTE comprobante — el modal SIGUE ABIERTO.
+    // En boleta el cliente vuelve al default VARIOS (chip con ×); factura/export quedan en búsqueda.
+    S.items = []; S.email = ''; S.tel = ''; S.dir = ''; S.medioPago = ''; S.formaPago = 'CONTADO'; S.creditoVenc = ''; S.lookupState = 'idle';
+    S.cliQuery = ''; S.cliResults = []; S.cliShowLupa = false; S.cliManual = false; S.manualDoc = ''; S.manualNombre = '';
+    if (S.tipo === 2 && !S.exportacion) { S.docTipo = '0'; S.doc = '00000000'; S.nombre = 'VARIOS'; S.cliSel = true; }
+    else { S.doc = ''; S.nombre = ''; S.cliSel = false; }
     S._emitLocalId = 'fac-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);   // localId nuevo para el próximo
     _facRTInsertLocal(comp);   // adición SUAVE al historial del fondo YA (sin esperar fetch); Realtime confirma (dedupe por id)
     _facRender();          // en módulo → _facRenderEmit (refresca SOLO el modal); banner + form reseteado entran animados
@@ -8745,7 +8895,7 @@ function _facSectionBody(S) {
       </div>`;
     } else {
       const segBtn = (m, label) => { const on = S.facModo === m; return `<button onclick="_facSetModo('${m}')" style="flex:1;padding:9px 4px;border-radius:10px;font-weight:800;font-size:12px;cursor:pointer;border:1px solid ${on?'var(--gold)':'var(--border)'};background:${on?'rgba(201,168,76,0.16)':'transparent'};color:${on?'var(--gold)':'var(--text-muted)'}">${label}</button>`; };
-      body = `
+      body = `<div class="fac-emit-stable">
       ${_facEmitFeedHTML(S)}
       ${S._emitOpen ? `<button class="fac-z-dash" onclick="_facZarpeAbrir()">📸 Jalar zarpe con IA — facturar el grupo</button>
       <div class="fac-z-or">— o emite a un cliente suelto —</div>` : ''}
@@ -8756,23 +8906,15 @@ function _facSectionBody(S) {
       </div>
       ${S.exportacion ? '<div style="font-size:11px;color:var(--text-muted);background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.25);border-radius:9px;padding:8px 10px;margin-bottom:10px;line-height:1.5">Turismo receptivo (0% IGV). Requiere <b>pasaporte</b> del turista y un <b>paquete de 2 o más servicios</b>. La afectación la fija el sistema.</div>' : ''}
       ${_facCliBox(S)}
-      <div style="display:flex;gap:8px;margin:10px 0 12px">
-        <input id="fac-email" class="config-input" style="flex:1" placeholder="Email (opcional)" value="${_facEsc(S.email)}">
-        <input id="fac-tel" class="config-input" style="flex:1" placeholder="WhatsApp (opcional)" value="${_facEsc(S.tel)}">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin:14px 0 6px">
+        <div style="font-size:11px;font-weight:800;color:var(--gold);letter-spacing:.04em">SERVICIOS</div>
+        <div style="display:flex;gap:6px">
+          <button class="fac-svc-addbtn" onclick="_facSvcPickOpen()" title="Elegir del catálogo">＋</button>
+          <button class="fac-svc-librebtn" onclick="_facAddLibre()">+ libre</button>
+        </div>
       </div>
-      <div style="font-size:11px;font-weight:800;color:var(--gold);letter-spacing:.04em;margin-bottom:6px">SERVICIOS</div>
-      <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:8px">
-        ${S.items.length ? S.items.map((it,i)=>`<div style="display:flex;align-items:center;gap:6px;padding:7px 8px;border-bottom:1px solid var(--border)">
-          <input data-it="${i}" data-f="descripcion" class="config-input" style="flex:1;padding:6px" placeholder="Servicio" value="${_facEsc(it.descripcion)}">
-          <input data-it="${i}" data-f="cantidad" type="number" inputmode="numeric" class="config-input" style="width:52px;padding:6px;text-align:center" value="${it.cantidad}">
-          <span style="font-size:11px;color:var(--text-muted)">×</span>
-          <input data-it="${i}" data-f="precio" type="number" inputmode="decimal" class="config-input" style="width:72px;padding:6px;text-align:right" value="${it.precio}">
-          <button onclick="_facDelItem(${i})" style="color:#f87171;background:none;border:none;font-size:14px;cursor:pointer">🗑</button>
-        </div>`).join('') : '<div style="padding:12px;text-align:center;color:var(--text-muted);font-size:12px">Agrega un servicio del catálogo o uno libre</div>'}
-      </div>
-      <div style="display:flex;gap:8px;margin-bottom:12px">
-        <select id="fac-svcsel" class="config-input" style="flex:1"><option value="">+ servicio del catálogo…</option>${S.servicios.map(s=>`<option value="${s.id}">${_facEsc(s.nombre)} · S/${s.precio}</option>`).join('')}</select>
-        <button onclick="_facAddLibre()" style="flex:0 0 auto;padding:0 14px;border-radius:10px;border:1px dashed var(--border);background:none;color:var(--text-muted);font-size:12px;font-weight:700;cursor:pointer">+ libre</button>
+      <div class="fac-it-list">
+        ${S.items.length ? S.items.map((it,i)=>_facItRow(it,i)).join('') : '<div class="fac-it-empty">Toca <b>＋</b> para elegir servicios del catálogo</div>'}
       </div>
       <div style="background:var(--bg2,rgba(255,255,255,0.03));border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:12px">
         <div style="display:flex;justify-content:space-between;color:var(--text-muted)"><span>${S.exportacion?'Exportación':'Gravada'}</span><span id="fac-tg">S/ ${(S.exportacion?tot.total:tot.grav).toFixed(2)}</span></div>
@@ -8802,7 +8944,8 @@ function _facSectionBody(S) {
         <div style="font-size:10px;font-weight:800;color:var(--text-muted);letter-spacing:.05em;margin-bottom:5px">REQUISITOS SUNAT</div>
         ${rg.map(r=>`<div style="display:flex;align-items:center;gap:7px;font-size:12px;padding:2px 0;color:${r.ok?'var(--text)':'#fbbf24'}"><span>${r.ok?'🟢':(r.hard?'🔴':'🟡')}</span><span>${r.label}</span></div>`).join('')}
       </div>` : ''; })()}
-      <button id="fac-emitir" onclick="_facEmitir()" class="btn-primary" ${_facReglasOk()?'':'disabled'} style="width:100%;padding:13px;font-size:14px;font-weight:800;${_facReglasOk()?'':'opacity:.5;cursor:not-allowed'}">${_facReglasOk()?'🧾 Emitir comprobante':'⛔ Faltan requisitos SUNAT'}</button>`;
+      <button id="fac-emitir" onclick="_facEmitir()" class="btn-primary" ${_facReglasOk()?'':'disabled'} style="width:100%;padding:13px;font-size:14px;font-weight:800;${_facReglasOk()?'':'opacity:.5;cursor:not-allowed'}">${_facReglasOk()?'🧾 Emitir comprobante':'⛔ Faltan requisitos SUNAT'}</button>
+      </div>${S._svcPick ? _facSvcPickHTML(S) : ''}`;
     }
   } else if (S.tab === 'ajustes') {
     const cf = S.facCfg || {};
@@ -9186,11 +9329,12 @@ function _facCompPeriodo(c) {
 // ═══ FASE 1 · MODAL flotante "Emitir CPE" (reusa el form de la sección 'emitir') ═══
 window._facOpenEmit = function () {
   const S = _facState; if (!S) return; try { sndTap(); haptic(10); } catch (e) {}
-  // Form fresco en cada apertura.
+  // Form fresco en cada apertura — cliente por defecto = VARIOS seleccionado (chip con ×):
+  // el caso más común del muelle es boleta simple; la × lo vacía y abre la búsqueda.
   S.resultado = null; S.facModo = 'boleta'; S.tipo = 2; S.exportacion = false; S.esExtranjero = false;
-  S.docTipo = '1'; S.doc = ''; S.nombre = ''; S.email = ''; S.tel = ''; S.dir = ''; S.items = []; S.medioPago = ''; S.formaPago = 'CONTADO'; S.creditoVenc = ''; S.lookupState = 'idle';
+  S.docTipo = '0'; S.doc = '00000000'; S.nombre = 'VARIOS'; S.email = ''; S.tel = ''; S.dir = ''; S.items = []; S.medioPago = ''; S.formaPago = 'CONTADO'; S.creditoVenc = ''; S.lookupState = 'idle';
   clearTimeout(S._cliTimer); clearTimeout(S._cliDebounce);
-  S.cliQuery = ''; S.cliResults = []; S.cliSel = false; S.cliShowLupa = false; S.cliManual = false;
+  S.cliQuery = ''; S.cliResults = []; S.cliSel = true; S.cliShowLupa = false; S.cliManual = false;
   S.manualDoc = ''; S.manualNombre = ''; S.manualTipo = '1'; S._cliLoading = false; S._cliLupaLoading = false;
   S._emitOpen = true;
   S._zarpe = null;   // el modal abre en el form suelto; "Jalar zarpe" activa el sub-flujo
@@ -10528,12 +10672,10 @@ function _facRender() {
 // Enlaza inputs + animaciones de la sección activa dentro de `ov` (slot del módulo o caja del modal).
 function _facBindSlot(ov) {
   const S = _facState;
-  const bind = (id, key) => { const el = ov.querySelector('#' + id); if (el) el.oninput = e => { _facState[key] = e.target.value; }; };
-  bind('fac-email', 'email'); bind('fac-tel', 'tel');
   const fcli = ov.querySelector('#fac-cli'); if (fcli) fcli.oninput = e => _facCliInput(e.target.value);
   _facCliBindManual();
   const fmed = ov.querySelector('#fac-medio'); if (fmed) fmed.onchange = e => { _facState.medioPago = e.target.value; _facRender(); };
-  const ss = ov.querySelector('#fac-svcsel'); if (ss) ss.onchange = e => { if (e.target.value) _facAddServicio(e.target.value); };
+
   // Uploader IA + animaciones count-up post-render de las secciones tributarias.
   if (S.tab === 'subir') _tribBind(ov);
   if (S.tab === 'inicio' || S.tab === 'renta' || S.tab === 'compras' || S.tab === 'subir') _tribAfterRender(ov);
@@ -13963,7 +14105,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '1.97.2';
+const APP_VERSION = '1.98.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
