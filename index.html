@@ -2196,6 +2196,7 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 .fac-z-addsvc { align-self:flex-start; border:1px dashed var(--border); background:none; color:var(--text-muted); font-size:10.5px; font-weight:700; padding:4px 11px; border-radius:999px; cursor:pointer; -webkit-tap-highlight-color:transparent; }
 .fac-z-chip.addcli { border-style:dashed; border-color:rgba(201,168,76,.5); color:var(--gold); }
 .fac-z-r-empty { font-size:10.5px; color:#f87171; opacity:.85; padding:2px 4px; }
+.fac-z-r-old { font-size:10.5px; color:var(--text-muted); text-decoration:line-through; opacity:.75; margin:-3px 0 0 26px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .fac-z-man-b { padding:12px; display:flex; flex-direction:column; gap:8px; }
 .fac-z-addsvc:active { transform:scale(.96); }
 .fac-z-tipo-opts { display:inline-flex; gap:4px; flex-wrap:wrap; }
@@ -9861,7 +9862,7 @@ function _facZarpeFila(f, i, Z) {
   const omit = sumQ <= 0;
   const tot = svcs.reduce((a, s) => a + (s.gratis ? 0 : (Number(s.cantidad) || 0) * (Number(s.precio) || 0)), 0);
   let badge;
-  if (f._val === 'ok') badge = `<span class="fac-z-vbadge ok" title="${f._valManual ? 'Confirmado a mano por el admin (el registro no lo devolvía)' : 'Validado — nombre oficial del registro'}">✓</span>`;
+  if (f._val === 'ok') badge = `<span class="fac-z-vbadge ok" title="${f._valManual ? 'Confirmado a mano por el admin (el registro no lo devolvía)' : (f._valFrec ? 'Validado — cliente frecuente (sin gastar consulta de API)' : 'Validado — nombre oficial del registro')}">✓</span>`;
   else if (f._val === 'checking') badge = '<span class="fac-z-vbadge chk"><span class="spin fac-cli-spin"></span></span>';
   else if (f._val === 'fail') badge = `<span class="fac-z-vbadge fail" title="${_facEsc(f._valMsg || 'No validado')}">!</span>`;
   else badge = '<span class="fac-z-vbadge na" title="Sin registro público para validar (pasaporte / CE)">·</span>';
@@ -9912,6 +9913,7 @@ function _facZarpeFila(f, i, Z) {
       <div class="fac-z-r-name"${(f._nombreOcr && f._nombreOcr !== f.nombre) ? ` title="Zarpe: ${_facEsc(f._nombreOcr)}"` : ''}>${_facEsc(f.nombre || '(revisar)')}</div>
       <span class="fac-z-r-tot">S/ ${tot.toFixed(2)}</span>
     </div>
+    ${(f._nombrePrev && f._nombrePrev !== f.nombre) ? `<div class="fac-z-r-old">${_facEsc(f._nombrePrev)}</div>` : ''}
     <div class="fac-z-r-chips">${tipoChip}${docChip}${addCli}${expChip}${dirChip}</div>
     ${(f._val === 'fail' && f._valMsg) ? `<div class="fac-z-valmsg">⚠ ${_facEsc(f._valMsg)}</div>` : ''}
     <div class="fac-z-r-svcs">${svcRows || '<div class="fac-z-r-empty">Sin servicios — esta persona NO recibirá boleta</div>'}
@@ -10165,7 +10167,9 @@ window._facZarpeManSave = async function () {
   if (M.tipo === '6' && !/^(10|15|17|20)\d{9}$/.test(doc)) return _facErr('Un RUC tiene 11 dígitos (empieza en 10/15/17/20)');
   if (M.tipo === '6' && !dir) return _facErr('El RUC necesita su domicilio fiscal (obligatorio en factura)');
   try { sndTap(); haptic(10); } catch (e) {}
-  f.tipo_doc = M.tipo; f.documento = doc; f._nombreOcr = f._nombreOcr || f.nombre; f.nombre = nom; f._dir = dir;
+  f.tipo_doc = M.tipo; f.documento = doc; f._nombreOcr = f._nombreOcr || f.nombre;
+  if (nom !== f.nombre) f._nombrePrev = f.nombre;   // el anterior queda tachado
+  f.nombre = nom; f._dir = dir;
   f._val = 'ok'; f._valManual = true; f._valMsg = '';
   if (M.tipo !== '7') f._export = false;
   Z._man = null;
@@ -10227,20 +10231,31 @@ async function _facZarpeValidarFila(i) {
   const C = Z._valCache = Z._valCache || {}; const ck = t + '|' + doc;
   if (!C[ck]) {
     f._val = 'checking'; _facZarpeRepaintFila(i);
-    let r = null;
-    try { r = await apiGet('consultar_documento', { numero: doc, tipo: t }); } catch (e) {}
-    C[ck] = (r && r.ok && r.data && r.data.ok && r.data.nombre)
-      ? { nombre: r.data.nombre, direccion: r.data.direccion || '' } : { fail: true };
+    // CAPA 1 (gratis): clientes frecuentes propios — ahorra tokens de la API RUC/DNI
+    let hit = null;
+    try { const rb = await apiGet('buscar_cliente', { doc_tipo: t, doc }); if (rb.ok && rb.data && rb.data.nombre) hit = { nombre: rb.data.nombre, direccion: rb.data.direccion || '', frec: true }; } catch (e) {}
+    // CAPA 2: RENIEC/SUNAT en vivo
+    if (!hit) {
+      let r = null;
+      try { r = await apiGet('consultar_documento', { numero: doc, tipo: t }); } catch (e) {}
+      if (r && r.ok && r.data && r.data.ok && r.data.nombre) hit = { nombre: r.data.nombre, direccion: r.data.direccion || '' };
+      else if (r && r.ok && r.data && r.data.motivo === 'sin_config') hit = { sinapi: true };
+    }
+    C[ck] = hit || { fail: true };
   }
   if (_facState._zarpe !== Z || Z.filas[i] !== f) return;
   if (String(f.tipo_doc) !== t || String(f.documento || '').trim() !== doc) return;   // cambió mientras consultaba
   const v = C[ck];
-  if (v.fail) {
+  if (v.sinapi) {
     f._val = 'fail';
-    f._valMsg = (t === '1' ? 'DNI no encontrado en RENIEC' : 'RUC no encontrado en SUNAT') + ' — corrige el número o cambia el tipo';
+    f._valMsg = 'No se pudo consultar el registro: falta el token de la API RUC/DNI en Ajustes — puedes confirmarlo a mano con ＋';
+  } else if (v.fail) {
+    f._val = 'fail';
+    f._valMsg = (t === '1' ? 'DNI no encontrado en RENIEC' : 'RUC no encontrado en SUNAT') + ' — corrige el número, cambia el tipo o regístralo con ＋';
   } else {
-    f._val = 'ok'; f._valMsg = '';
+    f._val = 'ok'; f._valMsg = ''; f._valFrec = !!v.frec;
     f._nombreOcr = f._nombreOcr || f.nombre;
+    if (v.nombre && v.nombre !== f.nombre) f._nombrePrev = f.nombre;   // el anterior queda TACHADO en la fila
     f.nombre = v.nombre;                                   // nombre oficial "reorganizado"
     if (t === '6' && !f._dir) f._dir = v.direccion || '';
     _facZarpeGuardarDebounced();                           // persiste el nombre oficial + dirección
@@ -14713,7 +14728,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '2.6.0';
+const APP_VERSION = '2.6.1';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
