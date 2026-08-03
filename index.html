@@ -2182,8 +2182,10 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 .fac-z-valmsg { font-size:10px; color:#f87171; line-height:1.35; }
 .fac-z-r-svcs { display:flex; flex-direction:column; gap:4px; }
 .fac-z-r-svc { display:flex; align-items:center; gap:7px; padding:4px 6px; border-radius:9px; background:rgba(255,255,255,.03); }
-.fac-z-r-svc .nm { flex:1; min-width:0; font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.fac-z-r-svc.gift .nm { color:#c084fc; }
+.fac-z-r-svc .nm { flex:1; min-width:0; display:flex; flex-direction:column; gap:1px; }
+.fac-z-r-svc .nm .t { font-size:11px; font-weight:600; line-height:1.25; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fac-z-r-svc .nm .s { font-size:9.5px; color:var(--text-muted); line-height:1.2; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fac-z-r-svc.gift .nm .t, .fac-z-r-svc.gift .nm .s { color:#c084fc; }
 .fac-z-r-svc .pr { flex:0 0 auto; font-size:10.5px; color:var(--text-muted); font-variant-numeric:tabular-nums; }
 .fac-z-r-svc.gift .pr { color:#c084fc; }
 .fac-z-r-svc .fac-z-step button { width:24px; height:24px; font-size:13px; }
@@ -2192,6 +2194,9 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 .fac-z-gift:active { transform:scale(.85); }
 .fac-z-gift.on { opacity:1; border-color:rgba(192,132,252,.55); background:rgba(192,132,252,.12); }
 .fac-z-addsvc { align-self:flex-start; border:1px dashed var(--border); background:none; color:var(--text-muted); font-size:10.5px; font-weight:700; padding:4px 11px; border-radius:999px; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+.fac-z-chip.addcli { border-style:dashed; border-color:rgba(201,168,76,.5); color:var(--gold); }
+.fac-z-r-empty { font-size:10.5px; color:#f87171; opacity:.85; padding:2px 4px; }
+.fac-z-man-b { padding:12px; display:flex; flex-direction:column; gap:8px; }
 .fac-z-addsvc:active { transform:scale(.96); }
 .fac-z-tipo-opts { display:inline-flex; gap:4px; flex-wrap:wrap; }
 .fac-z-tipo-opt { border:1px solid var(--border); background:rgba(255,255,255,.04); color:var(--text-muted); font-size:10px; font-weight:800; padding:3px 9px; border-radius:999px; cursor:pointer; -webkit-tap-highlight-color:transparent; }
@@ -9754,7 +9759,8 @@ function _facZarpeBody(S) {
   else if (Z.view === 'resultado') inner = _facZarpeResultado(S);
   else inner = '';
   const pickOv = (S._svcPick && S._svcPick.zarpe != null) ? _facSvcPickHTML(S) : '';   // "+ servicio" de una fila
-  return `<div class="fac-z-view" data-v="${Z.view}">${inner}</div>${pickOv}`;
+  const manOv = Z._man ? _facZarpeManualHTML(S) : '';                                  // "+ registrar" cliente a mano
+  return `<div class="fac-z-view" data-v="${Z.view}">${inner}</div>${pickOv}${manOv}`;
 }
 // Cabecera de día para la lista continua: "Lunes 2/07"
 function _facZarpeDiaLabel(f) {
@@ -9855,7 +9861,7 @@ function _facZarpeFila(f, i, Z) {
   const omit = sumQ <= 0;
   const tot = svcs.reduce((a, s) => a + (s.gratis ? 0 : (Number(s.cantidad) || 0) * (Number(s.precio) || 0)), 0);
   let badge;
-  if (f._val === 'ok') badge = '<span class="fac-z-vbadge ok" title="Validado — nombre oficial del registro">✓</span>';
+  if (f._val === 'ok') badge = `<span class="fac-z-vbadge ok" title="${f._valManual ? 'Confirmado a mano por el admin (el registro no lo devolvía)' : 'Validado — nombre oficial del registro'}">✓</span>`;
   else if (f._val === 'checking') badge = '<span class="fac-z-vbadge chk"><span class="spin fac-cli-spin"></span></span>';
   else if (f._val === 'fail') badge = `<span class="fac-z-vbadge fail" title="${_facEsc(f._valMsg || 'No validado')}">!</span>`;
   else badge = '<span class="fac-z-vbadge na" title="Sin registro público para validar (pasaporte / CE)">·</span>';
@@ -9880,10 +9886,18 @@ function _facZarpeFila(f, i, Z) {
   const expChip = (T === '7' && nLineas >= 2)
     ? `<button class="fac-z-chip exp${f._export ? ' on' : ''}" onclick="_facZarpeExpToggle(${i})" title="${f._export ? 'Exportación 0% IGV — se emite FACTURA de exportación' : 'Turista con paquete: facturar como exportación (0% IGV)'}">🌎 ${f._export ? 'Export 0%' : '¿Export?'}</button>`
     : '';
+  // el registro público puede NO tener un doc real (pasa con algunos DNI/RUC) → "+" registra al
+  // cliente a mano (y lo autograba para la próxima)
+  const addCli = (f._val === 'fail')
+    ? `<button class="fac-z-chip addcli" onclick="_facZarpeManualOpen(${i})" title="El documento puede ser real aunque el registro no lo devuelva — regístralo a mano">＋ registrar</button>`
+    : '';
   const svcRows = svcs.map((s, j) => {
     const q = Number(s.cantidad) || 0;
+    // nombre en DOS líneas (título + lugar, como el modal suelto) — en móvil no se corta
+    const d = String(s.nombre || ''); const sp = d.indexOf(' — ');
+    const tit = sp > 0 ? d.slice(0, sp) : d; const sub = sp > 0 ? d.slice(sp + 3) : '';
     return `<div class="fac-z-r-svc${s.gratis ? ' gift' : ''}">
-      <span class="nm">${_facEsc(s.nombre || '')}</span>
+      <span class="nm"><span class="t">${_facEsc(tit)}</span>${sub ? `<span class="s">${_facEsc(sub)}</span>` : ''}</span>
       <span class="pr">${s.gratis ? '🎁 gratis' : 'S/ ' + (Number(s.precio) || 0)}</span>
       <div class="fac-z-step">
         <button onclick="_facZarpeSvcQty(${i},${j},-1)" aria-label="menos">−</button>
@@ -9898,9 +9912,9 @@ function _facZarpeFila(f, i, Z) {
       <div class="fac-z-r-name"${(f._nombreOcr && f._nombreOcr !== f.nombre) ? ` title="Zarpe: ${_facEsc(f._nombreOcr)}"` : ''}>${_facEsc(f.nombre || '(revisar)')}</div>
       <span class="fac-z-r-tot">S/ ${tot.toFixed(2)}</span>
     </div>
-    <div class="fac-z-r-chips">${tipoChip}${docChip}${expChip}${dirChip}</div>
+    <div class="fac-z-r-chips">${tipoChip}${docChip}${addCli}${expChip}${dirChip}</div>
     ${(f._val === 'fail' && f._valMsg) ? `<div class="fac-z-valmsg">⚠ ${_facEsc(f._valMsg)}</div>` : ''}
-    <div class="fac-z-r-svcs">${svcRows}
+    <div class="fac-z-r-svcs">${svcRows || '<div class="fac-z-r-empty">Sin servicios — esta persona NO recibirá boleta</div>'}
       <button class="fac-z-addsvc" onclick="_facSvcPickOpen(${i})">+ servicio</button>
     </div>
   </div>`;
@@ -10062,7 +10076,7 @@ function _facZarpeRepaintFila(i, force) {
 window._facZarpeSvcQty = function (i, j, d) {
   const Z = _facState._zarpe, f = Z && Z.filas[i]; const s = f && f.servicios && f.servicios[j]; if (!s) return;
   const nv = Math.max(0, (Number(s.cantidad) || 0) + d);
-  if (nv === 0 && j > 0) { f.servicios.splice(j, 1); try { sndTap(); haptic([8, 20, 8]); } catch (e) {} }   // extra a cero → fuera (como el modal unitario)
+  if (nv === 0) { f.servicios.splice(j, 1); try { sndTap(); haptic([8, 20, 8]); } catch (e) {} }   // a cero → el servicio DESAPARECE; sin servicios la card se apaga (sin boleta)
   else { s.cantidad = nv; try { sndTap(); haptic(d > 0 ? 8 : 6); } catch (e) {} }
   f.cantidad = Number(f.servicios[0] && f.servicios[0].cantidad) || 0;   // PAX de la fila = servicio base
   if (f._export && f.servicios.filter(x => (Number(x.cantidad) || 0) > 0).length < 2) f._export = false;   // dejó de ser paquete
@@ -10123,6 +10137,65 @@ window._facZarpeDirSet = function (i, v) {
   f._editDir = false; f._dir = String(v || '').trim();
   _facZarpeRepaintFila(i, true); _facZarpeGuardarDebounced();
 };
+// ── "+ registrar": overlay chico para confirmar a mano un doc que el registro no devuelve
+// (el DNI/RUC puede ser real — a RENIEC/SUNAT les faltan algunos). Autograba en clientes.
+window._facZarpeManualOpen = function (i) {
+  const S = _facState, Z = S._zarpe, f = Z && Z.filas[i]; if (!f) return;
+  try { sndTap(); haptic(8); } catch (e) {}
+  Z._man = { i, tipo: String(f.tipo_doc || '1'), doc: String(f.documento || ''), nombre: String(f._nombreOcr || f.nombre || ''), dir: String(f._dir || '') };
+  _facRenderEmit();
+  requestAnimationFrame(() => { const el = document.getElementById('fac-z-man-nom'); if (el) el.focus(); });
+};
+window._facZarpeManClose = function () {
+  const Z = _facState._zarpe; if (Z) Z._man = null;
+  document.querySelectorAll('.fac-z-man-ov').forEach(o => o.remove());
+};
+window._facZarpeManTipo = function (t) {
+  const Z = _facState._zarpe; if (!Z || !Z._man) return;
+  try { sndTap(); haptic(6); } catch (e) {}
+  Z._man.tipo = t; _facRenderEmit();
+};
+window._facZarpeManSave = async function () {
+  const S = _facState, Z = S._zarpe; const M = Z && Z._man; if (!M) return;
+  const f = Z.filas[M.i]; if (!f) return;
+  const doc = String(M.doc || '').trim().toUpperCase(), nom = String(M.nombre || '').trim(), dir = String(M.dir || '').trim();
+  if (!nom) return _facErr('Escribe el nombre / razón social');
+  if (!doc) return _facErr('Escribe el número de documento');
+  if (M.tipo === '1' && !/^\d{8}$/.test(doc)) return _facErr('Un DNI tiene 8 dígitos');
+  if (M.tipo === '6' && !/^(10|15|17|20)\d{9}$/.test(doc)) return _facErr('Un RUC tiene 11 dígitos (empieza en 10/15/17/20)');
+  if (M.tipo === '6' && !dir) return _facErr('El RUC necesita su domicilio fiscal (obligatorio en factura)');
+  try { sndTap(); haptic(10); } catch (e) {}
+  f.tipo_doc = M.tipo; f.documento = doc; f._nombreOcr = f._nombreOcr || f.nombre; f.nombre = nom; f._dir = dir;
+  f._val = 'ok'; f._valManual = true; f._valMsg = '';
+  if (M.tipo !== '7') f._export = false;
+  Z._man = null;
+  document.querySelectorAll('.fac-z-man-ov').forEach(o => o.remove());
+  _facZarpeRepaintFila(M.i, true); _facZarpeGuardarDebounced();
+  try { sndOk(); haptic([12, 30, 12]); } catch (e) {}
+  // autograba como cliente frecuente (para que la próxima búsqueda SÍ lo encuentre)
+  try {
+    const r = await apiPost({ accion: 'guardar_cliente', doc_tipo: M.tipo, doc_numero: doc, nombre: nom, direccion: dir, es_extranjero: M.tipo === '7' });
+    if (typeof showToast === 'function') showToast(r.ok ? '✓ Cliente registrado' : '✓ Confirmado en la fila (no se pudo autograbar)');
+  } catch (e) { if (typeof showToast === 'function') showToast('✓ Confirmado en la fila (no se pudo autograbar)'); }
+};
+function _facZarpeManualHTML(S) {
+  const Z = S._zarpe, M = Z._man; const f = Z.filas[M.i] || {};
+  const seg = [['1', 'DNI'], ['4', 'CE'], ['7', 'Pasaporte'], ['6', 'RUC']].map(([t, l]) =>
+    `<button class="fac-cli-seg${M.tipo === t ? ' on' : ''}" onclick="_facZarpeManTipo('${t}')">${l}</button>`).join('');
+  return `<div class="fac-svcpick-ov fac-z-man-ov" onclick="if(event.target===this){_facZarpeManClose()}">
+    <div class="fac-svcpick">
+      <div class="fac-svcpick-h"><span>Registrar cliente a mano</span><button class="fac-svcpick-x" onclick="_facZarpeManClose()" aria-label="Cerrar">×</button></div>
+      <div class="fac-z-man-b">
+        <div class="fac-cli-manual-h">El registro no lo devuelve — puede ser real igual. Confirma sus datos:</div>
+        <div class="fac-cli-seg-wrap">${seg}</div>
+        <input id="fac-z-man-doc" class="fac-cli-minput" placeholder="N° de documento" value="${_facEsc(M.doc)}" oninput="_facState._zarpe._man.doc=this.value" autocomplete="off">
+        <input id="fac-z-man-nom" class="fac-cli-minput" placeholder="Nombre / Razón social" value="${_facEsc(M.nombre)}" oninput="_facState._zarpe._man.nombre=this.value" autocomplete="off">
+        ${M.tipo === '6' ? `<input id="fac-z-man-dir" class="fac-cli-minput" placeholder="Domicilio fiscal *" value="${_facEsc(M.dir)}" oninput="_facState._zarpe._man.dir=this.value" autocomplete="off">` : ''}
+        <button class="fac-cli-manual-save" onclick="_facZarpeManSave()">💾 Confirmar y usar en la fila</button>
+      </div>
+    </div>
+  </div>`;
+}
 // ── Validación en back de lo leído por la IA: DNI→RENIEC · RUC→SUNAT, uno por uno visible.
 // Validado → nombre OFICIAL del registro + ✓. No hallado → chip de tipo palpita (el admin lo
 // cambia, ej. "DNI de 11 dígitos" que en realidad era RUC o pasaporte). Pasaporte/CE = sin
@@ -14640,7 +14713,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '2.5.0';
+const APP_VERSION = '2.6.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
