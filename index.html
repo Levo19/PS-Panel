@@ -10062,6 +10062,9 @@ async function _facZarpeLoadTablilla(op) {
       o.servicios = o.servicios.map(s => Object.assign({}, s, { cantidad: Math.max(0, s.cantidad != null ? (Number(s.cantidad) || 0) : q0), gratis: !!s.gratis }));
       o.cantidad = Number(o.servicios[0] && o.servicios[0].cantidad) || 0;   // PAX = servicio base
       o._dir = f.dir_fiscal || '';
+      // tipo VACÍO del OCR: el chip mostraba "DNI" (fallback visual) pero la validación veía
+      // "tipo desconocido" y NUNCA buscaba → normalizar aquí para que display y validación coincidan
+      o.tipo_doc = String(f.tipo_doc || '').trim() || '1';
       return o;
     }) : [];
   } catch (e) { Z.filas = Z.filas || []; Z.paquete = Z.paquete || []; }
@@ -10125,6 +10128,14 @@ window._facZarpeDocSet = function (i, v) {
   const nv = String(v || '').trim().toUpperCase();
   if (nv && nv !== String(f.documento || '')) {
     f.documento = nv; f._val = undefined; f._valMsg = '';
+    // inferencia por formato (versátil): entre DNI/RUC el número manda — 8 dígitos = DNI,
+    // 11 con prefijo 10/15/17/20 = RUC (pasaporte/CE se respetan: hay pasaportes de 8-11 dígitos)
+    const t0 = String(f.tipo_doc || '1');
+    if (t0 === '1' || t0 === '6') {
+      if (/^\d{8}$/.test(nv)) f.tipo_doc = '1';
+      else if (/^(10|15|17|20)\d{9}$/.test(nv)) f.tipo_doc = '6';
+      if (f.tipo_doc !== '7') f._export = false;
+    }
     _facZarpeRepaintFila(i, true); _facZarpeGuardarDebounced(); _facZarpeValidarFila(i);
   } else _facZarpeRepaintFila(i, true);
 };
@@ -10218,7 +10229,7 @@ async function _facZarpeValidarTodo() {
 }
 async function _facZarpeValidarFila(i) {
   const S = _facState, Z = S._zarpe; const f = Z && Z.filas[i]; if (!f) return;
-  const t = String(f.tipo_doc || ''); const doc = String(f.documento || '').trim();
+  const t = String(f.tipo_doc || '1'); const doc = String(f.documento || '').trim();
   if (t === '7' || t === '4' || t === '0') { f._val = 'na'; f._valMsg = ''; _facZarpeRepaintFila(i); return; }
   const okFmt = t === '1' ? /^\d{8}$/.test(doc) : (t === '6' ? /^(10|15|17|20)\d{9}$/.test(doc) : false);
   if (!okFmt) {
@@ -14730,7 +14741,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '2.6.2';
+const APP_VERSION = '2.6.3';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
