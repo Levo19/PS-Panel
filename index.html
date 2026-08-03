@@ -11309,36 +11309,37 @@ async function _facPdfDescargar() {
   try { const doc = await _facGenPDF(c); doc.save(_facPdfFilename(c)); try { sndOk(); } catch (e) {} }
   catch (e) { _facErr((e && e.message) || 'No se pudo generar el PDF'); }
 }
-// ── Mensaje profesional de WhatsApp — 3 partes: saludo · qué es · cierre. Tono según origen. ──
-function _facWAMensaje(c, T, origen) {
+// ── Mensaje profesional de WhatsApp (saludo + qué es + [enlaces] + cierre). Tono según origen. ──
+// linksBlock se inserta entre el cuerpo y la despedida.
+function _facWAMensaje(c, T, origen, linksBlock) {
   const num = _facNumFmt(c), tipo = _facTipoWord(c);
   const nom = String(c.cliente_nombre || '').trim();
   const marca = _FAC_EMISOR.marca, total = 'S/ ' + _facMoney(T.total);
   const esExp = (Number(T.exportacion) || 0) > 0;
+  const L = linksBlock || '';
   if (origen === 'ops') {   // muelle · cálido y cercano
     return `¡Hola ${nom || ''}! 👋🌊\n\n`
       + `Aquí tienes tu *${tipo} ${num}* por un total de *${total}*.`
       + (esExp ? `\n_Comprobante de exportación · 0% IGV._` : '')
-      + `\n\n📎 Te compartimos la *imagen* de tu comprobante y su *PDF*.\n\n`
-      + `¡Gracias por navegar con nosotros! 🐧\n*${marca}* — ¡te esperamos pronto!`;
+      + L
+      + `\n\n¡Gracias por navegar con nosotros! 🐧\n*${marca}* — ¡te esperamos pronto!`;
   }
   // panel · formal y profesional
   return `Estimado(a) ${nom || 'cliente'} 👋\n\n`
     + `Le hacemos llegar su *${tipo} electrónica ${num}*, emitida por *${marca}*, por un importe total de *${total}*.`
     + (esExp ? `\n_Operación de exportación · 0% IGV (Art. 33° Ley del IGV)._` : '')
-    + `\n\n📎 Adjuntamos la *representación impresa (imagen)* y el *archivo PDF* de su comprobante, para su descarga y registro.\n\n`
-    + `Ante cualquier consulta, quedamos a su disposición.\nAtentamente,\n*${marca}*`
+    + L
+    + `\n\nAnte cualquier consulta, quedamos a su disposición.\nAtentamente,\n*${marca}*`
     + (_FAC_EMISOR.ruc ? `\nR.U.C. ${_FAC_EMISOR.ruc}` : '');
 }
-// ── Compartir por WhatsApp: 3 partes = IMAGEN (A4 panel / 80mm muelle) + PDF + TEXTO. ──
-// Móvil (navigator.share): manda imagen+PDF+texto juntos a WhatsApp. Escritorio: wa.me con
-// texto + enlace del PDF (WhatsApp Web no acepta adjuntos por URL).
+// ── Compartir por WhatsApp — ROBUSTO en TODO dispositivo ──
+// Realidad: WhatsApp descarta texto/2º archivo si mandas varios adjuntos, y navigator.share con
+// archivos FALLA en muchos WebViews/PCs. Solución fiable: subir imagen + PDF a la nube y mandar el
+// texto con AMBOS enlaces (tocables siempre); y si el equipo lo permite, además EMBEBER la imagen.
 window._facCompartirWAById = function (id, btn) {
   const c = ((_facState && _facState.comprobantes) || []).find(x => String(x.id) === String(id));
   if (c) _facCompartirWA(c, 'panel', null, btn);
 };
-// ¿el dispositivo puede compartir ARCHIVOS por el share sheet? (móvil). Se prueba con un File
-// dummy — así lo sabemos ANTES de gastar tiempo generando la imagen/PDF reales.
 function _facPuedeCompartirArchivos() {
   try { return !!(navigator.canShare && navigator.share && navigator.canShare({ files: [new File([new Blob(['x'])], 't.png', { type: 'image/png' })] })); }
   catch (e) { return false; }
@@ -11348,10 +11349,8 @@ async function _facCompartirWA(c, origen, telOpt, btn) {
   origen = origen || 'panel';
   const fmt = origen === 'ops' ? '80mm' : 'a4';
   const T = _facPdfTotales(c);
-  const msg = _facWAMensaje(c, T, origen);
   const canFiles = _facPuedeCompartirArchivos();
-  // ESCRITORIO: reserva el popup DENTRO del gesto (si esperamos al await, el navegador lo bloquea).
-  const waWin = canFiles ? null : window.open('', '_blank');
+  const waWin = canFiles ? null : window.open('', '_blank');   // reserva popup en el gesto (escritorio)
   _facState._waSending = true;
   const btnHtml = btn ? btn.innerHTML : '';
   if (btn) { btn.setAttribute('aria-disabled', 'true'); btn.innerHTML = '<span class="spin fac-cli-spin"></span>'; }
@@ -11359,41 +11358,54 @@ async function _facCompartirWA(c, origen, telOpt, btn) {
   const restore = () => { if (btn) { btn.removeAttribute('aria-disabled'); btn.innerHTML = btnHtml; } if (_facState) _facState._waSending = false; };
   const base = _facTipoSlug(c) + '-' + (c.serie || '') + '-' + String(c.numero || 0).padStart(8, '0');
 
-  // ── MÓVIL: imagen (A4 panel / 80mm muelle) + PDF + texto, todo junto al share sheet ──
-  if (canFiles) {
-    let files = [];
-    try {
-      const [img, pdfDoc] = await Promise.all([_facRasterizar(c, fmt), _facGenPDF(c, 'a4')]);
-      files = [new File([img.blob], base + '.png', { type: 'image/png' }), new File([pdfDoc.output('blob')], base + '.pdf', { type: 'application/pdf' })];
-    } catch (e) { files = []; }
-    if (files.length && navigator.canShare({ files })) {
+  // 1) Genera la imagen (puede fallar sin red/librería) y el PDF.
+  let imgBlob = null;
+  try { const img = await _facRasterizar(c, fmt); imgBlob = img.blob; } catch (e) {}
+  // 2) Sube ambos a la nube → enlaces firmados (fiables en cualquier equipo).
+  const [pdfLink, imgLink] = await Promise.all([
+    _facSubirComprobante(c, 'pdf', null),
+    imgBlob ? _facSubirComprobante(c, 'png', imgBlob) : Promise.resolve('')
+  ]);
+  const oficial = /^https?:\/\//.test(String(c.enlace_pdf || ''));
+  const pdfUrl = pdfLink || (oficial ? c.enlace_pdf : '');
+  // Texto para EMBEBIDO (la imagen ya va como archivo → solo enlace del PDF).
+  const msgEmbebido = _facWAMensaje(c, T, origen, pdfUrl ? `\n\n📄 Descarga tu comprobante en PDF:\n${pdfUrl}` : '');
+  // Texto para ENLACES (sin adjunto → imagen y PDF como enlaces tocables).
+  const msgLinks = _facWAMensaje(c, T, origen,
+    (imgLink ? `\n\n🖼️ Ver tu comprobante (imagen):\n${imgLink}` : '') + (pdfUrl ? `\n\n📄 Descargar en PDF:\n${pdfUrl}` : ''));
+
+  // 3) MÓVIL con soporte de archivos: embebe la imagen + texto (con enlace PDF).
+  if (canFiles && imgBlob) {
+    const file = new File([imgBlob], base + '.png', { type: 'image/png' });
+    if (navigator.canShare({ files: [file] })) {
       try {
-        await navigator.share({ files, text: msg, title: 'Comprobante ' + _facNumFmt(c) });
+        await navigator.share({ files: [file], text: msgEmbebido, title: 'Comprobante ' + _facNumFmt(c) });
         restore(); try { sndOk(); } catch (e) {} _facPdfGuardarContacto(c); return;
-      } catch (e) {
-        if (e && e.name === 'AbortError') { restore(); return; }   // el usuario canceló
-        // otro error del share → cae al enlace wa.me abajo
-      }
+      } catch (e) { if (e && e.name === 'AbortError') { restore(); return; } }   // canceló → salir
     }
   }
-
-  // ── ESCRITORIO (o share sin archivos falló): sube el PDF → enlace firmado → wa.me texto+enlace ──
-  let link = '';
-  try {
-    if (c.id != null && String(c.id).trim()) {
-      const pdfDoc = await _facGenPDF(c, 'a4');
-      const { error: upErr } = await sbClient.storage.from('comprobante-pdfs').upload(String(c.id) + '.pdf', pdfDoc.output('blob'), { contentType: 'application/pdf', upsert: true });
-      if (!upErr) { const { data: sd } = await sbClient.storage.from('comprobante-pdfs').createSignedUrl(String(c.id) + '.pdf', 31536000); link = (sd && sd.signedUrl) || ''; }
-    }
-  } catch (e) {}
-  const oficial = /^https?:\/\//.test(String(c.enlace_pdf || ''));
-  const full = msg + (link ? `\n\n📄 Descarga tu PDF:\n${link}` : (oficial ? `\n\n📄 PDF oficial:\n${c.enlace_pdf}` : ''));
+  // 4) Fallback universal (escritorio o share sin archivos): wa.me con texto + AMBOS enlaces.
   let tel = String(telOpt || '').replace(/\D/g, ''); if (tel.length === 9) tel = '51' + tel;
-  const url = 'https://wa.me/' + (tel.length === 11 ? tel : '') + '?text=' + encodeURIComponent(full);
+  const url = 'https://wa.me/' + (tel.length === 11 ? tel : '') + '?text=' + encodeURIComponent(msgLinks);
   if (waWin && !waWin.closed) { try { waWin.location.href = url; } catch (e) { window.open(url, '_blank', 'noopener'); } }
   else window.open(url, '_blank', 'noopener');
   restore(); try { sndOk(); } catch (e) {}
   _facPdfGuardarContacto(c);
+}
+// Sube el comprobante (pdf o png) a Storage → enlace firmado ~1 año. '' si falla (no rompe el envío).
+async function _facSubirComprobante(c, ext, blobPng) {
+  try {
+    if (c.id == null || !String(c.id).trim()) return '';
+    let blob, ct;
+    if (ext === 'png') { blob = blobPng; ct = 'image/png'; }
+    else { const pdfDoc = await _facGenPDF(c, 'a4'); blob = pdfDoc.output('blob'); ct = 'application/pdf'; }
+    if (!blob) return '';
+    const path = String(c.id) + '.' + ext;
+    const { error: upErr } = await sbClient.storage.from('comprobante-pdfs').upload(path, blob, { contentType: ct, upsert: true });
+    if (upErr) return '';
+    const { data: sd } = await sbClient.storage.from('comprobante-pdfs').createSignedUrl(path, 31536000);
+    return (sd && sd.signedUrl) || '';
+  } catch (e) { return ''; }
 }
 // Botón WhatsApp del modal preview (usa el teléfono si se escribió; si no, share sheet en móvil).
 async function _facPdfWhatsApp() {
@@ -14890,7 +14902,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '2.7.0';
+const APP_VERSION = '2.7.1';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
