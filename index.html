@@ -1600,6 +1600,8 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 .fac-ibtn.pdf { color:#4ade80; border-color:rgba(74,222,128,.34); background:rgba(74,222,128,.09); }
 .fac-ibtn.pdf.local { color:var(--gold); border-color:rgba(201,168,76,.34); background:rgba(201,168,76,.09); }
 .fac-ibtn.anul { color:#f87171; border-color:rgba(248,113,113,.3); background:rgba(248,113,113,.07); }
+.fac-ibtn.wa { color:#25D366; border-color:rgba(37,211,102,.34); background:rgba(37,211,102,.10); }
+.fac-ibtn.wa:hover { background:rgba(37,211,102,.18); }
 .fac-ibtn.anul.ask { width:auto; padding:0 10px; color:#fff; background:#f87171; border-color:#f87171; font-size:11px; font-weight:800; }
 /* nombre: hasta 2 líneas, PERO reserva 2 líneas siempre → todas las cards iguales */
 .fac-hcard-name { flex:1 1 auto; min-width:0; font-weight:800; font-size:13.5px; line-height:1.28; color:var(--text); display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; word-break:break-word; }
@@ -10437,6 +10439,52 @@ function _facEnsureJsPDF() {
   });
   return _facJsPDFPromise;
 }
+// Carga html2canvas perezosa (para rasterizar el ticket a imagen PNG y compartirla por WhatsApp).
+let _facH2CPromise = null;
+function _facEnsureH2C() {
+  if (window.html2canvas) return Promise.resolve(window.html2canvas);
+  if (_facH2CPromise) return _facH2CPromise;
+  _facH2CPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+    s.async = true;
+    s.onload = () => { window.html2canvas ? resolve(window.html2canvas) : reject(new Error('html2canvas no cargó')); };
+    s.onerror = () => { _facH2CPromise = null; reject(new Error('No se pudo descargar html2canvas (sin red).')); };
+    document.head.appendChild(s);
+  });
+  return _facH2CPromise;
+}
+// Rasteriza el ticket (mismo diseño del preview) a un PNG de alta resolución. Devuelve {blob, dataUrl}.
+// Usa un contenedor fuera de pantalla con ancho fijo por formato para un render nítido y consistente.
+async function _facRasterizar(c, fmt) {
+  const h2c = await _facEnsureH2C();
+  try { await _facEnsureQR(); } catch (e) {}   // QR nítido en la imagen
+  const esA4 = fmt === 'a4';
+  const width = esA4 ? 900 : 384;   // A4 apaisado ancho / 80mm ~ 384px (58mm útil a ~192dpi se ve premium)
+  const host = document.createElement('div');
+  host.style.cssText = 'position:fixed;left:-10000px;top:0;z-index:-1;background:#fff;padding:' + (esA4 ? '22px' : '14px') + ';width:' + width + 'px;box-sizing:border-box';
+  host.className = 'fac-raster-host';
+  host.innerHTML = _facPdfPreviewHTML(c, fmt);
+  document.body.appendChild(host);
+  // el .fpdf-paper trae su propio max-width; lo soltamos para que ocupe el ancho del host
+  const paper = host.querySelector('.fpdf-paper'); if (paper) { paper.style.maxWidth = 'none'; paper.style.width = '100%'; paper.style.margin = '0'; paper.style.boxShadow = 'none'; }
+  // Logo como dataURL: un <img src="./logo.png"> cross-origin/file:// CONTAMINA el canvas y
+  // toBlob/toDataURL revientan. Embebido como dataURL el canvas queda limpio en cualquier origen.
+  let logoData = null; try { logoData = await _facLoadLogo(); } catch (e) {}
+  host.querySelectorAll('img').forEach(img => {
+    if (logoData && /logo\.png/.test(img.getAttribute('src') || '')) img.src = logoData;
+    else if (!logoData && /logo\.png/.test(img.getAttribute('src') || '')) img.remove();   // sin logo: quítalo (no contamina)
+  });
+  // esperar a que las imágenes (logo dataURL + QR dataURL) queden decodificadas
+  await Promise.all(Array.from(host.querySelectorAll('img')).map(img => (img.complete && img.naturalWidth) ? Promise.resolve() : new Promise(r => { img.onload = img.onerror = r; setTimeout(r, 1200); })));
+  let canvas;
+  try {
+    canvas = await h2c(host, { scale: esA4 ? 2 : 3, backgroundColor: '#ffffff', useCORS: true, logging: false, windowWidth: width + 60 });
+  } finally { host.remove(); }
+  const dataUrl = canvas.toDataURL('image/png');
+  const blob = await new Promise(res => canvas.toBlob(res, 'image/png', 0.95));
+  return { blob, dataUrl, w: canvas.width, h: canvas.height };
+}
 // Logo (Paracas Sights & Tours) → dataURL cacheado para incrustar en el PDF con jsPDF.
 let _facLogoPromise = null;
 function _facLoadLogo() {
@@ -10538,7 +10586,9 @@ function _facHistCardHTML(c, S, opts) {
   var fecha = fm ? (fm[3] + '/' + fm[2] + (fm[4] ? ' · ' + fm[4] : '')) : String(c.creado || '');   // "02/08 · 10:45"
   var svgPdf = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6"/><path d="M9 17h4"/></svg>';
   var svgAnul = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M5.8 5.8l12.4 12.4"/></svg>';
-  var pdfBtn = '<button class="fac-ibtn pdf' + (real ? '' : ' local') + '" onclick="event.stopPropagation();_facAbrirPDFById(\'' + c.id + '\')" title="Ver / imprimir / enviar PDF" aria-label="Ver PDF">' + svgPdf + '</button>';
+  var svgWa = '<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M17.47 14.38c-.29-.14-1.72-.85-1.99-.95-.27-.1-.46-.14-.65.15-.19.28-.74.94-.91 1.13-.17.19-.34.21-.63.07-.29-.14-1.22-.45-2.33-1.44-.86-.77-1.44-1.72-1.61-2.01-.17-.29-.02-.44.13-.59.13-.13.29-.34.43-.51.15-.17.19-.29.29-.48.1-.19.05-.36-.02-.5-.07-.14-.65-1.57-.89-2.15-.24-.56-.48-.48-.65-.49h-.56c-.19 0-.5.07-.77.36-.27.29-1.01.99-1.01 2.41s1.04 2.8 1.18 2.99c.14.19 2.03 3.1 4.92 4.35.69.3 1.22.47 1.64.61.69.22 1.31.19 1.81.11.55-.08 1.72-.7 1.96-1.38.24-.68.24-1.26.17-1.38-.07-.12-.26-.19-.55-.34zM12.05 2.9c-5.04 0-9.14 4.1-9.14 9.14 0 1.61.42 3.18 1.22 4.57L2.83 21.1l4.62-1.21a9.1 9.1 0 0 0 4.6 1.24h.01c5.04 0 9.14-4.1 9.14-9.14 0-2.44-.95-4.74-2.68-6.46a9.08 9.08 0 0 0-6.47-2.67zm0 16.65h-.01a7.6 7.6 0 0 1-3.87-1.06l-.28-.16-2.87.75.77-2.8-.18-.29a7.55 7.55 0 0 1-1.16-4.03c0-4.19 3.41-7.6 7.6-7.6a7.56 7.56 0 0 1 7.6 7.6c0 4.19-3.41 7.6-7.6 7.6z"/></svg>';
+  var pdfBtn = '<button class="fac-ibtn pdf' + (real ? '' : ' local') + '" onclick="event.stopPropagation();_facAbrirPDFById(\'' + c.id + '\')" title="Ver / imprimir / enviar" aria-label="Ver comprobante">' + svgPdf + '</button>';
+  var waBtn = anu ? '' : '<button class="fac-ibtn wa" onclick="event.stopPropagation();_facCompartirWAById(\'' + c.id + '\',this)" title="Compartir por WhatsApp (imagen + PDF)" aria-label="Compartir por WhatsApp">' + svgWa + '</button>';
   var anulBtn = anu ? '' : (S.anularId === c.id
     ? '<button class="fac-ibtn anul ask" onclick="event.stopPropagation();_facAnular(\'' + c.id + '\')" aria-label="Confirmar anulación">¿Anular?</button>'
     : '<button class="fac-ibtn anul" onclick="event.stopPropagation();_facAnular(\'' + c.id + '\')" title="Anular" aria-label="Anular">' + svgAnul + '</button>');
@@ -10557,7 +10607,7 @@ function _facHistCardHTML(c, S, opts) {
             '<span class="fac-hcard-est">' + _facChipEstado(c) + '</span>' +
             ncNote +
           '</div>' +
-          '<div class="fac-hcard-acts">' + togBtn + pdfBtn + anulBtn + '</div>' +
+          '<div class="fac-hcard-acts">' + togBtn + pdfBtn + waBtn + anulBtn + '</div>' +
         '</div>' +
       '</div>' +
     '</div>';
@@ -10706,6 +10756,8 @@ function _facFormaPago(c) {
 // Datos de detracción (SPOT) del comprobante → null si no aplica (boleta / total < umbral).
 function _facDetraccion(c, T) {
   if (Number(c && c.tipo) !== 1) return null;                 // solo FACTURA
+  // Exportación (0% IGV) NO está sujeta a detracción — es una operación sin porción gravada.
+  if ((Number(T && T.exportacion) || 0) > 0 || (Number(T && T.grav) || 0) <= 0) return null;
   var total = Number(T && T.total) || 0;
   if (total < _FAC_DETRACCION.umbral) return null;
   return {
@@ -10760,6 +10812,13 @@ function _facPdfPreviewHTML(c, fmt) {
   const totRowsHtml = _facTotRows(T).map(r => `<div class="fpdf-tot-row"><span>${_facEsc(r.lbl)}</span><b>S/ ${_facMoney(r.val)}</b></div>`).join('');
   const detrHtmlA4 = _facDetraccionHTML(c, T, false);
   const detrHtml80 = _facDetraccionHTML(c, T, true);
+  // Observaciones del emisor (opcional) + sello de EXPORTACIÓN (turismo receptivo, 0% IGV).
+  const obs = String(c.observaciones || '').trim();
+  const esExportDoc = (Number(T.exportacion) || 0) > 0;
+  const obsA4 = obs ? `<div style="margin-top:8px;padding:7px 11px;border:1px solid #e3d9c4;background:#fdfaf2;border-radius:6px;font-size:8.5px;color:#5a4a2a;line-height:1.4"><b style="letter-spacing:.03em">OBSERVACIONES: </b>${_facEsc(obs)}</div>` : '';
+  const obs80 = obs ? `<div style="margin-top:5px;padding:5px 8px;border:1px solid #e3d9c4;background:#fdfaf2;border-radius:5px;font-size:8px;color:#5a4a2a;line-height:1.35"><b>OBS: </b>${_facEsc(obs)}</div>` : '';
+  const expBadgeA4 = esExportDoc ? `<div style="display:inline-flex;align-items:center;gap:4px;margin-top:5px;padding:2px 9px;border-radius:999px;background:#e0f2fe;border:1px solid #7dd3fc;color:#075985;font-size:8px;font-weight:800;letter-spacing:.03em">🌎 EXPORTACIÓN · 0% IGV (Art. 33° Ley IGV)</div>` : '';
+  const expBadge80 = esExportDoc ? `<div style="margin:4px auto 0;display:inline-block;padding:2px 8px;border-radius:999px;background:#e0f2fe;border:1px solid #7dd3fc;color:#075985;font-size:7.5px;font-weight:800">🌎 EXPORTACIÓN · 0% IGV</div>` : '';
 
   if (esA4) {
     // ── A4 HORIZONTAL (apaisado) — fiel al PDF: emisor izq, recuadro doc der, tabla ancha + totales a la derecha ──
@@ -10802,7 +10861,8 @@ function _facPdfPreviewHTML(c, fmt) {
           <div class="fpdf-tot-row fpdf-tot-grand"><span>TOTAL</span><span>S/ ${_facMoney(T.total)}</span></div>
         </div>
       </div>
-      <div style="margin-top:8px;font-size:9px;font-weight:700;color:#333;letter-spacing:.01em">${letras}</div>
+      <div style="margin-top:8px;font-size:9px;font-weight:700;color:#333;letter-spacing:.01em">${letras}${esExportDoc ? ' &nbsp; ' + expBadgeA4 : ''}</div>
+      ${obsA4}
       ${detrHtmlA4}
       <div style="display:flex;align-items:flex-end;gap:12px;margin-top:12px;border-top:1px solid #ddd;padding-top:7px">
         <div style="flex:0 0 auto;text-align:center">${qrImg(74)}${hashTxt}</div>
@@ -10854,6 +10914,8 @@ function _facPdfPreviewHTML(c, fmt) {
       <div class="fpdf-tot-row fpdf-tot-grand"><span>TOTAL</span><span>S/ ${_facMoney(T.total)}</span></div>
     </div>
     <div style="font-size:8.5px;font-weight:700;color:#333;margin-top:5px;text-align:center;line-height:1.3">${letras}</div>
+    ${esExportDoc ? `<div style="text-align:center;margin-top:3px">${expBadge80}</div>` : ''}
+    ${obs80}
     ${detrHtml80}
     <div class="fpdf-hr"></div>
     <div style="text-align:center;margin:2px 0 4px">${qrImg(90)}${hashTxt}</div>
@@ -10975,6 +11037,24 @@ async function _facGenPDF(c, fmtOverride) {
     let letY = Math.max(ry, topY + boxH + 6) + 4;
     doc.setTextColor(...ink); doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
     doc.splitTextToSize(letras, tblR - M).forEach(ln => { doc.text(ln, M, letY); letY += 4; });
+    // ── Sello EXPORTACIÓN (0% IGV) + Observaciones del emisor ──
+    if ((Number(T.exportacion) || 0) > 0) {
+      letY += 1;
+      doc.setFillColor(224, 242, 254); doc.setDrawColor(125, 211, 252); doc.setLineWidth(0.3);
+      doc.roundedRect(M, letY, 104, 6.5, 3.2, 3.2, 'FD');
+      doc.setTextColor(7, 89, 133); doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
+      doc.text('EXPORTACIÓN · 0% IGV — Art. 33° Ley del IGV (turismo receptivo)', M + 4, letY + 4.4);
+      letY += 9.5;
+    }
+    if (String(c.observaciones || '').trim()) {
+      const oLines = doc.splitTextToSize('OBSERVACIONES: ' + String(c.observaciones).trim(), W - 2 * M - 8);
+      const oh = oLines.length * 4 + 4.5;
+      doc.setFillColor(253, 250, 242); doc.setDrawColor(227, 217, 196); doc.setLineWidth(0.3);
+      doc.roundedRect(M, letY, W - 2 * M, oh, 1.8, 1.8, 'FD');
+      doc.setTextColor(90, 74, 42); doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
+      let oy = letY + 4.8; oLines.forEach(ln => { doc.text(ln, M + 4, oy); oy += 4; });
+      letY += oh + 3;
+    }
     // ── Detracción (SPOT) — bloque legal, solo FACTURA ≥ umbral ──
     const detr = _facDetraccion(c, T);
     if (detr) {
@@ -11006,7 +11086,9 @@ async function _facGenPDF(c, fmtOverride) {
   const detr = _facDetraccion(c, T);                                 // detracción (SPOT) si aplica
   const totR = _facTotRows(T);                                       // desglose por tipo de operación
   // alto estimado: logo + razón + letras + QR 22mm + wrap + NC + forma pago/operación + buckets extra + detracción + vendedor
-  const est = 92 + T.items.length * 10 + 44 + 40 + (ncL ? 16 : 0) + 12 + (totR.length - 2) * 4 + (detr ? 24 : 0);
+  const _obsTxt = String(c.observaciones || '').trim();
+  const _esExp = (Number(T.exportacion) || 0) > 0;
+  const est = 92 + T.items.length * 10 + 44 + 40 + (ncL ? 16 : 0) + 12 + (totR.length - 2) * 4 + (detr ? 24 : 0) + (_esExp ? 8 : 0) + (_obsTxt ? Math.ceil(_obsTxt.length / 40) * 4 + 8 : 0);
   const doc = new jsPDF({ unit: 'mm', format: [w, est] });
   let y = 8;
   const center = (txt, size, bold, color) => { doc.setFont('helvetica', bold ? 'bold' : 'normal'); doc.setFontSize(size); doc.setTextColor(...(color || ink)); doc.text(txt, w / 2, y, { align: 'center', maxWidth: cw }); };
@@ -11062,6 +11144,25 @@ async function _facGenPDF(c, fmtOverride) {
   // Monto en letras
   y += 2; doc.setTextColor(...ink); doc.setFont('helvetica', 'bold'); doc.setFontSize(7);
   doc.splitTextToSize(letras, cw).forEach(ln => { doc.text(ln, w / 2, y, { align: 'center' }); y += 3; });
+  // ── Sello EXPORTACIÓN + Observaciones ──
+  if (_esExp) {
+    y += 1.5;
+    doc.setFillColor(224, 242, 254); doc.setDrawColor(125, 211, 252); doc.setLineWidth(0.3);
+    doc.roundedRect(mm, y, cw, 5.5, 2.6, 2.6, 'FD');
+    doc.setTextColor(7, 89, 133); doc.setFont('helvetica', 'bold'); doc.setFontSize(6.6);
+    doc.text('EXPORTACIÓN · 0% IGV', w / 2, y + 3.7, { align: 'center' });
+    y += 8;
+  }
+  if (_obsTxt) {
+    y += 1;
+    const oLines = doc.splitTextToSize('OBS: ' + _obsTxt, cw - 3);
+    const oh = oLines.length * 2.8 + 3;
+    doc.setFillColor(253, 250, 242); doc.setDrawColor(227, 217, 196); doc.setLineWidth(0.3);
+    doc.roundedRect(mm, y, cw, oh, 1.2, 1.2, 'FD');
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(6.4); doc.setTextColor(90, 74, 42);
+    let oy = y + 3; oLines.forEach(ln => { doc.text(ln, mm + 1.5, oy); oy += 2.8; });
+    y += oh + 2;
+  }
   // ── Detracción (SPOT) — bloque legal, solo FACTURA ≥ umbral ──
   if (detr) {
     y += 1.5;
@@ -11208,50 +11309,98 @@ async function _facPdfDescargar() {
   try { const doc = await _facGenPDF(c); doc.save(_facPdfFilename(c)); try { sndOk(); } catch (e) {} }
   catch (e) { _facErr((e && e.message) || 'No se pudo generar el PDF'); }
 }
-async function _facPdfWhatsApp() {
-  const c = _facPdfComp(); if (!c) return;
-  const S = _facState;
-  const ct = (S._pdf && S._pdf.contact) || {};
-  let tel = String(ct.tel || '').replace(/\D/g, '');
-  if (!tel) { _facErr('Escribe el WhatsApp del cliente (9 dígitos)'); const el = document.getElementById('fpdf-tel'); if (el) el.focus(); return; }
-  if (tel.length === 9) tel = '51' + tel;   // prefijo Perú
-  if (tel.length !== 11) { _facErr('El WhatsApp debe tener 9 dígitos'); const el = document.getElementById('fpdf-tel'); if (el) el.focus(); return; }
-  if (S._pdf && S._pdf.sending) return;
-  if (S._pdf) S._pdf.sending = true;
-  try { sndOk(); haptic([15, 40, 15]); } catch (e) {}
-  // Reserva la ventana DENTRO del gesto del usuario (la subida tarda ~1-2s → evita el bloqueo de popups).
-  const waWin = window.open('', '_blank');
+// ── Mensaje profesional de WhatsApp — 3 partes: saludo · qué es · cierre. Tono según origen. ──
+function _facWAMensaje(c, T, origen) {
+  const num = _facNumFmt(c), tipo = _facTipoWord(c);
+  const nom = String(c.cliente_nombre || '').trim();
+  const marca = _FAC_EMISOR.marca, total = 'S/ ' + _facMoney(T.total);
+  const esExp = (Number(T.exportacion) || 0) > 0;
+  if (origen === 'ops') {   // muelle · cálido y cercano
+    return `¡Hola ${nom || ''}! 👋🌊\n\n`
+      + `Aquí tienes tu *${tipo} ${num}* por un total de *${total}*.`
+      + (esExp ? `\n_Comprobante de exportación · 0% IGV._` : '')
+      + `\n\n📎 Te compartimos la *imagen* de tu comprobante y su *PDF*.\n\n`
+      + `¡Gracias por navegar con nosotros! 🐧\n*${marca}* — ¡te esperamos pronto!`;
+  }
+  // panel · formal y profesional
+  return `Estimado(a) ${nom || 'cliente'} 👋\n\n`
+    + `Le hacemos llegar su *${tipo} electrónica ${num}*, emitida por *${marca}*, por un importe total de *${total}*.`
+    + (esExp ? `\n_Operación de exportación · 0% IGV (Art. 33° Ley del IGV)._` : '')
+    + `\n\n📎 Adjuntamos la *representación impresa (imagen)* y el *archivo PDF* de su comprobante, para su descarga y registro.\n\n`
+    + `Ante cualquier consulta, quedamos a su disposición.\nAtentamente,\n*${marca}*`
+    + (_FAC_EMISOR.ruc ? `\nR.U.C. ${_FAC_EMISOR.ruc}` : '');
+}
+// ── Compartir por WhatsApp: 3 partes = IMAGEN (A4 panel / 80mm muelle) + PDF + TEXTO. ──
+// Móvil (navigator.share): manda imagen+PDF+texto juntos a WhatsApp. Escritorio: wa.me con
+// texto + enlace del PDF (WhatsApp Web no acepta adjuntos por URL).
+window._facCompartirWAById = function (id, btn) {
+  const c = ((_facState && _facState.comprobantes) || []).find(x => String(x.id) === String(id));
+  if (c) _facCompartirWA(c, 'panel', null, btn);
+};
+// ¿el dispositivo puede compartir ARCHIVOS por el share sheet? (móvil). Se prueba con un File
+// dummy — así lo sabemos ANTES de gastar tiempo generando la imagen/PDF reales.
+function _facPuedeCompartirArchivos() {
+  try { return !!(navigator.canShare && navigator.share && navigator.canShare({ files: [new File([new Blob(['x'])], 't.png', { type: 'image/png' })] })); }
+  catch (e) { return false; }
+}
+async function _facCompartirWA(c, origen, telOpt, btn) {
+  if (!c || !_facState || _facState._waSending) return;
+  origen = origen || 'panel';
+  const fmt = origen === 'ops' ? '80mm' : 'a4';
   const T = _facPdfTotales(c);
-  const oficial = /^https?:\/\//.test(String(c.enlace_pdf || ''));
-  const baseMsg = 'Hola ' + (c.cliente_nombre || '') + ' 👋\n\nTe compartimos tu ' + _facTipoWord(c) + ' electrónica *' + _facNumFmt(c) + '* por un total de *S/ ' + _facMoney(T.total) + '*.';
-  const firma = '\n\n' + _FAC_EMISOR.marca + '. ¡Gracias por tu preferencia! 🌊';
-  const btn = document.querySelector('#fac-pdf-modal .fpdf-act.wa');
+  const msg = _facWAMensaje(c, T, origen);
+  const canFiles = _facPuedeCompartirArchivos();
+  // ESCRITORIO: reserva el popup DENTRO del gesto (si esperamos al await, el navegador lo bloquea).
+  const waWin = canFiles ? null : window.open('', '_blank');
+  _facState._waSending = true;
   const btnHtml = btn ? btn.innerHTML : '';
-  if (btn) { btn.setAttribute('aria-disabled', 'true'); btn.innerHTML = '🟢 Preparando PDF…'; }
-  // Sube NUESTRO PDF (siempre A4 para compartir) a Storage y genera un enlace firmado de larga duración. Cero-GAS.
+  if (btn) { btn.setAttribute('aria-disabled', 'true'); btn.innerHTML = '<span class="spin fac-cli-spin"></span>'; }
+  try { sndTap(); haptic(10); } catch (e) {}
+  const restore = () => { if (btn) { btn.removeAttribute('aria-disabled'); btn.innerHTML = btnHtml; } if (_facState) _facState._waSending = false; };
+  const base = _facTipoSlug(c) + '-' + (c.serie || '') + '-' + String(c.numero || 0).padStart(8, '0');
+
+  // ── MÓVIL: imagen (A4 panel / 80mm muelle) + PDF + texto, todo junto al share sheet ──
+  if (canFiles) {
+    let files = [];
+    try {
+      const [img, pdfDoc] = await Promise.all([_facRasterizar(c, fmt), _facGenPDF(c, 'a4')]);
+      files = [new File([img.blob], base + '.png', { type: 'image/png' }), new File([pdfDoc.output('blob')], base + '.pdf', { type: 'application/pdf' })];
+    } catch (e) { files = []; }
+    if (files.length && navigator.canShare({ files })) {
+      try {
+        await navigator.share({ files, text: msg, title: 'Comprobante ' + _facNumFmt(c) });
+        restore(); try { sndOk(); } catch (e) {} _facPdfGuardarContacto(c); return;
+      } catch (e) {
+        if (e && e.name === 'AbortError') { restore(); return; }   // el usuario canceló
+        // otro error del share → cae al enlace wa.me abajo
+      }
+    }
+  }
+
+  // ── ESCRITORIO (o share sin archivos falló): sube el PDF → enlace firmado → wa.me texto+enlace ──
   let link = '';
   try {
     if (c.id != null && String(c.id).trim()) {
-      const doc = await _facGenPDF(c, 'a4');                     // A4 forzado (no cambia el formato que ve el usuario)
-      const blob = doc.output('blob');
-      const path = String(c.id) + '.pdf';                       // 1 archivo por comprobante → re-compartir NO duplica
-      const { error: upErr } = await sbClient.storage.from('comprobante-pdfs').upload(path, blob, { contentType: 'application/pdf', upsert: true });
-      if (upErr) throw upErr;
-      const { data: sd, error: sErr } = await sbClient.storage.from('comprobante-pdfs').createSignedUrl(path, 31536000);   // ~1 año
-      if (sErr || !sd || !sd.signedUrl) throw (sErr || new Error('sin URL firmada'));
-      link = sd.signedUrl;
+      const pdfDoc = await _facGenPDF(c, 'a4');
+      const { error: upErr } = await sbClient.storage.from('comprobante-pdfs').upload(String(c.id) + '.pdf', pdfDoc.output('blob'), { contentType: 'application/pdf', upsert: true });
+      if (!upErr) { const { data: sd } = await sbClient.storage.from('comprobante-pdfs').createSignedUrl(String(c.id) + '.pdf', 31536000); link = (sd && sd.signedUrl) || ''; }
     }
-  } catch (e) { link = ''; }   // falla la subida → cae al comportamiento actual (link oficial NubeFact si existe)
-  let msg = baseMsg;
-  if (link) msg += '\n\nDescarga tu comprobante en PDF:\n' + link;
-  else if (oficial) msg += '\n\nPDF oficial: ' + c.enlace_pdf;
-  msg += firma;
-  if (btn) { btn.removeAttribute('aria-disabled'); btn.innerHTML = btnHtml || '🟢 WhatsApp'; }
-  if (S._pdf) S._pdf.sending = false;
-  const url = 'https://wa.me/' + tel + '?text=' + encodeURIComponent(msg);
+  } catch (e) {}
+  const oficial = /^https?:\/\//.test(String(c.enlace_pdf || ''));
+  const full = msg + (link ? `\n\n📄 Descarga tu PDF:\n${link}` : (oficial ? `\n\n📄 PDF oficial:\n${c.enlace_pdf}` : ''));
+  let tel = String(telOpt || '').replace(/\D/g, ''); if (tel.length === 9) tel = '51' + tel;
+  const url = 'https://wa.me/' + (tel.length === 11 ? tel : '') + '?text=' + encodeURIComponent(full);
   if (waWin && !waWin.closed) { try { waWin.location.href = url; } catch (e) { window.open(url, '_blank', 'noopener'); } }
   else window.open(url, '_blank', 'noopener');
-  _facPdfGuardarContacto(c);   // guarda el contacto igual
+  restore(); try { sndOk(); } catch (e) {}
+  _facPdfGuardarContacto(c);
+}
+// Botón WhatsApp del modal preview (usa el teléfono si se escribió; si no, share sheet en móvil).
+async function _facPdfWhatsApp() {
+  const c = _facPdfComp(); if (!c) return;
+  const ct = (_facState._pdf && _facState._pdf.contact) || {};
+  const btn = document.querySelector('#fac-pdf-modal .fpdf-act.wa');
+  await _facCompartirWA(c, 'panel', ct.tel || '', btn);
 }
 async function _facPdfCorreo() {
   const c = _facPdfComp(); if (!c) return;
@@ -14741,7 +14890,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '2.6.3';
+const APP_VERSION = '2.7.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
