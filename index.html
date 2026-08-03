@@ -2054,6 +2054,9 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 .fac-cli-chip.inv { border-color:rgba(248,113,113,.65); animation:cliInvPulse 1.4s ease-in-out infinite; }
 @keyframes cliInvPulse { 0%,100%{box-shadow:0 0 0 0 rgba(248,113,113,0)} 50%{box-shadow:0 0 0 4px rgba(248,113,113,.16), 0 0 14px rgba(248,113,113,.25)} }
 .fac-cli-inv-hint { font-size:10.5px; color:#f87171; font-weight:700; margin-top:3px; }
+/* sección SERVICIOS inválida (export sin paquete) → mismo pulso rojo que el chip del cliente */
+.fac-it-list.inv { border-color:rgba(248,113,113,.65); animation:cliInvPulse 1.4s ease-in-out infinite; }
+.fac-it-inv-hint { font-size:10.5px; color:#f87171; font-weight:700; margin:-8px 2px 12px; }
 /* chip 🌎 exportación junto al IGV: apagado = sugerencia sutil; activo = celeste encendido */
 .fac-exp-chip { padding:2px 9px; border-radius:999px; font-size:10px; font-weight:800; cursor:pointer; letter-spacing:.02em;
   border:1px solid rgba(56,189,248,.35); background:transparent; color:rgba(56,189,248,.75);
@@ -8064,14 +8067,6 @@ function _facTab(t) {
   else if (t === 'compras') _tribLoadCompras();
   else if (t === 'renta') _tribLoadRenta();
 }
-// Forma de pago del CPE (RS 193-2020): contado (default, NubeFact lo marca solo) o crédito con cuota única.
-function _facSetFormaPago(v) {
-  const S = _facState;
-  S.formaPago = v;
-  if (v === 'CREDITO' && !S.creditoVenc) S.creditoVenc = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);   // default: 7 días
-  try { sndTap(); haptic(8); } catch (e) {}
-  _facRender();
-}
 // Toggle Boleta / Factura — MISMO layout, solo cambian los requisitos (decisión dueño).
 // REGLA DE ORO: JAMÁS mutar ni limpiar el cliente seleccionado — si es incompatible con el
 // modo, su chip PALPITA en rojo con el motivo (el error se marca DONDE está) y Emitir se
@@ -8093,7 +8088,9 @@ function _facCliInvalidez() {
   const S = _facState; if (!S || !S.cliSel) return null;
   const tot = _facTotales();
   if (S.exportacion) {
-    if (S.docTipo !== '7' && S.docTipo !== '0') return 'Exportación exige pasaporte del turista — cámbialo o desactiva 🌎';
+    // OJO: Varios también usa doc_tipo '0' → exportación solo acepta PASAPORTE (7).
+    // El tax-id de agencias extranjeras llegará como concepto aparte (pendiente dueño).
+    if (S.docTipo !== '7') return 'Exportación exige pasaporte del turista — cámbialo o desactiva 🌎';
     return null;
   }
   if (S.tipo === 1 && S.docTipo !== '6') return S.docTipo === '0' ? 'Factura exige RUC — Varios no factura' : 'Factura exige RUC — este documento no sirve aquí';
@@ -8104,7 +8101,7 @@ function _facCliInvalidez() {
 // exportación — cliente pasaporte/tax-id o paquete de 2+ servicios — o si ya está activa.
 function _facExportEligible() {
   const S = _facState;
-  return S.tipo === 1 && (S.exportacion || S.docTipo === '7' || S.docTipo === '0' || (S.items && S.items.length >= 2));
+  return S.tipo === 1 && (S.exportacion || S.docTipo === '7' || (S.items && S.items.length >= 2));   // '0' NO: Varios comparte ese tipo
 }
 function _facExpChipHTML() {
   const S = _facState;
@@ -8154,7 +8151,6 @@ function _facReglas() {
     else if (tot.total > 700) R.push({ label: 'Identificar cliente (boleta mayor a S/700)', ok: S.docTipo !== '0' && doc.length > 0 && nom.length > 0, hard: true });
   }
   if (!S.exportacion && tot.total >= 2000) R.push({ label: 'Medio de pago (total 2000 o más)', ok: !!S.medioPago, hard: true });
-  if (S.tipo === 1 && !S.exportacion && S.formaPago === 'CREDITO') R.push({ label: 'Fecha de pago del crédito', ok: !!S.creditoVenc, hard: true });
   return R;
 }
 function _facReglasOk() { return !_facReglas().some(r => r.hard && !r.ok); }
@@ -8320,7 +8316,13 @@ function _facEmitLite() {
 function _facItRebuildList() {
   const list = document.querySelector('.fac-it-list');
   if (!list) { _facRender(); return; }
+  const S = _facState;
   list.innerHTML = _facItListHTML();
+  list.classList.toggle('inv', !!(S.exportacion && S.items.length < 2));   // paquete incompleto en export → sección palpita
+  const hintSel = list.parentElement && list.parentElement.querySelector('.fac-it-inv-hint');
+  const needHint = S.exportacion && S.items.length < 2;
+  if (needHint && !hintSel) { const h = document.createElement('div'); h.className = 'fac-it-inv-hint'; h.textContent = '⚠ Exportación exige un PAQUETE: 2 o más servicios distintos (ej. bote + guiado)'; list.after(h); }
+  else if (!needHint && hintSel) hintSel.remove();
   _facBindItInputs(list);
   _facEmitLite();
 }
@@ -8688,8 +8690,7 @@ function _facEmitir() {
     cliente_email: S.email.trim(), cliente_tel: S.tel.trim(), cliente_dir: S.dir.trim(), es_extranjero: S.esExtranjero,
     items: itemsSnap,
     exportacion: !!S.exportacion, medio_pago: S.medioPago || null,
-    forma_pago: (S.tipo === 1 && !S.exportacion) ? (S.formaPago || 'CONTADO') : 'CONTADO',
-    credito_venc: (S.tipo === 1 && !S.exportacion && S.formaPago === 'CREDITO') ? (S.creditoVenc || null) : null,
+    forma_pago: 'CONTADO', credito_venc: null,   // decisión dueño: todo contado (el RPC conserva el soporte crédito por si se necesita)
     detraccion: (S.tipo === 1 && tot.total >= (typeof _FAC_DETRACCION !== 'undefined' ? _FAC_DETRACCION.umbral : 700)),
     moneda: 'PEN', operador: (S.ses && S.ses.nombre) || 'PS',
     localId: S._emitLocalId };
@@ -9115,9 +9116,10 @@ function _facSectionBody(S) {
           <button class="fac-svc-librebtn" onclick="_facAddLibre()">+ libre</button>
         </div>
       </div>
-      <div class="fac-it-list">
+      <div class="fac-it-list${(S.exportacion && S.items.length < 2) ? ' inv' : ''}" id="fac-it-list">
         ${S.items.length ? S.items.map((it,i)=>_facItRow(it,i)).join('') : '<div class="fac-it-empty">Toca <b>＋</b> para elegir servicios del catálogo</div>'}
       </div>
+      ${(S.exportacion && S.items.length < 2) ? '<div class="fac-it-inv-hint">⚠ Exportación exige un PAQUETE: 2 o más servicios distintos (ej. bote + guiado)</div>' : ''}
       <div style="background:var(--bg2,rgba(255,255,255,0.03));border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:12px">
         <div style="display:flex;justify-content:space-between;color:var(--text-muted)"><span>${S.exportacion?'Exportación':'Gravada'}</span><span id="fac-tg">S/ ${(S.exportacion?tot.total:tot.grav).toFixed(2)}</span></div>
         <div style="display:flex;justify-content:space-between;align-items:center;color:var(--text-muted)">
@@ -9134,18 +9136,6 @@ function _facSectionBody(S) {
           <option value="">Elige medio de pago…</option>
           ${['Efectivo','Transferencia','Depósito en cuenta','Tarjeta','Yape / Plin'].map(m=>`<option value="${m}"${S.medioPago===m?' selected':''}>${m}</option>`).join('')}
         </select>
-      </div>` : ''}
-      ${(S.tipo === 1 && !S.exportacion) ? `<div style="margin-bottom:12px">
-        <div style="font-size:11px;font-weight:800;color:var(--gold);margin-bottom:5px">FORMA DE PAGO <span style="color:var(--text-muted);font-weight:600">(SUNAT: contado o crédito)</span></div>
-        <div style="display:flex;gap:8px">
-          <button onclick="_facSetFormaPago('CONTADO')" style="flex:1;padding:9px 4px;border-radius:10px;font-weight:800;font-size:12px;cursor:pointer;border:1px solid ${S.formaPago!=='CREDITO'?'var(--gold)':'var(--border)'};background:${S.formaPago!=='CREDITO'?'rgba(201,168,76,0.16)':'transparent'};color:${S.formaPago!=='CREDITO'?'var(--gold)':'var(--text-muted)'}">💵 Contado</button>
-          <button onclick="_facSetFormaPago('CREDITO')" style="flex:1;padding:9px 4px;border-radius:10px;font-weight:800;font-size:12px;cursor:pointer;border:1px solid ${S.formaPago==='CREDITO'?'var(--gold)':'var(--border)'};background:${S.formaPago==='CREDITO'?'rgba(201,168,76,0.16)':'transparent'};color:${S.formaPago==='CREDITO'?'var(--gold)':'var(--text-muted)'}">📅 Crédito</button>
-        </div>
-        ${S.formaPago==='CREDITO' ? `<div style="margin-top:8px">
-          <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">Fecha de pago (cuota única) *</div>
-          <input type="date" id="fac-venc" class="config-input" value="${S.creditoVenc||''}" min="${new Date().toISOString().slice(0,10)}"
-            onchange="_facState.creditoVenc=this.value" style="color-scheme:dark">
-        </div>` : ''}
       </div>` : ''}
       <button id="fac-emitir" onclick="_facEmitir()" class="btn-primary" ${_facReglasOk()?'':'disabled'} style="width:100%;padding:10px;font-size:13px;font-weight:800;border-radius:11px;${_facReglasOk()?'':'opacity:.5;cursor:not-allowed'}">${_facReglasOk()?'🧾 Emitir comprobante':'⛔ Faltan requisitos SUNAT'}</button>
       <div id="fac-reglas" style="margin-top:10px">${_facReglasHTML()}</div>
@@ -14312,7 +14302,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '2.0.0';
+const APP_VERSION = '2.0.1';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
