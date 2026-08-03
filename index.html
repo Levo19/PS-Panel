@@ -2160,6 +2160,42 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 .fac-z-row-n { flex:1; min-width:0; }
 .fac-z-row-t { font-weight:700; font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .fac-z-row-d { font-size:10.5px; color:var(--text-muted); margin-top:1px; }
+/* ── Fila v2 de la tablilla: validación + chips editables + servicios apilados ── */
+.fac-z-row.v2 { flex-direction:column; align-items:stretch; gap:7px; padding:11px 10px; }
+.fac-z-r-head { display:flex; align-items:center; gap:7px; min-width:0; }
+.fac-z-vbadge { flex:0 0 auto; width:19px; height:19px; display:inline-flex; align-items:center; justify-content:center; border-radius:50%; font-size:11px; font-weight:900; }
+.fac-z-vbadge.ok { color:#4ade80; background:rgba(74,222,128,.14); }
+.fac-z-vbadge.na { color:var(--text-muted); background:rgba(255,255,255,.06); }
+.fac-z-vbadge.fail { color:#f87171; background:rgba(248,113,113,.13); }
+.fac-z-r-name { flex:1; min-width:0; font-weight:700; font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fac-z-r-tot { flex:0 0 auto; font-weight:800; font-size:12px; color:var(--gold); font-variant-numeric:tabular-nums; }
+.fac-z-r-chips { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.fac-z-chip { border:1px solid var(--border); background:rgba(255,255,255,.04); color:var(--text); font-size:10.5px; font-weight:700; padding:3px 9px; border-radius:999px; cursor:pointer; -webkit-tap-highlight-color:transparent; display:inline-flex; align-items:center; gap:4px; max-width:100%; transition:border-color .16s, background .16s; }
+.fac-z-chip:active { transform:scale(.96); }
+.fac-z-chip .pen { opacity:.45; font-size:9px; }
+.fac-z-chip.tipo { color:var(--gold); border-color:rgba(201,168,76,.4); }
+.fac-z-chip.tipo.inv { border-color:rgba(248,113,113,.65); color:#f87171; animation:cliInvPulse 1.4s ease-in-out infinite; }
+.fac-z-chip.exp { color:#38bdf8; border-color:rgba(56,189,248,.4); }
+.fac-z-chip.exp.on { background:rgba(56,189,248,.14); font-weight:800; }
+.fac-z-chip.dir .t { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:170px; display:inline-block; vertical-align:bottom; }
+.fac-z-chip-in { font-size:11px; padding:4px 10px; border-radius:999px; border:1px solid rgba(201,168,76,.5); background:rgba(255,255,255,.05); color:var(--text); width:130px; outline:none; }
+.fac-z-valmsg { font-size:10px; color:#f87171; line-height:1.35; }
+.fac-z-r-svcs { display:flex; flex-direction:column; gap:4px; }
+.fac-z-r-svc { display:flex; align-items:center; gap:7px; padding:4px 6px; border-radius:9px; background:rgba(255,255,255,.03); }
+.fac-z-r-svc .nm { flex:1; min-width:0; font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fac-z-r-svc.gift .nm { color:#c084fc; }
+.fac-z-r-svc .pr { flex:0 0 auto; font-size:10.5px; color:var(--text-muted); font-variant-numeric:tabular-nums; }
+.fac-z-r-svc.gift .pr { color:#c084fc; }
+.fac-z-r-svc .fac-z-step button { width:24px; height:24px; font-size:13px; }
+.fac-z-r-svc .fac-z-step .q { width:18px; font-size:12.5px; }
+.fac-z-gift { flex:0 0 auto; width:24px; height:24px; border-radius:8px; border:1px solid var(--border); background:none; font-size:11px; line-height:1; cursor:pointer; opacity:.5; -webkit-tap-highlight-color:transparent; transition:opacity .16s, transform .12s; }
+.fac-z-gift:active { transform:scale(.85); }
+.fac-z-gift.on { opacity:1; border-color:rgba(192,132,252,.55); background:rgba(192,132,252,.12); }
+.fac-z-addsvc { align-self:flex-start; border:1px dashed var(--border); background:none; color:var(--text-muted); font-size:10.5px; font-weight:700; padding:4px 11px; border-radius:999px; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+.fac-z-addsvc:active { transform:scale(.96); }
+.fac-z-tipo-opts { display:inline-flex; gap:4px; flex-wrap:wrap; }
+.fac-z-tipo-opt { border:1px solid var(--border); background:rgba(255,255,255,.04); color:var(--text-muted); font-size:10px; font-weight:800; padding:3px 9px; border-radius:999px; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+.fac-z-tipo-opt.on { color:var(--gold); border-color:rgba(201,168,76,.5); background:rgba(201,168,76,.08); }
 .fac-z-svc { flex:0 0 auto; max-width:120px; font-size:11px; padding:5px 6px; border-radius:9px; background:rgba(255,255,255,.05); border:1px solid var(--border); color:var(--text); cursor:pointer; }
 .fac-z-step { display:flex; align-items:center; gap:5px; flex:0 0 auto; }
 .fac-z-step button { width:27px; height:27px; border-radius:8px; border:1px solid var(--border); background:rgba(255,255,255,.05); color:var(--text); font-weight:800; font-size:15px; line-height:1; cursor:pointer; -webkit-tap-highlight-color:transparent; transition:transform .12s; }
@@ -8419,7 +8455,16 @@ function _facPrecioSet(i, v) {
   _facEmitLite();
 }
 // ── Picker de servicios del catálogo: overlay con selección múltiple (sombreado + check) ──
-function _facSvcPickOpen() { const S = _facState; S._svcPick = { sel: {} }; try { sndTap(); haptic(10); } catch (e) {} _facRender(); }
+// zi (opcional) = índice de fila del ZARPE: el mismo overlay agrega servicios a esa fila.
+function _facSvcPickOpen(zi) {
+  const S = _facState; S._svcPick = { sel: {}, zarpe: (typeof zi === 'number' ? zi : null) };
+  try { sndTap(); haptic(10); } catch (e) {}
+  if (S._svcPick.zarpe != null) _facRenderEmit(); else _facRender();
+}
+window._facSvcPickClose = function () {
+  _facState._svcPick = null;
+  document.querySelectorAll('.fac-svcpick-ov').forEach(o => o.remove());   // sin re-render global (no parpadeo)
+};
 function _facSvcPickToggle(id) {
   const P = _facState._svcPick; if (!P) return;
   const on = !P.sel[id];
@@ -8434,6 +8479,15 @@ function _facSvcPickToggle(id) {
 function _facSvcPickAdd() {
   const S = _facState, P = S._svcPick; if (!P) return;
   const ids = Object.keys(P.sel);
+  if (P.zarpe != null) {                    // contexto zarpe: agrega a los servicios de ESA fila
+    const Z = S._zarpe, f = Z && Z.filas[P.zarpe];
+    if (f) ids.forEach(id => { const sv = S.servicios.find(s => String(s.id) === String(id)); if (sv) f.servicios.push({ nombre: sv.nombre, precio: sv.precio || 0, cantidad: 1, gratis: false }); });
+    S._svcPick = null;
+    try { if (ids.length) { sndOk(); haptic([12, 30, 12]); } } catch (e) {}
+    document.querySelectorAll('.fac-svcpick-ov').forEach(o => o.remove());
+    _facZarpeRepaintFila(P.zarpe, true); _facZarpeUpdateEmitBtn(); _facZarpeGuardarDebounced();
+    return;
+  }
   ids.forEach(id => { const sv = S.servicios.find(s => String(s.id) === String(id)); if (sv) S.items.push({ descripcion: sv.nombre, cantidad: 1, precio: sv.precio || 0 }); });
   S._svcPick = null;
   try { if (ids.length) { sndOk(); haptic([12, 30, 12]); } } catch (e) {}
@@ -8442,9 +8496,9 @@ function _facSvcPickAdd() {
 }
 function _facSvcPickHTML(S) {
   const P = S._svcPick; const n = Object.keys(P.sel).length;
-  return `<div class="fac-svcpick-ov" onclick="if(event.target===this){_facState._svcPick=null;_facRender()}">
+  return `<div class="fac-svcpick-ov" onclick="if(event.target===this){_facSvcPickClose()}">
     <div class="fac-svcpick">
-      <div class="fac-svcpick-h"><span>Servicios del catálogo</span><button class="fac-svcpick-x" onclick="_facState._svcPick=null;_facRender()" aria-label="Cerrar">×</button></div>
+      <div class="fac-svcpick-h"><span>Servicios del catálogo</span><button class="fac-svcpick-x" onclick="_facSvcPickClose()" aria-label="Cerrar">×</button></div>
       <div class="fac-svcpick-list">
         ${S.servicios.length ? S.servicios.map(s => { const on = !!P.sel[s.id]; const d = String(s.nombre || ''); const sp = d.indexOf(' — '); const tit = sp > 0 ? d.slice(0, sp) : d; const sub = sp > 0 ? d.slice(sp + 3) : ''; return `
         <button class="fac-svcpick-it${on ? ' on' : ''}" data-svc="${String(s.id).replace(/"/g, '')}" onclick="_facSvcPickToggle('${String(s.id).replace(/'/g, '')}')">
@@ -9699,7 +9753,8 @@ function _facZarpeBody(S) {
   else if (Z.view === 'tablilla') inner = `<button class="fac-z-back" onclick="_facZarpeToPicker()">← elegir otro zarpe</button>` + _facZarpeTablilla(S);
   else if (Z.view === 'resultado') inner = _facZarpeResultado(S);
   else inner = '';
-  return `<div class="fac-z-view" data-v="${Z.view}">${inner}</div>`;
+  const pickOv = (S._svcPick && S._svcPick.zarpe != null) ? _facSvcPickHTML(S) : '';   // "+ servicio" de una fila
+  return `<div class="fac-z-view" data-v="${Z.view}">${inner}</div>${pickOv}`;
 }
 // Cabecera de día para la lista continua: "Lunes 2/07"
 function _facZarpeDiaLabel(f) {
@@ -9764,7 +9819,7 @@ function _facZarpeTablilla(S) {
   const sum = Z.filas.reduce((a, f) => a + (Number(f.cantidad) || 0), 0);
   const ok = sum === dec && dec > 0;
   const pct = dec > 0 ? Math.min(100, Math.round(sum / dec * 100)) : (sum > 0 ? 100 : 0);
-  const nEmit = Z.filas.filter(f => (Number(f.cantidad) || 0) > 0 && f.estado !== 'facturado').length;
+  const nEmit = Z.filas.filter(f => f.estado !== 'facturado' && (f.servicios || []).some(s => (Number(s.cantidad) || 0) > 0)).length;
   const rows = Z.filas.length ? Z.filas.map((f, i) => _facZarpeFila(f, i, Z)).join('')
     : '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:12px">Sin pasajeros leídos. Vuelve y reintenta el OCR.</div>';
   const paqN = (Z.paquete[0] && Z.paquete[0].nombre) || 'Paquete';
@@ -9779,27 +9834,75 @@ function _facZarpeTablilla(S) {
      <div class="fac-z-conc-m" id="fac-z-conc-m">${ok ? '✓ Cuadra: Σ cantidad = PAX del zarpe.' : ('Faltan ' + Math.abs(dec - sum) + ' PAX por facturar u omitir.')}</div>
    </div>
    <button class="fac-z-cta" id="fac-z-emit" onclick="_facZarpeEmitir()" ${nEmit ? '' : 'disabled style="opacity:.5;cursor:not-allowed"'}>⚡ Emitir ${nEmit} CPE${nEmit === 1 ? '' : 's'} de este zarpe</button>
-   <div class="fac-z-foot">1 CPE por fila con cantidad&gt;0 · con RUC/empresa = factura, resto = boleta.</div>`;
+   <div class="fac-z-foot">1 CPE por fila · RUC = factura · 🌎 pasaporte+paquete = exportación 0% · resto boleta.</div>`;
 }
+// Fila v2 (decisión dueño 2026-08-03): servicios APILADOS por fila (paquete por defecto) con
+// stepper y 🎁 por línea + "+ servicio" del catálogo; doc VALIDADO en back (DNI→RENIEC,
+// RUC→SUNAT) con chips editables: tipo (▾), número (✎), dirección fiscal (RUC ok) y 🌎 export
+// cuando es pasaporte + paquete de 2+ líneas.
 function _facZarpeFila(f, i, Z) {
-  const q = Number(f.cantidad) || 0, omit = q <= 0, facturado = f.estado === 'facturado';
-  const key = f._svcKey || 'PAQ';
-  const svcSel = `<select class="fac-z-svc" onchange="_facZarpeSvc(${i},this.value)">
-    <option value="PAQ"${key === 'PAQ' ? ' selected' : ''}>🎫 Paquete${Z.paquete.length > 1 ? ' (' + Z.paquete.length + ')' : ''}</option>
-    ${Z.paquete.map(p => `<option value="${_facEsc(p.id)}"${key === String(p.id) ? ' selected' : ''}>${_facEsc(p.nombre)}</option>`).join('')}
-  </select>`;
-  return `<div class="fac-z-row${omit ? ' omit' : ''}${facturado ? ' done' : ''}" data-zrow="${i}">
-    <div class="fac-z-row-n">
-      <div class="fac-z-row-t">${_facEsc(f.nombre || '(revisar)')}</div>
-      <div class="fac-z-row-d">${_facEsc(_facZarpeDocLabel(f))}</div>
+  const facturado = f.estado === 'facturado';
+  const svcs = Array.isArray(f.servicios) ? f.servicios : [];
+  if (facturado) {
+    return `<div class="fac-z-row done" data-zrow="${i}">
+      <div class="fac-z-r-head">
+        <div class="fac-z-r-name">${_facEsc(f.nombre || '(sin nombre)')}</div>
+        <span class="fac-z-pill ok">✓ ${_facEsc((f.serie || '') + (f.numero ? '-' + f.numero : ''))}</span>
+      </div>
+    </div>`;
+  }
+  const sumQ = svcs.reduce((a, s) => a + (Number(s.cantidad) || 0), 0);
+  const omit = sumQ <= 0;
+  const tot = svcs.reduce((a, s) => a + (s.gratis ? 0 : (Number(s.cantidad) || 0) * (Number(s.precio) || 0)), 0);
+  let badge;
+  if (f._val === 'ok') badge = '<span class="fac-z-vbadge ok" title="Validado — nombre oficial del registro">✓</span>';
+  else if (f._val === 'checking') badge = '<span class="fac-z-vbadge chk"><span class="spin fac-cli-spin"></span></span>';
+  else if (f._val === 'fail') badge = `<span class="fac-z-vbadge fail" title="${_facEsc(f._valMsg || 'No validado')}">!</span>`;
+  else badge = '<span class="fac-z-vbadge na" title="Sin registro público para validar (pasaporte / CE)">·</span>';
+  const T = String(f.tipo_doc || '1');
+  let tipoChip;
+  if (f._editTipo) {
+    tipoChip = '<span class="fac-z-tipo-opts">' + [['1', 'DNI'], ['4', 'CE'], ['7', 'Pasaporte'], ['6', 'RUC']].map(([t, l]) =>
+      `<button class="fac-z-tipo-opt${T === t ? ' on' : ''}" onclick="_facZarpeTipoSet(${i},'${t}')">${l}</button>`).join('') + '</span>';
+  } else {
+    tipoChip = `<button class="fac-z-chip tipo${f._val === 'fail' ? ' inv' : ''}" onclick="_facZarpeTipoOpen(${i})" title="Cambiar tipo de documento">${_facCliTipoLabel(T)} <span class="pen">▾</span></button>`;
+  }
+  const docChip = f._editDoc
+    ? `<input class="fac-z-chip-in" id="fac-z-din-${i}" value="${_facEsc(f.documento || '')}" onkeydown="if(event.key==='Enter')this.blur()" onblur="_facZarpeDocSet(${i},this.value)" autocomplete="off">`
+    : `<button class="fac-z-chip" onclick="_facZarpeDocEdit(${i})" title="Editar número de documento">${_facEsc(f.documento || '—')} <span class="pen">✎</span></button>`;
+  let dirChip = '';
+  if (T === '6' && f._val === 'ok') {
+    dirChip = f._editDir
+      ? `<input class="fac-z-chip-in" id="fac-z-dir-${i}" style="width:190px" value="${_facEsc(f._dir || '')}" placeholder="Dirección fiscal" onkeydown="if(event.key==='Enter')this.blur()" onblur="_facZarpeDirSet(${i},this.value)" autocomplete="off">`
+      : `<button class="fac-z-chip dir" onclick="_facZarpeDirEdit(${i})" title="Dirección fiscal (va impresa en la factura)">📍 <span class="t">${_facEsc(f._dir || 'agregar dirección')}</span> <span class="pen">✎</span></button>`;
+  }
+  const nLineas = svcs.filter(s => (Number(s.cantidad) || 0) > 0).length;
+  const expChip = (T === '7' && nLineas >= 2)
+    ? `<button class="fac-z-chip exp${f._export ? ' on' : ''}" onclick="_facZarpeExpToggle(${i})" title="${f._export ? 'Exportación 0% IGV — se emite FACTURA de exportación' : 'Turista con paquete: facturar como exportación (0% IGV)'}">🌎 ${f._export ? 'Export 0%' : '¿Export?'}</button>`
+    : '';
+  const svcRows = svcs.map((s, j) => {
+    const q = Number(s.cantidad) || 0;
+    return `<div class="fac-z-r-svc${s.gratis ? ' gift' : ''}">
+      <span class="nm">${_facEsc(s.nombre || '')}</span>
+      <span class="pr">${s.gratis ? '🎁 gratis' : 'S/ ' + (Number(s.precio) || 0)}</span>
+      <div class="fac-z-step">
+        <button onclick="_facZarpeSvcQty(${i},${j},-1)" aria-label="menos">−</button>
+        <span class="q${q <= 0 ? ' z' : ''}">${q}</span>
+        <button onclick="_facZarpeSvcQty(${i},${j},1)" aria-label="más">+</button>
+      </div>
+      <button class="fac-z-gift${s.gratis ? ' on' : ''}" onclick="_facZarpeSvcGift(${i},${j})" title="Cortesía (operación gratuita en el CPE)">🎁</button>
+    </div>`;
+  }).join('');
+  return `<div class="fac-z-row v2${omit ? ' omit' : ''}" data-zrow="${i}">
+    <div class="fac-z-r-head">${badge}
+      <div class="fac-z-r-name"${(f._nombreOcr && f._nombreOcr !== f.nombre) ? ` title="Zarpe: ${_facEsc(f._nombreOcr)}"` : ''}>${_facEsc(f.nombre || '(revisar)')}</div>
+      <span class="fac-z-r-tot">S/ ${tot.toFixed(2)}</span>
     </div>
-    ${facturado
-      ? `<span class="fac-z-pill ok">✓ ${_facEsc((f.serie || '') + (f.numero ? '-' + f.numero : ''))}</span>`
-      : `${svcSel}<div class="fac-z-step">
-      <button onclick="_facZarpeQty(${i},-1)" aria-label="menos">−</button>
-      <span class="q${omit ? ' z' : ''}" id="fac-z-q-${i}">${q}</span>
-      <button onclick="_facZarpeQty(${i},1)" aria-label="más">+</button>
-    </div>`}
+    <div class="fac-z-r-chips">${tipoChip}${docChip}${expChip}${dirChip}</div>
+    ${(f._val === 'fail' && f._valMsg) ? `<div class="fac-z-valmsg">⚠ ${_facEsc(f._valMsg)}</div>` : ''}
+    <div class="fac-z-r-svcs">${svcRows}
+      <button class="fac-z-addsvc" onclick="_facSvcPickOpen(${i})">+ servicio</button>
+    </div>
   </div>`;
 }
 function _facZarpeResultado(S) {
@@ -9927,6 +10030,7 @@ window._facZarpePick = async function (id) {
   Z.view = 'tablilla';
   try { sndOk(); haptic([12, 30, 12]); } catch (e) {}
   _facRenderEmit();
+  _facZarpeValidarTodo();   // valida doc por doc (RENIEC/SUNAT) con progreso visible en las filas
 };
 async function _facZarpeLoadTablilla(op) {
   const S = _facState, Z = S._zarpe; if (!Z) return;
@@ -9934,31 +10038,142 @@ async function _facZarpeLoadTablilla(op) {
     const [pr, pq] = await Promise.all([apiGet('listar_zarpe_pax', { operacion: op }), apiGet('listar_paquete_zarpe')]);
     Z.paquete = (pq.ok && Array.isArray(pq.data)) ? pq.data : [];
     Z.filas = (pr.ok && Array.isArray(pr.data)) ? pr.data.map(f => {
-      const o = Object.assign({}, f, { cantidad: Number(f.cantidad) || 0 });
+      const o = Object.assign({}, f);
+      const qRaw = Number(f.cantidad); const q0 = isNaN(qRaw) ? 1 : Math.max(0, qRaw);
       // servicios de la fila: si vienen del backend úsalos; si no, clona el paquete default
-      if (!Array.isArray(o.servicios) || !o.servicios.length) { o.servicios = Z.paquete.map(p => ({ nombre: p.nombre, precio: p.precio, unidad: p.unidad })); o._svcKey = 'PAQ'; }
-      else { o._svcKey = (o.servicios.length === 1 && Z.paquete.length > 1) ? 'PAQ' : 'PAQ'; }
+      if (!Array.isArray(o.servicios) || !o.servicios.length) o.servicios = Z.paquete.map(p => ({ nombre: p.nombre, precio: p.precio, unidad: p.unidad }));
+      // per-servicio: cantidad propia (las filas viejas sin cantidad heredan la de la fila) + 🎁
+      o.servicios = o.servicios.map(s => Object.assign({}, s, { cantidad: Math.max(0, s.cantidad != null ? (Number(s.cantidad) || 0) : q0), gratis: !!s.gratis }));
+      o.cantidad = Number(o.servicios[0] && o.servicios[0].cantidad) || 0;   // PAX = servicio base
+      o._dir = f.dir_fiscal || '';
       return o;
     }) : [];
   } catch (e) { Z.filas = Z.filas || []; Z.paquete = Z.paquete || []; }
 }
-// ── Tablilla: interacción ──
-window._facZarpeSvc = function (i, val) {
-  const S = _facState, Z = S._zarpe, f = Z && Z.filas[i]; if (!f) return;
+// ── Tablilla: interacción (fila v2) ──
+// Repinta UNA fila en sitio. Sin force NO pisa una fila con input activo (la validación en
+// curso no debe matar lo que el admin está tipeando).
+function _facZarpeRepaintFila(i, force) {
+  const S = _facState, Z = S._zarpe; if (!Z || !Z.filas[i]) return;
+  const f = Z.filas[i];
+  if (!force && (f._editDoc || f._editDir)) return;
+  document.querySelectorAll('[data-zrow="' + i + '"]').forEach(el => { el.outerHTML = _facZarpeFila(f, i, Z); });
+}
+window._facZarpeSvcQty = function (i, j, d) {
+  const Z = _facState._zarpe, f = Z && Z.filas[i]; const s = f && f.servicios && f.servicios[j]; if (!s) return;
+  const nv = Math.max(0, (Number(s.cantidad) || 0) + d);
+  if (nv === 0 && j > 0) { f.servicios.splice(j, 1); try { sndTap(); haptic([8, 20, 8]); } catch (e) {} }   // extra a cero → fuera (como el modal unitario)
+  else { s.cantidad = nv; try { sndTap(); haptic(d > 0 ? 8 : 6); } catch (e) {} }
+  f.cantidad = Number(f.servicios[0] && f.servicios[0].cantidad) || 0;   // PAX de la fila = servicio base
+  if (f._export && f.servicios.filter(x => (Number(x.cantidad) || 0) > 0).length < 2) f._export = false;   // dejó de ser paquete
+  _facZarpeRepaintFila(i, true); _facZarpeUpdateConc(); _facZarpeUpdateEmitBtn(); _facZarpeGuardarDebounced();
+};
+window._facZarpeSvcGift = function (i, j) {
+  const Z = _facState._zarpe, f = Z && Z.filas[i]; const s = f && f.servicios && f.servicios[j]; if (!s) return;
+  if (f._export) return _facErr('La cortesía no se mezcla con exportación — quita el 🌎 primero');
+  s.gratis = !s.gratis;
+  try { if (s.gratis) { sndUp(); haptic([12, 30, 12]); } else { sndTap(); haptic(8); } } catch (e) {}
+  _facZarpeRepaintFila(i, true); _facZarpeGuardarDebounced();
+};
+window._facZarpeExpToggle = function (i) {
+  const Z = _facState._zarpe, f = Z && Z.filas[i]; if (!f) return;
+  if (!f._export && (f.servicios || []).some(s => s.gratis)) return _facErr('La cortesía no se mezcla con exportación — quita los 🎁 primero');
+  f._export = !f._export;
+  try { if (f._export) { sndUp(); haptic([12, 30, 12]); } else { sndTap(); haptic(8); } } catch (e) {}
+  _facZarpeRepaintFila(i, true);
+};
+window._facZarpeTipoOpen = function (i) {
+  const Z = _facState._zarpe, f = Z && Z.filas[i]; if (!f) return;
   try { sndTap(); haptic(6); } catch (e) {}
-  f._svcKey = val;
-  if (val === 'PAQ') f.servicios = Z.paquete.map(p => ({ nombre: p.nombre, precio: p.precio, unidad: p.unidad }));
-  else { const p = Z.paquete.find(x => String(x.id) === String(val)); if (p) f.servicios = [{ nombre: p.nombre, precio: p.precio, unidad: p.unidad }]; }
-  _facZarpeGuardarDebounced();
+  f._editTipo = !f._editTipo; _facZarpeRepaintFila(i, true);
 };
-window._facZarpeQty = function (i, d) {
-  const S = _facState, Z = S._zarpe, f = Z && Z.filas[i]; if (!f) return;
-  const nv = Math.max(0, (Number(f.cantidad) || 0) + d); f.cantidad = nv;
-  try { sndTap(); haptic(d > 0 ? 8 : 6); } catch (e) {}
-  const qEl = document.getElementById('fac-z-q-' + i); if (qEl) { qEl.textContent = nv; qEl.classList.toggle('z', nv <= 0); }
-  const row = document.querySelector('[data-zrow="' + i + '"]'); if (row) row.classList.toggle('omit', nv <= 0);
-  _facZarpeUpdateConc(); _facZarpeUpdateEmitBtn(); _facZarpeGuardarDebounced();
+window._facZarpeTipoSet = function (i, t) {
+  const Z = _facState._zarpe, f = Z && Z.filas[i]; if (!f) return;
+  try { sndTap(); haptic(8); } catch (e) {}
+  f._editTipo = false;
+  if (String(f.tipo_doc) !== t) {
+    f.tipo_doc = t; f._val = undefined; f._valMsg = '';
+    if (t !== '7') f._export = false;
+    _facZarpeRepaintFila(i, true); _facZarpeGuardarDebounced(); _facZarpeValidarFila(i);
+  } else _facZarpeRepaintFila(i, true);
 };
+window._facZarpeDocEdit = function (i) {
+  const Z = _facState._zarpe, f = Z && Z.filas[i]; if (!f) return;
+  try { sndTap(); haptic(6); } catch (e) {}
+  f._editDoc = true; _facZarpeRepaintFila(i, true);
+  requestAnimationFrame(() => { const el = document.getElementById('fac-z-din-' + i); if (el) { el.focus(); el.select(); } });
+};
+window._facZarpeDocSet = function (i, v) {
+  const Z = _facState._zarpe, f = Z && Z.filas[i]; if (!f) return;
+  f._editDoc = false;
+  const nv = String(v || '').trim().toUpperCase();
+  if (nv && nv !== String(f.documento || '')) {
+    f.documento = nv; f._val = undefined; f._valMsg = '';
+    _facZarpeRepaintFila(i, true); _facZarpeGuardarDebounced(); _facZarpeValidarFila(i);
+  } else _facZarpeRepaintFila(i, true);
+};
+window._facZarpeDirEdit = function (i) {
+  const Z = _facState._zarpe, f = Z && Z.filas[i]; if (!f) return;
+  try { sndTap(); haptic(6); } catch (e) {}
+  f._editDir = true; _facZarpeRepaintFila(i, true);
+  requestAnimationFrame(() => { const el = document.getElementById('fac-z-dir-' + i); if (el) { el.focus(); } });
+};
+window._facZarpeDirSet = function (i, v) {
+  const Z = _facState._zarpe, f = Z && Z.filas[i]; if (!f) return;
+  f._editDir = false; f._dir = String(v || '').trim();
+  _facZarpeRepaintFila(i, true); _facZarpeGuardarDebounced();
+};
+// ── Validación en back de lo leído por la IA: DNI→RENIEC · RUC→SUNAT, uno por uno visible.
+// Validado → nombre OFICIAL del registro + ✓. No hallado → chip de tipo palpita (el admin lo
+// cambia, ej. "DNI de 11 dígitos" que en realidad era RUC o pasaporte). Pasaporte/CE = sin
+// registro público → neutro (no error). Cache por doc para no repetir consultas.
+async function _facZarpeValidarTodo() {
+  const S = _facState, Z = S._zarpe; if (!Z || Z._validando) return;
+  Z._validando = true;
+  try {
+    for (let i = 0; i < Z.filas.length; i++) {
+      if (S._zarpe !== Z || Z.view !== 'tablilla') return;
+      const f = Z.filas[i];
+      if (f.estado === 'facturado' || f._val) continue;
+      await _facZarpeValidarFila(i);
+    }
+  } finally { Z._validando = false; }
+}
+async function _facZarpeValidarFila(i) {
+  const S = _facState, Z = S._zarpe; const f = Z && Z.filas[i]; if (!f) return;
+  const t = String(f.tipo_doc || ''); const doc = String(f.documento || '').trim();
+  if (t === '7' || t === '4' || t === '0') { f._val = 'na'; f._valMsg = ''; _facZarpeRepaintFila(i); return; }
+  const okFmt = t === '1' ? /^\d{8}$/.test(doc) : (t === '6' ? /^(10|15|17|20)\d{9}$/.test(doc) : false);
+  if (!okFmt) {
+    f._val = 'fail';
+    f._valMsg = t === '1' ? 'DNI inválido: deben ser 8 dígitos — corrige el número o cambia el tipo'
+      : t === '6' ? 'RUC inválido: 11 dígitos que empiezan en 10/15/17/20'
+      : 'Tipo de documento no reconocido';
+    _facZarpeRepaintFila(i); return;
+  }
+  const C = Z._valCache = Z._valCache || {}; const ck = t + '|' + doc;
+  if (!C[ck]) {
+    f._val = 'checking'; _facZarpeRepaintFila(i);
+    let r = null;
+    try { r = await apiGet('consultar_documento', { numero: doc, tipo: t }); } catch (e) {}
+    C[ck] = (r && r.ok && r.data && r.data.ok && r.data.nombre)
+      ? { nombre: r.data.nombre, direccion: r.data.direccion || '' } : { fail: true };
+  }
+  if (_facState._zarpe !== Z || Z.filas[i] !== f) return;
+  if (String(f.tipo_doc) !== t || String(f.documento || '').trim() !== doc) return;   // cambió mientras consultaba
+  const v = C[ck];
+  if (v.fail) {
+    f._val = 'fail';
+    f._valMsg = (t === '1' ? 'DNI no encontrado en RENIEC' : 'RUC no encontrado en SUNAT') + ' — corrige el número o cambia el tipo';
+  } else {
+    f._val = 'ok'; f._valMsg = '';
+    f._nombreOcr = f._nombreOcr || f.nombre;
+    f.nombre = v.nombre;                                   // nombre oficial "reorganizado"
+    if (t === '6' && !f._dir) f._dir = v.direccion || '';
+    _facZarpeGuardarDebounced();                           // persiste el nombre oficial + dirección
+  }
+  _facZarpeRepaintFila(i);
+}
 function _facZarpeUpdateConc() {
   const S = _facState, Z = S._zarpe; if (!Z) return;
   const dec = Z.declarados || 0, sum = Z.filas.reduce((a, f) => a + (Number(f.cantidad) || 0), 0);
@@ -9970,7 +10185,7 @@ function _facZarpeUpdateConc() {
 }
 function _facZarpeUpdateEmitBtn() {
   const S = _facState, Z = S._zarpe; if (!Z) return;
-  const n = Z.filas.filter(f => (Number(f.cantidad) || 0) > 0 && f.estado !== 'facturado').length;
+  const n = Z.filas.filter(f => f.estado !== 'facturado' && (f.servicios || []).some(s => (Number(s.cantidad) || 0) > 0)).length;
   const b = document.getElementById('fac-z-emit'); if (!b) return;
   b.textContent = '⚡ Emitir ' + n + ' CPE' + (n === 1 ? '' : 's') + ' de este zarpe';
   b.disabled = !n; b.style.opacity = n ? '' : '.5'; b.style.cursor = n ? '' : 'not-allowed';
@@ -9978,37 +10193,39 @@ function _facZarpeUpdateEmitBtn() {
 function _facZarpeGuardarDebounced() { clearTimeout(_facZarpeSaveTO); _facZarpeSaveTO = setTimeout(_facZarpeGuardar, 700); }
 async function _facZarpeGuardar() {
   const S = _facState, Z = S._zarpe; if (!Z || !Z.sel) return;
-  const filas = Z.filas.map(f => ({ id: f.id, cantidad: Number(f.cantidad) || 0, servicios: f.servicios || null }));
+  const filas = Z.filas.map(f => ({ id: f.id, cantidad: Number(f.cantidad) || 0,
+    servicios: (f.servicios || []).map(s => ({ nombre: s.nombre, precio: s.precio, unidad: s.unidad, cantidad: Number(s.cantidad) || 0, gratis: !!s.gratis })),
+    nombre: f.nombre || null, documento: f.documento || null, tipo_doc: f.tipo_doc || null, dir_fiscal: f._dir || '' }));
   try { await apiPost({ accion: 'guardar_zarpe_tablilla', operacion: Z.sel.id, filas }); } catch (e) {}
 }
 // ── Emisión en lote (cascada de checks) ──
 async function _facZarpeEmitir() {
   const S = _facState, Z = S._zarpe; if (!Z || Z.emitiendo) return;
-  const pend = Z.filas.map((f, i) => ({ f, i })).filter(o => (Number(o.f.cantidad) || 0) > 0 && o.f.estado !== 'facturado');
+  const pend = Z.filas.map((f, i) => ({ f, i })).filter(o => o.f.estado !== 'facturado' && (o.f.servicios || []).some(s => (Number(s.cantidad) || 0) > 0));
   if (!pend.length) return;
   Z.emitiendo = true; Z.progreso = { done: 0, total: pend.length, fail: [] };
   try { sndTap(); haptic(12); } catch (e) {}
   clearTimeout(_facZarpeSaveTO); await _facZarpeGuardar();   // vuelca ediciones pendientes
   const btn = document.getElementById('fac-z-emit'); if (btn) { btn.disabled = true; btn.style.opacity = '.7'; btn.textContent = 'Emitiendo… 0/' + pend.length; }
   for (const { f, i } of pend) {
-    const q = Number(f.cantidad) || 0;
-    const svcs = (Array.isArray(f.servicios) && f.servicios.length) ? f.servicios : Z.paquete;
-    const items = svcs.map(s => ({ descripcion: s.nombre, cantidad: q, precio: Number(s.precio) || 0 }));
-    const esFactura = !!(f.empresa || String(f.tipo_doc) === '6');
+    const items = (f.servicios || []).filter(s => (Number(s.cantidad) || 0) > 0)
+      .map(s => Object.assign({ descripcion: s.nombre, cantidad: Number(s.cantidad) || 0, precio: Number(s.precio) || 0 }, s.gratis ? { afectacion: 'gratuito' } : {}));
+    const esExport = !!f._export && String(f.tipo_doc) === '7' && items.length >= 2;   // pasaporte + paquete
+    const esFactura = esExport || !!(f.empresa || String(f.tipo_doc) === '6');
     const tipo = esFactura ? 1 : 2;
     const serie = esFactura ? ((S.facCfg && S.facCfg.serie_factura) || 'F002') : ((S.facCfg && S.facCfg.serie_boleta) || 'B002');
     // FACTURA exige dirección fiscal (guard server FACTURA_REQUIERE_DIRECCION — sin esto TODA
     // factura del lote fallaba). Cadena: clientes propios → consulta RUC (SUNAT) → '-' (la
     // dirección del adquirente no es requisito SUNAT de validez). Cacheada en la fila p/ reintento.
     let dirFactura = '';
-    if (esFactura) {
+    if (esFactura && !esExport) {
       dirFactura = f._dir || '';
       const rucF = String(f.documento || '').trim();
       if (!dirFactura && rucF) {
         try { const rc = await apiGet('buscar_cliente', { doc_tipo: '6', doc: rucF }); dirFactura = (rc.ok && rc.data && rc.data.direccion) || ''; } catch (e) {}
       }
       if (!dirFactura && rucF) {
-        try { const rl = await apiGet('consultar_documento', { numero: rucF, tipo: 'ruc' }); const d = (rl.ok && rl.data) || {}; dirFactura = d.direccion || d.direccion_completa || d.dir || ''; } catch (e) {}
+        try { const rl = await apiGet('consultar_documento', { numero: rucF, tipo: '6' }); const d = (rl.ok && rl.data) || {}; dirFactura = d.direccion || d.direccion_completa || d.dir || ''; } catch (e) {}
       }
       if (!dirFactura) dirFactura = '-';
       f._dir = dirFactura;
@@ -10018,7 +10235,8 @@ async function _facZarpeEmitir() {
       r = await apiPost({ accion: 'emitir_comprobante', tipo, serie,
         cliente_doc_tipo: f.tipo_doc || (esFactura ? '6' : '1'), cliente_doc: String(f.documento || '').trim(),
         cliente_nombre: f.nombre || f.empresa || 'Cliente', items, moneda: 'PEN',
-        cliente_dir: esFactura ? dirFactura : '',
+        cliente_dir: (esFactura && !esExport) ? dirFactura : '',
+        exportacion: esExport, es_extranjero: String(f.tipo_doc) === '7',
         operador: (S.ses && S.ses.nombre) || 'PS', localId: 'zarpe-' + f.id });
     } catch (e) { r = { ok: false, error: (e && e.message) || 'error' }; }
     if (r && r.ok && r.data) {
@@ -14422,7 +14640,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '2.4.0';
+const APP_VERSION = '2.5.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
