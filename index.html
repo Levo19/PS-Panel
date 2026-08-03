@@ -1582,20 +1582,31 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 .fac-hist-ncnote { color:#fbbf24; font-weight:700; }
 .fac-hist-nc { background:rgba(251,191,36,.05); border-left:2px solid rgba(251,191,36,.4); }
 /* Card de comprobante (móvil + tablet): 2 columnas apiladas, altura uniforme, aprovecha el ancho */
-.fac-hcard { display:flex; gap:11px; padding:13px; border-bottom:1px solid var(--border); align-items:flex-start; }
+.fac-hcard { display:flex; gap:9px; padding:10px 12px; border-bottom:1px solid var(--border); align-items:flex-start; }
 .fac-hcard.nested { padding-left:18px; background:rgba(251,191,36,.05); border-left:2px solid rgba(251,191,36,.4); }
-.fac-hcard-main { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:5px; }
+.fac-hcard-main { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:6px; }
 .fac-hcard-main.tap { cursor:pointer; -webkit-tap-highlight-color:transparent; }
 .fac-hcard-main.tap:active { transform:scale(.99); }
+/* Card compacta 2 filas: nombre+monto arriba · tipo/nº/fecha/estado + acciones abajo */
+.fac-hcard-top { display:flex; align-items:baseline; gap:10px; min-width:0; }
+.fac-hcard-sub { display:flex; align-items:flex-end; gap:8px; font-size:11px; color:var(--text-muted); min-width:0; }
+.fac-hcard-chips { flex:1 1 auto; min-width:0; display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+.fac-hcard-num { font-weight:700; letter-spacing:.02em; font-variant-numeric:tabular-nums; color:var(--text); opacity:.75; }
+.fac-hcard-fec { white-space:nowrap; }
+.fac-ibtn { width:30px; height:30px; display:inline-flex; align-items:center; justify-content:center; border-radius:9px; cursor:pointer; border:1px solid; background:transparent; padding:0; flex:0 0 auto; transition:transform .14s cubic-bezier(.34,1.56,.64,1), background .16s; -webkit-tap-highlight-color:transparent; }
+.fac-ibtn:hover { transform:translateY(-1px); }
+.fac-ibtn:active { transform:scale(.88); }
+.fac-ibtn svg { display:block; }
+.fac-ibtn.pdf { color:#4ade80; border-color:rgba(74,222,128,.34); background:rgba(74,222,128,.09); }
+.fac-ibtn.pdf.local { color:var(--gold); border-color:rgba(201,168,76,.34); background:rgba(201,168,76,.09); }
+.fac-ibtn.anul { color:#f87171; border-color:rgba(248,113,113,.3); background:rgba(248,113,113,.07); }
+.fac-ibtn.anul.ask { width:auto; padding:0 10px; color:#fff; background:#f87171; border-color:#f87171; font-size:11px; font-weight:800; }
 /* nombre: hasta 2 líneas, PERO reserva 2 líneas siempre → todas las cards iguales */
-.fac-hcard-name { font-weight:800; font-size:13.5px; line-height:1.28; min-height:2.56em; color:var(--text); display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; word-break:break-word; }
+.fac-hcard-name { flex:1 1 auto; min-width:0; font-weight:800; font-size:13.5px; line-height:1.28; color:var(--text); display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; word-break:break-word; }
 .fac-hcard-name.anu { text-decoration:line-through; opacity:.85; }
-.fac-hcard-chips { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
-.fac-hcard-meta { font-size:11px; color:var(--text-muted); line-height:1.15; }
-.fac-hcard-est { margin-top:1px; }
-.fac-hcard-side { flex:0 0 auto; display:flex; flex-direction:column; align-items:flex-end; gap:9px; padding-top:1px; }
-.fac-hcard-monto { font-weight:800; font-size:15px; color:var(--gold); white-space:nowrap; }
-.fac-hcard-acts { display:flex; gap:6px; align-items:center; }
+.fac-hcard-est { display:inline-flex; align-items:center; }
+.fac-hcard-monto { flex:0 0 auto; font-weight:900; font-size:14.5px; color:var(--gold); white-space:nowrap; font-variant-numeric:tabular-nums; }
+.fac-hcard-acts { margin-left:auto; display:flex; gap:6px; align-items:center; }
 @media (prefers-reduced-motion: reduce){
   .fac-hist-acc, .fac-hist-acc.open, .fac-hist-tog, .fac-hist-tog.open, .fac-hist-head { transition:none !important; animation:none !important; }
 }
@@ -1975,6 +1986,10 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 .fac-svc-addbtn { width:30px; height:30px; border-radius:9px; border:1px solid var(--gold); background:rgba(201,168,76,.14); color:var(--gold); font-size:16px; font-weight:900; cursor:pointer; line-height:1; transition:transform .14s; -webkit-tap-highlight-color:transparent; }
 .fac-svc-addbtn:active { transform:scale(.88); }
 .fac-svc-librebtn { padding:0 12px; height:30px; border-radius:9px; border:1px dashed var(--border); background:none; color:var(--text-muted); font-size:11px; font-weight:700; cursor:pointer; }
+.fac-svc-librebtn.on { border-style:solid; border-color:rgba(201,168,76,.5); color:var(--gold); background:rgba(201,168,76,.08); }
+.fac-obs-ta { width:100%; margin:-4px 0 12px; padding:9px 11px; border-radius:11px; border:1px solid var(--border); background:rgba(255,255,255,.03); color:var(--text); font-size:12px; font-family:inherit; line-height:1.45; resize:none; }
+.fac-obs-ta:focus { outline:none; border-color:rgba(201,168,76,.5); }
+.fac-obs-ta::placeholder { color:var(--text-muted); opacity:.7; }
 .fac-it-list { border:1px solid var(--border); border-radius:12px; overflow:hidden; margin-bottom:12px; }
 .fac-it { display:flex; align-items:center; gap:9px; padding:9px 10px; border-bottom:1px solid var(--border); animation:facItIn .3s cubic-bezier(.34,1.56,.64,1) both; }
 .fac-it:last-child { border-bottom:none; }
@@ -3463,7 +3478,8 @@ const PS_POST = {
     p_creado_por: b.operador || 'PS', p_local_id: b.localId || null, p_cliente_tel: b.cliente_tel || null,
     p_cliente_dir: b.cliente_dir || null, p_es_extranjero: !!b.es_extranjero,
     p_medio_pago: b.medio_pago || null, p_exportacion: !!b.exportacion, p_detraccion: !!b.detraccion,
-    p_forma_pago: b.forma_pago || 'CONTADO', p_credito_venc: b.credito_venc || null }),
+    p_forma_pago: b.forma_pago || 'CONTADO', p_credito_venc: b.credito_venc || null,
+    p_observaciones: b.observaciones || null }),
   // ── Jalar zarpe → CPEs (escritura; devuelven objetos, nunca arrays) ──
   registrar_zarpe_ocr:        b => _psRpc('registrar_zarpe_ocr', { p_operacion: b.operacion, p_pax: b.pax || [], p_por: b.por || 'PS' }),
   guardar_zarpe_tablilla:     b => _psRpc('guardar_zarpe_tablilla', { p_operacion: b.operacion, p_filas: b.filas || [] }),
@@ -7955,7 +7971,7 @@ function _facRenderRoots() {
 function _facInitState(ses, servicios, muelleOn, facCfg) {
   return { tab: 'inicio', ses, servicios, muelleOn, facCfg, cfgEdit: {}, comprobantes: [], cargandoHist: false,
     tipo: 2, facModo: 'boleta', exportacion: false, medioPago: '', formaPago: 'CONTADO', creditoVenc: '', lookupState: 'idle',
-    docTipo: '1', doc: '', nombre: '', email: '', tel: '', dir: '', esExtranjero: false,
+    docTipo: '1', doc: '', nombre: '', email: '', tel: '', dir: '', esExtranjero: false, obs: '', obsOpen: false,
     items: [], resultado: null, shake: false, svcEdit: null, solicitudes: [], cargandoAnul: false,
     tributos: null, cargandoTrib: true, _tribPeriodoLoaded: null, periodoTrib: (_tribPeriodos()[0] || {}).p || '', compraEdit: {}, concilia: [], cargandoConcilia: false,
     tribSub: 'balanza', renta: null, cargandoRenta: false, anioTrib: new Date().getFullYear(),
@@ -8272,6 +8288,15 @@ function _facAddServicio(id) {
   sndTap(); haptic(8); _facState.items.push({ descripcion: sv.nombre, cantidad: 1, precio: sv.precio || 0 }); _facRender();
 }
 function _facAddLibre() { sndTap(); haptic(8); _facState.items.push({ descripcion: '', cantidad: 1, precio: 0 }); _facItRebuildList(); }
+// "+ obs": nota opcional del admin (viaja a NubeFact como observaciones — sale impresa; SUNAT no la valida).
+// Cerrar el cajón LIMPIA el texto: nada viaja invisible.
+function _facObsToggle() {
+  const S = _facState; try { sndTap(); haptic(8); } catch (e) {}
+  S.obsOpen = !S.obsOpen;
+  if (!S.obsOpen) S.obs = '';
+  _facRender();
+  if (S.obsOpen) { const t = document.getElementById('fac-obs'); if (t) t.focus(); }
+}
 function _facDelItem(i) { sndTap(); haptic(8); _facState.items.splice(i, 1); _facRender(); }
 // ── Fila de servicio rediseñada: título+lugar · chip de precio (toca para editar) · stepper −/＋
 //    con efecto flotante "+1"/"−1" (colores y sonidos distintos); a CERO se elimina sola. ──
@@ -8746,6 +8771,7 @@ function _facEmitir() {
     items: itemsSnap,
     exportacion: !!S.exportacion, medio_pago: S.medioPago || null,
     forma_pago: 'CONTADO', credito_venc: null,   // decisión dueño: todo contado (el RPC conserva el soporte crédito por si se necesita)
+    observaciones: (S.obs || '').trim() || null,
     detraccion: (S.tipo === 1 && tot.total >= (typeof _FAC_DETRACCION !== 'undefined' ? _FAC_DETRACCION.umbral : 700)),
     moneda: 'PEN', operador: (S.ses && S.ses.nombre) || 'PS',
     localId: S._emitLocalId };
@@ -8754,7 +8780,7 @@ function _facEmitir() {
   if (S._emitidos.length > 20) S._emitidos.length = 20;
   S._emitFeed = { type: 'sending', entry };
   // form libre YA (optimista) — el modal sigue abierto para el siguiente
-  S.items = []; S.email = ''; S.tel = ''; S.dir = ''; S.medioPago = ''; S.formaPago = 'CONTADO'; S.creditoVenc = ''; S.lookupState = 'idle';
+  S.items = []; S.email = ''; S.tel = ''; S.dir = ''; S.medioPago = ''; S.formaPago = 'CONTADO'; S.creditoVenc = ''; S.lookupState = 'idle'; S.obs = ''; S.obsOpen = false;
   S.cliQuery = ''; S.cliResults = []; S.cliShowLupa = false; S.cliManual = false; S.manualDoc = ''; S.manualNombre = ''; S._lkFail = null;
   if (S.tipo === 2 && !S.exportacion) { S.docTipo = '0'; S.doc = '00000000'; S.nombre = 'VARIOS'; S.cliSel = true; }
   else { S.doc = ''; S.nombre = ''; S.cliSel = false; }
@@ -9169,12 +9195,14 @@ function _facSectionBody(S) {
         <div style="display:flex;gap:6px">
           <button class="fac-svc-addbtn" onclick="_facSvcPickOpen()" title="Elegir del catálogo">＋</button>
           <button class="fac-svc-librebtn" onclick="_facAddLibre()">+ libre</button>
+          <button class="fac-svc-librebtn${S.obsOpen ? ' on' : ''}" onclick="_facObsToggle()" title="Observaciones (opcional — salen impresas en el CPE)">+ obs</button>
         </div>
       </div>
       <div class="fac-it-list${(S.exportacion && S.items.length < 2) ? ' inv' : ''}" id="fac-it-list">
         ${S.items.length ? S.items.map((it,i)=>_facItRow(it,i)).join('') : '<div class="fac-it-empty">Toca <b>＋</b> para elegir servicios del catálogo</div>'}
       </div>
       ${(S.exportacion && S.items.length < 2) ? '<div class="fac-it-inv-hint">⚠ Exportación exige un PAQUETE: 2 o más servicios distintos (ej. bote + guiado)</div>' : ''}
+      ${S.obsOpen ? `<textarea id="fac-obs" class="fac-obs-ta" rows="2" maxlength="250" placeholder="Observaciones (opcional) — salen impresas en el CPE. Ej: Servicio 02/08 · Delfín · 12 pax" oninput="_facState.obs=this.value">${_facEsc(S.obs || '')}</textarea>` : ''}
       <div style="background:var(--bg2,rgba(255,255,255,0.03));border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:12px">
         <div style="display:flex;justify-content:space-between;color:var(--text-muted)"><span>${S.exportacion?'Exportación':'Gravada'}</span><span id="fac-tg">S/ ${(S.exportacion?tot.total:tot.grav).toFixed(2)}</span></div>
         <div style="display:flex;justify-content:space-between;align-items:center;color:var(--text-muted)">
@@ -10183,25 +10211,35 @@ function _facHistCardHTML(c, S, opts) {
   var hasNC = !!(ncs && ncs.length);
   var open = hasNC && !!(S._histOpen && S._histOpen[c.id]);
   var ncNote = hasNC ? '<span class="fac-hist-ncnote" style="font-size:9.5px;font-weight:800;background:rgba(251,191,36,.14);border:1px solid rgba(251,191,36,.34);border-radius:999px;padding:2px 7px">' + ncs.length + ' N.C.</span>' : '';
-  var togBtn = hasNC ? '<button class="fac-hist-tog' + (open ? ' open' : '') + '" data-htog="' + c.id + '" onclick="_facHistToggle(\'' + c.id + '\')" title="Ver nota(s) de crédito anexada(s)" aria-label="Desplegar nota de crédito">▾</button>' : '';
+  var togBtn = hasNC ? '<button class="fac-hist-tog' + (open ? ' open' : '') + '" data-htog="' + c.id + '" onclick="event.stopPropagation();_facHistToggle(\'' + c.id + '\')" title="Ver nota(s) de crédito anexada(s)" aria-label="Desplegar nota de crédito">▾</button>' : '';
   var arrow = nested ? '<span style="flex:0 0 auto;color:#fbbf24;font-size:12px;font-weight:800;line-height:1">↳</span>' : '';
   var headClick = hasNC ? ' onclick="_facHistToggle(\'' + c.id + '\')" role="button" aria-expanded="' + open + '"' : '';
   var num6 = String(c.numero).padStart(6, '0');
-  var fecha = String(c.creado || '').replace(/\s+\d{1,2}:\d{2}(?::\d{2})?.*$/, '').trim() || String(c.creado || '');   // fecha SIN hora (ahorra espacio)
-  var pdfBtn = '<button onclick="_facAbrirPDFById(\'' + c.id + '\')" title="Ver / imprimir / enviar PDF" style="cursor:pointer;flex:0 0 auto;background:' + (real ? 'rgba(74,222,128,0.12)' : 'rgba(201,168,76,0.12)') + ';border:1px solid ' + (real ? 'rgba(74,222,128,0.32)' : 'rgba(201,168,76,0.3)') + ';border-radius:8px;padding:6px 9px;font-size:15px;line-height:1">📄</button>';
-  var anulBtn = anu ? '' : '<button onclick="_facAnular(\'' + c.id + '\')" title="Anular" style="cursor:pointer;flex:0 0 auto;' + (S.anularId === c.id ? 'color:#fff;background:#f87171;border:none;border-radius:8px;padding:6px 9px;font-size:11px;font-weight:800' : 'color:#f87171;background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.3);border-radius:8px;padding:6px 9px;font-size:14px;line-height:1') + '">' + (S.anularId === c.id ? '¿Anular?' : '⊘') + '</button>';
+  var fm = String(c.creado || '').match(/(\d{4})-(\d{2})-(\d{2})(?:[T\s](\d{1,2}:\d{2}))?/);
+  var fecha = fm ? (fm[3] + '/' + fm[2] + (fm[4] ? ' · ' + fm[4] : '')) : String(c.creado || '');   // "02/08 · 10:45"
+  var svgPdf = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6"/><path d="M9 17h4"/></svg>';
+  var svgAnul = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M5.8 5.8l12.4 12.4"/></svg>';
+  var pdfBtn = '<button class="fac-ibtn pdf' + (real ? '' : ' local') + '" onclick="event.stopPropagation();_facAbrirPDFById(\'' + c.id + '\')" title="Ver / imprimir / enviar PDF" aria-label="Ver PDF">' + svgPdf + '</button>';
+  var anulBtn = anu ? '' : (S.anularId === c.id
+    ? '<button class="fac-ibtn anul ask" onclick="event.stopPropagation();_facAnular(\'' + c.id + '\')" aria-label="Confirmar anulación">¿Anular?</button>'
+    : '<button class="fac-ibtn anul" onclick="event.stopPropagation();_facAnular(\'' + c.id + '\')" title="Anular" aria-label="Anular">' + svgAnul + '</button>');
   var row = '<div class="fac-hcard' + (nested ? ' nested' : '') + '"' + (anu ? ' style="opacity:.62"' : '') + '>' +
       arrow +
       '<div class="fac-hcard-main' + (hasNC ? ' tap' : '') + '"' + headClick + '>' +
-        '<div class="fac-hcard-name' + (anu ? ' anu' : '') + '">' + _facEsc(c.cliente_nombre || 'Sin nombre') + '</div>' +
-        '<div class="fac-hcard-chips">' + _facTipoBadge(c) + ncNote + '</div>' +
-        '<div class="fac-hcard-meta">' + c.serie + '-' + num6 + '</div>' +
-        '<div class="fac-hcard-meta">' + _facEsc(fecha) + '</div>' +
-        '<div class="fac-hcard-est">' + _facChipEstado(c) + '</div>' +
-      '</div>' +
-      '<div class="fac-hcard-side">' +
-        '<span class="fac-hcard-monto">S/ ' + _facMoney(c.total) + '</span>' +
-        '<div class="fac-hcard-acts">' + togBtn + pdfBtn + anulBtn + '</div>' +
+        '<div class="fac-hcard-top">' +
+          '<div class="fac-hcard-name' + (anu ? ' anu' : '') + '">' + _facEsc(c.cliente_nombre || 'Sin nombre') + '</div>' +
+          '<span class="fac-hcard-monto">S/ ' + _facMoney(c.total) + '</span>' +
+        '</div>' +
+        '<div class="fac-hcard-sub">' +
+          '<div class="fac-hcard-chips">' +
+            _facTipoBadge(c) +
+            '<span class="fac-hcard-num">' + c.serie + '-' + num6 + '</span>' +
+            '<span class="fac-hcard-fec">' + _facEsc(fecha) + '</span>' +
+            '<span class="fac-hcard-est">' + _facChipEstado(c) + '</span>' +
+            ncNote +
+          '</div>' +
+          '<div class="fac-hcard-acts">' + togBtn + pdfBtn + anulBtn + '</div>' +
+        '</div>' +
       '</div>' +
     '</div>';
   if (!hasNC) return row;
@@ -14384,7 +14422,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '2.3.0';
+const APP_VERSION = '2.4.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
