@@ -10234,12 +10234,14 @@ async function _facZarpeValidarFila(i) {
     // CAPA 1 (gratis): clientes frecuentes propios — ahorra tokens de la API RUC/DNI
     let hit = null;
     try { const rb = await apiGet('buscar_cliente', { doc_tipo: t, doc }); if (rb.ok && rb.data && rb.data.nombre) hit = { nombre: rb.data.nombre, direccion: rb.data.direccion || '', frec: true }; } catch (e) {}
-    // CAPA 2: RENIEC/SUNAT en vivo
+    // CAPA 2: RENIEC/SUNAT en vivo — por la EDGE consultar-documento (la MISMA del modal
+    // suelto, con el token en secret). OJO: NO usar la RPC SQL consultar_documento — es un
+    // camino paralelo sin config que devolvía sin_config para todo.
     if (!hit) {
       let r = null;
-      try { r = await apiGet('consultar_documento', { numero: doc, tipo: t }); } catch (e) {}
-      if (r && r.ok && r.data && r.data.ok && r.data.nombre) hit = { nombre: r.data.nombre, direccion: r.data.direccion || '' };
-      else if (r && r.ok && r.data && r.data.motivo === 'sin_config') hit = { sinapi: true };
+      try { const { data } = await sbClient.functions.invoke('consultar-documento', { body: { numero: doc, tipo: t } }); r = data; } catch (e) {}
+      if (r && r.ok && r.nombre) hit = { nombre: r.nombre, direccion: r.direccion || '' };
+      else if (r && ['sin_config', 'token_rechazado', 'sin_saldo', 'error_red', 'api_5xx'].includes(r.motivo)) hit = { sinapi: true, motivo: r.motivo };
     }
     C[ck] = hit || { fail: true };
   }
@@ -10248,7 +10250,7 @@ async function _facZarpeValidarFila(i) {
   const v = C[ck];
   if (v.sinapi) {
     f._val = 'fail';
-    f._valMsg = 'No se pudo consultar el registro: falta el token de la API RUC/DNI en Ajustes — puedes confirmarlo a mano con ＋';
+    f._valMsg = 'No se pudo consultar el registro (' + ({ sin_saldo: 'cuota de la API agotada', token_rechazado: 'token de la API inválido', sin_config: 'API sin configurar' }[v.motivo] || 'error de red') + ') — puedes confirmarlo a mano con ＋';
   } else if (v.fail) {
     f._val = 'fail';
     f._valMsg = (t === '1' ? 'DNI no encontrado en RENIEC' : 'RUC no encontrado en SUNAT') + ' — corrige el número, cambia el tipo o regístralo con ＋';
@@ -10313,7 +10315,7 @@ async function _facZarpeEmitir() {
         try { const rc = await apiGet('buscar_cliente', { doc_tipo: '6', doc: rucF }); dirFactura = (rc.ok && rc.data && rc.data.direccion) || ''; } catch (e) {}
       }
       if (!dirFactura && rucF) {
-        try { const rl = await apiGet('consultar_documento', { numero: rucF, tipo: '6' }); const d = (rl.ok && rl.data) || {}; dirFactura = d.direccion || d.direccion_completa || d.dir || ''; } catch (e) {}
+        try { const { data: d } = await sbClient.functions.invoke('consultar-documento', { body: { numero: rucF, tipo: '6' } }); dirFactura = (d && d.ok && d.direccion) || ''; } catch (e) {}
       }
       if (!dirFactura) dirFactura = '-';
       f._dir = dirFactura;
@@ -14728,7 +14730,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '2.6.1';
+const APP_VERSION = '2.6.2';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
