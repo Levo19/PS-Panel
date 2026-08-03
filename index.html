@@ -2054,6 +2054,12 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 .fac-cli-chip.inv { border-color:rgba(248,113,113,.65); animation:cliInvPulse 1.4s ease-in-out infinite; }
 @keyframes cliInvPulse { 0%,100%{box-shadow:0 0 0 0 rgba(248,113,113,0)} 50%{box-shadow:0 0 0 4px rgba(248,113,113,.16), 0 0 14px rgba(248,113,113,.25)} }
 .fac-cli-inv-hint { font-size:10.5px; color:#f87171; font-weight:700; margin-top:3px; }
+/* 🎁 cortesía por fila: botón fantasma → encendido púrpura; precio tachado a GRATIS */
+.fac-it-gift { flex:0 0 auto; width:28px; height:28px; border-radius:50%; border:1px solid var(--border); background:transparent; cursor:pointer; font-size:13px; line-height:1; opacity:.45; transition:opacity .15s, transform .14s, border-color .15s, background .15s; -webkit-tap-highlight-color:transparent; }
+.fac-it-gift:hover { opacity:1; transform:scale(1.08); }
+.fac-it-gift:active { transform:scale(.88); }
+.fac-it-gift.on { opacity:1; border-color:#c084fc; background:rgba(192,132,252,.16); box-shadow:0 0 8px rgba(192,132,252,.3); }
+.fac-it-price.gratis { color:#c084fc; border-color:rgba(192,132,252,.45); background:rgba(192,132,252,.1); }
 /* sección SERVICIOS inválida (export sin paquete) → mismo pulso rojo que el chip del cliente */
 .fac-it-list.inv { border-color:rgba(248,113,113,.65); animation:cliInvPulse 1.4s ease-in-out infinite; }
 .fac-it-inv-hint { font-size:10.5px; color:#f87171; font-weight:700; margin:-8px 2px 12px; }
@@ -8005,13 +8011,15 @@ const _facEsc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': 
 function _facSerie() { const c = _facState.facCfg || {}; return _facState.tipo === 1 ? (c.serie_factura || 'F002') : (c.serie_boleta || 'B002'); }
 function _facTotales() {
   const S = _facState;
-  const total = S.items.reduce((s, i) => s + (parseFloat(i.cantidad) || 0) * (parseFloat(i.precio) || 0), 0);
+  // Cortesías (🎁 gratuito, ej. el TC del grupo) NO suman al total a cobrar — van en su bucket.
+  const total = S.items.reduce((s, i) => s + (i.gratis ? 0 : (parseFloat(i.cantidad) || 0) * (parseFloat(i.precio) || 0)), 0);
+  const gratis = S.items.reduce((s, i) => s + (i.gratis ? (parseFloat(i.cantidad) || 0) * (parseFloat(i.precio) || 0) : 0), 0);
   // Exportación de servicios (turismo receptivo) = tasa 0% IGV; el backend fija la afectación.
   // El resto SIEMPRE es gravado 18% (se eliminó el toggle "exonerado").
   const esExport = !!S.exportacion;
   const grav = esExport ? 0 : Math.round(total / 1.18 * 100) / 100;
   const igv = esExport ? 0 : Math.round((total - grav) * 100) / 100;
-  return { total: Math.round(total * 100) / 100, grav, igv, esExport };
+  return { total: Math.round(total * 100) / 100, grav, igv, esExport, gratis: Math.round(gratis * 100) / 100 };
 }
 function _facErr(msg) { sndErr(); haptic([60, 30, 60]); if (typeof showToast === 'function') showToast('⚠️ ' + msg); if (_facState) { _facState.shake = true; _facRender(); setTimeout(() => { if (_facState) { _facState.shake = false; _facRender(); } }, 450); } }
 // Chip de estado SUNAT para el historial
@@ -8267,9 +8275,12 @@ function _facItRow(it, i) {
         ? `<input data-it="${i}" data-f="descripcion" class="fac-it-tin" placeholder="Nombre del servicio…" value="${_facEsc(d)}" autocomplete="off">`
         : `<div class="fac-it-t">${_facEsc(tit)}<span class="fac-it-fx" id="fac-itfx-${i}"></span></div>${sub ? `<div class="fac-it-s">${_facEsc(sub)}</div>` : ''}`}
     </div>
+    ${_facState.exportacion ? '' : `<button class="fac-it-gift${it.gratis ? ' on' : ''}" onclick="_facItGift(${i})" title="${it.gratis ? 'Quitar cortesía (vuelve a cobrarse)' : 'Marcar como cortesía — gratuito (ej. TC del grupo)'}">🎁</button>`}
     ${editP
       ? `<input id="fac-pedit-${i}" class="fac-it-pin" type="number" inputmode="decimal" value="${it.precio}" onblur="_facPrecioSet(${i},this.value)" onkeydown="if(event.key==='Enter'){this.blur()}">`
-      : `<button class="fac-it-price" onclick="_facPrecioEdit(${i})" title="Toca para editar el precio">S/ ${Number(it.precio) || 0}</button>`}
+      : (it.gratis
+        ? `<button class="fac-it-price gratis" onclick="_facPrecioEdit(${i})" title="GRATIS — valor referencial S/ ${Number(it.precio) || 0} (toca para editarlo)">🎁 GRATIS</button>`
+        : `<button class="fac-it-price" onclick="_facPrecioEdit(${i})" title="Toca para editar el precio">S/ ${Number(it.precio) || 0}</button>`)}
     <div class="fac-it-qty">
       <button class="fac-it-qbtn minus" onclick="_facQty(${i},-1)" aria-label="Quitar uno">−</button>
       <span class="fac-it-qn">${q}</span>
@@ -8340,6 +8351,15 @@ function _facQty(i, d) {
   if (_facEmitLite()) return;                                  // (full render solo si cruzó umbral)
   const fx = document.getElementById('fac-itfx-' + i);         // efecto flotante sobre el nombre
   if (fx) { fx.innerHTML = `<span class="fac-fx ${d > 0 ? 'up' : 'down'}">${d > 0 ? '+1' : '−1'}</span>`; setTimeout(() => { if (fx.isConnected) fx.innerHTML = ''; }, 750); }
+}
+// 🎁 Cortesía (operación gratuita SUNAT): el ítem no se cobra pero viaja con valor referencial
+// (el backend lo manda como total_gratuita). Típico: el TC (líder) del grupo.
+function _facItGift(i) {
+  const S = _facState; const it = S.items[i]; if (!it) return;
+  if (S.exportacion) return _facErr('La cortesía no se mezcla con exportación');
+  it.gratis = !it.gratis;
+  try { if (it.gratis) { sndUp(); haptic([12, 30, 12]); } else { sndTap(); haptic(8); } } catch (e) {}
+  _facRender();   // cambia fila + fila de totales "Cortesías" (estructura) → render completo
 }
 function _facPrecioEdit(i) {
   try { sndTap(); haptic(8); } catch (e) {}
@@ -8683,7 +8703,7 @@ function _facEmitir() {
   if (faltan.length) return _facErr('Requisito SUNAT: ' + faltan[0].label);
   if (!S._emitLocalId) S._emitLocalId = 'fac-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
   const label = S.tipo === 1 ? 'Factura' : (S.exportacion ? 'Exportación' : 'Boleta');
-  const itemsSnap = S.items.map(i => ({ descripcion: i.descripcion, cantidad: parseFloat(i.cantidad) || 0, precio: parseFloat(i.precio) || 0 }));
+  const itemsSnap = S.items.map(i => Object.assign({ descripcion: i.descripcion, cantidad: parseFloat(i.cantidad) || 0, precio: parseFloat(i.precio) || 0 }, i.gratis ? { afectacion: 'gratuito' } : {}));
   const snap = { tipo: S.tipo, label, items: itemsSnap, nombre: S.nombre.trim(), doc: S.docTipo === '0' ? '' : S.doc.trim() };
   const payload = { accion: 'emitir_comprobante', tipo: S.tipo, serie: _facSerie(),
     cliente_doc_tipo: S.docTipo, cliente_doc: snap.doc, cliente_nombre: snap.nombre,
@@ -9128,7 +9148,8 @@ function _facSectionBody(S) {
           </span>
           <span id="fac-ti">S/ ${tot.igv.toFixed(2)}</span>
         </div>
-        <div style="display:flex;justify-content:space-between;font-weight:900;color:var(--text);margin-top:4px;font-size:15px"><span>TOTAL</span><span id="fac-tt">S/ ${tot.total.toFixed(2)}</span></div>
+        ${tot.gratis > 0 ? `<div style="display:flex;justify-content:space-between;color:#c084fc"><span>🎁 Cortesías (op. gratuita)</span><span>S/ ${tot.gratis.toFixed(2)}</span></div>` : ''}
+        <div style="display:flex;justify-content:space-between;font-weight:900;color:var(--text);margin-top:4px;font-size:15px"><span>TOTAL A COBRAR</span><span id="fac-tt">S/ ${tot.total.toFixed(2)}</span></div>
       </div>
       ${(!S.exportacion && tot.total >= 2000) ? `<div style="margin-bottom:12px">
         <div style="font-size:11px;font-weight:800;color:var(--gold);margin-bottom:5px">MEDIO DE PAGO <span style="color:var(--text-muted);font-weight:600">(obligatorio ≥ S/2000)</span></div>
@@ -10238,7 +10259,8 @@ function _facPdfTotales(c) {
   const exonerada = Number(c && c.total_exonerada) || 0;
   const exportacion = Number(c && c.total_exportacion) || 0;
   const inafectaOp = Number(c && c.total_inafecta) || 0;
-  return { items, total, grav, igv, inafecta, noGrav, cero, exonerada, exportacion, inafectaOp, moneda: (c && c.moneda) || 'PEN' };
+  const gratuita = Number(c && c.total_gratuita) || 0;   // cortesías (ej. TC del grupo)
+  return { items, total, grav, igv, inafecta, noGrav, cero, exonerada, exportacion, inafectaOp, gratuita, moneda: (c && c.moneda) || 'PEN' };
 }
 // Desglose por tipo de operación del CPE → filas ordenadas {lbl, val}. Gravada + IGV + TOTAL siempre;
 // exonerada/inafecta/exportación solo si su monto es >0. Cierra el desglose para export/exonerado/mixto.
@@ -10250,6 +10272,7 @@ function _facTotRows(T) {
   if (T.exonerada <= 0 && T.exportacion <= 0 && inaf <= 0 && T.cero) inaf = T.total;
   if (inaf > 0) rows.push({ lbl: 'Op. Inafecta', val: inaf });
   if (T.exportacion > 0) rows.push({ lbl: 'Op. Exportación', val: T.exportacion });
+  if (T.gratuita > 0) rows.push({ lbl: 'Op. Gratuita', val: T.gratuita });   // cortesías — no suman al total
   rows.push({ lbl: T.igv > 0 ? 'IGV (18%)' : 'IGV (0%)', val: T.igv });
   return rows;
 }
@@ -14302,7 +14325,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '2.0.1';
+const APP_VERSION = '2.1.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
