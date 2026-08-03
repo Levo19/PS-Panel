@@ -8097,12 +8097,15 @@ function _facCliInvalidez() {
   const S = _facState; if (!S || !S.cliSel) return null;
   const tot = _facTotales();
   if (S.exportacion) {
-    // OJO: Varios también usa doc_tipo '0' → exportación solo acepta PASAPORTE (7).
-    // El tax-id de agencias extranjeras llegará como concepto aparte (pendiente dueño).
-    if (S.docTipo !== '7') return 'Exportación exige pasaporte del turista — cámbialo o desactiva 🌎';
+    // Acepta pasaporte (turista) O tax-id de empresa extranjera ('0' REAL — jamás Varios 00000000).
+    const esTaxId = S.docTipo === '0' && S.doc && S.doc !== '00000000';
+    if (S.docTipo !== '7' && !esTaxId) return 'Exportación exige pasaporte del turista o Tax-ID de la empresa extranjera — cámbialo o desactiva 🌎';
     return null;
   }
-  if (S.tipo === 1 && S.docTipo !== '6') return S.docTipo === '0' ? 'Factura exige RUC — Varios no factura' : 'Factura exige RUC — este documento no sirve aquí';
+  if (S.tipo === 1 && S.docTipo !== '6') {
+    if (S.docTipo === '0' && S.doc && S.doc !== '00000000') return 'Empresa extranjera: activa 🌎 Exportación para facturarle (la factura nacional exige RUC)';
+    return S.docTipo === '0' ? 'Factura exige RUC — Varios no factura' : 'Factura exige RUC — este documento no sirve aquí';
+  }
   if (S.tipo === 2 && S.docTipo === '0' && tot.total > 700) return 'Boleta > S/700 exige identificar al cliente';
   return null;
 }
@@ -8110,7 +8113,8 @@ function _facCliInvalidez() {
 // exportación — cliente pasaporte/tax-id o paquete de 2+ servicios — o si ya está activa.
 function _facExportEligible() {
   const S = _facState;
-  return S.tipo === 1 && (S.exportacion || S.docTipo === '7' || (S.items && S.items.length >= 2));   // '0' NO: Varios comparte ese tipo
+  const esTaxId = S.docTipo === '0' && S.doc && S.doc !== '00000000';   // '0' real ≠ Varios (00000000)
+  return S.tipo === 1 && (S.exportacion || S.docTipo === '7' || esTaxId || (S.items && S.items.length >= 2));
 }
 function _facExpChipHTML() {
   const S = _facState;
@@ -8140,15 +8144,16 @@ function _facReglasHTML() {
 function _facReglas() {
   const S = _facState, tot = _facTotales();
   const doc = String(S.doc || '').trim(), nom = String(S.nombre || '').trim(), dir = String(S.dir || '').trim();
-  const esVarios = S.docTipo === '0';
+  const esVarios = S.docTipo === '0' && (!doc || doc === '00000000');   // '0' con doc REAL = Tax-ID extranjero, NO Varios
+  const esTaxId = S.docTipo === '0' && !esVarios;
   const R = [];
-  // LEGAL: cliente Varios (docTipo '0') NO puede facturar ni exportar (esos exigen RUC / pasaporte).
+  // LEGAL: cliente Varios NO puede facturar ni exportar (esos exigen RUC / pasaporte / tax-id).
   if (esVarios && S.tipo !== 2) {
-    R.push({ label: 'Cliente Varios solo en boletas — Factura / Exportación exigen RUC o pasaporte', ok: false, hard: true });
+    R.push({ label: 'Cliente Varios solo en boletas — Factura / Exportación exigen RUC, pasaporte o tax-id', ok: false, hard: true });
     return R;
   }
   if (S.exportacion) {
-    R.push({ label: 'Pasaporte del turista', ok: S.docTipo === '7' && doc.length > 0, hard: true });
+    R.push({ label: 'Pasaporte del turista o Tax-ID de la empresa extranjera', ok: (S.docTipo === '7' || esTaxId) && doc.length > 0, hard: true });
     R.push({ label: 'Paquete de 2 o más servicios', ok: S.items.length >= 2, hard: true });
   } else if (S.tipo === 1) {
     R.push({ label: 'RUC de 11 dígitos', ok: S.docTipo === '6' && /^\d{11}$/.test(doc), hard: true });
@@ -8424,7 +8429,7 @@ function _facSvcPickHTML(S) {
 // 3 estados sin duplicar markup: búsqueda+dropdown / seleccionado-chip / manual-unfold.
 // Guarda en `clientes` al ENCONTRAR (RENIEC/SUNAT) y al Guardar manual, no al emitir.
 // ═══════════════════════════════════════════════════════════════════════════
-function _facCliTipoLabel(t) { t = String(t || ''); return t === '6' ? 'RUC' : (t === '7' ? 'Pasaporte' : (t === '4' ? 'CE' : (t === '1' ? 'DNI' : 'Doc'))); }
+function _facCliTipoLabel(t) { t = String(t || ''); return t === '6' ? 'RUC' : (t === '7' ? 'Pasaporte' : (t === '4' ? 'CE' : (t === '1' ? 'DNI' : (t === '0' ? 'Tax-ID' : 'Doc')))); }
 // Botones a la derecha del casillero: la "X" SIEMPRE que haya texto. El botón de acción
 // DICE lo que va a hacer: 🔎 solo si el texto es un doc buscable (8/11 díg. — RENIEC/SUNAT);
 // si el destino real es el registro manual (nombre, pasaporte, doc raro) → "＋" agregar cliente.
@@ -8466,7 +8471,7 @@ function _facCliManualHTML(S) {
   const conDir = S.manualTipo === '6' || S.manualTipo === '0';
   let hint = '';
   if (S.tipo === 1 && S.manualTipo !== '6' && S.manualTipo !== '0') hint = 'Con este documento solo podrás emitir BOLETA — la factura exige RUC';
-  else if (S.manualTipo === '0') hint = 'Tax-ID extranjero: para exportación a empresas de afuera (se habilita pronto)';
+  else if (S.manualTipo === '0') hint = 'Tax-ID extranjero (RUT/EIN/NIF…): habilita la factura de EXPORTACIÓN 0% a la empresa';
   else if (S.tipo === 2 && S.manualTipo === '6') hint = 'RUC: sirve para boleta Y factura';
   return `<div class="fac-cli-manual">
     <div class="fac-cli-manual-h">Sin datos en RENIEC / SUNAT · regístralo a mano</div>
@@ -8495,7 +8500,7 @@ function _facCliBox(S) {
     const inv = _facCliInvalidez();   // cliente incompatible con el modo → chip PALPITA rojo + motivo
     const invCls = inv ? ' inv' : '';
     const invHint = inv ? `<div class="fac-cli-inv-hint">⚠ ${_facEsc(inv)}</div>` : '';
-    const esVarios = S.docTipo === '0' && !S.exportacion;
+    const esVarios = S.docTipo === '0' && (!S.doc || S.doc === '00000000');   // '0' con doc real = Tax-ID extranjero
     if (esVarios) {
       return `<div class="fac-cli-chip varios${invCls}" data-cli="sel">
         <div class="fac-cli-chip-ico">👥</div>
@@ -8508,9 +8513,10 @@ function _facCliBox(S) {
       </div>`;
     }
     const esRuc = S.docTipo === '6';
-    const dir = (esRuc && S.dir) ? `<div class="fac-cli-chip-dir">📍 ${_facEsc(S.dir)}</div>` : '';
+    const esTaxId = S.docTipo === '0';
+    const dir = ((esRuc || esTaxId) && S.dir) ? `<div class="fac-cli-chip-dir">📍 ${_facEsc(S.dir)}</div>` : '';
     return `<div class="fac-cli-chip${invCls}" data-cli="sel">
-      <div class="fac-cli-chip-ico">${esRuc ? '🏢' : '👤'}</div>
+      <div class="fac-cli-chip-ico">${esRuc ? '🏢' : (esTaxId ? '🌎' : '👤')}</div>
       <div class="fac-cli-chip-main">
         <div class="fac-cli-chip-t"><span class="fac-cli-tag${esRuc ? ' ruc' : ''}">${_facCliTipoLabel(S.docTipo)}${S.doc ? ' ' + _facEsc(S.doc) : ''}</span></div>
         <div class="fac-cli-chip-n">${_facEsc(S.nombre) || '—'}</div>
@@ -8713,9 +8719,11 @@ function _facEmitir() {
   const S = _facState; const tot = _facTotales();
   if (!S.nombre.trim()) return _facErr('Falta el nombre / razón social');
   if (S.docTipo !== '0' && !S.doc.trim()) return _facErr('Falta el número de documento');
-  // LEGAL (money-crítico): cliente Varios (docTipo '0') solo aplica a BOLETA ≤ S/700 — es documento tributario, no debe pasar.
-  if (S.docTipo === '0' && S.tipo !== 2) return _facErr('Cliente Varios solo en boletas — Factura / Exportación exigen RUC o pasaporte');
-  if (S.docTipo === '0' && tot.total > 700) return _facErr('Cliente Varios solo en boletas hasta S/700 — identifica al cliente');
+  // LEGAL (money-crítico): VARIOS ('0' sin doc real) solo aplica a BOLETA ≤ S/700. Un '0' con
+  // documento REAL es Tax-ID de empresa extranjera (válido en exportación) — no confundir.
+  const esVariosEmit = S.docTipo === '0' && (!S.doc.trim() || S.doc.trim() === '00000000');
+  if (esVariosEmit && S.tipo !== 2) return _facErr('Cliente Varios solo en boletas — Factura / Exportación exigen RUC, pasaporte o tax-id');
+  if (esVariosEmit && tot.total > 700) return _facErr('Cliente Varios solo en boletas hasta S/700 — identifica al cliente');
   if (!S.items.length || tot.total <= 0) return _facErr('Agrega al menos un servicio con monto');
   if (S.items.some(i => !String(i.descripcion).trim())) return _facErr('Hay un ítem sin descripción');
   const faltan = _facReglas().filter(r => r.hard && !r.ok);
@@ -8723,7 +8731,7 @@ function _facEmitir() {
   if (!S._emitLocalId) S._emitLocalId = 'fac-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
   const label = S.tipo === 1 ? 'Factura' : (S.exportacion ? 'Exportación' : 'Boleta');
   const itemsSnap = S.items.map(i => Object.assign({ descripcion: i.descripcion, cantidad: parseFloat(i.cantidad) || 0, precio: parseFloat(i.precio) || 0 }, i.gratis ? { afectacion: 'gratuito' } : {}));
-  const snap = { tipo: S.tipo, label, items: itemsSnap, nombre: S.nombre.trim(), doc: S.docTipo === '0' ? '' : S.doc.trim() };
+  const snap = { tipo: S.tipo, label, items: itemsSnap, nombre: S.nombre.trim(), doc: esVariosEmit ? '' : S.doc.trim() };
   const payload = { accion: 'emitir_comprobante', tipo: S.tipo, serie: _facSerie(),
     cliente_doc_tipo: S.docTipo, cliente_doc: snap.doc, cliente_nombre: snap.nombre,
     cliente_email: S.email.trim(), cliente_tel: S.tel.trim(), cliente_dir: S.dir.trim(), es_extranjero: S.esExtranjero,
@@ -9146,7 +9154,7 @@ function _facSectionBody(S) {
         ${segBtn('boleta', 'Boleta · ' + ((S.facCfg&&S.facCfg.serie_boleta)||'B002'))}
         ${segBtn('factura', 'Factura · ' + ((S.facCfg&&S.facCfg.serie_factura)||'F002'))}
       </div>
-      ${S.exportacion ? '<div style="font-size:11px;color:var(--text-muted);background:rgba(56,189,248,0.07);border:1px solid rgba(56,189,248,0.3);border-radius:9px;padding:8px 10px;margin-bottom:10px;line-height:1.5">🌎 <b>Exportación activa</b> (0% IGV, turismo receptivo). Requiere <b>pasaporte</b> del turista y un <b>paquete de 2+ servicios</b>.</div>' : ''}
+      ${S.exportacion ? '<div style="font-size:11px;color:var(--text-muted);background:rgba(56,189,248,0.07);border:1px solid rgba(56,189,248,0.3);border-radius:9px;padding:8px 10px;margin-bottom:10px;line-height:1.5">🌎 <b>Exportación activa</b> (0% IGV, turismo receptivo). Requiere <b>pasaporte</b> del turista o <b>Tax-ID</b> de la empresa extranjera, y un <b>paquete de 2+ servicios</b>.</div>' : ''}
       ${_facCliBox(S)}
       <div style="display:flex;align-items:center;justify-content:space-between;margin:14px 0 6px">
         <div style="font-size:11px;font-weight:800;color:var(--gold);letter-spacing:.04em">SERVICIOS</div>
@@ -14344,7 +14352,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '2.1.1';
+const APP_VERSION = '2.2.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
