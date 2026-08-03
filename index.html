@@ -1864,6 +1864,7 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 
 .fac-cli-manual { margin-top:8px; padding:13px; border-radius:14px; border:1px dashed rgba(201,168,76,.42); background:rgba(201,168,76,.05); animation:facCliDrop .22s cubic-bezier(.34,1.4,.64,1) both; }
 .fac-cli-manual-h { font-size:11px; color:var(--gold); font-weight:700; margin-bottom:9px; }
+.fac-cli-manual-hint { font-size:10.5px; color:#fbbf24; font-weight:600; margin:-3px 2px 8px; line-height:1.4; }
 .fac-cli-minput { width:100%; box-sizing:border-box; padding:10px 12px; margin-bottom:8px; border-radius:11px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.05); color:var(--text); font-size:13.5px; outline:none; -webkit-appearance:none; transition:border-color .16s; }
 .fac-cli-minput::placeholder { color:var(--text-muted); }
 .fac-cli-minput:focus { border-color:var(--gold); }
@@ -8457,13 +8458,23 @@ function _facCliDropHTML(S) {
     </button>`; }).join('');
 }
 // Cajón manual (aparece cuando RENIEC/SUNAT no devuelven nada, o no es 8/11 dígitos).
+// Registro manual INTELIGENTE: 5 tipos (el registro es global — un cliente de boleta hoy puede
+// ser el de siempre), pero avisa qué podrás emitir con cada tipo en el MODO actual, y pide el
+// DOMICILIO FISCAL cuando el tipo lo exige (RUC obligatorio — sin él la factura rebota después).
 function _facCliManualHTML(S) {
-  const seg = [['1', 'DNI'], ['4', 'CE'], ['7', 'Pasaporte'], ['6', 'RUC']].map(([t, l]) => `<button class="fac-cli-seg${S.manualTipo === t ? ' on' : ''}" onclick="_facCliManualTipo('${t}')">${l}</button>`).join('');
+  const seg = [['1', 'DNI'], ['4', 'CE'], ['7', 'Pasaporte'], ['6', 'RUC'], ['0', '🌎 Tax-ID']].map(([t, l]) => `<button class="fac-cli-seg${S.manualTipo === t ? ' on' : ''}" onclick="_facCliManualTipo('${t}')">${l}</button>`).join('');
+  const conDir = S.manualTipo === '6' || S.manualTipo === '0';
+  let hint = '';
+  if (S.tipo === 1 && S.manualTipo !== '6' && S.manualTipo !== '0') hint = 'Con este documento solo podrás emitir BOLETA — la factura exige RUC';
+  else if (S.manualTipo === '0') hint = 'Tax-ID extranjero: para exportación a empresas de afuera (se habilita pronto)';
+  else if (S.tipo === 2 && S.manualTipo === '6') hint = 'RUC: sirve para boleta Y factura';
   return `<div class="fac-cli-manual">
     <div class="fac-cli-manual-h">Sin datos en RENIEC / SUNAT · regístralo a mano</div>
+    <div class="fac-cli-seg-wrap">${seg}</div>
+    ${hint ? `<div class="fac-cli-manual-hint">${hint}</div>` : ''}
     <input id="fac-cli-mdoc" class="fac-cli-minput" placeholder="N° de documento" value="${_facEsc(S.manualDoc || '')}" autocomplete="off">
     <input id="fac-cli-mnom" class="fac-cli-minput" placeholder="Nombre / Razón social" value="${_facEsc(S.manualNombre || '')}" autocomplete="off">
-    <div class="fac-cli-seg-wrap">${seg}</div>
+    ${conDir ? `<input id="fac-cli-mdir" class="fac-cli-minput" placeholder="Domicilio fiscal${S.manualTipo === '6' ? ' *' : ' (opcional)'}" value="${_facEsc(S.manualDir || '')}" autocomplete="off">` : ''}
     <button class="fac-cli-manual-save" onclick="_facCliManualGuardar()">💾 Guardar cliente</button>
   </div>`;
 }
@@ -8630,8 +8641,12 @@ function _facCliOpenManual() {
   const S = _facState;
   S.cliManual = true; S.cliShowLupa = false;
   S.manualDoc = String(S.cliQuery || '').trim();
-  S.manualNombre = S.manualNombre || '';
-  S.manualTipo = S.exportacion ? '7' : (/^\d{8}$/.test(S.manualDoc) ? '1' : '4');
+  S.manualNombre = S.manualNombre || ''; S.manualDir = S.manualDir || '';
+  // tipo inteligente: 11 dígitos → RUC · export → pasaporte · factura → RUC · 8 dígitos → DNI · resto → CE
+  S.manualTipo = /^\d{11}$/.test(S.manualDoc) ? '6'
+    : S.exportacion ? '7'
+    : S.tipo === 1 ? '6'
+    : (/^\d{8}$/.test(S.manualDoc) ? '1' : '4');
   try { sndDown(); haptic(10); } catch (e) {}
   if (typeof showToast === 'function') showToast('Sin datos — regístralo a mano');
   _facRender();
@@ -8642,14 +8657,17 @@ function _facCliManualTipo(t) {
 }
 async function _facCliManualGuardar() {
   const S = _facState;
-  const doc = String(S.manualDoc || '').trim(), nom = String(S.manualNombre || '').trim();
+  const doc = String(S.manualDoc || '').trim(), nom = String(S.manualNombre || '').trim(), dir = String(S.manualDir || '').trim();
   if (!nom) return _facErr('Escribe el nombre / razón social');
   if (!doc) return _facErr('Escribe el número de documento');
+  if (S.manualTipo === '1' && !/^\d{8}$/.test(doc)) return _facErr('Un DNI tiene 8 dígitos');
+  if (S.manualTipo === '6' && !/^(10|15|17|20)\d{9}$/.test(doc)) return _facErr('Un RUC tiene 11 dígitos (empieza en 10/15/17/20)');
+  if (S.manualTipo === '6' && !dir) return _facErr('El RUC necesita su domicilio fiscal (obligatorio en factura)');
   try { sndTap(); haptic(10); } catch (e) {}
-  const r = await apiPost({ accion: 'guardar_cliente', doc_tipo: S.manualTipo, doc_numero: doc, nombre: nom, direccion: '', email: S.email, telefono: S.tel, es_extranjero: S.manualTipo === '7' });
+  const r = await apiPost({ accion: 'guardar_cliente', doc_tipo: S.manualTipo, doc_numero: doc, nombre: nom, direccion: dir, email: S.email, telefono: S.tel, es_extranjero: S.manualTipo === '7' || S.manualTipo === '0' });
   if (r.ok) {
-    S.doc = doc; S.nombre = nom; S.docTipo = S.manualTipo; S.dir = ''; S.esExtranjero = (S.manualTipo === '7');
-    S.cliSel = true; S.cliManual = false; S.manualDoc = ''; S.manualNombre = '';
+    S.doc = doc; S.nombre = nom; S.docTipo = S.manualTipo; S.dir = dir; S.esExtranjero = (S.manualTipo === '7' || S.manualTipo === '0');
+    S.cliSel = true; S.cliManual = false; S.manualDoc = ''; S.manualNombre = ''; S.manualDir = '';
     try { sndOk(); haptic([12, 30, 12]); } catch (e) {}
     if (typeof showToast === 'function') showToast('✓ Cliente guardado');
     _facRender();
@@ -8671,6 +8689,7 @@ function _facCliBindManual() {
   const w = document.getElementById('fac-cli-manual'); if (!w) return;
   const md = w.querySelector('#fac-cli-mdoc'); if (md) md.oninput = e => { _facState.manualDoc = e.target.value; };
   const mn = w.querySelector('#fac-cli-mnom'); if (mn) mn.oninput = e => { _facState.manualNombre = e.target.value; };
+  const mr = w.querySelector('#fac-cli-mdir'); if (mr) mr.oninput = e => { _facState.manualDir = e.target.value; };
 }
 async function _facAnular(id) {
   const S = _facState;
@@ -14325,7 +14344,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '2.1.0';
+const APP_VERSION = '2.1.1';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
