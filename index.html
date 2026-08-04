@@ -1597,12 +1597,27 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 .fac-ibtn:hover { transform:translateY(-1px); }
 .fac-ibtn:active { transform:scale(.88); }
 .fac-ibtn svg { display:block; }
-.fac-ibtn.pdf { color:#4ade80; border-color:rgba(74,222,128,.34); background:rgba(74,222,128,.09); }
-.fac-ibtn.pdf.local { color:var(--gold); border-color:rgba(201,168,76,.34); background:rgba(201,168,76,.09); }
+.fac-ibtn.foto { color:#38bdf8; border-color:rgba(56,189,248,.34); background:rgba(56,189,248,.10); }
+.fac-ibtn.foto:hover { background:rgba(56,189,248,.18); }
+.fac-ibtn.pdf { color:var(--gold); border-color:rgba(201,168,76,.34); background:rgba(201,168,76,.10); }
+.fac-ibtn.pdf:hover { background:rgba(201,168,76,.18); }
 .fac-ibtn.anul { color:#f87171; border-color:rgba(248,113,113,.3); background:rgba(248,113,113,.07); }
 .fac-ibtn.wa { color:#25D366; border-color:rgba(37,211,102,.34); background:rgba(37,211,102,.10); }
 .fac-ibtn.wa:hover { background:rgba(37,211,102,.18); }
 .fac-ibtn.anul.ask { width:auto; padding:0 10px; color:#fff; background:#f87171; border-color:#f87171; font-size:11px; font-weight:800; }
+/* Ícono girando mientras genera imagen / descarga PDF */
+@keyframes facIcoSpin { to { transform:rotate(360deg); } }
+.fac-ibtn.fac-ico-spin { pointer-events:none; }
+.fac-ibtn.fac-ico-spin svg { animation:facIcoSpin .7s linear infinite; }
+/* Overlay de imagen del comprobante */
+.fac-img-ov { position:fixed; inset:0; z-index:9600; background:rgba(10,6,4,.74); display:none; align-items:center; justify-content:center; padding:18px; opacity:0; transition:opacity .24s ease; -webkit-backdrop-filter:blur(3px); backdrop-filter:blur(3px); }
+.fac-img-ov.visible { opacity:1; }
+.fac-img-box { position:relative; max-width:min(940px,96vw); display:flex; flex-direction:column; gap:10px; transform:scale(.97); transition:transform .24s cubic-bezier(.34,1.4,.5,1); }
+.fac-img-ov.visible .fac-img-box { transform:scale(1); }
+.fac-img-x { position:absolute; top:-13px; right:-9px; width:34px; height:34px; border-radius:50%; border:none; background:#fff; color:#3d0508; font-size:20px; font-weight:800; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,.4); z-index:2; }
+.fac-img-scroll { overflow:auto; max-height:82vh; border-radius:10px; background:#fff; box-shadow:0 24px 70px rgba(0,0,0,.55); }
+.fac-img-pic { display:block; width:100%; height:auto; }
+.fac-img-cap { text-align:center; color:#f0e6d3; font-size:12px; font-weight:700; letter-spacing:.02em; }
 /* nombre: hasta 2 líneas, PERO reserva 2 líneas siempre → todas las cards iguales */
 .fac-hcard-name { flex:1 1 auto; min-width:0; font-weight:800; font-size:13.5px; line-height:1.28; color:var(--text); display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; word-break:break-word; }
 .fac-hcard-name.anu { text-decoration:line-through; opacity:.85; }
@@ -2247,15 +2262,7 @@ select.config-input option { background: #1e0a10; color: var(--text); }
   .fac-z-bar>i.ind { animation:none; }
 }
 
-/* ── FASE 3 · Layout/Modal PDF del comprobante (80mm / A4) ──────────────── */
-.fpdf-box { max-width:640px; }
-.fpdf-seg { position:relative; display:flex; gap:0; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1); border-radius:13px; padding:4px; margin:2px 0 14px; }
-.fpdf-seg-ind { position:absolute; top:4px; bottom:4px; left:4px; width:calc(50% - 4px); border-radius:10px; background:linear-gradient(135deg,var(--guinda-light),var(--guinda-dark)); box-shadow:0 3px 12px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.22); transition:transform .38s cubic-bezier(.34,1.56,.64,1); }
-.fpdf-seg[data-fmt="a4"] .fpdf-seg-ind { transform:translateX(100%); }
-.fpdf-seg button { position:relative; z-index:1; flex:1; padding:9px 4px; border:none; background:none; cursor:pointer; font-size:12.5px; font-weight:800; letter-spacing:.01em; color:var(--text-muted); transition:color .25s, transform .12s; -webkit-tap-highlight-color:transparent; }
-.fpdf-seg button.on { color:var(--gold-pale); }
-.fpdf-seg button:active { transform:scale(.94); }
-.fpdf-stage { background:rgba(0,0,0,.22); border:1px solid rgba(255,255,255,.08); border-radius:16px; padding:16px 10px; overflow-x:hidden; overflow-y:auto; max-height:46vh; display:flex; justify-content:center; -webkit-overflow-scrolling:touch; }
+/* ── Layout del ticket del comprobante (80mm / A4) — usado para la imagen generada ── */
 .fpdf-anim { animation:fpdfSwap .34s cubic-bezier(.22,1,.36,1); }
 @keyframes fpdfSwap { from{opacity:0; transform:translateY(8px) scale(.99);} to{opacity:1; transform:none;} }
 /* Papel (representación impresa) */
@@ -2304,18 +2311,7 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 .fpdf-tot-row { display:flex; justify-content:space-between; gap:12px; padding:1.5px 0; }
 .fpdf-tot-grand { font-weight:900; font-size:14px; color:#A81C2D; border-top:1.5px solid #A81C2D; margin-top:4px; padding-top:5px; }
 .fpdf-foot { margin-top:10px; font-size:8.5px; color:#666; line-height:1.4; text-align:center; }
-.fpdf-actions { display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-top:16px; }
-.fpdf-act { display:flex; align-items:center; justify-content:center; gap:7px; padding:12px 8px; border-radius:13px; font-size:13px; font-weight:800; cursor:pointer; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.06); color:var(--text); transition:transform .13s, filter .15s, background .15s; -webkit-tap-highlight-color:transparent; text-decoration:none; }
-.fpdf-act:active { transform:scale(.95); }
-.fpdf-act.print { background:linear-gradient(135deg,var(--guinda-light),var(--guinda-dark)); color:var(--gold-pale); border-color:rgba(201,168,76,.3); }
-.fpdf-act.dl { background:rgba(201,168,76,.15); color:var(--gold); border-color:rgba(201,168,76,.35); }
-.fpdf-act.wa { background:#25D366; color:#062e16; border-color:transparent; }
-.fpdf-act.mail { background:rgba(255,255,255,.08); color:var(--text); }
-.fpdf-act[aria-disabled="true"] { opacity:.55; pointer-events:none; }
-.fpdf-contact { margin-top:14px; border:1px solid rgba(255,255,255,.09); border-radius:13px; padding:11px 12px; background:rgba(255,255,255,.03); }
-.fpdf-contact-lbl { font-size:10px; font-weight:800; letter-spacing:.04em; color:var(--gold); margin-bottom:7px; }
-.fpdf-contact .config-input { margin-bottom:7px; }
-@media (prefers-reduced-motion: reduce){ .fpdf-seg-ind, .fpdf-anim, .fpdf-act { transition:none; animation:none; } }
+@media (prefers-reduced-motion: reduce){ .fac-img-ov, .fac-img-box, .fac-ibtn.fac-ico-spin svg { transition:none; animation:none; } }
 
 /* ── FASE 2 · Botón "Subir compra" + desplegable de compras del mes ─────── */
 .facb-subir-row { display:flex; gap:8px; margin-top:14px; align-items:stretch; }
@@ -8100,8 +8096,10 @@ function _facChipEstado(c) {
   const sunatOk = !!(c && c.aceptada_por_sunat === true);
   const rechazada = est === 'rechazada' || est === 'error';
   const anulada = est === 'anulada';
+  const anulEnviada = anulada && String((c && c.anulacion_estado) || '') === 'enviada';
   let ico = '🟡', col = '#fbbf24', txt = est || 'pendiente', tip = 'Esperando respuesta';
-  if (anulada) { ico = '⊘'; col = 'var(--text-muted)'; txt = 'anulada'; tip = 'Comprobante anulado'; }
+  if (anulEnviada) { ico = '⊘'; col = '#fbbf24'; txt = 'baja enviada'; tip = 'Comunicación de baja enviada a SUNAT — se confirma en minutos (asíncrona).'; }
+  else if (anulada) { ico = '⊘'; col = 'var(--text-muted)'; txt = 'anulada'; tip = 'Comprobante anulado y confirmado por SUNAT.'; }
   else if (sunatOk) { ico = '🟢'; col = '#4ade80'; txt = 'SUNAT ✓'; tip = 'Aceptada por SUNAT (con CDR)'; }
   else if (est === 'aceptada') { ico = '🟢'; col = '#a3e635'; txt = 'válida · ⏳ SUNAT'; tip = 'Emitida y válida (PDF/QR). SUNAT la confirma con el Resumen Diario — normal en boletas; el sistema la actualiza solo.'; }
   else if (rechazada) { ico = '🔴'; col = '#f87171'; txt = 'rechazada'; tip = 'Rechazada — revisar'; }
@@ -8794,16 +8792,25 @@ function _facCliBindManual() {
 }
 async function _facAnular(id) {
   const S = _facState;
-  if (S.anularId !== id) { S.anularId = id; sndTap(); haptic(8); _facRender(); clearTimeout(S._anularTo); S._anularTo = setTimeout(() => { if (_facState) { _facState.anularId = null; _facRender(); } }, 3500); return; }
+  // 1er toque: mostrar "¿Anular?" EN SITIO (repinta SOLO esa card, sin parpadear toda la hoja).
+  if (S.anularId !== id) {
+    S.anularId = id; sndTap(); haptic(8); _facRebuildCard(id);
+    clearTimeout(S._anularTo); S._anularTo = setTimeout(() => { if (_facState && _facState.anularId === id) { _facState.anularId = null; _facRebuildCard(id); } }, 3500);
+    return;
+  }
+  // 2º toque: confirmar. Motivo real (va literal a SUNAT); si cancela, no anula.
   S.anularId = null; clearTimeout(S._anularTo); sndTap(); haptic(12);
-  // Motivo real (va literal a SUNAT en la comunicación de baja); si cancela el prompt, no anula
   const motivo = (prompt('Motivo de la anulación (va a SUNAT):', 'Error en los datos del comprobante') || '').trim();
-  if (!motivo) { _facRender(); return; }
+  if (!motivo) { _facRebuildCard(id); return; }
   const r = await apiPost({ accion: 'anular_comprobante', id, motivo });
   if (r.ok) {
     sndDown(); if (typeof showToast === 'function') showToast('Comprobante anulado');
     var comp = (S.comprobantes || []).find(function (x) { return String(x.id) === String(id); });
-    if (comp) { comp.estado = 'anulada'; _facRebuildCard(id, true); } else _facLoadHist();   // EN SITIO (sin spinner); Realtime confirma
+    if (comp) {
+      comp.estado = 'anulada';
+      comp.anulacion_estado = (r.data && r.data.anulacion_estado) || comp.anulacion_estado || null;   // 'enviada' = baja async a SUNAT
+      _facRebuildCard(id, true);   // EN SITIO — el chip pasa a anulada/baja enviada; Realtime confirma
+    } else _facLoadHist();
   } else _facErr((r.error || 'No se pudo anular').replace(/^.*?:\s*/, ''));
 }
 // EMISIÓN OPTIMISTA: al tocar Emitir el form queda libre AL INSTANTE y una card "Enviando a
@@ -8911,7 +8918,7 @@ function _facEmitFeedHTML(S) {
             '<div class="fac-fb-t">' + _facEsc(c._label || 'Comprobante') + ' ' + _facEsc(c.serie || '') + '-' + num6 + ' · S/ ' + _facMoney(c.total) + '</div>' +
             '<div class="fac-fb-s">' + estTxt + ' · listo para el siguiente</div>' +
           '</div>' +
-          '<button class="fac-fb-pdf" onclick="_facEmitFeedPDF()">📄 Ver PDF</button>' +
+          '<button class="fac-fb-pdf" onclick="_facEmitFeedPDF()">🖼 Ver comprobante</button>' +
           '<button class="fac-fb-x" onclick="_facEmitFeedClose()" aria-label="Cerrar aviso">×</button>' +
         '</div>';
     } else if (f.type === 'sending') {
@@ -8944,7 +8951,7 @@ function _facEmitFeedHTML(S) {
         if (e.estado === 'error') return '<button class="fac-chip-emit errch" onclick="_facEmitRetry(' + i + ')" title="Falló — toca para reintentar">⚠ reintentar</button>';
         var n6 = String(e.numero == null ? '' : e.numero).padStart(6, '0');
         var pend = (e.estado && e.estado !== 'aceptada') ? ' pend' : '';
-        return '<button class="fac-chip-emit' + pend + '" onclick="_facEmitidoPDF(' + i + ')" title="Ver PDF">📄 ' + _facEsc(e.serie || '') + '-' + n6 + '</button>';
+        return '<button class="fac-chip-emit' + pend + '" onclick="_facEmitidoPDF(' + i + ')" title="Ver imagen del comprobante">🖼 ' + _facEsc(e.serie || '') + '-' + n6 + '</button>';
       }).join('') + '</div>';
   }
   return html;
@@ -8965,10 +8972,10 @@ function _facEmitFeedAfter() {
   }
 }
 window._facEmitFeedPDF = function () {
-  var S = _facState; if (S && S._emitFeed && S._emitFeed.comp) _facAbrirPDF(S._emitFeed.comp);
+  var S = _facState; if (S && S._emitFeed && S._emitFeed.comp) _facMostrarImagen(S._emitFeed.comp);
 };
 window._facEmitidoPDF = function (i) {
-  var S = _facState; var e = (S && S._emitidos || [])[i]; if (e && e.comp) _facAbrirPDF(e.comp);
+  var S = _facState; var e = (S && S._emitidos || [])[i]; if (e && e.comp) _facMostrarImagen(e.comp);
 };
 window._facEmitFeedClose = function () {
   var S = _facState; if (!S) return;
@@ -10385,8 +10392,8 @@ async function _facZarpeLoadConcilia() {
 }
 window._facZarpeAbrirCPE = function (i) {
   const S = _facState, Z = S._zarpe, f = Z && Z.filas[i]; if (!f) return;
-  if (f._comp) window._facAbrirPDF(Object.assign({}, f._comp, { id: f._comp.id || f.id_comprobante }));
-  else if (f.id_comprobante) _facAbrirPDFById(f.id_comprobante);
+  if (f._comp) _facMostrarImagen(Object.assign({}, f._comp, { id: f._comp.id || f.id_comprobante }));
+  else if (f.id_comprobante) _facVerImagen(f.id_comprobante);
 };
 async function _facZarpeCerrar() {
   const S = _facState, Z = S._zarpe; if (!Z || !Z.sel) return;
@@ -10587,7 +10594,10 @@ function _facHistCardHTML(c, S, opts) {
   var svgPdf = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6"/><path d="M9 17h4"/></svg>';
   var svgAnul = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M5.8 5.8l12.4 12.4"/></svg>';
   var svgWa = '<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M17.47 14.38c-.29-.14-1.72-.85-1.99-.95-.27-.1-.46-.14-.65.15-.19.28-.74.94-.91 1.13-.17.19-.34.21-.63.07-.29-.14-1.22-.45-2.33-1.44-.86-.77-1.44-1.72-1.61-2.01-.17-.29-.02-.44.13-.59.13-.13.29-.34.43-.51.15-.17.19-.29.29-.48.1-.19.05-.36-.02-.5-.07-.14-.65-1.57-.89-2.15-.24-.56-.48-.48-.65-.49h-.56c-.19 0-.5.07-.77.36-.27.29-1.01.99-1.01 2.41s1.04 2.8 1.18 2.99c.14.19 2.03 3.1 4.92 4.35.69.3 1.22.47 1.64.61.69.22 1.31.19 1.81.11.55-.08 1.72-.7 1.96-1.38.24-.68.24-1.26.17-1.38-.07-.12-.26-.19-.55-.34zM12.05 2.9c-5.04 0-9.14 4.1-9.14 9.14 0 1.61.42 3.18 1.22 4.57L2.83 21.1l4.62-1.21a9.1 9.1 0 0 0 4.6 1.24h.01c5.04 0 9.14-4.1 9.14-9.14 0-2.44-.95-4.74-2.68-6.46a9.08 9.08 0 0 0-6.47-2.67zm0 16.65h-.01a7.6 7.6 0 0 1-3.87-1.06l-.28-.16-2.87.75.77-2.8-.18-.29a7.55 7.55 0 0 1-1.16-4.03c0-4.19 3.41-7.6 7.6-7.6a7.56 7.56 0 0 1 7.6 7.6c0 4.19-3.41 7.6-7.6 7.6z"/></svg>';
-  var pdfBtn = '<button class="fac-ibtn pdf' + (real ? '' : ' local') + '" onclick="event.stopPropagation();_facAbrirPDFById(\'' + c.id + '\')" title="Ver / imprimir / enviar" aria-label="Ver comprobante">' + svgPdf + '</button>';
+  var svgFoto = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M4 17l5-5 3 3 3-3 5 5"/></svg>';
+  var svgDl = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v11"/><path d="M7.5 10.5L12 15l4.5-4.5"/><path d="M4 20h16"/></svg>';
+  var fotoBtn = '<button class="fac-ibtn foto" onclick="event.stopPropagation();_facVerImagen(\'' + c.id + '\',this)" title="Ver imagen del comprobante" aria-label="Ver imagen">' + svgFoto + '</button>';
+  var pdfBtn = '<button class="fac-ibtn pdf" onclick="event.stopPropagation();_facDescargarPDF(\'' + c.id + '\',this)" title="Descargar PDF" aria-label="Descargar PDF">' + svgDl + '</button>';
   var waBtn = anu ? '' : '<button class="fac-ibtn wa" onclick="event.stopPropagation();_facCompartirWAById(\'' + c.id + '\',this)" title="Compartir por WhatsApp (imagen + PDF)" aria-label="Compartir por WhatsApp">' + svgWa + '</button>';
   var anulBtn = anu ? '' : (S.anularId === c.id
     ? '<button class="fac-ibtn anul ask" onclick="event.stopPropagation();_facAnular(\'' + c.id + '\')" aria-label="Confirmar anulación">¿Anular?</button>'
@@ -10607,7 +10617,7 @@ function _facHistCardHTML(c, S, opts) {
             '<span class="fac-hcard-est">' + _facChipEstado(c) + '</span>' +
             ncNote +
           '</div>' +
-          '<div class="fac-hcard-acts">' + togBtn + pdfBtn + waBtn + anulBtn + '</div>' +
+          '<div class="fac-hcard-acts">' + togBtn + fotoBtn + pdfBtn + waBtn + anulBtn + '</div>' +
         '</div>' +
       '</div>' +
     '</div>';
@@ -11190,98 +11200,6 @@ function _facPdfFilename(c) {
   return _facTipoSlug(c) + '-' + (c.serie || 'X') + '-' + String(c.numero || 0).padStart(6, '0') + '.pdf';
 }
 
-// ── Apertura del modal PDF ──
-window._facAbrirPDFById = function (id) {
-  const c = ((_facState && _facState.comprobantes) || []).find(x => String(x.id) === String(id));
-  if (c) window._facAbrirPDF(c);
-};
-window._facAbrirPDF = function (c) {
-  const S = _facState; if (!S || !c) return;
-  try { sndTap(); haptic(10); } catch (e) {}
-  S._pdf = { comp: c, fmt: 'a4', sending: false,
-    contact: { email: String(c.cliente_email || '').trim(), tel: String(c.cliente_tel || c.cliente_telefono || '').trim() } };
-  let ov = document.getElementById('fac-pdf-modal');
-  if (!ov) { ov = document.createElement('div'); ov.id = 'fac-pdf-modal'; ov.className = 'fac-emit-ov'; document.body.appendChild(ov); ov.addEventListener('click', e => { if (e.target === ov) _facCerrarPDF(); }); }
-  ov.dataset.closing = '';   // P2.3: cancela un remove pendiente si se reabre rápido
-  ov.style.display = 'flex';
-  _facRenderPDF();
-  requestAnimationFrame(() => ov.classList.add('visible'));
-  // Precarga contacto del cliente frecuente si no vino en el comprobante.
-  if (!S._pdf.contact.email || !S._pdf.contact.tel) _facPdfPrecargarContacto(c);
-  // Carga diferida del QR: cuando la librería esté lista, refresca SOLO el preview (sin tocar inputs).
-  if (typeof window.qrcode !== 'function') {
-    _facEnsureQR().then(() => {
-      const st = document.querySelector('#fac-pdf-modal .fpdf-stage'); const SS = _facState;
-      if (st && SS && SS._pdf) st.innerHTML = _facPdfPreviewHTML(SS._pdf.comp, SS._pdf.fmt);
-    }).catch(() => {});
-  }
-};
-window._facCerrarPDF = function () {
-  const ov = document.getElementById('fac-pdf-modal');
-  if (ov) { ov.dataset.closing = '1'; ov.classList.remove('visible'); setTimeout(() => { if (ov.dataset.closing === '1' && ov.parentNode) ov.remove(); }, 260); }
-  if (_facState) _facState._pdf = null;
-  try { haptic(8); } catch (e) {}
-  // NO se re-renderiza el shell del módulo → la balanza de la izquierda no se toca.
-};
-async function _facPdfPrecargarContacto(c) {
-  try {
-    const dt = _facInferDocTipo(c), dn = String(c.cliente_doc || '').trim();
-    if (!dn || dt === '0') return;
-    const r = await apiGet('buscar_cliente', { doc_tipo: dt, doc: dn });
-    if (r && r.ok && r.data) {
-      const S = _facState; if (!S || !S._pdf || S._pdf.comp !== c) return;
-      if (!S._pdf.contact.email && r.data.email) S._pdf.contact.email = String(r.data.email).trim();
-      if (!S._pdf.contact.tel && r.data.telefono) S._pdf.contact.tel = String(r.data.telefono).trim();
-      _facRenderPDF();
-    }
-  } catch (e) {}
-}
-window._facPdfSetFmt = function (fmt) {
-  const S = _facState; if (!S || !S._pdf || S._pdf.fmt === fmt) return;
-  try { sndTap(); haptic(8); } catch (e) {}
-  S._pdf.fmt = fmt;
-  const seg = document.querySelector('#fac-pdf-modal .fpdf-seg'); if (seg) seg.setAttribute('data-fmt', fmt);
-  const stage = document.querySelector('#fac-pdf-modal .fpdf-stage');
-  if (stage) { stage.innerHTML = _facPdfPreviewHTML(S._pdf.comp, fmt); const p = stage.firstElementChild; if (p) { p.classList.remove('fpdf-anim'); void p.offsetWidth; p.classList.add('fpdf-anim'); } }
-  seg && seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.getAttribute('data-f') === fmt));
-};
-function _facRenderPDF() {
-  const ov = document.getElementById('fac-pdf-modal'); const S = _facState; if (!ov || !S || !S._pdf) return;
-  const c = S._pdf.comp, fmt = S._pdf.fmt, ct = S._pdf.contact;
-  const T = _facPdfTotales(c);
-  const needContact = true;
-  ov.innerHTML = `<div class="fac-emit-box fpdf-box" role="dialog" aria-modal="true">
-    <div class="fac-emit-head">
-      <div style="font-size:22px">📄</div>
-      <div style="flex:1;min-width:0"><div class="fac-emit-title">${_facTituloDoc(c)}</div><div class="fac-emit-sub">${_facEsc(_facNumFmt(c))} · S/ ${_facMoney(T.total)}</div></div>
-      <button class="fac-emit-x" onclick="_facCerrarPDF()" aria-label="Cerrar">×</button>
-    </div>
-    <div class="fac-emit-box-inner">
-      <div class="fpdf-seg" data-fmt="${fmt}">
-        <div class="fpdf-seg-ind"></div>
-        <button data-f="80mm" class="${fmt === '80mm' ? 'on' : ''}" onclick="_facPdfSetFmt('80mm')">🧾 Ticket 80mm</button>
-        <button data-f="a4" class="${fmt === 'a4' ? 'on' : ''}" onclick="_facPdfSetFmt('a4')">📄 A4</button>
-      </div>
-      <div class="fpdf-stage">${_facPdfPreviewHTML(c, fmt)}</div>
-      ${needContact ? `<div class="fpdf-contact">
-        <div class="fpdf-contact-lbl">CONTACTO DEL CLIENTE (para enviar)</div>
-        <input id="fpdf-email" class="config-input" type="email" inputmode="email" placeholder="Correo del cliente" value="${_facEsc(ct.email || '')}">
-        <input id="fpdf-tel" class="config-input" type="tel" inputmode="numeric" placeholder="WhatsApp (+51) — 9 dígitos" value="${_facEsc(ct.tel || '')}">
-        <div style="font-size:10px;color:var(--text-muted);line-height:1.4">Se guardan en clientes frecuentes al enviar, para autocompletar la próxima vez.</div>
-      </div>` : ''}
-      <div class="fpdf-actions">
-        <button class="fpdf-act print" onclick="_facPdfImprimir()">🖨️ Imprimir</button>
-        <button class="fpdf-act dl" onclick="_facPdfDescargar()">⬇️ Descargar</button>
-        <button class="fpdf-act wa" onclick="_facPdfWhatsApp()">🟢 WhatsApp</button>
-        <button class="fpdf-act mail" onclick="_facPdfCorreo()">✉️ Correo</button>
-      </div>
-    </div>
-  </div>`;
-  // Enlaza inputs de contacto al estado.
-  const bindC = (id, k) => { const el = ov.querySelector('#' + id); if (el) el.oninput = () => { if (_facState && _facState._pdf) _facState._pdf.contact[k] = el.value; }; };
-  bindC('fpdf-email', 'email'); bindC('fpdf-tel', 'tel');
-}
-function _facPdfComp() { return _facState && _facState._pdf && _facState._pdf.comp; }
 // Guarda el contacto en clientes frecuentes (best-effort, cero-GAS).
 async function _facPdfGuardarContacto(c) {
   try {
@@ -11291,24 +11209,75 @@ async function _facPdfGuardarContacto(c) {
     await apiPost({ accion: 'actualizar_contacto_cliente', doc_tipo: dt, doc_numero: dn, email: (ct.email || '').trim() || null, telefono: (ct.tel || '').replace(/\D/g, '') || null, nombre: c.cliente_nombre || null });
   } catch (e) {}
 }
-async function _facPdfImprimir() {
-  const c = _facPdfComp(); if (!c) return;
+// ── Ver IMAGEN del comprobante (A4 en PS) en un overlay simple. Spinner en el ícono mientras genera. ──
+window._facVerImagen = function (id, btn) {
+  const c = ((_facState && _facState.comprobantes) || []).find(x => String(x.id) === String(id));
+  if (c) _facMostrarImagen(c, btn);
+};
+async function _facMostrarImagen(c, btn) {
+  if (!c || !_facState || _facState._imgBusy) return;
+  _facState._imgBusy = true;
+  if (btn) btn.classList.add('fac-ico-spin');
   try { sndTap(); haptic(10); } catch (e) {}
+  let dataUrl = '';
+  try { const r = await _facRasterizar(c, 'a4'); dataUrl = r.dataUrl; } catch (e) {}
+  if (btn) btn.classList.remove('fac-ico-spin');
+  _facState._imgBusy = false;
+  if (!dataUrl) { _facErr('No se pudo generar la imagen'); return; }
+  try { sndOk(); } catch (e) {}
+  let ov = document.getElementById('fac-img-modal');
+  if (!ov) { ov = document.createElement('div'); ov.id = 'fac-img-modal'; ov.className = 'fac-img-ov'; document.body.appendChild(ov); ov.addEventListener('click', e => { if (e.target === ov) _facCerrarImagen(); }); }
+  ov.innerHTML = `<div class="fac-img-box">
+    <button class="fac-img-x" onclick="_facCerrarImagen()" aria-label="Cerrar">×</button>
+    <div class="fac-img-scroll"><img src="${dataUrl}" alt="Comprobante ${_facEsc(_facNumFmt(c))}" class="fac-img-pic"></div>
+    <div class="fac-img-cap">${_facEsc(_facTituloDoc(c))} · ${_facEsc(_facNumFmt(c))} · S/ ${_facMoney(_facPdfTotales(c).total)}</div>
+  </div>`;
+  ov.style.display = 'flex'; requestAnimationFrame(() => ov.classList.add('visible'));
+}
+window._facCerrarImagen = function () {
+  const ov = document.getElementById('fac-img-modal');
+  if (ov) { ov.classList.remove('visible'); setTimeout(() => { if (ov.parentNode) ov.remove(); }, 240); }
+  try { haptic(8); } catch (e) {}
+};
+// ── Descargar el PDF: OFICIAL de NubeFact si existe (fetch→descarga; si CORS/red falla, abre la
+// pestaña — muchos NubeFact fuerzan la descarga con Content-Disposition); si no hay, el nuestro.
+// Spinner girando en el ícono mientras baja. ──
+function _facTriggerDownload(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename || 'comprobante.pdf';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+window._facDescargarPDF = async function (id, btn) {
+  const c = ((_facState && _facState.comprobantes) || []).find(x => String(x.id) === String(id));
+  if (!c || !_facState || _facState._dlBusy) return;
+  _facState._dlBusy = true;
+  if (btn) btn.classList.add('fac-ico-spin');
+  try { sndTap(); haptic(10); } catch (e) {}
+  const oficial = /^https?:\/\//.test(String(c.enlace_pdf || ''));
+  const nombre = _facPdfFilename(c);
+  const win = oficial ? window.open('', '_blank') : null;   // reservado en el gesto (fallback anti-popup-block)
   try {
-    const doc = await _facGenPDF(c);
-    try { doc.autoPrint(); } catch (e) {}
-    const url = doc.output('bloburl');
-    const w = window.open(url, '_blank');
-    if (!w) { doc.output('dataurlnewwindow'); }   // popup bloqueado → fallback
+    if (oficial) {
+      try {
+        const r = await fetch(c.enlace_pdf); if (!r.ok) throw 0;
+        const blob = await r.blob();
+        if (win) { try { win.close(); } catch (e) {} }
+        _facTriggerDownload(blob, nombre);
+      } catch (e) {
+        if (win && !win.closed) { try { win.location.href = c.enlace_pdf; } catch (e2) { window.open(c.enlace_pdf, '_blank'); } }
+        else window.open(c.enlace_pdf, '_blank', 'noopener');
+      }
+    } else {
+      if (win) { try { win.close(); } catch (e) {} }
+      const doc = await _facGenPDF(c, 'a4'); doc.save(nombre);
+    }
     try { sndOk(); } catch (e) {}
-  } catch (e) { _facErr((e && e.message) || 'No se pudo generar el PDF'); }
-}
-async function _facPdfDescargar() {
-  const c = _facPdfComp(); if (!c) return;
-  try { sndTap(); haptic(10); } catch (e) {}
-  try { const doc = await _facGenPDF(c); doc.save(_facPdfFilename(c)); try { sndOk(); } catch (e) {} }
-  catch (e) { _facErr((e && e.message) || 'No se pudo generar el PDF'); }
-}
+  } catch (e) { if (win) { try { win.close(); } catch (e2) {} } _facErr((e && e.message) || 'No se pudo descargar el PDF'); }
+  if (btn) btn.classList.remove('fac-ico-spin');
+  _facState._dlBusy = false;
+};
+
 // ── Mensaje profesional de WhatsApp (saludo + qué es + [enlaces] + cierre). Tono según origen. ──
 // linksBlock se inserta entre el cuerpo y la despedida.
 function _facWAMensaje(c, T, origen, linksBlock) {
@@ -11408,50 +11377,6 @@ async function _facSubirComprobante(c, ext, blobPng) {
     return (sd && sd.signedUrl) || '';
   } catch (e) { return ''; }
 }
-// Botón WhatsApp del modal preview (usa el teléfono si se escribió; si no, share sheet en móvil).
-async function _facPdfWhatsApp() {
-  const c = _facPdfComp(); if (!c) return;
-  const ct = (_facState._pdf && _facState._pdf.contact) || {};
-  const btn = document.querySelector('#fac-pdf-modal .fpdf-act.wa');
-  await _facCompartirWA(c, 'panel', ct.tel || '', btn);
-}
-async function _facPdfCorreo() {
-  const c = _facPdfComp(); if (!c) return;
-  const ct = (_facState._pdf && _facState._pdf.contact) || {};
-  const to = String(ct.email || '').trim();
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) { _facErr('Escribe un correo válido del cliente'); const el = document.getElementById('fpdf-email'); if (el) el.focus(); return; }
-  if (_facState._pdf.sending) return;
-  _facState._pdf.sending = true;
-  const btn = document.querySelector('#fac-pdf-modal .fpdf-act.mail'); if (btn) { btn.setAttribute('aria-disabled', 'true'); btn.innerHTML = '✉️ Enviando…'; }
-  try { sndTap(); haptic(10); } catch (e) {}
-  try {
-    const doc = await _facGenPDF(c);
-    const b64 = doc.output('datauristring').replace(/^data:.*?;base64,/, '');
-    const { data, error } = await sbClient.functions.invoke('enviar-comprobante', {
-      body: { to, nombre: c.cliente_nombre || '', subject: (_facTipoWord(c).charAt(0).toUpperCase() + _facTipoWord(c).slice(1)) + ' electrónica ' + _facNumFmt(c), pdf_base64: b64, filename: _facPdfFilename(c) }
-    });
-    // La Edge devuelve 503 con RESEND_NO_CONFIG si aún no hay Resend configurado.
-    // supabase-js envuelve el no-2xx como FunctionsHttpError: el detalle vive en error.context (Response), no en el message.
-    let errBody = '';
-    if (error && error.context && typeof error.context.json === 'function') { try { const jb = await error.context.json(); errBody = String((jb && jb.error) || ''); } catch (e) { try { errBody = String(await error.context.text()); } catch (_) {} } }
-    const noConfig = /RESEND_NO_CONFIG/i.test(errBody) || (error && /503|RESEND_NO_CONFIG/i.test(String(error.message || error))) || (data && data.ok === false && /RESEND_NO_CONFIG/i.test(String(data.error || '')));
-    if (noConfig) {
-      if (typeof showToast === 'function') showToast('✉️ Correo aún no configurado (Resend). Usa Descargar o WhatsApp por ahora.');
-      try { sndTap(); } catch (e) {}
-    } else if (error || (data && data.ok === false)) {
-      _facErr('No se pudo enviar: ' + String(errBody || (data && data.error) || (error && error.message) || 'error').slice(0, 70));
-    } else {
-      if (typeof showToast === 'function') showToast('✓ Comprobante enviado a ' + to);
-      try { sndOk(); haptic([15, 40, 15]); } catch (e) {}
-      _facPdfGuardarContacto(c);
-    }
-  } catch (e) { _facErr((e && e.message) || 'No se pudo enviar el correo'); }
-  finally {
-    if (_facState && _facState._pdf) _facState._pdf.sending = false;
-    if (btn) { btn.removeAttribute('aria-disabled'); btn.innerHTML = '✉️ Correo'; }
-  }
-}
-
 function _facRender() {
   if (_facMode === 'module') {
     if (!_facState) return;
@@ -14903,7 +14828,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '2.7.3';
+const APP_VERSION = '2.8.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
