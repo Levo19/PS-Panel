@@ -2266,7 +2266,11 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 .fpdf-anim { animation:fpdfSwap .34s cubic-bezier(.22,1,.36,1); }
 @keyframes fpdfSwap { from{opacity:0; transform:translateY(8px) scale(.99);} to{opacity:1; transform:none;} }
 /* Papel (representación impresa) */
-.fpdf-paper { background:#fff; color:#1a1a1a; box-shadow:0 10px 30px rgba(0,0,0,.4); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif; }
+.fpdf-paper { position:relative; background:#fff; color:#1a1a1a; box-shadow:0 10px 30px rgba(0,0,0,.4); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif; }
+/* Sello ANULADO — diagonal, sobre el ticket, sin tapar la lectura de los datos */
+.fpdf-anulado { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; z-index:5; overflow:hidden; }
+.fpdf-anulado span { transform:rotate(-24deg); border:4px solid rgba(168,28,45,.55); color:rgba(168,28,45,.55); font-weight:900; letter-spacing:.12em; padding:6px 22px; border-radius:8px; font-size:34px; white-space:nowrap; text-transform:uppercase; }
+.fpdf-paper.mm80 .fpdf-anulado span { font-size:26px; border-width:3px; padding:4px 14px; }
 .fpdf-paper.mm80 { width:280px; padding:16px 14px; border-radius:4px; font-size:11px; line-height:1.42; }
 .fpdf-paper.a4 { width:430px; max-width:100%; padding:26px 26px; border-radius:3px; font-size:12px; line-height:1.5; }
 /* A4 apaisado (landscape) — fiel al PDF */
@@ -9090,6 +9094,12 @@ window._facRTInsert = function (row, opts) {
   S.comprobantes = S.comprobantes || [];
   if (S.comprobantes.some(function (x) { return String(x.id) === String(c.id); })) return window._facRTUpdate(row);   // dedupe → trátalo como update
   S.comprobantes.unshift(c);   // fuente de verdad (prepend)
+  // SINCRONÍA DE DATOS (siempre, incluso fuera del filtro): una NC marca de baja su PADRE →
+  // sin esto el padre quedaba 'aceptada' en memoria y el botón Anular aparecía hasta re-consultar.
+  if (Number(c.tipo) === 3 && c.doc_modifica_serie) {
+    var _p = S.comprobantes.find(function (x) { return Number(x.tipo) === Number(c.doc_modifica_tipo) && String(x.serie) === String(c.doc_modifica_serie) && Number(x.numero) === Number(c.doc_modifica_numero); });
+    if (_p && _p.estado !== 'anulada') { _p.estado = 'anulada'; if (_p.anulacion_estado == null) _p.anulacion_estado = 'aprobada'; }
+  }
   var sel = S.histMeses || [], per = _facCompPeriodo(c);
   var inFilter = !sel.length || !per || sel.includes(per);
   if (_facMode !== 'module' || S.tab !== 'historial' || !inFilter) { _facRTUpdateCount(); return; }   // fuera del filtro/vista → solo estado + contador
@@ -10825,6 +10835,7 @@ function _facPdfPreviewHTML(c, fmt) {
   // Observaciones del emisor (opcional) + sello de EXPORTACIÓN (turismo receptivo, 0% IGV).
   const obs = String(c.observaciones || '').trim();
   const esExportDoc = (Number(T.exportacion) || 0) > 0;
+  const selloAnulado = String(c.estado || '') === 'anulada' ? '<div class="fpdf-anulado"><span>ANULADO</span></div>' : '';
   const obsA4 = obs ? `<div style="margin-top:8px;padding:7px 11px;border:1px solid #e3d9c4;background:#fdfaf2;border-radius:6px;font-size:8.5px;color:#5a4a2a;line-height:1.4"><b style="letter-spacing:.03em">OBSERVACIONES: </b>${_facEsc(obs)}</div>` : '';
   const obs80 = obs ? `<div style="margin-top:5px;padding:5px 8px;border:1px solid #e3d9c4;background:#fdfaf2;border-radius:5px;font-size:8px;color:#5a4a2a;line-height:1.35"><b>OBS: </b>${_facEsc(obs)}</div>` : '';
   const expBadgeA4 = esExportDoc ? `<div style="display:inline-flex;align-items:center;gap:4px;margin-top:5px;padding:2px 9px;border-radius:999px;background:#e0f2fe;border:1px solid #7dd3fc;color:#075985;font-size:8px;font-weight:800;letter-spacing:.03em">🌎 EXPORTACIÓN · 0% IGV (Art. 33° Ley IGV)</div>` : '';
@@ -10839,7 +10850,7 @@ function _facPdfPreviewHTML(c, fmt) {
         <td class="num">${_facMoney(i.precio)}</td>
         <td class="num">${_facMoney(i.cantidad * i.precio)}</td>
       </tr>`).join('');
-    return `<div class="fpdf-paper a4l">
+    return `<div class="fpdf-paper a4l">${selloAnulado}
       <div class="fpdf-a4-top">
         <div class="fpdf-a4-emisor">
           <img src="./logo.png" alt="" onerror="this.style.display='none'">
@@ -10888,7 +10899,7 @@ function _facPdfPreviewHTML(c, fmt) {
       <td class="num">${i.cantidad}</td>
       <td class="num">${_facMoney(i.cantidad * i.precio)}</td>
     </tr>`).join('');
-  return `<div class="fpdf-paper mm80">
+  return `<div class="fpdf-paper mm80">${selloAnulado}
     <div style="text-align:center">
       <img src="./logo.png" alt="" style="height:38px;display:block;margin:0 auto 4px" onerror="this.style.display='none'">
       <div class="fpdf-brand" style="font-size:15px">${_facEsc(_FAC_EMISOR.marca)}</div>
@@ -10942,6 +10953,8 @@ async function _facGenPDF(c, fmtOverride) {
   const num = _facNumFmt(c);
   const ncL = _facNCLegal(c);   // bloque legal SUNAT si es Nota de Crédito
   const guinda = [168, 28, 45], ink = [26, 26, 26], gray = [110, 110, 110];
+  const _anulado = String(c.estado || '') === 'anulada';
+  const _sello = (doc, W, H) => { if (!_anulado) return; try { doc.saveGraphicsState && doc.setGState && doc.setGState(new doc.GState({ opacity: 0.35 })); } catch (e) {} doc.setTextColor(168, 28, 45); doc.setFont('helvetica', 'bold'); doc.setFontSize(W > 120 ? 60 : 30); try { doc.text('ANULADO', W / 2, H / 2, { align: 'center', angle: 24 }); } catch (e) { doc.text('ANULADO', W / 2, H / 2, { align: 'center' }); } try { doc.setGState && doc.setGState(new doc.GState({ opacity: 1 })); } catch (e) {} doc.setTextColor(...ink); };
   const fecha = String(c.creado || c.fecha || c.creado_at || '').slice(0, 16);
   const rucLine = _FAC_EMISOR.ruc ? ('R.U.C. ' + _FAC_EMISOR.ruc) : 'R.U.C. —';
   const letras = _facMontoLetras(T.total, T.moneda);
@@ -11088,6 +11101,7 @@ async function _facGenPDF(c, fmtOverride) {
     const vendA4 = String(c.creado_por || '').trim();
     const foot = doc.splitTextToSize('Representación impresa de la ' + _facTipoShort(c) + ' ELECTRÓNICA. Emitida mediante SUNAT · NubeFact.' + (vendA4 ? '  ·  Emitido por: ' + vendA4 : '') + (hashTxt ? '  ' + hashTxt : ''), W - M - footTextX);
     doc.text(foot, footTextX, footY + 4);
+    _sello(doc, W, H);
     return doc;
   }
 
@@ -11194,6 +11208,7 @@ async function _facGenPDF(c, fmtOverride) {
   const vend80 = String(c.creado_por || '').trim();
   const foot = doc.splitTextToSize('Representación impresa de la ' + _facTipoShort(c) + ' ELECTRÓNICA. SUNAT · NubeFact.' + (vend80 ? ' Emitido por: ' + vend80 : ''), cw);
   doc.text(foot, w / 2, y, { align: 'center' });
+  _sello(doc, w, est);
   return doc;
 }
 function _facPdfFilename(c) {
@@ -14828,7 +14843,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '2.8.0';
+const APP_VERSION = '2.8.1';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
