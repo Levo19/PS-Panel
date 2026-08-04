@@ -1605,6 +1605,9 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 .fac-ibtn.wa { color:#25D366; border-color:rgba(37,211,102,.34); background:rgba(37,211,102,.10); }
 .fac-ibtn.wa:hover { background:rgba(37,211,102,.18); }
 .fac-ibtn.anul.ask { width:auto; padding:0 10px; color:#fff; background:#f87171; border-color:#f87171; font-size:11px; font-weight:800; }
+.fac-ibtn.nc { width:auto; padding:0 10px; color:#a16207; border-color:rgba(161,98,7,.4); background:rgba(251,191,36,.14); font-size:11px; font-weight:900; letter-spacing:.03em; }
+.fac-ibtn.nc:hover { background:rgba(251,191,36,.24); }
+.fac-ibtn.nc.ask { color:#fff; background:#a16207; border-color:#a16207; }
 /* Ícono girando mientras genera imagen / descarga PDF */
 @keyframes facIcoSpin { to { transform:rotate(360deg); } }
 .fac-ibtn.fac-ico-spin { pointer-events:none; }
@@ -3540,6 +3543,7 @@ const PS_POST = {
   set_facturacion_muelle: b => _psRpc('admin_set_facturacion_muelle', { p_on: !!b.on }).then(v => ({ on: v })),
   set_facturacion_config: b => _psRpc('admin_set_facturacion_config', { p_ruta: b.ruta || '', p_token: b.token || '', p_lookup_url: b.lookup_url || '', p_lookup_token: b.lookup_token || '', p_modo: b.modo || '', p_activo: typeof b.activo === 'boolean' ? b.activo : null }).then(() => ({ ok: true })),
   anular_comprobante: b => _psRpc('anular_comprobante', { p_id: b.id, p_motivo: b.motivo || 'Anulación' }),
+  emitir_nota_credito: b => _psRpc('emitir_nota_credito', { p_ref_id: b.ref_id, p_tipo_nota: b.tipo_nota || 1, p_motivo: b.motivo || 'Anulación' }),
   actualizar_contacto_cliente: b => _psRpc('actualizar_contacto_cliente', { p: { doc_tipo: b.doc_tipo, doc_numero: b.doc_numero, email: b.email || null, telefono: b.telefono || null, nombre: b.nombre || null } }),
   guardar_cliente: b => _psRpc('guardar_cliente', { p: { doc_tipo: b.doc_tipo, doc_numero: String(b.doc_numero || '').trim(), nombre: String(b.nombre || '').trim(), direccion: b.direccion || null, email: b.email || null, telefono: b.telefono || null, es_extranjero: !!b.es_extranjero } }),
   resolver_anulacion: b => _psRpc('resolver_anulacion', { p_id: b.id, p_aprobar: !!b.aprobar, p_nota: b.nota || null }),
@@ -8794,6 +8798,37 @@ function _facCliBindManual() {
   const mn = w.querySelector('#fac-cli-mnom'); if (mn) mn.oninput = e => { _facState.manualNombre = e.target.value; };
   const mr = w.querySelector('#fac-cli-mdir'); if (mr) mr.oninput = e => { _facState.manualDir = e.target.value; };
 }
+// Plazo SUNAT de comunicación de baja de una factura/boleta: 7 días desde la emisión. Pasado el
+// plazo NO se puede dar de baja → hay que emitir una Nota de Crédito.
+const _FAC_DIAS_BAJA = 7;
+function _facDentroPlazoBaja(c) {
+  const m = String((c && (c.creado || c.creado_at || c.fecha)) || '').match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return true;   // sin fecha legible → no bloquear (cae al flujo de baja como antes)
+  const emis = new Date(+m[1], +m[2] - 1, +m[3]); emis.setHours(0, 0, 0, 0);
+  const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+  const dias = Math.round((hoy - emis) / 86400000);
+  return dias <= _FAC_DIAS_BAJA;
+}
+// FUERA de plazo (>7 días): reversar con Nota de Crédito. Mismo patrón EN SITIO que _facAnular.
+async function _facEmitirNC(id) {
+  const S = _facState;
+  if (S.anularId !== id) {
+    S.anularId = id; sndTap(); haptic(8); _facRebuildCard(id);
+    clearTimeout(S._anularTo); S._anularTo = setTimeout(() => { if (_facState && _facState.anularId === id) { _facState.anularId = null; _facRebuildCard(id); } }, 3500);
+    return;
+  }
+  S.anularId = null; clearTimeout(S._anularTo); sndTap(); haptic(12);
+  const motivo = (prompt('Motivo de la Nota de Crédito (anulación fuera del plazo de baja):', 'Anulación de la operación') || '').trim();
+  if (!motivo) { _facRebuildCard(id); return; }
+  const r = await apiPost({ accion: 'emitir_nota_credito', ref_id: id, tipo_nota: 1, motivo });   // tipo_nota 1 = anulación
+  if (r.ok) {
+    sndDown(); if (typeof showToast === 'function') showToast('Nota de Crédito emitida — comprobante anulado');
+    var comp = (S.comprobantes || []).find(function (x) { return String(x.id) === String(id); });
+    if (comp) { comp.estado = 'anulada'; comp.anulacion_estado = 'aprobada'; _facRebuildCard(id, true); }
+    // La NC nueva entra por realtime y se anida bajo el padre; respaldo por si no hay realtime:
+    clearTimeout(S._ncReload); S._ncReload = setTimeout(function () { if (_facState) _facLoadHist(); }, 1500);
+  } else _facErr((r.error || 'No se pudo emitir la Nota de Crédito').replace(/^.*?:\s*/, ''));
+}
 async function _facAnular(id) {
   const S = _facState;
   // 1er toque: mostrar "¿Anular?" EN SITIO (repinta SOLO esa card, sin parpadear toda la hoja).
@@ -10609,9 +10644,21 @@ function _facHistCardHTML(c, S, opts) {
   var fotoBtn = '<button class="fac-ibtn foto" onclick="event.stopPropagation();_facVerImagen(\'' + c.id + '\',this)" title="Ver imagen del comprobante" aria-label="Ver imagen">' + svgFoto + '</button>';
   var pdfBtn = '<button class="fac-ibtn pdf" onclick="event.stopPropagation();_facDescargarPDF(\'' + c.id + '\',this)" title="Descargar PDF" aria-label="Descargar PDF">' + svgDl + '</button>';
   var waBtn = anu ? '' : '<button class="fac-ibtn wa" onclick="event.stopPropagation();_facCompartirWAById(\'' + c.id + '\',this)" title="Compartir por WhatsApp (imagen + PDF)" aria-label="Compartir por WhatsApp">' + svgWa + '</button>';
-  var anulBtn = anu ? '' : (S.anularId === c.id
-    ? '<button class="fac-ibtn anul ask" onclick="event.stopPropagation();_facAnular(\'' + c.id + '\')" aria-label="Confirmar anulación">¿Anular?</button>'
-    : '<button class="fac-ibtn anul" onclick="event.stopPropagation();_facAnular(\'' + c.id + '\')" title="Anular" aria-label="Anular">' + svgAnul + '</button>');
+  // Reversar el comprobante: DENTRO de plazo (≤7 días) = comunicación de baja (⊘); FUERA de
+  // plazo = Nota de Crédito (NC). Las NC (tipo 3) no se reversan. El anulado no muestra botón.
+  var esReversable = !anu && Number(c.tipo) !== 3;
+  var anulBtn = '';
+  if (esReversable) {
+    if (_facDentroPlazoBaja(c)) {
+      anulBtn = (S.anularId === c.id)
+        ? '<button class="fac-ibtn anul ask" onclick="event.stopPropagation();_facAnular(\'' + c.id + '\')" aria-label="Confirmar anulación">¿Anular?</button>'
+        : '<button class="fac-ibtn anul" onclick="event.stopPropagation();_facAnular(\'' + c.id + '\')" title="Anular (comunicación de baja)" aria-label="Anular">' + svgAnul + '</button>';
+    } else {
+      anulBtn = (S.anularId === c.id)
+        ? '<button class="fac-ibtn nc ask" onclick="event.stopPropagation();_facEmitirNC(\'' + c.id + '\')" aria-label="Confirmar Nota de Crédito">¿Emitir NC?</button>'
+        : '<button class="fac-ibtn nc" onclick="event.stopPropagation();_facEmitirNC(\'' + c.id + '\')" title="Fuera del plazo de baja (7 días) → emite Nota de Crédito" aria-label="Emitir Nota de Crédito">NC</button>';
+    }
+  }
   var row = '<div class="fac-hcard' + (nested ? ' nested' : '') + '"' + (anu ? ' style="opacity:.62"' : '') + '>' +
       arrow +
       '<div class="fac-hcard-main' + (hasNC ? ' tap' : '') + '"' + headClick + '>' +
@@ -11269,29 +11316,29 @@ window._facDescargarPDF = async function (id, btn) {
   _facState._dlBusy = true;
   if (btn) btn.classList.add('fac-ico-spin');
   try { sndTap(); haptic(10); } catch (e) {}
-  // ANULADO: el PDF oficial de NubeFact es el comprobante emitido (SUNAT NO estampa la baja en él).
-  // Para no entregar un PDF "válido" de un doc anulado, descargamos el NUESTRO con sello ANULADO.
+  // ANULADO: el oficial de NubeFact se ve "válido" (SUNAT no lo estampa) → siempre nuestro PDF sellado.
   const anulado = String(c.estado || '') === 'anulada';
   const oficial = !anulado && /^https?:\/\//.test(String(c.enlace_pdf || ''));
   const nombre = _facPdfFilename(c);
-  const win = oficial ? window.open('', '_blank') : null;   // reservado en el gesto (fallback anti-popup-block)
   try {
+    let bajado = false;
     if (oficial) {
+      // Intenta el PDF OFICIAL de NubeFact. Solo lo usa si responde 200 Y es realmente un PDF
+      // (si el doc fue borrado del panel, NubeFact devuelve una página HTML "no encontrado").
       try {
-        const r = await fetch(c.enlace_pdf); if (!r.ok) throw 0;
-        const blob = await r.blob();
-        if (win) { try { win.close(); } catch (e) {} }
-        _facTriggerDownload(blob, nombre);
-      } catch (e) {
-        if (win && !win.closed) { try { win.location.href = c.enlace_pdf; } catch (e2) { window.open(c.enlace_pdf, '_blank'); } }
-        else window.open(c.enlace_pdf, '_blank', 'noopener');
-      }
-    } else {
-      if (win) { try { win.close(); } catch (e) {} }
-      const doc = await _facGenPDF(c, 'a4'); doc.save(nombre);
+        const r = await fetch(c.enlace_pdf);
+        if (r && r.ok) {
+          const blob = await r.blob();
+          const ct = (blob.type || r.headers.get('content-type') || '');
+          if (/pdf/i.test(ct) || blob.size > 3000) { _facTriggerDownload(blob, nombre); bajado = true; }
+        }
+      } catch (e) {}
     }
+    // Cualquier fallo (CORS, 404, doc borrado del panel NubeFact, sin enlace) → NUESTRO PDF (fiable,
+    // con QR y datos; se genera desde lo guardado, nunca "no encontrado").
+    if (!bajado) { const doc = await _facGenPDF(c, 'a4'); doc.save(nombre); }
     try { sndOk(); } catch (e) {}
-  } catch (e) { if (win) { try { win.close(); } catch (e2) {} } _facErr((e && e.message) || 'No se pudo descargar el PDF'); }
+  } catch (e) { _facErr((e && e.message) || 'No se pudo descargar el PDF'); }
   if (btn) btn.classList.remove('fac-ico-spin');
   _facState._dlBusy = false;
 };
@@ -14846,7 +14893,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '2.8.2';
+const APP_VERSION = '2.9.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
