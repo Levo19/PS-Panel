@@ -8841,14 +8841,32 @@ async function _facEmitirNC(id) {
   S.anularId = null; clearTimeout(S._anularTo); sndTap(); haptic(12);
   const motivo = (prompt('Motivo de la Nota de Crédito (anulación fuera del plazo de baja):', 'Anulación de la operación') || '').trim();
   if (!motivo) { _facRebuildCard(id); return; }
-  const r = await apiPost({ accion: 'emitir_nota_credito', ref_id: id, tipo_nota: 1, motivo });   // tipo_nota 1 = anulación
-  if (r.ok) {
+  var comp = (S.comprobantes || []).find(function (x) { return String(x.id) === String(id); });
+  // OPTIMISTA: feedback inmediato — la card muestra "emitiendo NC…" (spinner), no se congela.
+  if (comp) { comp._ncBusy = true; _facRebuildCard(id); }
+  if (typeof showToast === 'function') showToast('Emitiendo Nota de Crédito…');
+  var r;
+  try { r = await apiPost({ accion: 'emitir_nota_credito', ref_id: id, tipo_nota: 1, motivo }); }   // tipo_nota 1 = anulación
+  catch (e) { r = { ok: false, error: (e && e.message) || 'error' }; }
+  if (comp) comp._ncBusy = false;
+  if (r && r.ok) {
     sndDown(); if (typeof showToast === 'function') showToast('Nota de Crédito emitida — comprobante anulado');
-    var comp = (S.comprobantes || []).find(function (x) { return String(x.id) === String(id); });
-    if (comp) { comp.estado = 'anulada'; comp.anulacion_estado = 'aprobada'; _facRebuildCard(id, true); }
-    // La NC nueva entra por realtime y se anida bajo el padre; respaldo por si no hay realtime:
-    clearTimeout(S._ncReload); S._ncReload = setTimeout(function () { if (_facState) _facLoadHist(); }, 1500);
-  } else _facErr((r.error || 'No se pudo emitir la Nota de Crédito').replace(/^.*?:\s*/, ''));
+    if (comp) {
+      comp.estado = 'anulada'; comp.anulacion_estado = 'aprobada';
+      // Inserta la NC en la lista para que se ANIDE bajo su factura de una vez (queda con el origen).
+      var d = (r.data || {});
+      if (d.id != null && !S.comprobantes.some(function (x) { return String(x.id) === String(d.id); })) {
+        S.comprobantes.unshift({ id: d.id, tipo: 3, serie: d.serie || comp.serie, numero: d.numero, estado: d.estado || 'aceptada',
+          aceptada_por_sunat: d.estado === 'aceptada', enlace_pdf: d.pdf || d.enlace_pdf || '', total: comp.total, moneda: comp.moneda,
+          cliente_nombre: comp.cliente_nombre, cliente_doc: comp.cliente_doc, cliente_doc_tipo: comp.cliente_doc_tipo,
+          doc_modifica_tipo: comp.tipo, doc_modifica_serie: comp.serie, doc_modifica_numero: comp.numero, nc_motivo: motivo,
+          creado: comp.creado, creado_por: (S.ses && S.ses.nombre) || comp.creado_por || '', items: comp.items });
+      }
+      S._histOpen = S._histOpen || {}; S._histOpen[id] = true;   // abre el acordeón → la NC se ve desplegada de una
+      _facRebuildCard(id, true);
+    }
+    clearTimeout(S._ncReload); S._ncReload = setTimeout(function () { if (_facState) _facLoadHist(); }, 2200);   // reconcilia con el server
+  } else { if (comp) _facRebuildCard(id); _facErr((r.error || 'No se pudo emitir la Nota de Crédito').replace(/^.*?:\s*/, '')); }
 }
 async function _facAnular(id) {
   const S = _facState;
@@ -9399,7 +9417,8 @@ function _facSectionBody(S) {
       </div>`).join('') || '<div style="font-size:11px;color:var(--text-muted)">Sin series.</div>'}`;
   } else if (S.tab === 'historial') {
     const sel = S.histMeses || [];
-    const list = !sel.length ? S.comprobantes : S.comprobantes.filter(c => { const p = _facCompPeriodo(c); return !p || sel.includes(p); });
+    // Filtro por PERIODO EFECTIVO: las NC se filtran con el mes de su factura de origen (no el de emisión).
+    const list = !sel.length ? S.comprobantes : S.comprobantes.filter(c => { const p = _facPeriodoEfectivo(c, S.comprobantes); return !p || sel.includes(p); });
     const header = `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">
         <div style="font-size:11px;font-weight:800;color:var(--gold);letter-spacing:.04em">COMPROBANTES EMITIDOS</div>
         <div data-fac-hist-count style="font-size:10px;color:var(--text-muted)">${list.length} en ${sel.length || _tribPeriodos().length} mes${(sel.length || _tribPeriodos().length) === 1 ? '' : 'es'}</div>
@@ -9746,6 +9765,20 @@ function _facCompPeriodo(c) {
   let m = raw.match(/(\d{4})-(\d{2})/); if (m) return m[1] + '-' + m[2];
   m = raw.match(/(\d{2})\/(\d{2})\/(\d{4})/); if (m) return m[3] + '-' + m[2];
   return null;
+}
+// Una Nota de Crédito PERTENECE al periodo (y día) de su factura de origen: así se filtra y agrupa
+// JUNTO a ella y no bajo la fecha en que se emitió la NC (que puede ser hoy). Requiere la lista completa.
+function _facPeriodoEfectivo(c, todos) {
+  const p = _facPadre(c, todos);
+  return p ? _facCompPeriodo(p) : _facCompPeriodo(c);
+}
+function _facDiaKeyEfectivo(c, todos) {
+  const p = _facPadre(c, todos);
+  return _facDiaKey(p || c);
+}
+function _facPadre(c, todos) {
+  if (!c || Number(c.tipo) !== 3 || !c.doc_modifica_serie) return null;
+  return (todos || []).find(function (x) { return Number(x.tipo) === Number(c.doc_modifica_tipo) && String(x.serie) === String(c.doc_modifica_serie) && Number(x.numero) === Number(c.doc_modifica_numero); }) || null;
 }
 // ═══ FASE 1 · MODAL flotante "Emitir CPE" (reusa el form de la sección 'emitir') ═══
 window._facOpenEmit = function () {
@@ -10689,6 +10722,7 @@ function _facHistCardHTML(c, S, opts) {
         : '<button class="fac-ibtn nc" onclick="event.stopPropagation();_facEmitirNC(\'' + c.id + '\')" title="Fuera del plazo de baja (7 días) → emite Nota de Crédito" aria-label="Emitir Nota de Crédito">NC</button>';
     }
   }
+  if (c._ncBusy) anulBtn = '<button class="fac-ibtn nc" style="pointer-events:none" aria-label="Emitiendo Nota de Crédito"><span class="spin fac-cli-spin"></span></button>';   // emisión NC en curso
   var row = '<div class="fac-hcard' + (nested ? ' nested' : '') + '"' + (anu ? ' style="opacity:.62"' : '') + '>' +
       arrow +
       '<div class="fac-hcard-main' + (hasNC ? ' tap' : '') + '"' + headClick + '>' +
@@ -11344,29 +11378,18 @@ window._facDescargarPDF = async function (id, btn) {
   const c = ((_facState && _facState.comprobantes) || []).find(x => String(x.id) === String(id));
   if (!c || !_facState || _facState._dlBusy) return;
   _facState._dlBusy = true;
-  if (btn) btn.classList.add('fac-ico-spin');
-  try { sndTap(); haptic(10); } catch (e) {}
-  // ANULADO: el oficial de NubeFact se ve "válido" (SUNAT no lo estampa) → siempre nuestro PDF sellado.
-  const anulado = String(c.estado || '') === 'anulada';
-  const oficial = !anulado && /^https?:\/\//.test(String(c.enlace_pdf || ''));
+  const oficial = /^https?:\/\//.test(String(c.enlace_pdf || ''));
   const nombre = _facPdfFilename(c);
   try {
-    let bajado = false;
     if (oficial) {
-      // Intenta el PDF OFICIAL de NubeFact. Solo lo usa si responde 200 Y es realmente un PDF
-      // (si el doc fue borrado del panel, NubeFact devuelve una página HTML "no encontrado").
-      try {
-        const r = await fetch(c.enlace_pdf);
-        if (r && r.ok) {
-          const blob = await r.blob();
-          const ct = (blob.type || r.headers.get('content-type') || '');
-          if (/pdf/i.test(ct) || blob.size > 3000) { _facTriggerDownload(blob, nombre); bajado = true; }
-        }
-      } catch (e) {}
+      // DIRECTO de NubeFact: abre el PDF OFICIAL (NubeFact lo entrega con Content-Disposition →
+      // el navegador lo descarga; cross-origin no permite forzar la descarga por fetch).
+      const w = window.open(c.enlace_pdf, '_blank', 'noopener');
+      if (!w) location.assign(c.enlace_pdf);   // popup bloqueado → navega directo
+    } else {
+      // Sin enlace oficial (raro) → generamos el nuestro.
+      const doc = await _facGenPDF(c, 'a4'); doc.save(nombre);
     }
-    // Cualquier fallo (CORS, 404, doc borrado del panel NubeFact, sin enlace) → NUESTRO PDF (fiable,
-    // con QR y datos; se genera desde lo guardado, nunca "no encontrado").
-    if (!bajado) { const doc = await _facGenPDF(c, 'a4'); doc.save(nombre); }
     try { sndOk(); } catch (e) {}
   } catch (e) { _facErr((e && e.message) || 'No se pudo descargar el PDF'); }
   if (btn) btn.classList.remove('fac-ico-spin');
@@ -14923,7 +14946,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '2.9.1';
+const APP_VERSION = '2.9.2';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
