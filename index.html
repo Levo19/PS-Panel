@@ -2268,15 +2268,15 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 .fpdf-a4-emisor { display:flex; align-items:flex-start; gap:11px; min-width:0; flex:1 1 auto; }
 .fpdf-a4-emisor > div { min-width:0; }
 .fpdf-a4-emisor img { height:46px; flex:0 0 auto; }
-.fpdf-a4-docbox { flex:0 0 auto; text-align:center; border:1px solid #5E6684; border-radius:5px; padding:8px 12px; width:150px; }
+.fpdf-a4-docbox { flex:0 0 auto; text-align:center; border:1px solid #A81C2D; border-radius:5px; padding:8px 12px; width:150px; }
 .fpdf-a4-meta { display:flex; justify-content:space-between; gap:16px; font-size:10.5px; }
 .fpdf-a4-metacol { min-width:0; }
 .fpdf-a4-metacol > div { padding:1px 0; }
 .fpdf-a4-metacol.r { text-align:right; }
-.fpdf-a4-meta .lbl { color:#5E6684; font-weight:800; font-size:8.5px; letter-spacing:.04em; margin-right:4px; }
+.fpdf-a4-meta .lbl { color:#A81C2D; font-weight:800; font-size:8.5px; letter-spacing:.04em; margin-right:4px; }
 .fpdf-a4-body { display:flex; gap:14px; align-items:flex-start; margin-top:11px; }
 .fpdf-a4-tbl { flex:1 1 auto; min-width:0; }
-.fpdf-a4-tot { flex:0 0 36%; max-width:220px; min-width:0; background:#faf6ef; border:1px solid #5E6684; border-radius:5px; padding:10px 12px; font-size:11px; }
+.fpdf-a4-tot { flex:0 0 36%; max-width:220px; min-width:0; background:#faf6ef; border:1px solid #A81C2D; border-radius:5px; padding:10px 12px; font-size:11px; }
 .fpdf-a4-tot .fpdf-tot-row span:first-child { min-width:0; }
 .fpdf-a4-tot b, .fpdf-a4-tot .fpdf-tot-grand span:last-child { white-space:nowrap; }
 @media(max-width:560px){
@@ -2293,16 +2293,16 @@ select.config-input option { background: #1e0a10; color: var(--text); }
   .fpdf-a4-tot .fpdf-tot-row { gap:4px; }
   .fpdf-a4-tbl { font-size:9px; }
 }
-.fpdf-brand { font-weight:900; letter-spacing:-.4px; color:#5E6684; }
+.fpdf-brand { font-weight:900; letter-spacing:-.4px; color:#A81C2D; }
 .fpdf-gold { color:#8a6d1f; }
 .fpdf-hr { border:none; border-top:1px dashed #c9c1c1; margin:9px 0; }
-.fpdf-hr-solid { border:none; border-top:1.5px solid #5E6684; margin:9px 0; }
+.fpdf-hr-solid { border:none; border-top:1.5px solid #A81C2D; margin:9px 0; }
 .fpdf-tbl { width:100%; border-collapse:collapse; }
-.fpdf-tbl th { text-align:left; font-size:9.5px; text-transform:uppercase; letter-spacing:.03em; color:#5E6684; border-bottom:1px solid #5E6684; padding:4px 2px; }
+.fpdf-tbl th { text-align:left; font-size:9.5px; text-transform:uppercase; letter-spacing:.03em; color:#A81C2D; border-bottom:1px solid #A81C2D; padding:4px 2px; }
 .fpdf-tbl td { padding:4px 2px; border-bottom:1px solid #eee; vertical-align:top; }
 .fpdf-tbl .num { text-align:right; white-space:nowrap; }
 .fpdf-tot-row { display:flex; justify-content:space-between; gap:12px; padding:1.5px 0; }
-.fpdf-tot-grand { font-weight:900; font-size:14px; color:#5E6684; border-top:1.5px solid #5E6684; margin-top:4px; padding-top:5px; }
+.fpdf-tot-grand { font-weight:900; font-size:14px; color:#A81C2D; border-top:1.5px solid #A81C2D; margin-top:4px; padding-top:5px; }
 .fpdf-foot { margin-top:10px; font-size:8.5px; color:#666; line-height:1.4; text-align:center; }
 .fpdf-actions { display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-top:16px; }
 .fpdf-act { display:flex; align-items:center; justify-content:center; gap:7px; padding:12px 8px; border-radius:13px; font-size:13px; font-weight:800; cursor:pointer; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.06); color:var(--text); transition:transform .13s, filter .15s, background .15s; -webkit-tap-highlight-color:transparent; text-decoration:none; }
@@ -10565,7 +10565,7 @@ function _facNCLegalHTML(c, compact) {
   var pad = compact ? '5px 8px' : '7px 11px';
   var fs = compact ? '8.5px' : '9.5px';
   return '<div style="margin:' + (compact ? '5px 0' : '9px 0') + ';padding:' + pad + ';border:1px solid #C9A84C;background:#FBF4E0;border-radius:6px;line-height:1.35">' +
-    '<div style="font-weight:900;color:#5E6684;font-size:' + fs + ';letter-spacing:.02em">MODIFICA A: ' + _facEsc(L.ref || '—') + '</div>' +
+    '<div style="font-weight:900;color:#A81C2D;font-size:' + fs + ';letter-spacing:.02em">MODIFICA A: ' + _facEsc(L.ref || '—') + '</div>' +
     '<div style="font-size:' + (compact ? '8px' : '9px') + ';color:#333;font-weight:600;margin-top:2px">MOTIVO: ' + _facEsc(L.motivo || '—') + '</div></div>';
 }
 // Card del historial (fila + acordeón de NCs anidadas). opts.ncs = NCs hijas · opts.nested = fila anidada.
@@ -10778,8 +10778,8 @@ function _facDetraccionHTML(c, T, compact) {
   var d = _facDetraccion(c, T); if (!d) return '';
   var pad = compact ? '5px 8px' : '7px 11px';
   var fs = compact ? '8px' : '9px';
-  return '<div style="margin:' + (compact ? '5px 0' : '9px 0') + ';padding:' + pad + ';border:1px solid #5E6684;background:#FBF0EE;border-radius:6px;line-height:1.35">' +
-    '<div style="font-weight:900;color:#5E6684;font-size:' + fs + ';letter-spacing:.01em">' + _facEsc(_facDetraccionTexto(d)) + '</div></div>';
+  return '<div style="margin:' + (compact ? '5px 0' : '9px 0') + ';padding:' + pad + ';border:1px solid #A81C2D;background:#FBF0EE;border-radius:6px;line-height:1.35">' +
+    '<div style="font-weight:900;color:#A81C2D;font-size:' + fs + ';letter-spacing:.01em">' + _facEsc(_facDetraccionTexto(d)) + '</div></div>';
 }
 const _facMoney = v => (Number(v) || 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 function _facNumFmt(c) { return (c.serie || '') + '-' + String(c.numero || 0).padStart(8, '0'); }
@@ -10841,7 +10841,7 @@ function _facPdfPreviewHTML(c, fmt) {
           </div>
         </div>
         <div class="fpdf-a4-docbox">
-          <div style="font-weight:900;color:#5E6684;font-size:10.5px;letter-spacing:.02em;line-height:1.15">${_facTituloDoc(c)}</div>
+          <div style="font-weight:900;color:#A81C2D;font-size:10.5px;letter-spacing:.02em;line-height:1.15">${_facTituloDoc(c)}</div>
           <div style="font-weight:800;font-size:14px;margin-top:4px">${_facEsc(num)}</div>
         </div>
       </div>
@@ -10889,7 +10889,7 @@ function _facPdfPreviewHTML(c, fmt) {
     </div>
     <div class="fpdf-hr-solid"></div>
     <div style="text-align:center">
-      <div style="font-weight:900;color:#5E6684;font-size:11px;letter-spacing:.02em">${_facTituloDoc(c)}</div>
+      <div style="font-weight:900;color:#A81C2D;font-size:11px;letter-spacing:.02em">${_facTituloDoc(c)}</div>
       <div style="font-weight:800;font-size:12px;margin-top:2px">${_facEsc(num)}</div>
     </div>
     <div class="fpdf-hr"></div>
@@ -10931,7 +10931,7 @@ async function _facGenPDF(c, fmtOverride) {
   const T = _facPdfTotales(c);
   const num = _facNumFmt(c);
   const ncL = _facNCLegal(c);   // bloque legal SUNAT si es Nota de Crédito
-  const guinda = [123, 32, 48], ink = [26, 26, 26], gray = [110, 110, 110];
+  const guinda = [168, 28, 45], ink = [26, 26, 26], gray = [110, 110, 110];
   const fecha = String(c.creado || c.fecha || c.creado_at || '').slice(0, 16);
   const rucLine = _FAC_EMISOR.ruc ? ('R.U.C. ' + _FAC_EMISOR.ruc) : 'R.U.C. —';
   const letras = _facMontoLetras(T.total, T.moneda);
@@ -14903,7 +14903,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '2.7.2';
+const APP_VERSION = '2.7.3';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
