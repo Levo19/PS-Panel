@@ -1582,6 +1582,13 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 .fac-hist-ncnote { color:#fbbf24; font-weight:700; }
 .fac-hist-nc { background:rgba(251,191,36,.05); border-left:2px solid rgba(251,191,36,.4); }
 /* Card de comprobante (móvil + tablet): 2 columnas apiladas, altura uniforme, aprovecha el ancho */
+/* Historial agrupado por día: sin contenedor con borde; cabecera "Lunes 02 Agosto" por grupo */
+.fac-hist-grouped { display:flex; flex-direction:column; }
+.fac-hist-day { font-size:11px; font-weight:800; color:var(--gold); letter-spacing:.04em; padding:5px 3px 5px; margin-top:11px; display:flex; align-items:center; gap:9px; }
+.fac-hist-day:first-child { margin-top:2px; }
+.fac-hist-day::after { content:""; flex:1; height:1px; background:linear-gradient(90deg,rgba(201,168,76,.35),transparent); }
+.fac-hist-grouped > .fac-hist-item { margin-bottom:7px; }
+.fac-hist-grouped > .fac-hist-item > .fac-hcard { border:1px solid var(--border); border-radius:13px; }
 .fac-hcard { display:flex; gap:9px; padding:10px 12px; border-bottom:1px solid var(--border); align-items:flex-start; }
 .fac-hcard.nested { padding-left:18px; background:rgba(251,191,36,.05); border-left:2px solid rgba(251,191,36,.4); }
 .fac-hcard-main { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:6px; }
@@ -8099,6 +8106,20 @@ function _facErr(msg) { sndErr(); haptic([60, 30, 60]); if (typeof showToast ===
 // Chip de estado VERAZ: "SUNAT ✓" solo cuando SUNAT de verdad aceptó (CDR). Un doc emitido con
 // PDF/QR es VÁLIDO desde ya, pero las boletas viajan por Resumen Diario y SUNAT las confirma
 // después (horas) — ese estado intermedio se muestra "válida · ⏳ SUNAT", no "aceptada" a secas.
+// Clave y etiqueta de día para agrupar el historial. "Lunes 02 Agosto".
+function _facDiaKey(c) {
+  const m = String((c && (c.creado || c.creado_at || c.fecha)) || '').match(/(\d{4})-(\d{2})-(\d{2})/);
+  return m ? (m[1] + '-' + m[2] + '-' + m[3]) : '';
+}
+function _facDiaLabel(c) {
+  const m = String((c && (c.creado || c.creado_at || c.fecha)) || '').match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return 'Sin fecha';
+  const d = new Date(+m[1], +m[2] - 1, +m[3]);
+  const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+  const wd = cap(d.toLocaleDateString('es-PE', { weekday: 'long' }));
+  const mes = cap(d.toLocaleDateString('es-PE', { month: 'long' }));
+  return wd + ' ' + String(+m[3]).padStart(2, '0') + ' ' + mes;
+}
 function _facChipEstado(c) {
   const est = String((c && c.estado) || '').toLowerCase();
   const sunatOk = !!(c && c.aceptada_por_sunat === true);
@@ -9395,12 +9416,20 @@ function _facSectionBody(S) {
         if (_histIn[pk]) { (_histNC[pk] = _histNC[pk] || []).push(c); _histNested[String(c.id)] = 1; }
       }
     });
+    // Agrupado por DÍA dentro del mes: cabecera "Lunes 02 Agosto"; la fecha ya no va en cada card (solo hora).
+    const _histBody = () => {
+      let html = '', dia = null;
+      for (const c of list) {
+        if (_histNested[String(c.id)]) continue;   // NC anidada → se pinta bajo su padre
+        const dk = _facDiaKey(c);
+        if (dk !== dia) { dia = dk; html += `<div class="fac-hist-day">${_facEsc(_facDiaLabel(c))}</div>`; }
+        html += _facHistItemHTML(c, S, { ncs: _histNC[_histKey(c.tipo, c.serie, c.numero)] });
+      }
+      return html;
+    };
     body = header +
       (S.cargandoHist ? '<div style="text-align:center;padding:24px"><div class="spin" style="display:inline-block"></div></div>' :
-       (list.length ? `<div data-fac-hist-list style="border:1px solid var(--border);border-radius:14px;overflow:hidden">${list.map(c => {
-          if (_histNested[String(c.id)]) return '';   // se pinta anidada bajo su padre
-          return _facHistItemHTML(c, S, { ncs: _histNC[_histKey(c.tipo, c.serie, c.numero)] });
-        }).join('')}</div>` :
+       (list.length ? `<div data-fac-hist-list class="fac-hist-grouped">${_histBody()}</div>` :
         '<div style="padding:18px;text-align:center;color:var(--text-muted);font-size:12px">Sin comprobantes en los meses elegidos.</div>'));
   } else if (S.tab === 'anulaciones') {
     body = `<div style="font-size:11px;font-weight:800;color:var(--gold);margin-bottom:8px">SOLICITUDES DE ANULACIÓN</div>
@@ -10635,7 +10664,8 @@ function _facHistCardHTML(c, S, opts) {
   var headClick = hasNC ? ' onclick="_facHistToggle(\'' + c.id + '\')" role="button" aria-expanded="' + open + '"' : '';
   var num6 = String(c.numero).padStart(6, '0');
   var fm = String(c.creado || '').match(/(\d{4})-(\d{2})-(\d{2})(?:[T\s](\d{1,2}:\d{2}))?/);
-  var fecha = fm ? (fm[3] + '/' + fm[2] + (fm[4] ? ' · ' + fm[4] : '')) : String(c.creado || '');   // "02/08 · 10:45"
+  // La fecha ya vive en la cabecera del día → en la card solo la HORA (evita redundancia).
+  var fecha = fm ? (fm[4] ? '🕐 ' + fm[4] : fm[3] + '/' + fm[2]) : String(c.creado || '');
   var svgPdf = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6"/><path d="M9 17h4"/></svg>';
   var svgAnul = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M5.8 5.8l12.4 12.4"/></svg>';
   var svgWa = '<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M17.47 14.38c-.29-.14-1.72-.85-1.99-.95-.27-.1-.46-.14-.65.15-.19.28-.74.94-.91 1.13-.17.19-.34.21-.63.07-.29-.14-1.22-.45-2.33-1.44-.86-.77-1.44-1.72-1.61-2.01-.17-.29-.02-.44.13-.59.13-.13.29-.34.43-.51.15-.17.19-.29.29-.48.1-.19.05-.36-.02-.5-.07-.14-.65-1.57-.89-2.15-.24-.56-.48-.48-.65-.49h-.56c-.19 0-.5.07-.77.36-.27.29-1.01.99-1.01 2.41s1.04 2.8 1.18 2.99c.14.19 2.03 3.1 4.92 4.35.69.3 1.22.47 1.64.61.69.22 1.31.19 1.81.11.55-.08 1.72-.7 1.96-1.38.24-.68.24-1.26.17-1.38-.07-.12-.26-.19-.55-.34zM12.05 2.9c-5.04 0-9.14 4.1-9.14 9.14 0 1.61.42 3.18 1.22 4.57L2.83 21.1l4.62-1.21a9.1 9.1 0 0 0 4.6 1.24h.01c5.04 0 9.14-4.1 9.14-9.14 0-2.44-.95-4.74-2.68-6.46a9.08 9.08 0 0 0-6.47-2.67zm0 16.65h-.01a7.6 7.6 0 0 1-3.87-1.06l-.28-.16-2.87.75.77-2.8-.18-.29a7.55 7.55 0 0 1-1.16-4.03c0-4.19 3.41-7.6 7.6-7.6a7.56 7.56 0 0 1 7.6 7.6c0 4.19-3.41 7.6-7.6 7.6z"/></svg>';
@@ -14893,7 +14923,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '2.9.0';
+const APP_VERSION = '2.9.1';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
