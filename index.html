@@ -11269,7 +11269,10 @@ window._facDescargarPDF = async function (id, btn) {
   _facState._dlBusy = true;
   if (btn) btn.classList.add('fac-ico-spin');
   try { sndTap(); haptic(10); } catch (e) {}
-  const oficial = /^https?:\/\//.test(String(c.enlace_pdf || ''));
+  // ANULADO: el PDF oficial de NubeFact es el comprobante emitido (SUNAT NO estampa la baja en él).
+  // Para no entregar un PDF "válido" de un doc anulado, descargamos el NUESTRO con sello ANULADO.
+  const anulado = String(c.estado || '') === 'anulada';
+  const oficial = !anulado && /^https?:\/\//.test(String(c.enlace_pdf || ''));
   const nombre = _facPdfFilename(c);
   const win = oficial ? window.open('', '_blank') : null;   // reservado en el gesto (fallback anti-popup-block)
   try {
@@ -11345,9 +11348,9 @@ async function _facCompartirWA(c, origen, telOpt, btn) {
   // 1) Genera la imagen (puede fallar sin red/librería).
   let imgBlob = null;
   try { const img = await _facRasterizar(c, fmt); imgBlob = img.blob; } catch (e) {}
-  // 2) PDF: PREFERIR el enlace OFICIAL de NubeFact (ya existe → más rápido, y es el documento
-  //    legal de SUNAT). Solo si no hay, generamos+subimos el nuestro. La imagen sí es nuestra.
-  const oficial = /^https?:\/\//.test(String(c.enlace_pdf || ''));
+  // 2) PDF: enlace OFICIAL de NubeFact (más rápido, doc legal) salvo que esté ANULADO — en ese
+  //    caso el oficial se ve "válido" (SUNAT no lo estampa) → mandamos el NUESTRO con sello.
+  const oficial = String(c.estado || '') !== 'anulada' && /^https?:\/\//.test(String(c.enlace_pdf || ''));
   const [pdfPropio, imgLink] = await Promise.all([
     oficial ? Promise.resolve('') : _facSubirComprobante(c, 'pdf', null),
     imgBlob ? _facSubirComprobante(c, 'png', imgBlob) : Promise.resolve('')
@@ -14843,7 +14846,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '2.8.1';
+const APP_VERSION = '2.8.2';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
