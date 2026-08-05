@@ -1602,6 +1602,17 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 .fac-ibtn { width:30px; height:30px; display:inline-flex; align-items:center; justify-content:center; border-radius:9px; cursor:pointer; border:1px solid; background:transparent; padding:0; flex:0 0 auto; transition:transform .14s cubic-bezier(.34,1.56,.64,1), background .16s; -webkit-tap-highlight-color:transparent; }
 .fac-ibtn:hover { transform:translateY(-1px); }
 .fac-ibtn:active { transform:scale(.88); }
+/* Voucher de detracción: verde = cargado · rojo latiendo = falta la constancia */
+.fac-ibtn.vch.ok { color:#15803d; border-color:rgba(34,197,94,.5); background:rgba(34,197,94,.12); }
+.fac-ibtn.vch.miss { color:#dc2626; border-color:rgba(220,38,38,.55); background:rgba(220,38,38,.1); animation:facVchPulse 1.5s ease-in-out infinite; }
+@keyframes facVchPulse { 0%,100%{ box-shadow:0 0 0 0 rgba(220,38,38,.35); } 50%{ box-shadow:0 0 0 5px rgba(220,38,38,0); } }
+.fac-vch-sheet { position:fixed; inset:0; z-index:10050; background:rgba(0,0,0,.55); display:flex; align-items:flex-end; justify-content:center; padding:0 0 max(12px,env(safe-area-inset-bottom)); }
+.fac-vch-card { width:100%; max-width:430px; background:var(--card,#1b1b1f); border-radius:18px 18px 0 0; padding:18px; animation:facSheetUp .24s ease; }
+@keyframes facSheetUp { from{ transform:translateY(30px); opacity:.6; } to{ transform:translateY(0); opacity:1; } }
+.fac-vch-opt { display:flex; align-items:center; gap:10px; padding:14px; border:1px solid var(--border); border-radius:12px; margin-bottom:9px; font-weight:700; font-size:14px; cursor:pointer; color:var(--text); }
+.fac-vch-opt:active { transform:scale(.98); }
+.fac-vch-cancel { width:100%; padding:12px; border:none; background:transparent; color:var(--text-muted); font-weight:700; font-size:14px; cursor:pointer; }
+@media (prefers-reduced-motion: reduce){ .fac-ibtn.vch.miss{ animation:none; } .fac-vch-card{ animation:none; } }
 .fac-ibtn svg { display:block; }
 .fac-ibtn.foto { color:#38bdf8; border-color:rgba(56,189,248,.34); background:rgba(56,189,248,.10); }
 .fac-ibtn.foto:hover { background:rgba(56,189,248,.18); }
@@ -3550,6 +3561,7 @@ const PS_POST = {
   set_facturacion_config: b => _psRpc('admin_set_facturacion_config', { p_ruta: b.ruta || '', p_token: b.token || '', p_lookup_url: b.lookup_url || '', p_lookup_token: b.lookup_token || '', p_modo: b.modo || '', p_activo: typeof b.activo === 'boolean' ? b.activo : null }).then(() => ({ ok: true })),
   anular_comprobante: b => _psRpc('anular_comprobante', { p_id: b.id, p_motivo: b.motivo || 'Anulación' }),
   emitir_nota_credito: b => _psRpc('emitir_nota_credito', { p_ref_id: b.ref_id, p_tipo_nota: b.tipo_nota || 1, p_motivo: b.motivo || 'Anulación' }),
+  set_detraccion_voucher: b => _psRpc('set_detraccion_voucher', { p_id: b.ref_id, p_path: b.path || null }),
   actualizar_contacto_cliente: b => _psRpc('actualizar_contacto_cliente', { p: { doc_tipo: b.doc_tipo, doc_numero: b.doc_numero, email: b.email || null, telefono: b.telefono || null, nombre: b.nombre || null } }),
   guardar_cliente: b => _psRpc('guardar_cliente', { p: { doc_tipo: b.doc_tipo, doc_numero: String(b.doc_numero || '').trim(), nombre: String(b.nombre || '').trim(), direccion: b.direccion || null, email: b.email || null, telefono: b.telefono || null, es_extranjero: !!b.es_extranjero } }),
   resolver_anulacion: b => _psRpc('resolver_anulacion', { p_id: b.id, p_aprobar: !!b.aprobar, p_nota: b.nota || null }),
@@ -8226,12 +8238,15 @@ function _facToggleExport() {
 // Bloque visual de requisitos (va DEBAJO del botón Emitir). Sin pendientes → línea verde
 // tranquilizadora: una boleta simple no tiene requisitos y eso también hay que decirlo.
 function _facReglasHTML() {
-  const rg = _facReglas();
-  if (!rg.length) return `<div style="border:1px solid rgba(74,222,128,.25);border-radius:10px;padding:8px 11px;background:rgba(74,222,128,.05);font-size:11.5px;color:#4ade80">🟢 Sin requisitos SUNAT pendientes — listo para emitir</div>`;
-  return `<div style="border:1px solid var(--border);border-radius:10px;padding:9px 11px;background:rgba(255,255,255,0.02)">
+  const S = _facState, rg = _facReglas();
+  const detr = _facDetraccionHTML({ tipo: S.tipo }, _facTotales(), true);   // desglose SPOT si aplica (factura nacional > S/700)
+  const reglas = !rg.length
+    ? `<div style="border:1px solid rgba(74,222,128,.25);border-radius:10px;padding:8px 11px;background:rgba(74,222,128,.05);font-size:11.5px;color:#4ade80">🟢 Sin requisitos SUNAT pendientes — listo para emitir</div>`
+    : `<div style="border:1px solid var(--border);border-radius:10px;padding:9px 11px;background:rgba(255,255,255,0.02)">
     <div style="font-size:10px;font-weight:800;color:var(--text-muted);letter-spacing:.05em;margin-bottom:5px">REQUISITOS SUNAT</div>
     ${rg.map(r=>`<div style="display:flex;align-items:center;gap:7px;font-size:12px;padding:2px 0;color:${r.ok?'var(--text)':'#fbbf24'}"><span>${r.ok?'🟢':(r.hard?'🔴':'🟡')}</span><span>${r.label}</span></div>`).join('')}
   </div>`;
+  return reglas + detr;
 }
 // Motor de reglas SUNAT EN VIVO — devuelve requisitos con estado (todos hard salvo marca).
 function _facReglas() {
@@ -10696,6 +10711,14 @@ function _facHistCardHTML(c, S, opts) {
   }
   if (c._ncBusy) anulBtn = '<button class="fac-ibtn nc" style="pointer-events:none" aria-label="Emitiendo Nota de Crédito"><span class="spin fac-cli-spin"></span></button>';   // emisión NC en curso
   if (c._anulBusy) anulBtn = '<button class="fac-ibtn anul" style="pointer-events:none" aria-label="Anulando"><span class="spin fac-cli-spin"></span></button>';   // comunicación de baja en curso
+  // Voucher de detracción: solo si la factura tiene detracción y no está anulada. Verde=cargado, rojo=falta.
+  var voucherBtn = '';
+  if (!anu && window._facTieneDetr && _facTieneDetr(c)) {
+    var _vhas = !!(c.detraccion_voucher && String(c.detraccion_voucher).trim());
+    voucherBtn = c._vchBusy
+      ? '<button class="fac-ibtn vch" style="pointer-events:none" aria-label="Subiendo voucher"><span class="spin fac-cli-spin"></span></button>'
+      : '<button class="fac-ibtn vch ' + (_vhas ? 'ok' : 'miss') + '" onclick="event.stopPropagation();_facVoucher(\'' + c.id + '\')" title="' + (_vhas ? 'Voucher de detracción cargado — ver/cambiar' : 'Falta el voucher de detracción (12% BN) — subir') + '" aria-label="Voucher de detracción">🧾</button>';
+  }
   var row = '<div class="fac-hcard' + (nested ? ' nested' : '') + '"' + (anu ? ' style="opacity:.62"' : '') + '>' +
       arrow +
       '<div class="fac-hcard-main' + (hasNC ? ' tap' : '') + '"' + headClick + '>' +
@@ -10711,7 +10734,7 @@ function _facHistCardHTML(c, S, opts) {
             '<span class="fac-hcard-est">' + _facChipEstado(c) + '</span>' +
             ncNote +
           '</div>' +
-          '<div class="fac-hcard-acts">' + togBtn + fotoBtn + pdfBtn + waBtn + anulBtn + '</div>' +
+          '<div class="fac-hcard-acts">' + togBtn + fotoBtn + pdfBtn + voucherBtn + waBtn + anulBtn + '</div>' +
         '</div>' +
       '</div>' +
     '</div>';
@@ -10864,9 +10887,11 @@ function _facDetraccion(c, T) {
   if ((Number(T && T.exportacion) || 0) > 0 || (Number(T && T.grav) || 0) <= 0) return null;
   var total = Number(T && T.total) || 0;
   if (total <= _FAC_DETRACCION.umbral) return null;   // SPOT aplica a operaciones MAYORES a S/700 (backend: v_total > 700)
+  var monto = Math.round(total * _FAC_DETRACCION.rate * 100) / 100;
   return {
     rate: _FAC_DETRACCION.rate,
-    monto: Math.round(total * _FAC_DETRACCION.rate * 100) / 100,
+    monto: monto,
+    neto: Math.round((total - monto) * 100) / 100,   // lo que el cliente paga directo al proveedor
     codigo: _FAC_DETRACCION.codigo, concepto: _FAC_DETRACCION.concepto,
     banco: _FAC_DETRACCION.banco, cuenta: String(_FAC_DETRACCION.cuenta || '').trim()
   };
@@ -10882,8 +10907,12 @@ function _facDetraccionHTML(c, T, compact) {
   var d = _facDetraccion(c, T); if (!d) return '';
   var pad = compact ? '5px 8px' : '7px 11px';
   var fs = compact ? '8px' : '9px';
+  var fsRow = compact ? '9px' : '10.5px';
+  var pct = (d.rate * 100).toLocaleString('es-PE', { maximumFractionDigits: 2 });
   return '<div style="margin:' + (compact ? '5px 0' : '9px 0') + ';padding:' + pad + ';border:1px solid #A81C2D;background:#FBF0EE;border-radius:6px;line-height:1.35">' +
-    '<div style="font-weight:900;color:#A81C2D;font-size:' + fs + ';letter-spacing:.01em">' + _facEsc(_facDetraccionTexto(d)) + '</div></div>';
+    '<div style="display:flex;justify-content:space-between;gap:8px;font-weight:900;color:#A81C2D;font-size:' + fsRow + '"><span>Neto a pagar al proveedor</span><span>S/ ' + _facMoney(d.neto) + '</span></div>' +
+    '<div style="display:flex;justify-content:space-between;gap:8px;font-weight:800;color:#A81C2D;font-size:' + fsRow + ';margin-top:1px"><span>Detracción ' + pct + '% → depositar en cta. BN</span><span>S/ ' + _facMoney(d.monto) + '</span></div>' +
+    '<div style="font-weight:700;color:#A81C2D;font-size:' + fs + ';letter-spacing:.01em;margin-top:3px">' + _facEsc(_facDetraccionTexto(d)) + '</div></div>';
 }
 const _facMoney = v => (Number(v) || 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 function _facNumFmt(c) { return (c.serie || '') + '-' + String(c.numero || 0).padStart(8, '0'); }
@@ -11337,6 +11366,76 @@ window._facCerrarImagen = function () {
   const ov = document.getElementById('fac-img-modal');
   if (ov) { ov.classList.remove('visible'); setTimeout(() => { if (ov.parentNode) ov.remove(); }, 240); }
   try { haptic(8); } catch (e) {}
+};
+// ── VOUCHER de detracción (constancia del depósito del 12% en cta. BN) ──
+// El comprobante con detracción DEBE tener su voucher: botón verde = cargado, rojo latiendo = falta.
+window._facTieneDetr = function (c) { return !!(c && (c.detraccion || Number(c.detraccion_total) > 0)); };
+window._facVoucher = function (id) {
+  const c = ((_facState && _facState.comprobantes) || []).find(x => String(x.id) === String(id)); if (!c) return;
+  if (c.detraccion_voucher && String(c.detraccion_voucher).trim()) _facVoucherVer(id);   // ya tiene → preview
+  else _facVoucherPick(id);                                                               // vacío → cámara/galería
+};
+window._facVoucherPick = function (id) {
+  _facVoucherCloseSheet();
+  const ov = document.createElement('div'); ov.className = 'fac-vch-sheet'; ov.id = 'fac-vch-sheet';
+  ov.innerHTML = `<div class="fac-vch-card" onclick="event.stopPropagation()">
+    <div style="font-weight:800;font-size:15px;margin-bottom:3px">Voucher de detracción</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:13px;line-height:1.4">Sube la constancia del depósito del 12% en la cuenta del Banco de la Nación.</div>
+    <label class="fac-vch-opt">📷 <span>Tomar foto</span><input type="file" accept="image/*" capture="environment" style="display:none" onchange="_facVoucherUpload('${id}', this.files && this.files[0])"></label>
+    <label class="fac-vch-opt">🖼️ <span>Elegir de galería</span><input type="file" accept="image/*" style="display:none" onchange="_facVoucherUpload('${id}', this.files && this.files[0])"></label>
+    <button class="fac-vch-cancel" onclick="_facVoucherCloseSheet()">Cancelar</button>
+  </div>`;
+  ov.addEventListener('click', e => { if (e.target === ov) _facVoucherCloseSheet(); });
+  document.body.appendChild(ov);
+  try { haptic(8); } catch (e) {}
+};
+window._facVoucherCloseSheet = function () { const s = document.getElementById('fac-vch-sheet'); if (s) s.remove(); };
+window._facVoucherUpload = async function (id, file) {
+  _facVoucherCloseSheet();
+  if (!file) return;
+  const c = ((_facState && _facState.comprobantes) || []).find(x => String(x.id) === String(id)); if (!c) return;
+  if (c._vchBusy) return; c._vchBusy = true; _facRebuildCard(id);
+  try {
+    if (typeof showToast === 'function') showToast('Subiendo voucher…');
+    const ext = (file.type && file.type.indexOf('png') >= 0) ? 'png' : 'jpg';
+    const path = 'voucher/' + String(id) + '.' + ext;
+    const { error: upErr } = await sbClient.storage.from('comprobante-pdfs').upload(path, file, { contentType: file.type || 'image/jpeg', upsert: true });
+    if (upErr) throw upErr;
+    const r = await apiPost({ accion: 'set_detraccion_voucher', ref_id: id, path });
+    if (!r.ok) throw new Error(r.error || 'no se pudo guardar');
+    c.detraccion_voucher = path;
+    try { sndOk(); haptic([12, 30, 12]); } catch (e) {}
+    if (typeof showToast === 'function') showToast('✓ Voucher guardado');
+  } catch (e) { _facErr('No se pudo subir el voucher'); }
+  c._vchBusy = false; _facRebuildCard(id, true);
+};
+window._facVoucherVer = async function (id) {
+  const c = ((_facState && _facState.comprobantes) || []).find(x => String(x.id) === String(id)); if (!c || !c.detraccion_voucher) return;
+  let url = '';
+  try { const { data: sd } = await sbClient.storage.from('comprobante-pdfs').createSignedUrl(c.detraccion_voucher, 3600); url = (sd && sd.signedUrl) || ''; } catch (e) {}
+  if (!url) return _facErr('No se pudo abrir el voucher');
+  let ov = document.getElementById('fac-vch-ov');
+  if (!ov) { ov = document.createElement('div'); ov.id = 'fac-vch-ov'; ov.className = 'fac-img-ov'; document.body.appendChild(ov); ov.addEventListener('click', e => { if (e.target === ov) _facVoucherCerrar(); }); }
+  ov.innerHTML = `<div class="fac-img-box">
+    <button class="fac-img-x" onclick="_facVoucherCerrar()" aria-label="Cerrar">×</button>
+    <div class="fac-img-scroll"><img src="${url}" alt="Voucher de detracción" class="fac-img-pic"></div>
+    <div style="display:flex;gap:8px;padding:10px 12px">
+      <button onclick="_facVoucherCerrar();_facVoucherPick('${id}')" style="flex:1;padding:11px;border-radius:11px;border:1px solid var(--border);background:transparent;color:var(--text);font-weight:700;cursor:pointer">Cambiar</button>
+      <button onclick="_facVoucherDel('${id}')" style="flex:1;padding:11px;border-radius:11px;border:none;background:linear-gradient(135deg,#b91c1c,#7f1d1d);color:#fff;font-weight:800;cursor:pointer">Quitar</button>
+    </div>
+  </div>`;
+  ov.style.display = 'flex'; requestAnimationFrame(() => ov.classList.add('visible'));
+};
+window._facVoucherCerrar = function () { const ov = document.getElementById('fac-vch-ov'); if (ov) { ov.classList.remove('visible'); setTimeout(() => { if (ov.parentNode) ov.remove(); }, 240); } };
+window._facVoucherDel = async function (id) {
+  const c = ((_facState && _facState.comprobantes) || []).find(x => String(x.id) === String(id)); if (!c) return;
+  try { if (c.detraccion_voucher) await sbClient.storage.from('comprobante-pdfs').remove([c.detraccion_voucher]); } catch (e) {}
+  try {
+    const r = await apiPost({ accion: 'set_detraccion_voucher', ref_id: id, path: '' });
+    if (!r.ok) throw new Error(r.error || 'error');
+    c.detraccion_voucher = null; _facVoucherCerrar(); _facRebuildCard(id, true);
+    try { sndDown(); } catch (e) {}
+  } catch (e) { _facErr('No se pudo quitar el voucher'); }
 };
 // ── Descargar el PDF: OFICIAL de NubeFact si existe (fetch→descarga; si CORS/red falla, abre la
 // pestaña — muchos NubeFact fuerzan la descarga con Content-Disposition); si no hay, el nuestro.
@@ -14914,7 +15013,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '2.10.1';
+const APP_VERSION = '2.11.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
