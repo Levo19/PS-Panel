@@ -8201,7 +8201,7 @@ function _facCliInvalidez() {
     if (S.docTipo === '0' && S.doc && S.doc !== '00000000') return 'Empresa extranjera: activa 🌎 Exportación para facturarle (la factura nacional exige RUC)';
     return S.docTipo === '0' ? 'Factura exige RUC — Varios no factura' : 'Factura exige RUC — este documento no sirve aquí';
   }
-  if (S.tipo === 2 && S.docTipo === '0' && tot.total > 700) return 'Boleta > S/700 exige identificar al cliente';
+  if (S.tipo === 2 && S.docTipo === '0' && (!S.doc || S.doc === '00000000') && tot.total > 700) return 'Boleta > S/700 exige identificar al cliente';   // solo Varios; Tax-ID real ya identifica
   return null;
 }
 // Chip 🌎 Exportación (vive junto al IGV, SOLO en factura): aparece cuando la venta "huele" a
@@ -8257,7 +8257,7 @@ function _facReglas() {
   } else {
     // Boleta: cliente Varios permitido solo hasta S/700; por encima hay que identificar al cliente.
     if (esVarios && tot.total > 700) R.push({ label: 'Cliente Varios solo en boletas hasta S/700 — identifica al cliente', ok: false, hard: true });
-    else if (tot.total > 700) R.push({ label: 'Identificar cliente (boleta mayor a S/700)', ok: S.docTipo !== '0' && doc.length > 0 && nom.length > 0, hard: true });
+    else if (tot.total > 700) R.push({ label: 'Identificar cliente (boleta mayor a S/700)', ok: doc.length > 0 && nom.length > 0, hard: true });   // esVarios ya se filtró arriba; Tax-ID real es válido
   }
   if (!S.exportacion && tot.total >= 2000) R.push({ label: 'Medio de pago (total 2000 o más)', ok: !!S.medioPago, hard: true });
   return R;
@@ -8321,7 +8321,7 @@ function _facAnulSheetHTML(S) {
       </div>
     </div>`).join('')
     : '<div style="padding:26px;text-align:center;color:var(--text-muted);font-size:12.5px">No hay solicitudes pendientes ✓</div>';
-  return `<div class="fac-emit-box fpdf-box fac-anul-sheet-box" role="dialog" aria-modal="true" style="max-width:520px">
+  return `<div class="fac-emit-box fac-anul-sheet-box" role="dialog" aria-modal="true" style="max-width:520px">
     <div class="fac-emit-head">
       <div style="font-size:22px">⚠️</div>
       <div style="flex:1;min-width:0"><div class="fac-emit-title">Anulaciones pedidas</div><div class="fac-emit-sub">El muelle solicita anular estos comprobantes</div></div>
@@ -8353,11 +8353,6 @@ function _facRefreshAnulSheet() {
   if (((_facState.solicitudes) || []).length === 0) { _facCerrarAnulSheet(); return; }
   ov.innerHTML = _facAnulSheetHTML(_facState);
 }
-function _facSetTipo(n) { sndTap(); haptic(8); _facState.tipo = n; if (n === 1 && !_facState.cliSel && (_facState.docTipo === '1' || _facState.docTipo === '0')) _facState.docTipo = '6'; _facRender(); }   // jamás mutar el doc de un cliente YA seleccionado
-function _facAddServicio(id) {
-  const sv = _facState.servicios.find(s => s.id === id); if (!sv) return;
-  sndTap(); haptic(8); _facState.items.push({ descripcion: sv.nombre, cantidad: 1, precio: sv.precio || 0 }); _facRender();
-}
 function _facAddLibre() { sndTap(); haptic(8); _facState.items.push({ descripcion: '', cantidad: 1, precio: 0 }); _facItRebuildList(); }
 // "+ obs": nota opcional del admin (viaja a NubeFact como observaciones — sale impresa; SUNAT no la valida).
 // Cerrar el cajón LIMPIA el texto: nada viaja invisible.
@@ -8368,7 +8363,6 @@ function _facObsToggle() {
   _facRender();
   if (S.obsOpen) { const t = document.getElementById('fac-obs'); if (t) t.focus(); }
 }
-function _facDelItem(i) { sndTap(); haptic(8); _facState.items.splice(i, 1); _facRender(); }
 // ── Fila de servicio rediseñada: título+lugar · chip de precio (toca para editar) · stepper −/＋
 //    con efecto flotante "+1"/"−1" (colores y sonidos distintos); a CERO se elimina sola. ──
 function _facItRow(it, i) {
@@ -8870,6 +8864,8 @@ async function _facEmitirNC(id) {
 }
 async function _facAnular(id) {
   const S = _facState;
+  var comp = (S.comprobantes || []).find(function (x) { return String(x.id) === String(id); });
+  if (comp && comp._anulBusy) return;   // ya hay una comunicación de baja en vuelo → ignora re-toques (evita doble anulación)
   // 1er toque: mostrar "¿Anular?" EN SITIO (repinta SOLO esa card, sin parpadear toda la hoja).
   if (S.anularId !== id) {
     S.anularId = id; sndTap(); haptic(8); _facRebuildCard(id);
@@ -8880,16 +8876,21 @@ async function _facAnular(id) {
   S.anularId = null; clearTimeout(S._anularTo); sndTap(); haptic(12);
   const motivo = (prompt('Motivo de la anulación (va a SUNAT):', 'Error en los datos del comprobante') || '').trim();
   if (!motivo) { _facRebuildCard(id); return; }
-  const r = await apiPost({ accion: 'anular_comprobante', id, motivo });
-  if (r.ok) {
+  // OPTIMISTA + BLOQUEO: la card muestra spinner mientras SUNAT responde → un re-toque no dispara
+  // un SEGUNDO anular_comprobante en vuelo (el backend es idempotente, pero es dinero/legal).
+  if (comp) { comp._anulBusy = true; _facRebuildCard(id); }
+  var r;
+  try { r = await apiPost({ accion: 'anular_comprobante', id, motivo }); }
+  catch (e) { r = { ok: false, error: (e && e.message) || 'error' }; }
+  if (comp) comp._anulBusy = false;
+  if (r && r.ok) {
     sndDown(); if (typeof showToast === 'function') showToast('Comprobante anulado');
-    var comp = (S.comprobantes || []).find(function (x) { return String(x.id) === String(id); });
     if (comp) {
       comp.estado = 'anulada';
       comp.anulacion_estado = (r.data && r.data.anulacion_estado) || comp.anulacion_estado || null;   // 'enviada' = baja async a SUNAT
       _facRebuildCard(id, true);   // EN SITIO — el chip pasa a anulada/baja enviada; Realtime confirma
     } else _facLoadHist();
-  } else _facErr((r.error || 'No se pudo anular').replace(/^.*?:\s*/, ''));
+  } else { if (comp) _facRebuildCard(id); _facErr(((r && r.error) || 'No se pudo anular').replace(/^.*?:\s*/, '')); }
 }
 // EMISIÓN OPTIMISTA: al tocar Emitir el form queda libre AL INSTANTE y una card "Enviando a
 // SUNAT…" entra al feed; la respuesta llega en fondo (la factura espera el CDR de SUNAT en
@@ -8906,6 +8907,7 @@ function _facEmitir() {
   if (esVariosEmit && tot.total > 700) return _facErr('Cliente Varios solo en boletas hasta S/700 — identifica al cliente');
   if (!S.items.length || tot.total <= 0) return _facErr('Agrega al menos un servicio con monto');
   if (S.items.some(i => !String(i.descripcion).trim())) return _facErr('Hay un ítem sin descripción');
+  if (S.items.some(i => !i.gratis && (parseFloat(i.precio) || 0) <= 0)) return _facErr('Hay un servicio con precio S/0 — SUNAT rechaza líneas en cero (marca 🎁 para cortesías)');
   const faltan = _facReglas().filter(r => r.hard && !r.ok);
   if (faltan.length) return _facErr('Requisito SUNAT: ' + faltan[0].label);
   if (!S._emitLocalId) S._emitLocalId = 'fac-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
@@ -8919,7 +8921,7 @@ function _facEmitir() {
     exportacion: !!S.exportacion, medio_pago: S.medioPago || null,
     forma_pago: 'CONTADO', credito_venc: null,   // decisión dueño: todo contado (el RPC conserva el soporte crédito por si se necesita)
     observaciones: (S.obs || '').trim() || null,
-    detraccion: (S.tipo === 1 && tot.total >= (typeof _FAC_DETRACCION !== 'undefined' ? _FAC_DETRACCION.umbral : 700)),
+    detraccion: (S.tipo === 1 && !S.exportacion && tot.total > (typeof _FAC_DETRACCION !== 'undefined' ? _FAC_DETRACCION.umbral : 700)),
     moneda: 'PEN', operador: (S.ses && S.ses.nombre) || 'PS',
     localId: S._emitLocalId };
   const entry = { _pending: true, serie: _facSerie(), numero: null, total: tot.total, estado: 'enviando', comp: null, _payload: payload, _snap: snap };
@@ -9064,7 +9066,7 @@ window._facEmitFeedClose = function () {
 };
 async function _facLoadHist() {
   _facState.cargandoHist = true; _facRender();
-  try { const r = await apiGet('listar_comprobantes', {}); _facState.comprobantes = (r.ok && r.data) || []; } catch (e) {}
+  try { const r = await apiGet('listar_comprobantes', {}); if (r.ok && Array.isArray(r.data)) _facState.comprobantes = r.data; else if (!_facState.comprobantes) _facState.comprobantes = []; } catch (e) { if (!_facState.comprobantes) _facState.comprobantes = []; }   // error transitorio → conserva la lista previa (no borra la NC optimista)
   _facState.cargandoHist = false; _facRender();
 }
 
@@ -9084,6 +9086,18 @@ function _facFmtCreado(raw) {
     return g.day + '/' + g.month + '/' + g.year + ' ' + (g.hour === '24' ? '00' : g.hour) + ':' + g.minute;
   } catch (e) { return String(raw); }
 }
+// Timestamp absoluto (timestamptz UTC de Realtime) → ISO "YYYY-MM-DD HH:MM" en zona América/Lima.
+// Formato ÚNICO y canónico que esperan _facDiaKey / _facCompPeriodo / _facDentroPlazoBaja (evita el
+// off-by-one de día/mes/plazo cerca de medianoche que producía usar la fecha UTC cruda).
+function _facCreadoLimaISO(raw) {
+  if (!raw) return '';
+  try {
+    var d = new Date(raw); if (isNaN(d.getTime())) return '';
+    var g = {}; new Intl.DateTimeFormat('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(d).forEach(function (p) { g[p.type] = p.value; });
+    var hh = g.hour === '24' ? '00' : g.hour;
+    return g.year + '-' + g.month + '-' + g.day + ' ' + hh + ':' + g.minute;
+  } catch (e) { return ''; }
+}
 // Normaliza el ROW crudo de la tabla `comprobantes` (Realtime) a la forma del historial.
 function _facNormComp(row) {
   if (!row) return row;
@@ -9093,7 +9107,9 @@ function _facNormComp(row) {
   c.total = Number(row.total) || 0;
   c.estado = String(row.estado || '').toLowerCase();
   c.enlace_pdf = row.enlace_pdf || row.pdf || row.enlace || '';
-  if (!c.creado) c.creado = _facFmtCreado(row.creado_at || row.creado || row.fecha);
+  // `creado` canónico = ISO en América/Lima. Realtime trae `creado_at` (timestamptz UTC, no ambiguo)
+  // → se convierte a Lima; así día/mes/plazo coinciden con la ruta RPC (que ya entrega Lima naive).
+  c.creado = row.creado_at ? (_facCreadoLimaISO(row.creado_at) || c.creado || _facFmtCreado(row.creado_at)) : (c.creado || _facFmtCreado(row.fecha));
   return c;
 }
 // Envoltura targetable de una card de primer nivel (para adición/actualización EN SITIO).
@@ -9119,7 +9135,10 @@ function _facFindCardNode(listEl, id) {
 function _facRTUpdateCount() {
   var S = _facState; if (!S) return;
   var sel = S.histMeses || [];
-  var list = !sel.length ? S.comprobantes : (S.comprobantes || []).filter(function (c) { var p = _facCompPeriodo(c); return !p || sel.includes(p); });
+  // Cuenta las cards TOP-LEVEL visibles: excluye NCs anidadas (se muestran dentro del padre) y usa
+  // el periodo EFECTIVO (el del padre para una NC) — igual que el render, para que N cuadre con las cards.
+  var base = (S.comprobantes || []).filter(function (c) { return !_facPadre(c, S.comprobantes); });
+  var list = !sel.length ? base : base.filter(function (c) { var p = _facPeriodoEfectivo(c, S.comprobantes); return !p || sel.includes(p); });
   var nMeses = sel.length || _tribPeriodos().length;
   var txt = list.length + ' en ' + nMeses + ' mes' + (nMeses === 1 ? '' : 'es');
   _facRenderRoots().forEach(function (ov) { var el = ov.querySelector('[data-fac-hist-count]'); if (el) el.textContent = txt; });
@@ -9176,7 +9195,16 @@ window._facRTInsert = function (row, opts) {
   }
   var sel = S.histMeses || [], per = _facCompPeriodo(c);
   var inFilter = !sel.length || !per || sel.includes(per);
-  if (_facMode !== 'module' || S.tab !== 'historial' || !inFilter) { _facRTUpdateCount(); return; }   // fuera del filtro/vista → solo estado + contador
+  if (_facMode !== 'module' || S.tab !== 'historial' || !inFilter) {
+    // La NC se agrupa por el mes de su PADRE, así que puede caer fuera del filtro de mes de la NC
+    // pero con el padre VISIBLE → refresca la card del padre para que pierda "válida"/Anular/NC.
+    // No-op si el padre no está en el DOM (otro mes / otra vista).
+    if (Number(c.tipo) === 3 && c.doc_modifica_serie) {
+      var _pp = S.comprobantes.find(function (x) { return Number(x.tipo) === Number(c.doc_modifica_tipo) && String(x.serie) === String(c.doc_modifica_serie) && Number(x.numero) === Number(c.doc_modifica_numero); });
+      if (_pp) _facRebuildCard(_pp.id, true);
+    }
+    _facRTUpdateCount(); return;   // fuera del filtro/vista → solo estado + contador (+ padre)
+  }
   if (Number(c.tipo) === 3 && c.doc_modifica_serie) _facRTInsertNC(c, opts && opts.local);
   else _facRTInsertTop(c, opts && opts.local);
   _facRTUpdateCount();
@@ -9509,9 +9537,6 @@ function _facTabbarHTML(S) {
     return `<button class="fac-tb${on ? ' on' : ''}" data-tab="${id}" onclick="_facTab('${id}')">${ico} ${label}${badge}</button>`;
   }).join('');
 }
-function _facUpdateTabbar() {
-  _facRenderRoots().forEach(ov => _facSyncTabbar(ov.querySelector('#fac-tabbar')));
-}
 // Refresca el tabbar SIN destruir el indicador lozenge (solo togglea .on / badge) y lo reposiciona.
 function _facSyncTabbar(bar) {
   if (!bar || !_facState) return;
@@ -9761,7 +9786,7 @@ window._facToggleHistMes = function (p) {
 };
 // Deriva el período YYYY-MM de un comprobante (para filtrar por meses seleccionados). Si no se puede, no lo oculta.
 function _facCompPeriodo(c) {
-  const raw = String((c && (c.periodo || c.creado_at || c.fecha || c.creado)) || '');
+  const raw = String((c && (c.periodo || c.creado || c.creado_at || c.fecha)) || '');   // `creado` canónico (Lima) antes que creado_at (UTC)
   let m = raw.match(/(\d{4})-(\d{2})/); if (m) return m[1] + '-' + m[2];
   m = raw.match(/(\d{2})\/(\d{2})\/(\d{4})/); if (m) return m[3] + '-' + m[2];
   return null;
@@ -9771,10 +9796,6 @@ function _facCompPeriodo(c) {
 function _facPeriodoEfectivo(c, todos) {
   const p = _facPadre(c, todos);
   return p ? _facCompPeriodo(p) : _facCompPeriodo(c);
-}
-function _facDiaKeyEfectivo(c, todos) {
-  const p = _facPadre(c, todos);
-  return _facDiaKey(p || c);
 }
 function _facPadre(c, todos) {
   if (!c || Number(c.tipo) !== 3 || !c.doc_modifica_serie) return null;
@@ -9859,12 +9880,6 @@ function _facZarpeFecha(raw) {
   const m = String(raw || '').match(/(\d{4})-(\d{2})-(\d{2})/);
   if (!m) return String(raw || '');
   return parseInt(m[3], 10) + ' ' + (_facZarpeMeses[parseInt(m[2], 10) - 1] || '');
-}
-function _facZarpeDocLabel(f) {
-  const t = String(f.tipo_doc || '');
-  const tn = t === '6' ? 'RUC' : (t === '7' ? 'Pasaporte' : (t === '4' ? 'CE' : 'DNI'));
-  const emp = f.empresa ? ' · factura' : '';
-  return (f.documento ? tn + ' ' + f.documento : 'sin doc') + emp;
 }
 // ── Cuerpo (sub-vistas) ──
 function _facZarpeBody(S) {
@@ -10447,13 +10462,18 @@ async function _facZarpeEmitir() {
       if (!dirFactura) dirFactura = '-';
       f._dir = dirFactura;
     }
+    // Detracción (SPOT 037, 12%) — misma regla que el modal: FACTURA nacional (no export) cuyo
+    // total COBRADO (sin cortesías) supera S/700. Sin esto, la factura B2B del zarpe salía sin la
+    // detracción legalmente exigida (el backend no la recalcula: depende de este flag).
+    const totFacZ = items.filter(it => it.afectacion !== 'gratuito').reduce((a, it) => a + (Number(it.cantidad) || 0) * (Number(it.precio) || 0), 0);
+    const detrZ = esFactura && !esExport && totFacZ > (typeof _FAC_DETRACCION !== 'undefined' ? _FAC_DETRACCION.umbral : 700);
     let r;
     try {
       r = await apiPost({ accion: 'emitir_comprobante', tipo, serie,
         cliente_doc_tipo: f.tipo_doc || (esFactura ? '6' : '1'), cliente_doc: String(f.documento || '').trim(),
         cliente_nombre: f.nombre || f.empresa || 'Cliente', items, moneda: 'PEN',
         cliente_dir: (esFactura && !esExport) ? dirFactura : '',
-        exportacion: esExport, es_extranjero: String(f.tipo_doc) === '7',
+        exportacion: esExport, es_extranjero: String(f.tipo_doc) === '7', detraccion: detrZ,
         operador: (S.ses && S.ses.nombre) || 'PS', localId: 'zarpe-' + f.id });
     } catch (e) { r = { ok: false, error: (e && e.message) || 'error' }; }
     if (r && r.ok && r.data) {
@@ -10723,6 +10743,7 @@ function _facHistCardHTML(c, S, opts) {
     }
   }
   if (c._ncBusy) anulBtn = '<button class="fac-ibtn nc" style="pointer-events:none" aria-label="Emitiendo Nota de Crédito"><span class="spin fac-cli-spin"></span></button>';   // emisión NC en curso
+  if (c._anulBusy) anulBtn = '<button class="fac-ibtn anul" style="pointer-events:none" aria-label="Anulando"><span class="spin fac-cli-spin"></span></button>';   // comunicación de baja en curso
   var row = '<div class="fac-hcard' + (nested ? ' nested' : '') + '"' + (anu ? ' style="opacity:.62"' : '') + '>' +
       arrow +
       '<div class="fac-hcard-main' + (hasNC ? ' tap' : '') + '"' + headClick + '>' +
@@ -10890,7 +10911,7 @@ function _facDetraccion(c, T) {
   // Exportación (0% IGV) NO está sujeta a detracción — es una operación sin porción gravada.
   if ((Number(T && T.exportacion) || 0) > 0 || (Number(T && T.grav) || 0) <= 0) return null;
   var total = Number(T && T.total) || 0;
-  if (total < _FAC_DETRACCION.umbral) return null;
+  if (total <= _FAC_DETRACCION.umbral) return null;   // SPOT aplica a operaciones MAYORES a S/700 (backend: v_total > 700)
   return {
     rate: _FAC_DETRACCION.rate,
     monto: Math.round(total * _FAC_DETRACCION.rate * 100) / 100,
@@ -11368,16 +11389,11 @@ window._facCerrarImagen = function () {
 // ── Descargar el PDF: OFICIAL de NubeFact si existe (fetch→descarga; si CORS/red falla, abre la
 // pestaña — muchos NubeFact fuerzan la descarga con Content-Disposition); si no hay, el nuestro.
 // Spinner girando en el ícono mientras baja. ──
-function _facTriggerDownload(blob, filename) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.download = filename || 'comprobante.pdf';
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 4000);
-}
 window._facDescargarPDF = async function (id, btn) {
   const c = ((_facState && _facState.comprobantes) || []).find(x => String(x.id) === String(id));
   if (!c || !_facState || _facState._dlBusy) return;
   _facState._dlBusy = true;
+  if (btn) btn.classList.add('fac-ico-spin');
   const oficial = /^https?:\/\//.test(String(c.enlace_pdf || ''));
   const nombre = _facPdfFilename(c);
   try {
@@ -14946,7 +14962,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '2.9.2';
+const APP_VERSION = '2.10.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
