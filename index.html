@@ -1552,7 +1552,6 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 .fac-tb:hover { color:var(--text); }
 .fac-tb:active { transform:scale(.92); }
 .fac-tb.on { color:#fff; }
-.fac-tb-badge { position:absolute; top:1px; right:2px; z-index:2; background:linear-gradient(135deg,#ff5a52,#e0342b); color:#fff; border-radius:999px; font-size:9px; font-weight:800; padding:1px 6px; box-shadow:0 2px 6px rgba(224,52,43,.55); }
 /* ── Slot = card de sección · glass frosted ── */
 .fac-slot {
   position:relative; min-height:300px; padding:20px; border-radius:26px;
@@ -8166,7 +8165,6 @@ function _facTab(t) {
   if (_facMode === 'module') { _facRenderSlot(); } else { _facRender(); }
   if (t === 'inicio') { if (_facMode !== 'module') _facLoadTrib(); }
   else if (t === 'historial') _facLoadHist();
-  else if (t === 'anulaciones') _facLoadAnul();
   else if (t === 'conciliacion') _facLoadConcilia();
   else if (t === 'compras') _tribLoadCompras();
   else if (t === 'renta') _tribLoadRenta();
@@ -8276,16 +8274,6 @@ async function _facLoadTrib(force) {
   try { const r = await apiGet('balance_tributos', { periodo: per || null }); S.tributos = (r.ok && r.data) || null; S._tribPeriodoLoaded = per; } catch (e) { S.tributos = null; }
   S.cargandoTrib = false;
   if (_facMode === 'module') _facRenderBalanza(); else _facRender();
-}
-async function _facRegistrarCompra() {
-  const S = _facState, c = S.compraEdit || {};
-  if (!String(c.ruc || '').trim()) return _facErr('RUC del proveedor');
-  if (!(parseFloat(c.total) > 0)) return _facErr('Total de la compra');
-  sndTap(); haptic(10);
-  const base = parseFloat(c.base) || 0, igv = parseFloat(c.igv) || 0, total = parseFloat(c.total) || 0;
-  const r = await apiPost({ accion: 'registrar_compra', ruc_proveedor: c.ruc, razon_social: c.razon || '', base, igv, total, fecha: c.fecha || null, serie: c.serie || '', numero: c.numero || '' });
-  if (r.ok) { sndOk(); haptic([15, 40, 15]); if (typeof showToast === 'function') showToast('✓ Compra registrada (crédito IGV)'); S.compraEdit = {}; _facLoadTrib(); }
-  else _facErr((r.error || 'No se pudo registrar').replace(/^.*?:\s*/, ''));
 }
 async function _facLoadConcilia() {
   const S = _facState; S.cargandoConcilia = true; _facRender();
@@ -9269,18 +9257,6 @@ async function _facRTPollSilent() {
     added.reverse().forEach(function (c) { window._facRTInsert(c); });   // viejo→nuevo: el más reciente queda arriba
   } catch (e) {}
 }
-async function _facGuardarServicio() {
-  const S = _facState, e = S.svcEdit || {};
-  if (!e.nombre || !String(e.nombre).trim()) return _facErr('Nombre del servicio');
-  const r = await apiPost({ accion: 'set_servicio', id: e.id || '', nombre: e.nombre.trim(), descripcion: e.descripcion || '', precio: parseFloat(e.precio) || 0, unidad: e.unidad || 'NIU', activo: true });
-  if (r.ok) { sndOk(); haptic(12); try { const sR = await apiGet('listar_servicios'); S.servicios = (sR.ok && sR.data) || []; } catch (x) {} S.svcEdit = null; _facRender(); }
-  else _facErr(r.error || 'No se pudo guardar');
-}
-async function _facDelServicio(id) {
-  sndTap(); haptic(10);
-  const r = await apiPost({ accion: 'eliminar_servicio', id });
-  if (r.ok) { sndDown(); try { const sR = await apiGet('listar_servicios'); _facState.servicios = (sR.ok && sR.data) || []; } catch (x) {} _facRender(); }
-}
 // Switch iOS "Boletas en el muelle" — vive junto al +Emitir CPE (rescatado de la ex-pestaña Ajustes).
 function _facMuelleSwitchHTML(S) {
   const on = !!(S && S.muelleOn);
@@ -9478,22 +9454,6 @@ function _facSectionBody(S) {
       (S.cargandoHist ? '<div style="text-align:center;padding:24px"><div class="spin" style="display:inline-block"></div></div>' :
        (list.length ? `<div data-fac-hist-list class="fac-hist-grouped">${_histBody()}</div>` :
         '<div style="padding:18px;text-align:center;color:var(--text-muted);font-size:12px">Sin comprobantes en los meses elegidos.</div>'));
-  } else if (S.tab === 'anulaciones') {
-    body = `<div style="font-size:11px;font-weight:800;color:var(--gold);margin-bottom:8px">SOLICITUDES DE ANULACIÓN</div>
-      <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;line-height:1.5">Los operadores del muelle piden anular desde su historial. Tú revisas el motivo y apruebas (recién ahí se anula en SUNAT) o rechazas.</div>` +
-      (S.cargandoAnul ? '<div style="text-align:center;padding:24px"><div class="spin" style="display:inline-block"></div></div>' :
-       (S.solicitudes.length ? S.solicitudes.map(c=>`<div style="border:1px solid var(--border);border-radius:12px;padding:11px;margin-bottom:9px">
-          <div style="display:flex;justify-content:space-between;gap:8px;align-items:start">
-            <div style="min-width:0"><div style="font-weight:800;font-size:13px">${c.serie}-${String(c.numero).padStart(6,'0')} · ${_facEsc(c.cliente_nombre||'')}</div><div style="font-size:10px;color:var(--text-muted)">${c.solicitada} · pidió: ${_facEsc(c.anulacion_por||'—')}</div></div>
-            <span style="font-weight:800;font-size:12px;color:var(--gold);white-space:nowrap">S/ ${_facMoney(c.total)}</span>
-          </div>
-          <div style="margin:8px 0;padding:7px 9px;background:rgba(220,38,38,0.07);border-radius:8px;font-size:12px;color:var(--text)"><b style="color:#dc2626">Motivo:</b> ${_facEsc(c.anulacion_motivo||'—')}</div>
-          <div style="display:flex;gap:8px">
-            <button onclick="_facResolverAnul('${c.id}',false)" style="flex:1;padding:9px;border-radius:9px;border:1px solid var(--border);background:#fff;color:var(--text-muted);font-weight:700;font-size:12px;cursor:pointer">Rechazar</button>
-            <button onclick="_facResolverAnul('${c.id}',true)" style="flex:1;padding:9px;border-radius:9px;border:none;background:linear-gradient(135deg,#b91c1c,#7f1d1d);color:#fff;font-weight:800;font-size:12px;cursor:pointer">Aprobar y anular</button>
-          </div>
-        </div>`).join('') :
-        '<div style="padding:22px;text-align:center;color:var(--text-muted);font-size:12px">No hay solicitudes pendientes. ✓</div>'));
   } else if (S.tab === 'inicio') {
     body = (_facMode === 'module') ? _facHomeModule(S) : _facHome(S);
   } else if (S.tab === 'subir') {
@@ -9530,11 +9490,9 @@ const _FAC_MOD_TABS = [
 ];
 const _FAC_MOD_TAB_IDS = _FAC_MOD_TABS.map(t => t[0]);
 function _facTabbarHTML(S) {
-  const pend = (S.solicitudes && S.solicitudes.length) || 0;
   return _FAC_MOD_TABS.map(([id, ico, label]) => {
     const on = S.tab === id;
-    const badge = (id === 'anulaciones' && pend) ? `<span class="fac-tb-badge">${pend}</span>` : '';
-    return `<button class="fac-tb${on ? ' on' : ''}" data-tab="${id}" onclick="_facTab('${id}')">${ico} ${label}${badge}</button>`;
+    return `<button class="fac-tb${on ? ' on' : ''}" data-tab="${id}" onclick="_facTab('${id}')">${ico} ${label}</button>`;
   }).join('');
 }
 // Refresca el tabbar SIN destruir el indicador lozenge (solo togglea .on / badge) y lo reposiciona.
@@ -9543,15 +9501,9 @@ function _facSyncTabbar(bar) {
   let ind = bar.querySelector('#fac-tab-ind');
   if (!ind) { ind = document.createElement('span'); ind.className = 'fac-tab-ind'; ind.id = 'fac-tab-ind'; bar.insertBefore(ind, bar.firstChild); }
   if (!bar.querySelector('.fac-tb')) ind.insertAdjacentHTML('afterend', _facTabbarHTML(_facState));
-  const pend = (_facState.solicitudes && _facState.solicitudes.length) || 0;
   bar.querySelectorAll('.fac-tb').forEach(b => {
     const id = b.getAttribute('data-tab');
     b.classList.toggle('on', _facState.tab === id);
-    if (id === 'anulaciones') {
-      let badge = b.querySelector('.fac-tb-badge');
-      if (pend) { if (!badge) { badge = document.createElement('span'); badge.className = 'fac-tb-badge'; b.appendChild(badge); } badge.textContent = String(pend); }
-      else if (badge) badge.remove();
-    }
   });
   _facMoveTabInd(bar, false);
 }
@@ -14962,7 +14914,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '2.10.0';
+const APP_VERSION = '2.10.1';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
