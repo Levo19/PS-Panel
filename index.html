@@ -8036,7 +8036,7 @@ function _facRenderRoots() {
 // Estado inicial compartido por modal y módulo.
 function _facInitState(ses, servicios, muelleOn, facCfg) {
   return { tab: 'inicio', ses, servicios, muelleOn, facCfg, cfgEdit: {}, comprobantes: [], cargandoHist: false,
-    tipo: 2, facModo: 'boleta', exportacion: false, medioPago: '', formaPago: 'CONTADO', creditoVenc: '', lookupState: 'idle',
+    tipo: 2, facModo: 'boleta', exportacion: false, pagoTipo: 'efectivo', pagoEf: '', formaPago: 'CONTADO', creditoVenc: '', lookupState: 'idle',
     docTipo: '1', doc: '', nombre: '', email: '', tel: '', dir: '', esExtranjero: false, obs: '', obsOpen: false,
     items: [], resultado: null, shake: false, svcEdit: null, solicitudes: [], cargandoAnul: false,
     tributos: null, cargandoTrib: true, _tribPeriodoLoaded: null, periodoTrib: (_tribPeriodos()[0] || {}).p || '', compraEdit: {}, concilia: [], cargandoConcilia: false,
@@ -8272,7 +8272,7 @@ function _facReglas() {
     if (esVarios && tot.total > 700) R.push({ label: 'Cliente Varios solo en boletas hasta S/700 — identifica al cliente', ok: false, hard: true });
     else if (tot.total > 700) R.push({ label: 'Identificar cliente (boleta mayor a S/700)', ok: doc.length > 0 && nom.length > 0, hard: true });   // esVarios ya se filtró arriba; Tax-ID real es válido
   }
-  if (!S.exportacion && tot.total >= 2000) R.push({ label: 'Medio de pago (total 2000 o más)', ok: !!S.medioPago, hard: true });
+  if (S.pagoTipo === 'mixto') { const p = _facPagoMxCalc(tot.total); R.push({ label: 'Mixto: reparte el total entre Efectivo y Virtual', ok: p.ef > 0 && p.vi > 0, hard: true }); }
   return R;
 }
 function _facReglasOk() { return !_facReglas().some(r => r.hard && !r.ok); }
@@ -8411,14 +8411,63 @@ function _facBindItInputs(root) {
     };
   });
 }
+// ── Chip TIPO DE PAGO (Efectivo → Virtual → Mixto, default Efectivo) ──
+// Viaja como texto por medio_pago (columna + impreso en el CPE). Mixto reparte el total en 2 casillas
+// que se autocompletan; Efectivo/Virtual no manejan vuelto (decisión dueño).
+function _facPagoMxCalc(total) {
+  const S = _facState; let ef = Math.max(0, parseFloat(S.pagoEf) || 0);
+  if (ef > total) ef = total;
+  return { ef: Math.round(ef * 100) / 100, vi: Math.round((total - ef) * 100) / 100 };
+}
+function _facPagoStr(total) {
+  const S = _facState;
+  if (S.pagoTipo === 'virtual') return 'Virtual (transferencia/Yape)';
+  if (S.pagoTipo === 'mixto') { const p = _facPagoMxCalc(total); return 'Mixto: Efectivo S/' + p.ef.toFixed(2) + ' + Virtual S/' + p.vi.toFixed(2); }
+  return 'Efectivo';
+}
+function _facPagoHTML(tot) {
+  const S = _facState; const t = (tot || _facTotales()).total;
+  const M = { efectivo: ['💵', 'Efectivo'], virtual: ['📲', 'Virtual'], mixto: ['🔀', 'Mixto'] }[S.pagoTipo] || ['💵', 'Efectivo'];
+  const p = _facPagoMxCalc(t);
+  const inp = 'width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:9px;background:var(--bg2,rgba(255,255,255,0.04));color:var(--text);font-weight:700;font-size:12.5px';
+  return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:${S.pagoTipo === 'mixto' ? '8' : '12'}px">
+      <span style="font-size:11px;font-weight:800;color:var(--text-muted);letter-spacing:.5px">PAGO</span>
+      <button onclick="_facPagoCiclo()" title="Toca para cambiar: Efectivo → Virtual → Mixto" style="border:1px solid ${S.pagoTipo === 'mixto' ? 'var(--gold)' : 'var(--border)'};background:var(--bg2,rgba(255,255,255,0.04));color:var(--text);font-weight:800;font-size:11.5px;border-radius:999px;padding:4px 13px;cursor:pointer">${M[0]} ${M[1]}</button>
+    </div>
+    ${S.pagoTipo === 'mixto' ? `<div style="display:flex;gap:8px;margin-bottom:8px">
+      <label style="flex:1;font-size:10px;font-weight:800;color:var(--text-muted)">EFECTIVO S/<input id="fac-mx-ef" type="number" inputmode="decimal" min="0" value="${p.ef || ''}" oninput="_facPagoMxInput('ef',this.value)" style="${inp};margin-top:3px"></label>
+      <label style="flex:1;font-size:10px;font-weight:800;color:var(--text-muted)">VIRTUAL S/<input id="fac-mx-vi" type="number" inputmode="decimal" min="0" value="${p.vi || ''}" oninput="_facPagoMxInput('vi',this.value)" style="${inp};margin-top:3px"></label>
+    </div>` : ''}
+    ${(t >= 2000 && S.pagoTipo === 'efectivo' && !S.exportacion) ? '<div style="font-size:10.5px;color:#f0b13c;margin:-4px 0 10px">⚠ ≥ S/2000: SUNAT exige medio bancario — usa Virtual o Mixto</div>' : ''}`;
+}
+function _facPagoCiclo() {
+  const S = _facState;
+  S.pagoTipo = S.pagoTipo === 'efectivo' ? 'virtual' : S.pagoTipo === 'virtual' ? 'mixto' : 'efectivo';
+  if (S.pagoTipo === 'mixto') { const t = _facTotales().total; S.pagoEf = String(Math.round(t / 2 * 100) / 100); }   // arranca mitad-mitad, editable
+  else S.pagoEf = '';
+  try { sndTap(); haptic(8); } catch (e) {}
+  const ps = document.getElementById('fac-pago-slot'); if (ps) ps.innerHTML = _facPagoHTML();
+  _facEmitLite();
+}
+function _facPagoMxInput(campo, v) {
+  const S = _facState; const t = _facTotales().total;
+  let n = Math.max(0, parseFloat(v) || 0); if (n > t) n = t;
+  S.pagoEf = campo === 'ef' ? String(n) : String(Math.round((t - n) * 100) / 100);
+  const p = _facPagoMxCalc(t);
+  const other = document.getElementById(campo === 'ef' ? 'fac-mx-vi' : 'fac-mx-ef');
+  if (other) other.value = campo === 'ef' ? p.vi : p.ef;   // la contraparte se autocompleta en sitio (sin re-render → no pierde el foco)
+  const rg = document.getElementById('fac-reglas'); if (rg) rg.innerHTML = _facReglasHTML();
+  const btn = document.getElementById('fac-emitir');
+  if (btn) { const ok = _facReglasOk(); btn.disabled = !ok; btn.style.opacity = ok ? '' : '.5'; btn.style.cursor = ok ? '' : 'not-allowed'; btn.textContent = ok ? '🧾 Emitir comprobante' : '⛔ Faltan requisitos SUNAT'; }
+}
 // Refresca totales + requisitos + botón Emitir SIN reconstruir el modal. true si tuvo que hacer full render.
 function _facEmitLite() {
   const S = _facState; const t = _facTotales();
   const g = document.getElementById('fac-tg'); if (g) g.textContent = 'S/ ' + (S.exportacion ? t.total : t.grav).toFixed(2);
   const ig = document.getElementById('fac-ti'); if (ig) ig.textContent = 'S/ ' + t.igv.toFixed(2);
   const tt = document.getElementById('fac-tt'); if (tt) tt.textContent = 'S/ ' + t.total.toFixed(2);
-  const needMedio = !S.exportacion && t.total >= 2000, hasMedio = !!document.getElementById('fac-medio');
-  if (needMedio !== hasMedio) { _facRender(); return true; }   // cruzó S/2000 → estructura cambia
+  const ps = document.getElementById('fac-pago-slot');
+  if (ps && !ps.contains(document.activeElement)) ps.innerHTML = _facPagoHTML(t);   // el total cambió → mixto se recalcula (no pisa un input activo)
   const es = document.getElementById('fac-exp-slot'); if (es) es.innerHTML = _facExpChipHTML();   // el chip 🌎 depende del nº de ítems
   const rg = document.getElementById('fac-reglas'); if (rg) rg.innerHTML = _facReglasHTML();
   // el chip del cliente puede volverse inválido al cambiar el total (Varios cruza S/700) → refrescar en sitio
@@ -8921,7 +8970,7 @@ function _facEmitir() {
     cliente_doc_tipo: S.docTipo, cliente_doc: snap.doc, cliente_nombre: snap.nombre,
     cliente_email: S.email.trim(), cliente_tel: S.tel.trim(), cliente_dir: S.dir.trim(), es_extranjero: S.esExtranjero,
     items: itemsSnap,
-    exportacion: !!S.exportacion, medio_pago: S.medioPago || null,
+    exportacion: !!S.exportacion, medio_pago: _facPagoStr(tot.total),
     forma_pago: 'CONTADO', credito_venc: null,   // decisión dueño: todo contado (el RPC conserva el soporte crédito por si se necesita)
     observaciones: (S.obs || '').trim() || null,
     detraccion: (S.tipo === 1 && !S.exportacion && tot.total > (typeof _FAC_DETRACCION !== 'undefined' ? _FAC_DETRACCION.umbral : 700)),
@@ -8932,7 +8981,7 @@ function _facEmitir() {
   if (S._emitidos.length > 20) S._emitidos.length = 20;
   S._emitFeed = { type: 'sending', entry };
   // form libre YA (optimista) — el modal sigue abierto para el siguiente
-  S.items = []; S.email = ''; S.tel = ''; S.dir = ''; S.medioPago = ''; S.formaPago = 'CONTADO'; S.creditoVenc = ''; S.lookupState = 'idle'; S.obs = ''; S.obsOpen = false;
+  S.items = []; S.email = ''; S.tel = ''; S.dir = ''; S.pagoTipo = 'efectivo'; S.pagoEf = ''; S.formaPago = 'CONTADO'; S.creditoVenc = ''; S.lookupState = 'idle'; S.obs = ''; S.obsOpen = false;
   S.cliQuery = ''; S.cliResults = []; S.cliShowLupa = false; S.cliManual = false; S.manualDoc = ''; S.manualNombre = ''; S._lkFail = null;
   if (S.tipo === 2 && !S.exportacion) { S.docTipo = '0'; S.doc = '00000000'; S.nombre = 'VARIOS'; S.cliSel = true; }
   else { S.doc = ''; S.nombre = ''; S.cliSel = false; }
@@ -9386,13 +9435,7 @@ function _facSectionBody(S) {
         ${tot.gratis > 0 ? `<div style="display:flex;justify-content:space-between;color:#c084fc"><span>🎁 Cortesías (op. gratuita)</span><span>S/ ${tot.gratis.toFixed(2)}</span></div>` : ''}
         <div style="display:flex;justify-content:space-between;font-weight:900;color:var(--text);margin-top:4px;font-size:15px"><span>TOTAL A COBRAR</span><span id="fac-tt">S/ ${tot.total.toFixed(2)}</span></div>
       </div>
-      ${(!S.exportacion && tot.total >= 2000) ? `<div style="margin-bottom:12px">
-        <div style="font-size:11px;font-weight:800;color:var(--gold);margin-bottom:5px">MEDIO DE PAGO <span style="color:var(--text-muted);font-weight:600">(obligatorio ≥ S/2000)</span></div>
-        <select id="fac-medio" class="config-input">
-          <option value="">Elige medio de pago…</option>
-          ${['Efectivo','Transferencia','Depósito en cuenta','Tarjeta','Yape / Plin'].map(m=>`<option value="${m}"${S.medioPago===m?' selected':''}>${m}</option>`).join('')}
-        </select>
-      </div>` : ''}
+      <div id="fac-pago-slot">${_facPagoHTML(tot)}</div>
       <button id="fac-emitir" onclick="_facEmitir()" class="btn-primary" ${_facReglasOk()?'':'disabled'} style="width:100%;padding:10px;font-size:13px;font-weight:800;border-radius:11px;${_facReglasOk()?'':'opacity:.5;cursor:not-allowed'}">${_facReglasOk()?'🧾 Emitir comprobante':'⛔ Faltan requisitos SUNAT'}</button>
       <div id="fac-reglas" style="margin-top:10px">${_facReglasHTML()}</div>
       </div>${S._svcPick ? _facSvcPickHTML(S) : ''}`;
@@ -9774,7 +9817,7 @@ window._facOpenEmit = function () {
   // Form fresco en cada apertura — cliente por defecto = VARIOS seleccionado (chip con ×):
   // el caso más común del muelle es boleta simple; la × lo vacía y abre la búsqueda.
   S.resultado = null; S.facModo = 'boleta'; S.tipo = 2; S.exportacion = false; S.esExtranjero = false;
-  S.docTipo = '0'; S.doc = '00000000'; S.nombre = 'VARIOS'; S.email = ''; S.tel = ''; S.dir = ''; S.items = []; S.medioPago = ''; S.formaPago = 'CONTADO'; S.creditoVenc = ''; S.lookupState = 'idle';
+  S.docTipo = '0'; S.doc = '00000000'; S.nombre = 'VARIOS'; S.email = ''; S.tel = ''; S.dir = ''; S.items = []; S.pagoTipo = 'efectivo'; S.pagoEf = ''; S.formaPago = 'CONTADO'; S.creditoVenc = ''; S.lookupState = 'idle';
   clearTimeout(S._cliTimer); clearTimeout(S._cliDebounce);
   S.cliQuery = ''; S.cliResults = []; S.cliSel = true; S.cliShowLupa = false; S.cliManual = false;
   S.manualDoc = ''; S.manualNombre = ''; S.manualTipo = '1'; S._cliLoading = false; S._cliLupaLoading = false;
@@ -11591,7 +11634,6 @@ function _facBindSlot(ov) {
   const S = _facState;
   const fcli = ov.querySelector('#fac-cli'); if (fcli) fcli.oninput = e => _facCliInput(e.target.value);
   _facCliBindManual();
-  const fmed = ov.querySelector('#fac-medio'); if (fmed) fmed.onchange = e => { _facState.medioPago = e.target.value; _facRender(); };
 
   // Uploader IA + animaciones count-up post-render de las secciones tributarias.
   if (S.tab === 'subir') _tribBind(ov);
@@ -15013,7 +15055,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '2.11.0';
+const APP_VERSION = '2.12.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
