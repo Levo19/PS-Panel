@@ -8957,7 +8957,10 @@ function _facEmitir() {
   const esVariosEmit = S.docTipo === '0' && (!S.doc.trim() || S.doc.trim() === '00000000');
   if (esVariosEmit && S.tipo !== 2) return _facErr('Cliente Varios solo en boletas — Factura / Exportación exigen RUC, pasaporte o tax-id');
   if (esVariosEmit && tot.total > 700) return _facErr('Cliente Varios solo en boletas hasta S/700 — identifica al cliente');
-  if (!S.items.length || tot.total <= 0) return _facErr('Agrega al menos un servicio con monto');
+  const soloGratis = tot.total <= 0 && tot.gratis > 0;   // CPE 100% gratuito (transferencia gratuita SUNAT) — solo boleta
+  if (!S.items.length || (tot.total <= 0 && !soloGratis)) return _facErr('Agrega al menos un servicio con monto');
+  if (soloGratis && S.tipo === 1) return _facErr('Una factura no puede ser 100% gratuita — la cortesía va como línea dentro de la factura del grupo');
+  if (soloGratis && S.exportacion) return _facErr('La cortesía no se mezcla con exportación');
   if (S.items.some(i => !String(i.descripcion).trim())) return _facErr('Hay un ítem sin descripción');
   if (S.items.some(i => !i.gratis && (parseFloat(i.precio) || 0) <= 0)) return _facErr('Hay un servicio con precio S/0 — SUNAT rechaza líneas en cero (marca 🎁 para cortesías)');
   const faltan = _facReglas().filter(r => r.hard && !r.ok);
@@ -8970,7 +8973,7 @@ function _facEmitir() {
     cliente_doc_tipo: S.docTipo, cliente_doc: snap.doc, cliente_nombre: snap.nombre,
     cliente_email: S.email.trim(), cliente_tel: S.tel.trim(), cliente_dir: S.dir.trim(), es_extranjero: S.esExtranjero,
     items: itemsSnap,
-    exportacion: !!S.exportacion, medio_pago: _facPagoStr(tot.total),
+    exportacion: !!S.exportacion, medio_pago: soloGratis ? null : _facPagoStr(tot.total),
     forma_pago: 'CONTADO', credito_venc: null,   // decisión dueño: todo contado (el RPC conserva el soporte crédito por si se necesita)
     observaciones: (S.obs || '').trim() || null,
     detraccion: (S.tipo === 1 && !S.exportacion && tot.total > (typeof _FAC_DETRACCION !== 'undefined' ? _FAC_DETRACCION.umbral : 700)),
@@ -15055,7 +15058,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '2.12.0';
+const APP_VERSION = '2.13.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
