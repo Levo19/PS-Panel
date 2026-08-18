@@ -2130,6 +2130,9 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 .fac-it-price.cero { color:#f87171; border-color:rgba(248,113,113,.6); background:rgba(248,113,113,.12); animation:cliInvPulse 1.4s ease-in-out infinite; }
 /* Aviso en sitio al intentar emitir (antes: doble re-render que solo hacía parpadear el modal) */
 .fac-err-live { padding:9px 11px; margin-bottom:8px; border-radius:9px; background:rgba(248,113,113,.12); border:1px solid rgba(248,113,113,.4); color:#f87171; font-size:11.5px; font-weight:700; line-height:1.4; }
+/* Desplegable de fecha de emisión: solo las fechas dentro del plazo (nunca un calendario entero) */
+.fac-fecha-pop { position:fixed; inset:0; z-index:100030; background:rgba(10,6,8,.5); backdrop-filter:blur(2px); display:flex; align-items:flex-start; justify-content:center; padding:76px 16px 16px; animation:facPickOv .16s ease both; }
+.fac-fecha-card { width:100%; max-width:280px; background:var(--bg2,#17141a); border:1px solid rgba(201,168,76,.32); border-radius:16px; padding:12px; box-shadow:0 20px 50px rgba(0,0,0,.65); animation:facPickIn .22s cubic-bezier(.34,1.56,.64,1) both; display:flex; flex-direction:column; gap:2px; }
 .fac-shake { animation:facShake .42s; }
 @keyframes facShake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-7px)} 40%{transform:translateX(7px)} 60%{transform:translateX(-4px)} 80%{transform:translateX(4px)} }
 /* sección SERVICIOS inválida (export sin paquete) → mismo pulso rojo que el chip del cliente */
@@ -3565,7 +3568,7 @@ const PS_POST = {
     p_cliente_dir: b.cliente_dir || null, p_es_extranjero: !!b.es_extranjero,
     p_medio_pago: b.medio_pago || null, p_exportacion: !!b.exportacion, p_detraccion: !!b.detraccion,
     p_forma_pago: b.forma_pago || 'CONTADO', p_credito_venc: b.credito_venc || null,
-    p_observaciones: b.observaciones || null }),
+    p_observaciones: b.observaciones || null, p_fecha_emision: b.fecha_emision || null }),
   // ── Jalar zarpe → CPEs (escritura; devuelven objetos, nunca arrays) ──
   registrar_zarpe_ocr:        b => _psRpc('registrar_zarpe_ocr', { p_operacion: b.operacion, p_pax: b.pax || [], p_por: b.por || 'PS' }),
   guardar_zarpe_tablilla:     b => _psRpc('guardar_zarpe_tablilla', { p_operacion: b.operacion, p_filas: b.filas || [] }),
@@ -8062,7 +8065,7 @@ function _facRenderRoots() {
 // Estado inicial compartido por modal y módulo.
 function _facInitState(ses, servicios, muelleOn, facCfg) {
   return { tab: 'inicio', ses, servicios, muelleOn, facCfg, cfgEdit: {}, comprobantes: [], cargandoHist: false,
-    tipo: 2, facModo: 'boleta', exportacion: false, pagoTipo: 'efectivo', pagoEf: '', pagoRec: true, formaPago: 'CONTADO', creditoVenc: '', lookupState: 'idle',
+    tipo: 2, facModo: 'boleta', exportacion: false, fechaEmision: null, pagoTipo: 'efectivo', pagoEf: '', pagoRec: true, formaPago: 'CONTADO', creditoVenc: '', lookupState: 'idle',
     docTipo: '1', doc: '', nombre: '', email: '', tel: '', dir: '', esExtranjero: false, obs: '', obsOpen: false,
     items: [], resultado: null, shake: false, svcEdit: null, solicitudes: [], cargandoAnul: false,
     tributos: null, cargandoTrib: true, _tribPeriodoLoaded: null, periodoTrib: (_tribPeriodos()[0] || {}).p || '', compraEdit: {}, concilia: [], cargandoConcilia: false,
@@ -8234,6 +8237,7 @@ function _facSetModo(m) {
   if (m === 'boleta') { S.tipo = 2; S.exportacion = false; S.esExtranjero = false; }
   else if (m === 'factura') { S.tipo = 1; if (!S.cliSel) S.docTipo = '6'; }
   S.lookupState = 'idle';
+  _facFechaAjustaPorTipo();   // la factura admite menos días atrás que la boleta (3 vs 7)
   _facRender();
   // si el cliente quedó inválido para el nuevo modo, marcarlo con feedback (visual+sonoro suave)
   if (_facCliInvalidez()) { try { sndDown(); haptic([25, 20, 25]); } catch (e) {} }
@@ -8472,6 +8476,79 @@ function _facPagoStr(total) {
   if (S.pagoTipo === 'tarjeta') return 'Tarjeta' + (S.pagoRec === false ? ' (sin recargo)' : ' (incluye recargo ' + Math.round(_FAC_TARJETA.rate * 100) + '%)');
   if (S.pagoTipo === 'mixto') { const p = _facPagoMxCalc(total); return 'Mixto: Efectivo S/' + p.ef.toFixed(2) + ' + Virtual S/' + p.vi.toFixed(2); }
   return 'Efectivo';
+}
+// ── FECHA DE EMISIÓN (solo panel · admin) ───────────────────────────────────────────────────
+// Plazo de ENVÍO a SUNAT: factura 3 días calendario desde el día siguiente a la emisión
+// (RS 000003-2023) · boleta 7 (van por Resumen Diario, RS 114-2019). Como el envío es HOY, la
+// fecha más antigua válida es hoy−3 / hoy−7. Fuera de plazo SUNAT RECHAZA el comprobante aunque
+// ya se le haya entregado al cliente → el desplegable ofrece SOLO las fechas emitibles.
+const _FAC_PLAZO = { 1: 3, 2: 7 };   // 1=factura, 2=boleta
+function _facPlazoDias() { return _FAC_PLAZO[_facState && _facState.tipo === 1 ? 1 : 2]; }
+function _facHoyLima() {
+  const f = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima', year: 'numeric', month: '2-digit', day: '2-digit' });
+  return f.format(new Date());   // YYYY-MM-DD anclado a Lima (no al reloj del equipo)
+}
+function _facFechaMenos(n) {
+  const [a, m, d] = _facHoyLima().split('-').map(Number);
+  const x = new Date(Date.UTC(a, m - 1, d)); x.setUTCDate(x.getUTCDate() - n);
+  return x.toISOString().slice(0, 10);
+}
+// Etiqueta humana: "Hoy · lun 17", "Ayer · dom 16", "sáb 15"
+function _facFechaLabel(iso, n) {
+  const [a, m, d] = iso.split('-').map(Number);
+  const dt = new Date(Date.UTC(a, m - 1, d));
+  const dia = dt.toLocaleDateString('es-PE', { weekday: 'short', day: '2-digit', timeZone: 'UTC' }).replace('.', '');
+  return n === 0 ? 'Hoy · ' + dia : n === 1 ? 'Ayer · ' + dia : dia;
+}
+function _facFechaOpciones() {
+  const N = _facPlazoDias(); const out = [];
+  for (let n = 0; n <= N; n++) { const iso = _facFechaMenos(n); out.push({ iso, n, label: _facFechaLabel(iso, n) }); }
+  return out;
+}
+function _facFechaSel() { return (_facState && _facState.fechaEmision) || _facHoyLima(); }
+function _facFechaChipHTML() {
+  const sel = _facFechaSel(); const hoy = sel === _facHoyLima();
+  const n = _facFechaOpciones().findIndex(o => o.iso === sel);
+  const txt = n >= 0 ? _facFechaLabel(sel, n) : sel;
+  return `<button onclick="_facFechaAbrir(event)" title="Fecha de emisión del comprobante — solo se ofrecen las fechas dentro del plazo SUNAT"
+    style="display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:999px;cursor:pointer;font-size:11.5px;font-weight:800;white-space:nowrap;
+      border:1px solid ${hoy ? 'var(--border)' : 'rgba(240,177,60,.6)'};background:${hoy ? 'rgba(255,255,255,.05)' : 'rgba(240,177,60,.14)'};color:${hoy ? 'var(--text)' : '#f0b13c'}">
+    📅 ${_facEsc(txt)}${hoy ? '' : ' ·<span style="font-weight:700">retro</span>'} <span style="opacity:.6;font-size:9px">▾</span></button>`;
+}
+function _facFechaAbrir(ev) {
+  try { ev && ev.stopPropagation(); } catch (e) {}
+  try { sndTap(); haptic(8); } catch (e) {}
+  document.querySelectorAll('.fac-fecha-pop').forEach(o => o.remove());
+  const sel = _facFechaSel(); const N = _facPlazoDias();
+  const ops = _facFechaOpciones().map(o => `<button onclick="_facFechaSet('${o.iso}')"
+      style="display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;padding:10px 12px;border-radius:10px;cursor:pointer;font-size:12.5px;
+        border:1px solid ${o.iso === sel ? 'var(--gold)' : 'transparent'};background:${o.iso === sel ? 'rgba(201,168,76,.16)' : 'transparent'};color:var(--text);font-weight:${o.iso === sel ? '800' : '600'}">
+      <span>${o.label}</span><span style="font-size:10px;color:var(--text-muted)">${o.iso.slice(8)}/${o.iso.slice(5, 7)}</span></button>`).join('');
+  const pop = document.createElement('div');
+  pop.className = 'fac-fecha-pop';
+  pop.innerHTML = `<div class="fac-fecha-card">
+      <div style="font-size:10px;font-weight:800;color:var(--gold);letter-spacing:.5px;margin-bottom:2px">FECHA DE EMISIÓN</div>
+      <div style="font-size:10.5px;color:var(--text-muted);line-height:1.45;margin-bottom:8px">Debe ser la fecha real del servicio. ${_facState.tipo === 1 ? 'Factura' : 'Boleta'}: hasta ${N} días atrás (plazo SUNAT).</div>
+      ${ops}</div>`;
+  pop.onclick = e => { if (e.target === pop) pop.remove(); };
+  document.body.appendChild(pop);
+}
+function _facFechaSet(iso) {
+  const S = _facState;
+  S.fechaEmision = (iso === _facHoyLima()) ? null : iso;   // null = hoy (comportamiento de siempre)
+  try { sndOk(); haptic(10); } catch (e) {}
+  document.querySelectorAll('.fac-fecha-pop').forEach(o => o.remove());
+  const sl = document.getElementById('fac-fecha-slot'); if (sl) sl.innerHTML = _facFechaChipHTML();
+  _facEmitLite();
+}
+// Al pasar de boleta (7 días) a factura (3), una fecha ya elegida puede quedar fuera de plazo.
+function _facFechaAjustaPorTipo() {
+  const S = _facState; if (!S || !S.fechaEmision) return;
+  const lim = _facFechaMenos(_facPlazoDias());
+  if (S.fechaEmision < lim) {
+    S.fechaEmision = (lim === _facHoyLima()) ? null : lim;
+    if (typeof showToast === 'function') showToast('📅 La factura solo admite hasta ' + _facPlazoDias() + ' días atrás — fecha ajustada');
+  }
 }
 // Recargo por tarjeta (POS): 5% sobre lo COBRADO. Se puede apagar con el chip "+5%".
 function _facRecargoTarjeta(base) {
@@ -8936,7 +9013,7 @@ function _facCliBindManual() {
 // plazo NO se puede dar de baja → hay que emitir una Nota de Crédito.
 const _FAC_DIAS_BAJA = 7;
 function _facDentroPlazoBaja(c) {
-  const m = String((c && (c.creado || c.creado_at || c.fecha)) || '').match(/(\d{4})-(\d{2})-(\d{2})/);
+  const m = String((c && (c.fecha_emision || c.creado || c.creado_at || c.fecha)) || '').match(/(\d{4})-(\d{2})-(\d{2})/);
   if (!m) return true;   // sin fecha legible → no bloquear (cae al flujo de baja como antes)
   const emis = new Date(+m[1], +m[2] - 1, +m[3]); emis.setHours(0, 0, 0, 0);
   const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
@@ -9046,7 +9123,7 @@ function _facEmitir() {
     items: itemsSnap,
     exportacion: !!S.exportacion, medio_pago: soloGratis ? null : _facPagoStr(tot.total),
     forma_pago: 'CONTADO', credito_venc: null,   // decisión dueño: todo contado (el RPC conserva el soporte crédito por si se necesita)
-    observaciones: (S.obs || '').trim() || null,
+    observaciones: (S.obs || '').trim() || null, fecha_emision: S.fechaEmision || null,   // null = hoy; el backend valida el plazo (3 factura / 7 boleta)
     detraccion: (S.tipo === 1 && !S.exportacion && tot.total > (typeof _FAC_DETRACCION !== 'undefined' ? _FAC_DETRACCION.umbral : 700)),
     moneda: 'PEN', operador: (S.ses && S.ses.nombre) || 'PS',
     localId: S._emitLocalId };
@@ -9891,7 +9968,7 @@ window._facOpenEmit = function () {
   // Form fresco en cada apertura — cliente por defecto = VARIOS seleccionado (chip con ×):
   // el caso más común del muelle es boleta simple; la × lo vacía y abre la búsqueda.
   S.resultado = null; S.facModo = 'boleta'; S.tipo = 2; S.exportacion = false; S.esExtranjero = false;
-  S.docTipo = '0'; S.doc = '00000000'; S.nombre = 'VARIOS'; S.email = ''; S.tel = ''; S.dir = ''; S.items = []; S.pagoTipo = 'efectivo'; S.pagoEf = ''; S.pagoRec = true; S.formaPago = 'CONTADO'; S.creditoVenc = ''; S.lookupState = 'idle';
+  S.docTipo = '0'; S.doc = '00000000'; S.nombre = 'VARIOS'; S.email = ''; S.tel = ''; S.dir = ''; S.items = []; S.fechaEmision = null; S.pagoTipo = 'efectivo'; S.pagoEf = ''; S.pagoRec = true; S.formaPago = 'CONTADO'; S.creditoVenc = ''; S.lookupState = 'idle';
   clearTimeout(S._cliTimer); clearTimeout(S._cliDebounce);
   S.cliQuery = ''; S.cliResults = []; S.cliSel = true; S.cliShowLupa = false; S.cliManual = false;
   S.manualDoc = ''; S.manualNombre = ''; S.manualTipo = '1'; S._cliLoading = false; S._cliLupaLoading = false;
@@ -9907,6 +9984,7 @@ window._facOpenEmit = function () {
     <div class="fac-emit-head">
       <div style="font-size:22px">🧾</div>
       <div style="flex:1;min-width:0"><div class="fac-emit-title">Emitir CPE</div></div>
+      <div id="fac-fecha-slot" style="flex:0 0 auto">${_facFechaChipHTML()}</div>
       <button class="fac-z-bot" onclick="_facZarpeAbrir()" title="Jalar zarpe con IA — facturar al grupo" aria-label="Jalar zarpe con IA">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
           <g class="zbot-head">
@@ -11047,7 +11125,10 @@ function _facPdfPreviewHTML(c, fmt) {
   const T = _facPdfTotales(c);
   const esA4 = fmt === 'a4';
   const num = _facNumFmt(c);
-  const fecha = _facEsc(String(c.creado || c.fecha || c.creado_at || '').slice(0, 16).replace('T', ' '));   // ISO → "2026-08-17 10:24" (sin la T)
+  // Fecha del COMPROBANTE: si se emitió con fecha anterior, manda esa (no la de registro).
+  const fecha = _facEsc(c.fecha_emision
+    ? String(c.fecha_emision).slice(0, 10)
+    : String(c.creado || c.fecha || c.creado_at || '').slice(0, 16).replace('T', ' '));
   const docCli = _facEsc(String(c.cliente_doc || '').trim() || '—');
   const nomCli = _facEsc(c.cliente_nombre || 'Cliente varios');
   const rucLine = _FAC_EMISOR.ruc ? ('R.U.C. ' + _facEsc(_FAC_EMISOR.ruc)) : 'R.U.C. —';
@@ -15380,7 +15461,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '2.16.1';
+const APP_VERSION = '2.17.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
