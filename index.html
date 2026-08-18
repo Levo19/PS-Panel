@@ -8056,7 +8056,7 @@ function _facRenderRoots() {
 // Estado inicial compartido por modal y módulo.
 function _facInitState(ses, servicios, muelleOn, facCfg) {
   return { tab: 'inicio', ses, servicios, muelleOn, facCfg, cfgEdit: {}, comprobantes: [], cargandoHist: false,
-    tipo: 2, facModo: 'boleta', exportacion: false, pagoTipo: 'efectivo', pagoEf: '', formaPago: 'CONTADO', creditoVenc: '', lookupState: 'idle',
+    tipo: 2, facModo: 'boleta', exportacion: false, pagoTipo: 'efectivo', pagoEf: '', pagoRec: true, formaPago: 'CONTADO', creditoVenc: '', lookupState: 'idle',
     docTipo: '1', doc: '', nombre: '', email: '', tel: '', dir: '', esExtranjero: false, obs: '', obsOpen: false,
     items: [], resultado: null, shake: false, svcEdit: null, solicitudes: [], cargandoAnul: false,
     tributos: null, cargandoTrib: true, _tribPeriodoLoaded: null, periodoTrib: (_tribPeriodos()[0] || {}).p || '', compraEdit: {}, concilia: [], cargandoConcilia: false,
@@ -8123,14 +8123,19 @@ function _facSerie() { const c = _facState.facCfg || {}; return _facState.tipo =
 function _facTotales() {
   const S = _facState;
   // Cortesías (🎁 gratuito, ej. el TC del grupo) NO suman al total a cobrar — van en su bucket.
-  const total = S.items.reduce((s, i) => s + (i.gratis ? 0 : (parseFloat(i.cantidad) || 0) * (parseFloat(i.precio) || 0)), 0);
+  const base = S.items.reduce((s, i) => s + (i.gratis ? 0 : (parseFloat(i.cantidad) || 0) * (parseFloat(i.precio) || 0)), 0);
   const gratis = S.items.reduce((s, i) => s + (i.gratis ? (parseFloat(i.cantidad) || 0) * (parseFloat(i.precio) || 0) : 0), 0);
+  // Recargo por tarjeta: es MAYOR CONTRAPRESTACIÓN → entra al comprobante como una línea más
+  // (no se puede cobrar 105 y declarar 100). Se calcula solo sobre lo COBRADO (sin cortesías).
+  const rec = _facRecargoTarjeta(base);
+  const total = Math.round((base + rec) * 100) / 100;
   // Exportación de servicios (turismo receptivo) = tasa 0% IGV; el backend fija la afectación.
   // El resto SIEMPRE es gravado 18% (se eliminó el toggle "exonerado").
   const esExport = !!S.exportacion;
   const grav = esExport ? 0 : Math.round(total / 1.18 * 100) / 100;
   const igv = esExport ? 0 : Math.round((total - grav) * 100) / 100;
-  return { total: Math.round(total * 100) / 100, grav, igv, esExport, gratis: Math.round(gratis * 100) / 100 };
+  return { total, grav, igv, esExport, gratis: Math.round(gratis * 100) / 100,
+           base: Math.round(base * 100) / 100, rec };
 }
 function _facErr(msg) { sndErr(); haptic([60, 30, 60]); if (typeof showToast === 'function') showToast('⚠️ ' + msg); if (_facState) { _facState.shake = true; _facRender(); setTimeout(() => { if (_facState) { _facState.shake = false; _facRender(); } }, 450); } }
 // Chip de estado SUNAT para el historial
@@ -8442,18 +8447,29 @@ function _facPagoMxCalc(total) {
 function _facPagoStr(total) {
   const S = _facState;
   if (S.pagoTipo === 'virtual') return 'Virtual (transferencia/Yape)';
+  if (S.pagoTipo === 'tarjeta') return 'Tarjeta' + (S.pagoRec === false ? ' (sin recargo)' : ' (incluye recargo ' + Math.round(_FAC_TARJETA.rate * 100) + '%)');
   if (S.pagoTipo === 'mixto') { const p = _facPagoMxCalc(total); return 'Mixto: Efectivo S/' + p.ef.toFixed(2) + ' + Virtual S/' + p.vi.toFixed(2); }
   return 'Efectivo';
 }
+// Recargo por tarjeta (POS): 5% sobre lo COBRADO. Se puede apagar con el chip "+5%".
+function _facRecargoTarjeta(base) {
+  const S = _facState;
+  if (!S || S.pagoTipo !== 'tarjeta' || S.pagoRec === false) return 0;
+  return Math.round(Math.max(0, base) * _FAC_TARJETA.rate * 100) / 100;
+}
 function _facPagoHTML(tot) {
-  const S = _facState; const t = (tot || _facTotales()).total;
-  const M = { efectivo: ['💵', 'Efectivo'], virtual: ['📲', 'Virtual'], mixto: ['🔀', 'Mixto'] }[S.pagoTipo] || ['💵', 'Efectivo'];
+  const S = _facState; const T = tot || _facTotales(); const t = T.total;
+  const M = { efectivo: ['💵', 'Efectivo'], virtual: ['📲', 'Virtual'], mixto: ['🔀', 'Mixto'], tarjeta: ['💳', 'Tarjeta'] }[S.pagoTipo] || ['💵', 'Efectivo'];
   const p = _facPagoMxCalc(t);
   const inp = 'width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:9px;background:var(--bg2,rgba(255,255,255,0.04));color:var(--text);font-weight:700;font-size:12.5px';
   return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:${S.pagoTipo === 'mixto' ? '8' : '12'}px">
       <span style="font-size:11px;font-weight:800;color:var(--text-muted);letter-spacing:.5px">PAGO</span>
-      <button onclick="_facPagoCiclo()" title="Toca para cambiar: Efectivo → Virtual → Mixto" style="border:1px solid ${S.pagoTipo === 'mixto' ? 'var(--gold)' : 'var(--border)'};background:var(--bg2,rgba(255,255,255,0.04));color:var(--text);font-weight:800;font-size:11.5px;border-radius:999px;padding:4px 13px;cursor:pointer">${M[0]} ${M[1]}</button>
+      <span style="display:flex;align-items:center;gap:6px">
+        ${S.pagoTipo === 'tarjeta' ? `<button onclick="_facPagoRecToggle()" title="${S.pagoRec === false ? 'Activar el recargo del POS' : 'Quitar el recargo (lo asume la empresa)'}" style="border:1px solid ${S.pagoRec === false ? 'var(--border)' : 'rgba(74,222,128,.5)'};background:${S.pagoRec === false ? 'transparent' : 'rgba(74,222,128,.14)'};color:${S.pagoRec === false ? 'var(--text-muted)' : '#4ade80'};font-weight:800;font-size:11px;border-radius:999px;padding:4px 10px;cursor:pointer">${S.pagoRec === false ? '○' : '●'} ${Math.round(_FAC_TARJETA.rate * 100)}%</button>` : ''}
+        <button onclick="_facPagoCiclo()" title="Toca para cambiar: Efectivo → Virtual → Mixto → Tarjeta" style="border:1px solid ${(S.pagoTipo === 'mixto' || S.pagoTipo === 'tarjeta') ? 'var(--gold)' : 'var(--border)'};background:var(--bg2,rgba(255,255,255,0.04));color:var(--text);font-weight:800;font-size:11.5px;border-radius:999px;padding:4px 13px;cursor:pointer">${M[0]} ${M[1]}</button>
+      </span>
     </div>
+    ${T.rec > 0 ? `<div style="display:flex;justify-content:space-between;font-size:11px;color:#4ade80;margin:-4px 0 10px"><span>Recargo tarjeta ${Math.round(_FAC_TARJETA.rate * 100)}% (va en el comprobante)</span><span>+ S/ ${T.rec.toFixed(2)}</span></div>` : ''}
     ${S.pagoTipo === 'mixto' ? `<div style="display:flex;gap:8px;margin-bottom:8px">
       <label style="flex:1;font-size:10px;font-weight:800;color:var(--text-muted)">EFECTIVO S/<input id="fac-mx-ef" type="number" inputmode="decimal" min="0" value="${p.ef || ''}" oninput="_facPagoMxInput('ef',this.value)" style="${inp};margin-top:3px"></label>
       <label style="flex:1;font-size:10px;font-weight:800;color:var(--text-muted)">VIRTUAL S/<input id="fac-mx-vi" type="number" inputmode="decimal" min="0" value="${p.vi || ''}" oninput="_facPagoMxInput('vi',this.value)" style="${inp};margin-top:3px"></label>
@@ -8462,10 +8478,19 @@ function _facPagoHTML(tot) {
 }
 function _facPagoCiclo() {
   const S = _facState;
-  S.pagoTipo = S.pagoTipo === 'efectivo' ? 'virtual' : S.pagoTipo === 'virtual' ? 'mixto' : 'efectivo';
+  S.pagoTipo = S.pagoTipo === 'efectivo' ? 'virtual' : S.pagoTipo === 'virtual' ? 'mixto' : S.pagoTipo === 'mixto' ? 'tarjeta' : 'efectivo';
   if (S.pagoTipo === 'mixto') { const t = _facTotales().total; S.pagoEf = String(Math.round(t / 2 * 100) / 100); }   // arranca mitad-mitad, editable
   else S.pagoEf = '';
+  if (S.pagoTipo === 'tarjeta') S.pagoRec = true;   // el recargo entra encendido; se apaga con el chip %
   try { sndTap(); haptic(8); } catch (e) {}
+  const ps = document.getElementById('fac-pago-slot'); if (ps) ps.innerHTML = _facPagoHTML();
+  _facEmitLite();
+}
+// Enciende/apaga el 5% del POS (apagado = lo asume la empresa, el cliente paga el precio de lista)
+function _facPagoRecToggle() {
+  const S = _facState;
+  S.pagoRec = S.pagoRec === false;
+  try { if (S.pagoRec) { sndUp(); haptic([12, 25, 12]); } else { sndTap(); haptic(8); } } catch (e) {}
   const ps = document.getElementById('fac-pago-slot'); if (ps) ps.innerHTML = _facPagoHTML();
   _facEmitLite();
 }
@@ -8989,6 +9014,9 @@ function _facEmitir() {
   const label = S.tipo === 1 ? 'Factura' : (S.exportacion ? 'Exportación' : 'Boleta');
   // `unidad` = catálogo SUNAT 03 (ZZ servicio / NIU bien). El backend valida y cae a ZZ si falta.
   const itemsSnap = S.items.map(i => Object.assign({ descripcion: i.descripcion, cantidad: parseFloat(i.cantidad) || 0, precio: parseFloat(i.precio) || 0, unidad: i.unidad || _FAC_UNIDAD }, i.gratis ? { afectacion: 'gratuito' } : {}));
+  // El recargo por tarjeta viaja como LÍNEA del CPE (mismo tratamiento tributario que la venta):
+  // así el comprobante declara exactamente lo que se cobró por el POS.
+  if (tot.rec > 0) itemsSnap.push(Object.assign({ descripcion: _FAC_TARJETA.label, cantidad: 1, precio: tot.rec, unidad: _FAC_UNIDAD }, S.exportacion ? { afectacion: 'exportacion' } : {}));
   const snap = { tipo: S.tipo, label, items: itemsSnap, nombre: S.nombre.trim(), doc: esVariosEmit ? '' : S.doc.trim() };
   const payload = { accion: 'emitir_comprobante', tipo: S.tipo, serie: _facSerie(),
     cliente_doc_tipo: S.docTipo, cliente_doc: snap.doc, cliente_nombre: snap.nombre,
@@ -9005,7 +9033,7 @@ function _facEmitir() {
   if (S._emitidos.length > 20) S._emitidos.length = 20;
   S._emitFeed = { type: 'sending', entry };
   // form libre YA (optimista) — el modal sigue abierto para el siguiente
-  S.items = []; S.email = ''; S.tel = ''; S.dir = ''; S.pagoTipo = 'efectivo'; S.pagoEf = ''; S.formaPago = 'CONTADO'; S.creditoVenc = ''; S.lookupState = 'idle'; S.obs = ''; S.obsOpen = false;
+  S.items = []; S.email = ''; S.tel = ''; S.dir = ''; S.pagoTipo = 'efectivo'; S.pagoEf = ''; S.pagoRec = true; S.formaPago = 'CONTADO'; S.creditoVenc = ''; S.lookupState = 'idle'; S.obs = ''; S.obsOpen = false;
   S.cliQuery = ''; S.cliResults = []; S.cliShowLupa = false; S.cliManual = false; S.manualDoc = ''; S.manualNombre = ''; S._lkFail = null;
   if (S.tipo === 2 && !S.exportacion) { S.docTipo = '0'; S.doc = '00000000'; S.nombre = 'VARIOS'; S.cliSel = true; }
   else { S.doc = ''; S.nombre = ''; S.cliSel = false; }
@@ -9841,7 +9869,7 @@ window._facOpenEmit = function () {
   // Form fresco en cada apertura — cliente por defecto = VARIOS seleccionado (chip con ×):
   // el caso más común del muelle es boleta simple; la × lo vacía y abre la búsqueda.
   S.resultado = null; S.facModo = 'boleta'; S.tipo = 2; S.exportacion = false; S.esExtranjero = false;
-  S.docTipo = '0'; S.doc = '00000000'; S.nombre = 'VARIOS'; S.email = ''; S.tel = ''; S.dir = ''; S.items = []; S.pagoTipo = 'efectivo'; S.pagoEf = ''; S.formaPago = 'CONTADO'; S.creditoVenc = ''; S.lookupState = 'idle';
+  S.docTipo = '0'; S.doc = '00000000'; S.nombre = 'VARIOS'; S.email = ''; S.tel = ''; S.dir = ''; S.items = []; S.pagoTipo = 'efectivo'; S.pagoEf = ''; S.pagoRec = true; S.formaPago = 'CONTADO'; S.creditoVenc = ''; S.lookupState = 'idle';
   clearTimeout(S._cliTimer); clearTimeout(S._cliDebounce);
   S.cliQuery = ''; S.cliResults = []; S.cliSel = true; S.cliShowLupa = false; S.cliManual = false;
   S.manualDoc = ''; S.manualNombre = ''; S.manualTipo = '1'; S._cliLoading = false; S._cliLupaLoading = false;
@@ -10592,6 +10620,9 @@ const _FAC_EMISOR = { marca: 'PARACAS SIGHTS & TOURS', razon: 'PARACAS SIGHTS & 
 const _FAC_DETRACCION = { rate: 0.12, umbral: 700, codigo: '037', concepto: 'Demás servicios gravados', banco: 'Banco de la Nación', cuenta: '' };
 // Unidad de medida por defecto para los ítems (SUNAT exige unidad; estos son servicios → ZZ).
 const _FAC_UNIDAD = 'ZZ';
+// Recargo por pago con tarjeta (comisión del POS trasladada al cliente). Va como LÍNEA del CPE:
+// si se cobra 5% más, el comprobante debe declararlo (mayor contraprestación, mismo IGV).
+const _FAC_TARJETA = { rate: 0.05, label: 'Recargo por pago con tarjeta (5%)' };
 // Carga jsPDF de forma perezosa (no bloquea el arranque del panel).
 let _facJsPDFPromise = null;
 function _facEnsureJsPDF() {
@@ -10938,14 +10969,19 @@ function _facTotRows(T) {
 }
 // Forma de pago del CPE (RS 193-2020): usa lo REGISTRADO en el comprobante (CONTADO/CREDITO);
 // crédito muestra el vencimiento de la cuota. Añade el medio si el comprobante lo trae.
-function _facFormaPago(c) {
+function _facFormaPagoBase(c) {
   var fp = String((c && c.forma_pago) || 'CONTADO').toUpperCase();
   var s = fp === 'CREDITO' ? 'CRÉDITO' : 'CONTADO';
   var v = String((c && c.credito_vencimiento) || '').slice(0, 10);
   if (fp === 'CREDITO' && v) s += ' · vence ' + v;
-  var m = String((c && c.medio_pago) || '').trim();
-  if (m) s += ' · ' + m;
   return s;
+}
+// Cómo pagó el cliente (efectivo / virtual / tarjeta / mixto con su desglose) — va en su propia
+// fila del comprobante; el mixto llega ya detallado desde el emisor.
+function _facPagoDetalle(c) { return String((c && c.medio_pago) || '').trim(); }
+function _facFormaPago(c) {
+  var s = _facFormaPagoBase(c); var m = _facPagoDetalle(c);
+  return m ? s + ' · ' + m : s;
 }
 // Datos de detracción (SPOT) del comprobante → null si no aplica (boleta / total < umbral).
 function _facDetraccion(c, T) {
@@ -10989,7 +11025,7 @@ function _facPdfPreviewHTML(c, fmt) {
   const T = _facPdfTotales(c);
   const esA4 = fmt === 'a4';
   const num = _facNumFmt(c);
-  const fecha = _facEsc(String(c.creado || c.fecha || c.creado_at || '').slice(0, 16));
+  const fecha = _facEsc(String(c.creado || c.fecha || c.creado_at || '').slice(0, 16).replace('T', ' '));   // ISO → "2026-08-17 10:24" (sin la T)
   const docCli = _facEsc(String(c.cliente_doc || '').trim() || '—');
   const nomCli = _facEsc(c.cliente_nombre || 'Cliente varios');
   const rucLine = _FAC_EMISOR.ruc ? ('R.U.C. ' + _facEsc(_FAC_EMISOR.ruc)) : 'R.U.C. —';
@@ -11006,7 +11042,8 @@ function _facPdfPreviewHTML(c, fmt) {
     : `<div style="width:${size}px;height:${size}px;border:1px dashed #bbb;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#999">QR</div>`;
   const hashTxt = hash ? `<div style="font-size:7px;color:#777;word-break:break-all;line-height:1.25">Hash: ${hash}</div>` : '';
   // Campos SUNAT añadidos: forma de pago, tipo de operación, vendedor, desglose por tipo de op. y detracción.
-  const formaPago = _facEsc(_facFormaPago(c));
+  const formaPago = _facEsc(_facFormaPagoBase(c));
+  const pagoDet = _facEsc(_facPagoDetalle(c));   // fila propia: efectivo / virtual / tarjeta / mixto detallado
   const vendedor = _facEsc(String(c.creado_por || '').trim());
   const vendedorLine = vendedor ? `Emitido por: ${vendedor}` : '';
   const totRowsHtml = _facTotRows(T).map(r => `<div class="fpdf-tot-row"><span>${_facEsc(r.lbl)}</span><b>S/ ${_facMoney(r.val)}</b></div>`).join('');
@@ -11048,7 +11085,7 @@ function _facPdfPreviewHTML(c, fmt) {
       </div>
       <div class="fpdf-hr-solid"></div>
       <div class="fpdf-a4-meta">
-        <div class="fpdf-a4-metacol"><div><span class="lbl">CLIENTE</span> ${nomCli}</div><div><span class="lbl">DOCUMENTO</span> ${docCli}</div><div><span class="lbl">FORMA DE PAGO</span> ${formaPago}</div></div>
+        <div class="fpdf-a4-metacol"><div><span class="lbl">CLIENTE</span> ${nomCli}</div><div><span class="lbl">DOCUMENTO</span> ${docCli}</div><div><span class="lbl">FORMA DE PAGO</span> ${formaPago}</div>${pagoDet ? `<div><span class="lbl">TIPO DE PAGO</span> ${pagoDet}</div>` : ''}</div>
         <div class="fpdf-a4-metacol r"><div><span class="lbl">FECHA</span> ${fecha || '—'}</div><div><span class="lbl">MONEDA</span> ${_facEsc(c.moneda || 'PEN')}</div><div><span class="lbl">OPERACIÓN</span> Venta interna</div></div>
       </div>
       ${_facNCLegalHTML(c)}
@@ -11100,6 +11137,7 @@ function _facPdfPreviewHTML(c, fmt) {
     </div>
     <div style="display:flex;justify-content:space-between;gap:8px;font-size:9.5px;margin-top:2px">
       <div><b>Pago:</b> ${formaPago}</div>
+      ${pagoDet ? `<div><b>Tipo de pago:</b> ${pagoDet}</div>` : ''}
       <div><b>Op.:</b> Venta interna</div>
     </div>
     <div style="font-size:10px;margin-top:4px"><b>Cliente:</b> ${nomCli}<br><b>Doc:</b> ${docCli}</div>
@@ -15320,7 +15358,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '2.15.0';
+const APP_VERSION = '2.16.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
