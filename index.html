@@ -3530,6 +3530,9 @@ const PS_GET = {
   listar_comprobantes:    p => _psRpc('listar_comprobantes', { p_desde: p.desde || null, p_hasta: p.hasta || null }),
   buscar_cliente:         p => _psRpc('buscar_cliente', { p_doc_tipo: p.doc_tipo, p_doc: p.doc }),
   buscar_clientes_like:   p => _psRpc('buscar_clientes_like', { p_q: p.q }),
+  // Catálogo admin: clientes frecuentes (CRUD) + servicios con inactivos/paquete de zarpe
+  listar_clientes:        p => _psRpc('admin_listar_clientes', { p_q: (p && p.q) || '', p_limite: (p && p.limite) || 500 }),
+  listar_servicios_full:  () => _psRpc('admin_listar_servicios_full'),
   get_facturacion_config: () => _psRpc('get_facturacion_config'),
   consultar_documento:    p => _psRpc('consultar_documento', { p_numero: p.numero, p_tipo: p.tipo || null }),
   solicitudes_anulacion:  () => _psRpc('listar_solicitudes_anulacion'),
@@ -3570,6 +3573,10 @@ const PS_POST = {
   eliminar_compra:         b => _psRpc('eliminar_compra', { p: { id: b.id } }),
   set_servicio: b => _psRpc('admin_set_servicio', { p_id: b.id || '', p_nombre: b.nombre, p_desc: b.descripcion || null, p_precio: parseFloat(b.precio) || 0, p_unidad: b.unidad || 'NIU', p_activo: b.activo !== false }).then(id => ({ id })),
   eliminar_servicio: b => _psRpc('admin_eliminar_servicio', { p_id: b.id }).then(() => ({ ok: true })),
+  borrar_servicio_def: b => _psRpc('admin_borrar_servicio_def', { p_id: b.id }),
+  servicio_paquete:  b => _psRpc('admin_servicio_paquete', { p_id: b.id, p_on: !!b.on }),
+  guardar_cliente_admin: b => _psRpc('admin_guardar_cliente', { p: { doc_tipo: b.doc_tipo, doc_numero: String(b.doc_numero || '').trim(), nombre: b.nombre, direccion: b.direccion || '', email: b.email || '', telefono: b.telefono || '', es_extranjero: !!b.es_extranjero, doc_tipo_old: b.doc_tipo_old || '', doc_numero_old: b.doc_numero_old || '' } }),
+  eliminar_cliente:  b => _psRpc('admin_eliminar_cliente', { p_doc_tipo: b.doc_tipo, p_doc: b.doc_numero }),
   set_facturacion_muelle: b => _psRpc('admin_set_facturacion_muelle', { p_on: !!b.on }).then(v => ({ on: v })),
   set_facturacion_config: b => _psRpc('admin_set_facturacion_config', { p_ruta: b.ruta || '', p_token: b.token || '', p_lookup_url: b.lookup_url || '', p_lookup_token: b.lookup_token || '', p_modo: b.modo || '', p_activo: typeof b.activo === 'boolean' ? b.activo : null }).then(() => ({ ok: true })),
   anular_comprobante: b => _psRpc('anular_comprobante', { p_id: b.id, p_motivo: b.motivo || 'Anulación' }),
@@ -13682,8 +13689,17 @@ const ViewCatalogos = {
       { id: 'personal',      icon: '👥', label: 'Personal',        unit: 'personas',  hint: 'Capitanes · Guías · Operadores' },
       { id: 'contactos',     icon: '📇', label: 'Contactos',       unit: 'contactos', hint: 'Agencias · Aliados · Comisionados · Libre' },
       { id: 'impuestos',     icon: '🧾', label: 'Impuestos / Adicionales', unit: 'items', hint: 'Muelle, Adulto, etc.' },
-      { id: 'servicios',     icon: '🏷', label: 'Servicios de facturación', unit: 'servicios', hint: 'Paseo · Guiado · Tours · CPE' }
+      { id: 'servicios',     icon: '🏷', label: 'Servicios de facturación', unit: 'servicios', hint: 'Paseo · Guiado · Tours · CPE' },
+      { id: 'clientes',      icon: '🧍', label: 'Clientes frecuentes', unit: 'clientes', hint: 'Datos para boletas y facturas' }
     ];
+
+    // Los RAISE del backend vienen "CODIGO: explicación humana" → mostramos solo la explicación.
+    function _psMsg(e, fallback) {
+      const raw = String((e && e.message) || e || '').trim();
+      if (!raw) return fallback;
+      const m = raw.match(/^[A-Z_]{3,}:\s*(.+)$/);
+      return (m ? m[1] : raw).slice(0, 160) || fallback;
+    }
 
     // ── Servicios de facturación (estado propio · RPCs listar/set/eliminar_servicio) ──
     const servicios  = ref([]);
@@ -13691,17 +13707,44 @@ const ViewCatalogos = {
     let   svcLoaded   = false;
     const svcModal = ref({ show: false, mode: 'crear', saving: false, deleting: false, error: '',
       id: '', nombre: '', descripcion: '', precio: '', unidad: 'NIU' });
+    // listar_servicios_full trae TAMBIÉN los inactivos + activo/paquete_zarpe (listar_servicios los oculta)
     async function loadServicios(force) {
       if (svcLoaded && !force) return;
       svcLoading.value = true;
-      try { const r = await apiGet('listar_servicios'); servicios.value = (r.ok && r.data) || []; svcLoaded = true; }
+      try { const r = await apiGet('listar_servicios_full'); servicios.value = (r.ok && r.data) || []; svcLoaded = true; }
       catch (e) {} finally { svcLoading.value = false; }
     }
     function openSvcModal(item = null) {
       try { sndTap(); haptic(8); } catch (e) {}
       svcModal.value = { show: true, mode: item ? 'editar' : 'crear', saving: false, deleting: false, error: '',
         id: item?.id || '', nombre: item?.nombre || '', descripcion: item?.descripcion || '',
-        precio: item ? String(item.precio || '') : '', unidad: item?.unidad || 'NIU' };
+        precio: item ? String(item.precio || '') : '', unidad: item?.unidad || 'NIU',
+        activo: item ? item.activo !== false : true, paquete: !!item?.paquete_zarpe, confirmBorrar: false };
+    }
+    // Alta/baja del servicio en el paquete por defecto del zarpe (se guarda al instante)
+    async function toggleSvcPaquete() {
+      const m = svcModal.value; if (!m.id) { m.error = 'Guarda el servicio primero'; return; }
+      const nuevo = !m.paquete; m.error = '';
+      try { sndTap(); haptic(8); } catch (e) {}
+      try {
+        const r = await apiPost({ accion: 'servicio_paquete', id: m.id, on: nuevo });
+        if (!r.ok) throw new Error(r.error || 'Error');
+        m.paquete = nuevo;
+        await loadServicios(true);
+      } catch (e) { m.error = _psMsg(e, 'No se pudo cambiar el paquete'); }
+    }
+    // Borrado DEFINITIVO (el botón normal solo desactiva). Doble toque para confirmar.
+    async function borrarSvcDef() {
+      const m = svcModal.value; if (!m.id) return;
+      if (!m.confirmBorrar) { m.confirmBorrar = true; try { sndErr(); haptic([30, 20, 30]); } catch (e) {} return; }
+      m.deleting = true; m.error = '';
+      try {
+        const r = await apiPost({ accion: 'borrar_servicio_def', id: m.id });
+        if (!r.ok) throw new Error(r.error || 'Error');
+        svcModal.value.show = false;
+        await loadServicios(true);
+        emit('action', { type: 'toast', msg: '🗑 Servicio borrado' });
+      } catch (e) { m.deleting = false; m.confirmBorrar = false; m.error = _psMsg(e, 'No se pudo borrar'); }
     }
     function bumpSvc(delta) {
       const v = parseFloat(svcModal.value.precio) || 0;
@@ -13713,12 +13756,12 @@ const ViewCatalogos = {
       m.saving = true; m.error = '';
       try {
         const r = await apiPost({ accion: 'set_servicio', id: m.id || '', nombre: m.nombre.trim(),
-          descripcion: m.descripcion || '', precio: parseFloat(m.precio) || 0, unidad: m.unidad || 'NIU', activo: true });
+          descripcion: m.descripcion || '', precio: parseFloat(m.precio) || 0, unidad: m.unidad || 'NIU', activo: m.activo !== false });
         if (!r.ok) throw new Error(r.error || 'Error');
         svcModal.value.show = false;
         await loadServicios(true);
         emit('action', { type: 'toast', msg: m.mode === 'crear' ? '✅ Registrado' : '✅ Guardado' });
-      } catch (e) { m.saving = false; m.error = (e && e.message) || 'No se pudo guardar'; }
+      } catch (e) { m.saving = false; m.error = _psMsg(e, 'No se pudo guardar'); }
     }
     async function eliminarSvc() {
       const m = svcModal.value;
@@ -13729,10 +13772,78 @@ const ViewCatalogos = {
         if (!r.ok) throw new Error(r.error || 'Error');
         svcModal.value.show = false;
         await loadServicios(true);
-        emit('action', { type: 'toast', msg: '🗑 Eliminado' });
-      } catch (e) { m.deleting = false; m.error = (e && e.message) || 'No se pudo eliminar'; }
+        emit('action', { type: 'toast', msg: '🗑 Desactivado' });
+      } catch (e) { m.deleting = false; m.error = _psMsg(e, 'No se pudo desactivar'); }
     }
-    function catCount(id) { return id === 'servicios' ? servicios.value.length : ((lists[id] || []).length); }
+
+    // ── Clientes frecuentes (maestro de datos para el CPE · CRUD admin) ──
+    const clientes    = ref([]);
+    const cliLoading  = ref(false);
+    const cliBusca    = ref('');
+    let   cliLoaded   = false;
+    const DOC_TIPOS = [
+      { k: '1', l: 'DNI',       hint: '8 dígitos' },
+      { k: '6', l: 'RUC',       hint: '11 dígitos · empieza en 10/15/17/20' },
+      { k: '4', l: 'CE',        hint: 'carné de extranjería' },
+      { k: '7', l: 'Pasaporte', hint: 'turista extranjero' },
+      { k: '0', l: 'Tax-ID',    hint: 'empresa del exterior (RUT/EIN/NIF…)' }
+    ];
+    function docLabel(t) { return (DOC_TIPOS.find(d => d.k === String(t)) || { l: String(t || '—') }).l; }
+    const cliModal = ref({ show: false, mode: 'crear', saving: false, deleting: false, confirmDel: false, error: '',
+      doc_tipo: '1', doc_numero: '', nombre: '', direccion: '', email: '', telefono: '',
+      doc_tipo_old: '', doc_numero_old: '', es_varios: false, cpes: 0 });
+
+    async function loadClientes(force) {
+      if (cliLoaded && !force) return;
+      cliLoading.value = true;
+      try { const r = await apiGet('listar_clientes', { q: '' }); clientes.value = (r.ok && r.data) || []; cliLoaded = true; }
+      catch (e) {} finally { cliLoading.value = false; }
+    }
+    // Filtro local (la lista completa ya está en memoria): nombre o documento
+    const clientesFiltrados = computed(() => {
+      const q = cliBusca.value.toLowerCase().trim();
+      const l = clientes.value.slice();
+      if (!q) return l;
+      return l.filter(c => String(c.nombre || '').toLowerCase().includes(q) || String(c.doc_numero || '').includes(q));
+    });
+    function openCliModal(item = null) {
+      try { sndTap(); haptic(8); } catch (e) {}
+      cliModal.value = { show: true, mode: item ? 'editar' : 'crear', saving: false, deleting: false, confirmDel: false, error: '',
+        doc_tipo: item?.doc_tipo || '1', doc_numero: item?.doc_numero || '', nombre: item?.nombre || '',
+        direccion: item?.direccion || '', email: item?.email || '', telefono: item?.telefono || '',
+        doc_tipo_old: item?.doc_tipo || '', doc_numero_old: item?.doc_numero || '',
+        es_varios: !!item?.es_varios, cpes: item?.cpes || 0 };
+    }
+    async function guardarCli() {
+      const m = cliModal.value;
+      if (!String(m.nombre).trim()) { m.error = 'El cliente necesita nombre o razón social'; return; }
+      if (!String(m.doc_numero).trim()) { m.error = 'Escribe el número de documento'; return; }
+      m.saving = true; m.error = '';
+      try {
+        const r = await apiPost({ accion: 'guardar_cliente_admin', doc_tipo: m.doc_tipo, doc_numero: m.doc_numero,
+          nombre: String(m.nombre).trim(), direccion: m.direccion, email: m.email, telefono: m.telefono,
+          es_extranjero: m.doc_tipo === '7' || m.doc_tipo === '0',
+          doc_tipo_old: m.doc_tipo_old, doc_numero_old: m.doc_numero_old });
+        if (!r.ok) throw new Error(r.error || 'Error');
+        cliModal.value.show = false;
+        await loadClientes(true);
+        emit('action', { type: 'toast', msg: m.mode === 'crear' ? '✅ Cliente registrado' : '✅ Cliente guardado' });
+      } catch (e) { m.saving = false; m.error = _psMsg(e, 'No se pudo guardar'); }
+    }
+    async function eliminarCli() {
+      const m = cliModal.value;
+      if (!m.confirmDel) { m.confirmDel = true; try { sndErr(); haptic([30, 20, 30]); } catch (e) {} return; }
+      m.deleting = true; m.error = '';
+      try {
+        const r = await apiPost({ accion: 'eliminar_cliente', doc_tipo: m.doc_tipo_old || m.doc_tipo, doc_numero: m.doc_numero_old || m.doc_numero });
+        if (!r.ok) throw new Error(r.error || 'Error');
+        cliModal.value.show = false;
+        await loadClientes(true);
+        emit('action', { type: 'toast', msg: '🗑 Cliente eliminado' });
+      } catch (e) { m.deleting = false; m.confirmDel = false; m.error = _psMsg(e, 'No se pudo eliminar'); }
+    }
+
+    function catCount(id) { return id === 'servicios' ? servicios.value.length : id === 'clientes' ? clientes.value.length : ((lists[id] || []).length); }
 
     const ENDPOINTS = {
       impuestos:     { crear: 'crear_impuesto',      editar: 'actualizar_impuesto' },
@@ -13747,6 +13858,7 @@ const ViewCatalogos = {
       search.value = '';
       preloadCatalogos();   // refresca la fuente única (silencioso; guardado contra vaciar por fallo transitorio)
       loadServicios();      // para el contador de la card (silencioso)
+      loadClientes();
     }
 
     function openCat(type) {
@@ -13754,6 +13866,7 @@ const ViewCatalogos = {
       view.value = type;
       search.value = '';
       if (type === 'servicios') loadServicios();
+      if (type === 'clientes') { cliBusca.value = ''; loadClientes(); }
     }
 
     function openCatModal(type, item = null) {
@@ -14000,7 +14113,10 @@ const ViewCatalogos = {
     return { view, lists, search, personalFilter, contactosFilter,
              catModal, cards, openHub, openCat, openCatModal, guardarCat,
              personalGrouped, contactosCards, openContactoCard, tipoChipStyle, tipoIcon, fmt, bump, bumpInt,
-             servicios, svcLoading, svcModal, openSvcModal, guardarSvc, eliminarSvc, bumpSvc, catCount };
+             servicios, svcLoading, svcModal, openSvcModal, guardarSvc, eliminarSvc, bumpSvc, catCount,
+             toggleSvcPaquete, borrarSvcDef,
+             clientes, cliLoading, cliBusca, clientesFiltrados, cliModal, openCliModal, guardarCli, eliminarCli,
+             DOC_TIPOS, docLabel };
   },
   template: `
     <div class="ps-enter">
@@ -14196,6 +14312,112 @@ const ViewCatalogos = {
         </div>
       </div>
 
+      <!-- ── CLIENTES FRECUENTES ─────────────────────────── -->
+      <div v-else-if="view==='clientes'" class="ps-wrap" style="padding-bottom:32px;">
+        <div class="ps-head ps-head--bar">
+          <div class="ps-head-l">
+            <button @click="openHub()" class="ps-btn ps-btn-ghost" style="width:38px;height:38px;min-height:38px;padding:0;font-size:20px;flex-shrink:0;">‹</button>
+            <div class="ps-head-ico" style="font-size:30px;">🧍</div>
+            <div><div class="ps-head-title" style="font-size:19px;">Clientes</div><div class="ps-head-sub">Frecuentes · CPE</div></div>
+          </div>
+          <button @click="openCliModal()" class="ps-btn ps-btn-primary">＋<span class="ps-hide-xs"> Nuevo</span></button>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);padding:0 4px 12px;line-height:1.5;">Datos que se autocompletan al emitir boletas y facturas. Editarlos aquí <b>no altera</b> los comprobantes ya emitidos.</div>
+        <input v-model="cliBusca" type="search" autocomplete="off" placeholder="Buscar por nombre o documento…"
+          style="width:100%;box-sizing:border-box;background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:11px 13px;font-size:15px;color:var(--text);outline:none;-webkit-appearance:none;margin-bottom:14px;" />
+        <div v-if="cliLoading && !clientes.length" style="text-align:center;padding:40px 20px;color:var(--text-muted);"><span class="spin" style="display:inline-block;width:22px;height:22px;"></span></div>
+        <div v-else-if="!clientesFiltrados.length" style="text-align:center;padding:40px 20px;color:var(--text-muted);">{{ cliBusca ? 'Sin coincidencias' : 'Sin clientes todavía' }}</div>
+        <div class="ps-stagger">
+          <div v-for="c in clientesFiltrados" :key="c.doc_tipo + '-' + c.doc_numero" @click="openCliModal(c)" class="ps-row"
+            :style="c.es_varios ? 'border-color:rgba(201,168,76,0.45);' : ''">
+            <div style="width:38px;height:38px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:17px;"
+              :style="c.es_varios ? 'background:rgba(201,168,76,0.14);' : 'background:rgba(96,165,250,0.12);'">{{ c.es_varios ? '⭐' : (c.doc_tipo==='6' ? '🏢' : c.doc_tipo==='7'||c.doc_tipo==='0' ? '🌎' : '🧍') }}</div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-weight:800;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.nombre }}</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                <span class="ps-chip gold">{{ c.es_varios ? 'Sin identificar' : docLabel(c.doc_tipo) + ' ' + c.doc_numero }}</span>
+                <span v-if="c.telefono" class="ps-chip">📞 {{ c.telefono }}</span>
+                <span v-if="c.cpes" class="ps-chip blue">{{ c.cpes }} CPE</span>
+                <span v-if="c.es_varios" class="ps-chip gold">público · protegido</span>
+              </div>
+            </div>
+            <span style="color:var(--text-muted);flex-shrink:0;">›</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── MODAL CLIENTES ──────────────────────────────── -->
+      <teleport to="body">
+        <div v-if="cliModal.show" class="ps-sheet-overlay" @click.self="cliModal.show=false">
+          <div class="ps-sheet" style="max-width:440px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+              <div>
+                <div style="font-size:10px;letter-spacing:.1em;color:var(--gold);text-transform:uppercase;margin-bottom:2px;">{{ cliModal.mode==='crear' ? 'Nuevo' : 'Editar' }}</div>
+                <div style="font-size:17px;font-weight:800;color:var(--text);">Cliente frecuente</div>
+              </div>
+              <button @click="cliModal.show=false" class="ps-btn ps-btn-ghost" style="width:38px;height:38px;min-height:38px;padding:0;font-size:17px;flex-shrink:0;">✕</button>
+            </div>
+            <div v-if="cliModal.es_varios" style="padding:11px 13px;border-radius:9px;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.3);font-size:12px;color:var(--gold);margin-bottom:14px;line-height:1.5;">⭐ <b>VARIOS</b> es el cliente público del sistema (boletas sin identificar). Su documento no se cambia ni se elimina.</div>
+            <div style="display:flex;flex-direction:column;gap:14px;">
+              <div style="display:flex;flex-direction:column;gap:7px;">
+                <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;font-weight:700;">Tipo de documento</span>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                  <button v-for="d in DOC_TIPOS" :key="d.k" @click="cliModal.doc_tipo=d.k" type="button" :disabled="cliModal.es_varios"
+                    :style="cliModal.doc_tipo===d.k
+                      ? 'flex:1 0 28%;min-height:42px;padding:8px 4px;border-radius:10px;font-size:12.5px;font-weight:700;cursor:pointer;background:rgba(201,168,76,0.2);border:1.5px solid var(--gold);color:var(--gold);'
+                      : 'flex:1 0 28%;min-height:42px;padding:8px 4px;border-radius:10px;font-size:12.5px;cursor:pointer;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);'">
+                    {{ d.l }}
+                  </button>
+                </div>
+                <span style="font-size:10.5px;color:var(--text-muted);">{{ (DOC_TIPOS.find(d=>d.k===cliModal.doc_tipo)||{}).hint }}</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:6px;">
+                <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;font-weight:700;">Número *</span>
+                <input v-model="cliModal.doc_numero" type="text" autocomplete="off" :disabled="cliModal.es_varios" placeholder="documento"
+                  style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 13px;font-size:16px;color:var(--text);outline:none;-webkit-appearance:none;width:100%;box-sizing:border-box;" />
+              </div>
+              <div style="display:flex;flex-direction:column;gap:6px;">
+                <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;font-weight:700;">Nombre / razón social *</span>
+                <input v-model="cliModal.nombre" type="text" autocomplete="off" autocapitalize="words" :disabled="cliModal.es_varios"
+                  style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 13px;font-size:16px;color:var(--text);outline:none;-webkit-appearance:none;width:100%;box-sizing:border-box;" />
+              </div>
+              <div style="display:flex;flex-direction:column;gap:6px;">
+                <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;font-weight:700;">Domicilio fiscal <span v-if="cliModal.doc_tipo==='6'" style="color:var(--gold);">· obligatorio en factura</span></span>
+                <input v-model="cliModal.direccion" type="text" autocomplete="off" placeholder="opcional"
+                  style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 13px;font-size:16px;color:var(--text);outline:none;-webkit-appearance:none;width:100%;box-sizing:border-box;" />
+              </div>
+              <div style="display:flex;gap:10px;">
+                <div style="flex:1;display:flex;flex-direction:column;gap:6px;min-width:0;">
+                  <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;font-weight:700;">Teléfono</span>
+                  <input v-model="cliModal.telefono" type="tel" inputmode="tel" autocomplete="off" placeholder="9xx xxx xxx"
+                    style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 13px;font-size:16px;color:var(--text);outline:none;-webkit-appearance:none;width:100%;box-sizing:border-box;" />
+                </div>
+                <div style="flex:1;display:flex;flex-direction:column;gap:6px;min-width:0;">
+                  <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;font-weight:700;">Correo</span>
+                  <input v-model="cliModal.email" type="email" inputmode="email" autocomplete="off" placeholder="opcional"
+                    style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 13px;font-size:16px;color:var(--text);outline:none;-webkit-appearance:none;width:100%;box-sizing:border-box;" />
+                </div>
+              </div>
+              <div v-if="cliModal.mode==='editar' && cliModal.cpes" style="font-size:11px;color:var(--text-muted);line-height:1.5;">Este cliente tiene <b style="color:var(--gold);">{{ cliModal.cpes }}</b> comprobante(s) emitido(s). Sus copias quedan intactas aunque edites o elimines la ficha.</div>
+              <div v-if="cliModal.error"
+                style="padding:11px 13px;border-radius:9px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);font-size:13px;color:#f87171;">⚠ {{ cliModal.error }}</div>
+              <button v-if="cliModal.mode==='editar' && !cliModal.es_varios" @click="eliminarCli()" :disabled="cliModal.deleting || cliModal.saving" type="button"
+                class="ps-btn" style="border-color:rgba(239,68,68,0.4);color:#f87171;background:transparent;">
+                {{ cliModal.deleting ? 'Eliminando…' : (cliModal.confirmDel ? '¿Seguro? Toca otra vez para eliminar' : '🗑 Eliminar cliente') }}
+              </button>
+              <div style="display:flex;gap:10px;padding-top:4px;">
+                <button @click="cliModal.show=false" type="button" class="ps-btn" style="flex:1;color:var(--text-muted);">Cancelar</button>
+                <button v-if="!cliModal.es_varios" @click="guardarCli()" :disabled="cliModal.saving || cliModal.deleting" type="button"
+                  class="ps-btn ps-btn-primary" style="flex:2;" :style="(cliModal.saving||cliModal.deleting)?'opacity:0.6;cursor:default':''">
+                  <span v-if="cliModal.saving" class="spin" style="width:15px;height:15px;border-color:rgba(255,255,255,0.3);border-top-color:var(--gold-pale);"></span>
+                  {{ cliModal.saving ? 'Guardando…' : (cliModal.mode==='crear' ? 'Registrar' : 'Guardar') }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </teleport>
+
       <!-- ── MODAL SERVICIOS ─────────────────────────────── -->
       <teleport to="body">
         <div v-if="svcModal.show" class="ps-sheet-overlay" @click.self="svcModal.show=false">
@@ -14240,11 +14462,37 @@ const ViewCatalogos = {
                   </button>
                 </div>
               </div>
+              <div v-if="svcModal.mode==='editar'" style="display:flex;flex-direction:column;gap:9px;padding:12px 13px;border:1px solid var(--border);border-radius:11px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-size:13px;font-weight:700;color:var(--text);">Disponible al facturar</div>
+                    <div style="font-size:10.5px;color:var(--text-muted);margin-top:2px;">Si lo apagas, deja de aparecer al emitir CPE (no se borra).</div>
+                  </div>
+                  <button @click="svcModal.activo = !svcModal.activo" type="button"
+                    :style="'flex:0 0 auto;width:54px;height:30px;border-radius:999px;border:none;cursor:pointer;position:relative;transition:background .2s;background:' + (svcModal.activo ? '#4ade80' : 'var(--border)')">
+                    <span :style="'position:absolute;top:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:left .2s;left:' + (svcModal.activo ? '27px' : '3px')"></span>
+                  </button>
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid var(--border);padding-top:9px;">
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-size:13px;font-weight:700;color:var(--text);">🚤 Paquete del zarpe</div>
+                    <div style="font-size:10.5px;color:var(--text-muted);margin-top:2px;">Se carga por defecto en cada pasajero del zarpe.</div>
+                  </div>
+                  <button @click="toggleSvcPaquete()" type="button"
+                    :style="'flex:0 0 auto;width:54px;height:30px;border-radius:999px;border:none;cursor:pointer;position:relative;transition:background .2s;background:' + (svcModal.paquete ? 'var(--gold)' : 'var(--border)')">
+                    <span :style="'position:absolute;top:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:left .2s;left:' + (svcModal.paquete ? '27px' : '3px')"></span>
+                  </button>
+                </div>
+              </div>
               <div v-if="svcModal.error"
                 style="padding:11px 13px;border-radius:9px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);font-size:13px;color:#f87171;">⚠ {{ svcModal.error }}</div>
-              <button v-if="svcModal.mode==='editar'" @click="eliminarSvc()" :disabled="svcModal.deleting || svcModal.saving" type="button"
+              <button v-if="svcModal.mode==='editar' && svcModal.activo" @click="eliminarSvc()" :disabled="svcModal.deleting || svcModal.saving" type="button"
                 class="ps-btn" style="border-color:rgba(239,68,68,0.4);color:#f87171;background:transparent;">
-                {{ svcModal.deleting ? 'Eliminando…' : '🗑 Eliminar servicio' }}
+                {{ svcModal.deleting ? 'Desactivando…' : '⊘ Desactivar servicio' }}
+              </button>
+              <button v-if="svcModal.mode==='editar'" @click="borrarSvcDef()" :disabled="svcModal.deleting || svcModal.saving" type="button"
+                class="ps-btn" style="border-color:rgba(239,68,68,0.55);color:#f87171;background:rgba(239,68,68,0.07);">
+                {{ svcModal.deleting ? 'Borrando…' : (svcModal.confirmBorrar ? '¿Seguro? Toca otra vez para borrar definitivo' : '🗑 Borrar definitivamente') }}
               </button>
               <div style="display:flex;gap:10px;padding-top:4px;">
                 <button @click="svcModal.show=false" type="button" class="ps-btn" style="flex:1;color:var(--text-muted);">Cancelar</button>
@@ -15071,7 +15319,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '2.13.1';
+const APP_VERSION = '2.14.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
