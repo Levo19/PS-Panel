@@ -2126,6 +2126,12 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 .fac-it-gift:active { transform:scale(.88); }
 .fac-it-gift.on { opacity:1; border-color:#c084fc; background:rgba(192,132,252,.16); box-shadow:0 0 8px rgba(192,132,252,.3); }
 .fac-it-price.gratis { color:#c084fc; border-color:rgba(192,132,252,.45); background:rgba(192,132,252,.1); }
+/* Precio en S/0: SUNAT rechaza la línea → el chip palpita en rojo para que se vea CUÁL corregir */
+.fac-it-price.cero { color:#f87171; border-color:rgba(248,113,113,.6); background:rgba(248,113,113,.12); animation:cliInvPulse 1.4s ease-in-out infinite; }
+/* Aviso en sitio al intentar emitir (antes: doble re-render que solo hacía parpadear el modal) */
+.fac-err-live { padding:9px 11px; margin-bottom:8px; border-radius:9px; background:rgba(248,113,113,.12); border:1px solid rgba(248,113,113,.4); color:#f87171; font-size:11.5px; font-weight:700; line-height:1.4; }
+.fac-shake { animation:facShake .42s; }
+@keyframes facShake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-7px)} 40%{transform:translateX(7px)} 60%{transform:translateX(-4px)} 80%{transform:translateX(4px)} }
 /* sección SERVICIOS inválida (export sin paquete) → mismo pulso rojo que el chip del cliente */
 .fac-it-list.inv { border-color:rgba(248,113,113,.65); animation:cliInvPulse 1.4s ease-in-out infinite; }
 .fac-it-inv-hint { font-size:10.5px; color:#f87171; font-weight:700; margin:-8px 2px 12px; }
@@ -8137,7 +8143,17 @@ function _facTotales() {
   return { total, grav, igv, esExport, gratis: Math.round(gratis * 100) / 100,
            base: Math.round(base * 100) / 100, rec };
 }
-function _facErr(msg) { sndErr(); haptic([60, 30, 60]); if (typeof showToast === 'function') showToast('⚠️ ' + msg); if (_facState) { _facState.shake = true; _facRender(); setTimeout(() => { if (_facState) { _facState.shake = false; _facRender(); } }, 450); } }
+// Aviso de error EN SITIO. Antes hacía dos `_facRender()` completos y `S.shake` no estaba
+// conectado a ninguna animación → el modal solo "parpadeaba" sin decir qué pasaba (bug reportado).
+function _facErr(msg) {
+  sndErr(); haptic([60, 30, 60]);
+  if (typeof showToast === 'function') showToast('⚠️ ' + msg);
+  const box = document.querySelector('.fac-emit-stable') || document.querySelector('.fac-emit-box') || _facRoot();
+  if (box) { box.classList.remove('fac-shake'); void box.offsetWidth; box.classList.add('fac-shake');
+    setTimeout(() => { try { box.classList.remove('fac-shake'); } catch (e) {} }, 470); }
+  const rg = document.getElementById('fac-reglas');
+  if (rg) rg.innerHTML = '<div class="fac-err-live">⚠ ' + _facEsc(msg) + '</div>' + _facReglasHTML();
+}
 // Chip de estado SUNAT para el historial
 // Chip de estado VERAZ: "SUNAT ✓" solo cuando SUNAT de verdad aceptó (CDR). Un doc emitido con
 // PDF/QR es VÁLIDO desde ya, pero las boletas viajan por Resumen Diario y SUNAT las confirma
@@ -8298,6 +8314,12 @@ function _facReglas() {
     else if (tot.total > 700) R.push({ label: 'Identificar cliente (boleta mayor a S/700)', ok: doc.length > 0 && nom.length > 0, hard: true });   // esVarios ya se filtró arriba; Tax-ID real es válido
   }
   if (S.pagoTipo === 'mixto') { const p = _facPagoMxCalc(tot.total); R.push({ label: 'Mixto: reparte el total entre Efectivo y Virtual', ok: p.ef > 0 && p.vi > 0, hard: true }); }
+  // SUNAT rechaza líneas en S/0 (error 3105). Antes esto solo se descubría AL EMITIR (el botón
+  // decía "listo" y luego rebotaba sin explicar) → ahora se avisa aquí, nombrando el servicio.
+  const cero = S.items.find(i => !i.gratis && (parseFloat(i.precio) || 0) <= 0);
+  if (cero) R.push({ label: '«' + String(cero.descripcion || 'Un servicio').slice(0, 40) + '» está en S/ 0 — ponle precio o márcalo 🎁 cortesía', ok: false, hard: true });
+  const sinDesc = S.items.find(i => !String(i.descripcion || '').trim());
+  if (sinDesc) R.push({ label: 'Hay un servicio sin nombre', ok: false, hard: true });
   return R;
 }
 function _facReglasOk() { return !_facReglas().some(r => r.hard && !r.ok); }
@@ -8412,7 +8434,7 @@ function _facItRow(it, i) {
       ? `<input id="fac-pedit-${i}" class="fac-it-pin" type="number" inputmode="decimal" value="${it.precio}" onblur="_facPrecioSet(${i},this.value)" onkeydown="if(event.key==='Enter'){this.blur()}">`
       : (it.gratis
         ? `<button class="fac-it-price gratis" onclick="_facPrecioEdit(${i})" title="GRATIS — valor referencial S/ ${Number(it.precio) || 0} (toca para editarlo)">🎁 GRATIS</button>`
-        : `<button class="fac-it-price" onclick="_facPrecioEdit(${i})" title="Toca para editar el precio">S/ ${Number(it.precio) || 0}</button>`)}
+        : `<button class="fac-it-price${(Number(it.precio) || 0) <= 0 ? ' cero' : ''}" onclick="_facPrecioEdit(${i})" title="${(Number(it.precio) || 0) <= 0 ? 'Este servicio está en S/ 0 — SUNAT no acepta líneas en cero. Toca para ponerle precio (o márcalo 🎁).' : 'Toca para editar el precio'}">S/ ${Number(it.precio) || 0}</button>`)}
     <div class="fac-it-qty">
       <button class="fac-it-qbtn minus" onclick="_facQty(${i},-1)" aria-label="Quitar uno">−</button>
       <span class="fac-it-qn">${q}</span>
@@ -15358,7 +15380,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '2.16.0';
+const APP_VERSION = '2.16.1';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
