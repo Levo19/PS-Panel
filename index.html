@@ -9765,7 +9765,9 @@ function _facSectionBody(S) {
 const _FAC_MOD_TABS = [
   ['historial', '📜', 'Historial']
 ];
-const _FAC_MOD_TAB_IDS = _FAC_MOD_TABS.map(t => t[0]);
+// 'ajustes' no es una pestaña visible (no es para el día a día), pero SÍ es un destino válido:
+// se abre con el engranaje y ahí viven el token de NubeFact, las series y el correlativo.
+const _FAC_MOD_TAB_IDS = _FAC_MOD_TABS.map(t => t[0]).concat(['ajustes']);
 function _facTabbarHTML(S) {
   return _FAC_MOD_TABS.map(([id, ico, label]) => {
     const on = S.tab === id;
@@ -9902,6 +9904,11 @@ function _facBuildShellInto(ov) {
         <div class="fac-l-actions">
           <button class="fac-emit-cta" onclick="_facOpenEmit()"><span style="font-size:17px;line-height:1">＋</span> Emitir CPE</button>
           <div id="fac-muelle-row">${_facMuelleSwitchHTML(S)}</div>
+          <button onclick="_facTab('ajustes')" title="Conexión con NubeFact, series y correlativo"
+            style="margin-top:10px;width:100%;padding:9px;border-radius:11px;cursor:pointer;font-size:11.5px;font-weight:800;
+              border:1px solid ${S.facCfg && S.facCfg.activo ? 'var(--border)' : 'rgba(240,177,60,.55)'};
+              background:${S.facCfg && S.facCfg.activo ? 'transparent' : 'rgba(240,177,60,.12)'};
+              color:${S.facCfg && S.facCfg.activo ? 'var(--text-muted)' : '#f0b13c'}">⚙ Configuración SUNAT${S.facCfg && S.facCfg.activo ? '' : ' · sin conectar'}</button>
         </div>
       </div>
       <div class="fac-mod-r">
@@ -10419,7 +10426,8 @@ async function _facZarpeLoadTablilla(op) {
       const o = Object.assign({}, f);
       const qRaw = Number(f.cantidad); const q0 = isNaN(qRaw) ? 1 : Math.max(0, qRaw);
       // servicios de la fila: si vienen del backend úsalos; si no, clona el paquete default
-      if (!Array.isArray(o.servicios) || !o.servicios.length) o.servicios = Z.paquete.map(p => ({ nombre: p.nombre, precio: p.precio, unidad: p.unidad }));
+      if (!Array.isArray(o.servicios) || !o.servicios.length) o.servicios = Z.paquete.filter(p => String(p.moneda || 'PEN').toUpperCase() !== 'USD')   // el lote de zarpe se factura en soles
+        .map(p => ({ nombre: p.nombre, precio: p.precio, unidad: p.unidad, moneda: 'PEN' }));
       // per-servicio: cantidad propia (las filas viejas sin cantidad heredan la de la fila) + 🎁
       o.servicios = o.servicios.map(s => Object.assign({}, s, { cantidad: Math.max(0, s.cantidad != null ? (Number(s.cantidad) || 0) : q0), gratis: !!s.gratis }));
       o.cantidad = Number(o.servicios[0] && o.servicios[0].cantidad) || 0;   // PAX = servicio base
@@ -11629,10 +11637,14 @@ function _facPdfFilename(c) {
 // Guarda el contacto en clientes frecuentes (best-effort, cero-GAS).
 async function _facPdfGuardarContacto(c) {
   try {
+    // `_facState._pdf.contact` es de un modal que ya no existe: NUNCA se escribe, así que la guarda
+    // cortaba siempre y este guardado no ocurría jamás. Los datos vienen del propio comprobante.
     const ct = (_facState && _facState._pdf && _facState._pdf.contact) || {};
     const dt = _facInferDocTipo(c), dn = String(c.cliente_doc || '').trim();
-    if (!dn || dt === '0' || (!ct.email && !ct.tel)) return;
-    await apiPost({ accion: 'actualizar_contacto_cliente', doc_tipo: dt, doc_numero: dn, email: (ct.email || '').trim() || null, telefono: (ct.tel || '').replace(/\D/g, '') || null, nombre: c.cliente_nombre || null });
+    const email = String(ct.email || c.cliente_email || '').trim();
+    const tel = String(ct.tel || c.cliente_tel || '').replace(/\D/g, '');
+    if (!dn || dt === '0' || (!email && !tel)) return;
+    await apiPost({ accion: 'actualizar_contacto_cliente', doc_tipo: dt, doc_numero: dn, email: email || null, telefono: tel || null, nombre: c.cliente_nombre || null });
   } catch (e) {}
 }
 // ── Ver IMAGEN del comprobante (A4 en PS) en un overlay simple. Spinner en el ícono mientras genera. ──
@@ -15564,7 +15576,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '2.19.0';
+const APP_VERSION = '2.19.1';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
