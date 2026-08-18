@@ -2031,9 +2031,14 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 .fac-it { display:flex; align-items:center; gap:9px; padding:9px 10px; border-bottom:1px solid var(--border); animation:facItIn .3s cubic-bezier(.34,1.56,.64,1) both; }
 .fac-it:last-child { border-bottom:none; }
 @keyframes facItIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
-.fac-it-main { flex:1; min-width:0; position:relative; }
-.fac-it-t { font-size:13px; font-weight:700; color:var(--text); position:relative; overflow:visible; white-space:nowrap; text-overflow:ellipsis; }
-.fac-it-s { font-size:10.5px; color:var(--text-muted); margin-top:1px; }
+.fac-it-main { flex:1; min-width:0; position:relative; padding-right:2px; }
+/* Nombre largo → hasta 2 LÍNEAS y recorte limpio. (Antes: nowrap + overflow visible = el texto
+   se montaba encima del precio y del stepper. El FX +1/−1 salió del título para poder recortar.) */
+.fac-it-t { font-size:13px; font-weight:700; color:var(--text); line-height:1.3;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  overflow-wrap:anywhere; }
+.fac-it-s { font-size:10.5px; color:var(--text-muted); margin-top:1px; line-height:1.25;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .fac-it-tin { width:100%; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:7px 9px; font-size:12.5px; color:var(--text); }
 .fac-it-price { flex:0 0 auto; padding:5px 10px; border-radius:999px; border:1px solid rgba(201,168,76,.4); background:rgba(201,168,76,.1); color:var(--gold); font-size:12px; font-weight:800; cursor:pointer; -webkit-tap-highlight-color:transparent; transition:transform .14s; }
 .fac-it-price:active { transform:scale(.92); }
@@ -2047,7 +2052,15 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 .fac-it-qbtn.minus:active { background:rgba(248,113,113,.16); }
 .fac-it-qn { min-width:24px; text-align:center; font-size:14px; font-weight:900; color:var(--text); }
 .fac-it-empty { padding:16px; text-align:center; color:var(--text-muted); font-size:12px; }
-.fac-it-fx { position:absolute; top:-4px; margin-left:6px; pointer-events:none; }
+.fac-it-fx { position:absolute; top:-4px; right:0; pointer-events:none; z-index:2; }
+/* MÓVIL: el nombre toma el ancho completo (2 líneas cómodas) y los controles bajan a su propio
+   renglón — 🎁 a la izquierda, precio + cantidad a la derecha. Nada se apretuja ni se monta. */
+@media (max-width:460px) {
+  .fac-it { flex-wrap:wrap; row-gap:8px; padding:10px; }
+  .fac-it-main { flex:1 0 100%; }
+  .fac-it-price, .fac-it-pin { margin-left:auto; }
+  .fac-it-gift + .fac-it-price, .fac-it-gift + .fac-it-pin { margin-left:auto; }
+}
 .fac-fx { display:inline-block; font-size:12px; font-weight:900; animation:facFxUp .7s ease-out both; }
 .fac-fx.up { color:#4ade80; }
 .fac-fx.down { color:#f87171; }
@@ -8380,7 +8393,7 @@ function _facItRow(it, i) {
     <div class="fac-it-main">
       ${libre
         ? `<input data-it="${i}" data-f="descripcion" class="fac-it-tin" placeholder="Nombre del servicio…" value="${_facEsc(d)}" autocomplete="off">`
-        : `<div class="fac-it-t">${_facEsc(tit)}<span class="fac-it-fx" id="fac-itfx-${i}"></span></div>${sub ? `<div class="fac-it-s">${_facEsc(sub)}</div>` : ''}`}
+        : `<div class="fac-it-t" title="${_facEsc(d)}">${_facEsc(tit)}</div>${sub ? `<div class="fac-it-s" title="${_facEsc(sub)}">${_facEsc(sub)}</div>` : ''}<span class="fac-it-fx" id="fac-itfx-${i}"></span>`}
     </div>
     ${_facState.exportacion ? '' : `<button class="fac-it-gift${it.gratis ? ' on' : ''}" onclick="_facItGift(${i})" title="${it.gratis ? 'Quitar cortesía (vuelve a cobrarse)' : 'Marcar como cortesía — gratuito (ej. TC del grupo)'}">🎁</button>`}
     ${editP
@@ -15058,7 +15071,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '2.13.0';
+const APP_VERSION = '2.13.1';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
