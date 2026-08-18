@@ -3580,7 +3580,7 @@ const PS_POST = {
   actualizar_compra_ocr:   b => _psRpc('actualizar_compra_ocr', { p: { id: b.id, ruc_proveedor: b.ruc_proveedor || null, razon_social: b.razon_social || null, tipo_doc: b.tipo_doc || null, serie: b.serie || null, numero: b.numero || null, fecha: b.fecha || null, base: parseFloat(b.base) || 0, igv: parseFloat(b.igv) || 0, total: parseFloat(b.total) || 0, raw: b.raw || null } }),
   marcar_compra_ocr_fallo: b => _psRpc('marcar_compra_ocr_fallo', { p: { id: b.id, raw: b.raw || null } }),
   eliminar_compra:         b => _psRpc('eliminar_compra', { p: { id: b.id } }),
-  set_servicio: b => _psRpc('admin_set_servicio', { p_id: b.id || '', p_nombre: b.nombre, p_desc: b.descripcion || null, p_precio: parseFloat(b.precio) || 0, p_unidad: b.unidad || 'ZZ', p_activo: b.activo !== false }).then(id => ({ id })),
+  set_servicio: b => _psRpc('admin_set_servicio', { p_id: b.id || '', p_nombre: b.nombre, p_desc: b.descripcion || null, p_precio: parseFloat(b.precio) || 0, p_unidad: b.unidad || 'ZZ', p_activo: b.activo !== false, p_moneda: b.moneda || 'PEN' }).then(id => ({ id })),
   eliminar_servicio: b => _psRpc('admin_eliminar_servicio', { p_id: b.id }).then(() => ({ ok: true })),
   borrar_servicio_def: b => _psRpc('admin_borrar_servicio_def', { p_id: b.id }),
   servicio_paquete:  b => _psRpc('admin_servicio_paquete', { p_id: b.id, p_on: !!b.on }),
@@ -8366,7 +8366,7 @@ function _facAnulSheetHTML(S) {
   const rows = list.length ? list.map(c => `<div class="fac-anul-row">
       <div class="fac-anul-row-top">
         <div style="min-width:0"><div class="fac-anul-row-t">${c.serie}-${String(c.numero).padStart(6, '0')} · ${_facEsc(c.cliente_nombre || 'Sin nombre')}</div><div class="fac-anul-row-s">${_facEsc(String(c.solicitada || ''))} · pidió: ${_facEsc(c.anulacion_por || '—')}</div></div>
-        <span class="fac-anul-row-monto">S/ ${_facMoney(c.total)}</span>
+        <span class="fac-anul-row-monto">${_facSim(c.moneda)} ${_facMoney(c.total)}</span>
       </div>
       <div class="fac-anul-motivo"><b>Motivo:</b> ${_facEsc(c.anulacion_motivo || '—')}</div>
       <div class="fac-anul-btns">
@@ -8438,7 +8438,7 @@ function _facItRow(it, i) {
       ? `<input id="fac-pedit-${i}" class="fac-it-pin" type="number" inputmode="decimal" value="${it.precio}" onblur="_facPrecioSet(${i},this.value)" onkeydown="if(event.key==='Enter'){this.blur()}">`
       : (it.gratis
         ? `<button class="fac-it-price gratis" onclick="_facPrecioEdit(${i})" title="GRATIS — valor referencial S/ ${Number(it.precio) || 0} (toca para editarlo)">🎁 GRATIS</button>`
-        : `<button class="fac-it-price${(Number(it.precio) || 0) <= 0 ? ' cero' : ''}" onclick="_facPrecioEdit(${i})" title="${(Number(it.precio) || 0) <= 0 ? 'Este servicio está en S/ 0 — SUNAT no acepta líneas en cero. Toca para ponerle precio (o márcalo 🎁).' : 'Toca para editar el precio'}">S/ ${Number(it.precio) || 0}</button>`)}
+        : `<button class="fac-it-price${(Number(it.precio) || 0) <= 0 ? ' cero' : ''}" onclick="_facPrecioEdit(${i})" title="${(Number(it.precio) || 0) <= 0 ? 'Este servicio está en 0 — SUNAT no acepta líneas en cero. Toca para ponerle precio (o márcalo 🎁).' : 'Toca para editar el precio'}">${_facSim(it.moneda)} ${Number(it.precio) || 0}</button>`)}
     <div class="fac-it-qty">
       <button class="fac-it-qbtn minus" onclick="_facQty(${i},-1)" aria-label="Quitar uno">−</button>
       <span class="fac-it-qn">${q}</span>
@@ -8477,6 +8477,16 @@ function _facPagoStr(total) {
   if (S.pagoTipo === 'mixto') { const p = _facPagoMxCalc(total); return 'Mixto: Efectivo S/' + p.ef.toFixed(2) + ' + Virtual S/' + p.vi.toFixed(2); }
   return 'Efectivo';
 }
+// ── MONEDA DEL COMPROBANTE ──────────────────────────────────────────────────────────────────
+// SUNAT: un CPE lleva UNA sola moneda. La del comprobante = la del primer servicio del carrito;
+// agregar uno de otra moneda se BLOQUEA (no se convierte a espaldas del usuario: el precio que se
+// cobra debe ser el del catálogo).
+function _facMonedaCPE() {
+  const S = _facState; const it = (S && S.items || []).find(i => i && i.moneda);
+  return (it && String(it.moneda).toUpperCase() === 'USD') ? 'USD' : 'PEN';
+}
+function _facSim(m) { return String(m || 'PEN').toUpperCase() === 'USD' ? 'US$' : 'S/'; }
+function _facSimCPE() { return _facSim(_facMonedaCPE()); }
 // ── FECHA DE EMISIÓN (solo panel · admin) ───────────────────────────────────────────────────
 // Plazo de ENVÍO a SUNAT: factura 3 días calendario desde el día siguiente a la emisión
 // (RS 000003-2023) · boleta 7 (van por Resumen Diario, RS 114-2019). Como el envío es HOY, la
@@ -8568,7 +8578,7 @@ function _facPagoHTML(tot) {
         <button onclick="_facPagoCiclo()" title="Toca para cambiar: Efectivo → Virtual → Mixto → Tarjeta" style="border:1px solid ${(S.pagoTipo === 'mixto' || S.pagoTipo === 'tarjeta') ? 'var(--gold)' : 'var(--border)'};background:var(--bg2,rgba(255,255,255,0.04));color:var(--text);font-weight:800;font-size:11.5px;border-radius:999px;padding:4px 13px;cursor:pointer">${M[0]} ${M[1]}</button>
       </span>
     </div>
-    ${T.rec > 0 ? `<div style="display:flex;justify-content:space-between;font-size:11px;color:#4ade80;margin:-4px 0 10px"><span>Recargo tarjeta ${Math.round(_FAC_TARJETA.rate * 100)}% (va en el comprobante)</span><span>+ S/ ${T.rec.toFixed(2)}</span></div>` : ''}
+    ${T.rec > 0 ? `<div style="display:flex;justify-content:space-between;font-size:11px;color:#4ade80;margin:-4px 0 10px"><span>Recargo tarjeta ${Math.round(_FAC_TARJETA.rate * 100)}% (va en el comprobante)</span><span>+ ${_facSimCPE()} ${T.rec.toFixed(2)}</span></div>` : ''}
     ${S.pagoTipo === 'mixto' ? `<div style="display:flex;gap:8px;margin-bottom:8px">
       <label style="flex:1;font-size:10px;font-weight:800;color:var(--text-muted)">EFECTIVO S/<input id="fac-mx-ef" type="number" inputmode="decimal" min="0" value="${p.ef || ''}" oninput="_facPagoMxInput('ef',this.value)" style="${inp};margin-top:3px"></label>
       <label style="flex:1;font-size:10px;font-weight:800;color:var(--text-muted)">VIRTUAL S/<input id="fac-mx-vi" type="number" inputmode="decimal" min="0" value="${p.vi || ''}" oninput="_facPagoMxInput('vi',this.value)" style="${inp};margin-top:3px"></label>
@@ -8607,9 +8617,9 @@ function _facPagoMxInput(campo, v) {
 // Refresca totales + requisitos + botón Emitir SIN reconstruir el modal. true si tuvo que hacer full render.
 function _facEmitLite() {
   const S = _facState; const t = _facTotales();
-  const g = document.getElementById('fac-tg'); if (g) g.textContent = 'S/ ' + (S.exportacion ? t.total : t.grav).toFixed(2);
-  const ig = document.getElementById('fac-ti'); if (ig) ig.textContent = 'S/ ' + t.igv.toFixed(2);
-  const tt = document.getElementById('fac-tt'); if (tt) tt.textContent = 'S/ ' + t.total.toFixed(2);
+  const g = document.getElementById('fac-tg'); if (g) g.textContent = _facSimCPE() + ' ' + (S.exportacion ? t.total : t.grav).toFixed(2);
+  const ig = document.getElementById('fac-ti'); if (ig) ig.textContent = _facSimCPE() + ' ' + t.igv.toFixed(2);
+  const tt = document.getElementById('fac-tt'); if (tt) tt.textContent = _facSimCPE() + ' ' + t.total.toFixed(2);
   const ps = document.getElementById('fac-pago-slot');
   if (ps && !ps.contains(document.activeElement)) ps.innerHTML = _facPagoHTML(t);   // el total cambió → mixto se recalcula (no pisa un input activo)
   const es = document.getElementById('fac-exp-slot'); if (es) es.innerHTML = _facExpChipHTML();   // el chip 🌎 depende del nº de ítems
@@ -8713,11 +8723,22 @@ function _facSvcPickAdd() {
     _facZarpeRepaintFila(P.zarpe, true); _facZarpeUpdateEmitBtn(); _facZarpeGuardarDebounced();
     return;
   }
-  ids.forEach(id => { const sv = S.servicios.find(s => String(s.id) === String(id)); if (sv) S.items.push({ descripcion: sv.nombre, cantidad: 1, precio: sv.precio || 0, unidad: sv.unidad || _FAC_UNIDAD }); });
+  // Un CPE = UNA moneda: si el carrito ya tiene una, los de otra moneda se descartan avisando.
+  const monCarrito = S.items.length ? _facMonedaCPE() : null;
+  const rechazados = [];
+  ids.forEach(id => {
+    const sv = S.servicios.find(s => String(s.id) === String(id)); if (!sv) return;
+    const mon = String(sv.moneda || 'PEN').toUpperCase() === 'USD' ? 'USD' : 'PEN';
+    if (monCarrito && mon !== monCarrito) { rechazados.push(sv.nombre); return; }
+    S.items.push({ descripcion: sv.nombre, cantidad: 1, precio: sv.precio || 0, unidad: sv.unidad || _FAC_UNIDAD, moneda: mon });
+  });
   S._svcPick = null;
   try { if (ids.length) { sndOk(); haptic([12, 30, 12]); } } catch (e) {}
   const ov = document.querySelector('.fac-svcpick-ov'); if (ov) ov.remove();   // cerrar overlay sin re-render global
   _facItRebuildList();                                                          // solo la lista de servicios
+  // El aviso va DESPUÉS de repintar: _facItRebuildList → _facEmitLite reescribe #fac-reglas y
+  // se llevaría por delante el mensaje si se mostrara antes.
+  if (rechazados.length) _facErr('Un comprobante no puede mezclar monedas: «' + String(rechazados[0]).slice(0, 30) + '» va en otra moneda — emítelo aparte.');
 }
 function _facSvcPickHTML(S) {
   const P = S._svcPick; const n = Object.keys(P.sel).length;
@@ -9112,10 +9133,10 @@ function _facEmitir() {
   if (!S._emitLocalId) S._emitLocalId = 'fac-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
   const label = S.tipo === 1 ? 'Factura' : (S.exportacion ? 'Exportación' : 'Boleta');
   // `unidad` = catálogo SUNAT 03 (ZZ servicio / NIU bien). El backend valida y cae a ZZ si falta.
-  const itemsSnap = S.items.map(i => Object.assign({ descripcion: i.descripcion, cantidad: parseFloat(i.cantidad) || 0, precio: parseFloat(i.precio) || 0, unidad: i.unidad || _FAC_UNIDAD }, i.gratis ? { afectacion: 'gratuito' } : {}));
+  const itemsSnap = S.items.map(i => Object.assign({ descripcion: i.descripcion, cantidad: parseFloat(i.cantidad) || 0, precio: parseFloat(i.precio) || 0, unidad: i.unidad || _FAC_UNIDAD, moneda: _facMonedaCPE() }, i.gratis ? { afectacion: 'gratuito' } : {}));
   // El recargo por tarjeta viaja como LÍNEA del CPE (mismo tratamiento tributario que la venta):
   // así el comprobante declara exactamente lo que se cobró por el POS.
-  if (tot.rec > 0) itemsSnap.push(Object.assign({ descripcion: _FAC_TARJETA.label, cantidad: 1, precio: tot.rec, unidad: _FAC_UNIDAD }, S.exportacion ? { afectacion: 'exportacion' } : {}));
+  if (tot.rec > 0) itemsSnap.push(Object.assign({ descripcion: _FAC_TARJETA.label, cantidad: 1, precio: tot.rec, unidad: _FAC_UNIDAD, moneda: _facMonedaCPE() }, S.exportacion ? { afectacion: 'exportacion' } : {}));
   const snap = { tipo: S.tipo, label, items: itemsSnap, nombre: S.nombre.trim(), doc: esVariosEmit ? '' : S.doc.trim() };
   const payload = { accion: 'emitir_comprobante', tipo: S.tipo, serie: _facSerie(),
     cliente_doc_tipo: S.docTipo, cliente_doc: snap.doc, cliente_nombre: snap.nombre,
@@ -9125,7 +9146,7 @@ function _facEmitir() {
     forma_pago: 'CONTADO', credito_venc: null,   // decisión dueño: todo contado (el RPC conserva el soporte crédito por si se necesita)
     observaciones: (S.obs || '').trim() || null, fecha_emision: S.fechaEmision || null,   // null = hoy; el backend valida el plazo (3 factura / 7 boleta)
     detraccion: (S.tipo === 1 && !S.exportacion && tot.total > (typeof _FAC_DETRACCION !== 'undefined' ? _FAC_DETRACCION.umbral : 700)),
-    moneda: 'PEN', operador: (S.ses && S.ses.nombre) || 'PS',
+    moneda: _facMonedaCPE(), operador: (S.ses && S.ses.nombre) || 'PS',
     localId: S._emitLocalId };
   const entry = { _pending: true, serie: _facSerie(), numero: null, total: tot.total, estado: 'enviando', comp: null, _payload: payload, _snap: snap };
   S._emitidos.unshift(entry);
@@ -9198,7 +9219,7 @@ function _facEmitFeedHTML(S) {
       html += '<div class="fac-fb ok' + seen + '" role="status" aria-live="polite">' +
           '<span class="fac-fb-ico">✅</span>' +
           '<div class="fac-fb-body">' +
-            '<div class="fac-fb-t">' + _facEsc(c._label || 'Comprobante') + ' ' + _facEsc(c.serie || '') + '-' + num6 + ' · S/ ' + _facMoney(c.total) + '</div>' +
+            '<div class="fac-fb-t">' + _facEsc(c._label || 'Comprobante') + ' ' + _facEsc(c.serie || '') + '-' + num6 + ' · ' + _facSim(c.moneda) + ' ' + _facMoney(c.total) + '</div>' +
             '<div class="fac-fb-s">' + estTxt + ' · listo para el siguiente</div>' +
           '</div>' +
           '<button class="fac-fb-pdf" onclick="_facEmitFeedPDF()">🖼 Ver comprobante</button>' +
@@ -9209,7 +9230,7 @@ function _facEmitFeedHTML(S) {
       html += '<div class="fac-fb sending' + seen + '" role="status" aria-live="polite">' +
           '<span class="fac-fb-ico"><span class="spin fac-cli-spin"></span></span>' +
           '<div class="fac-fb-body">' +
-            '<div class="fac-fb-t">Enviando a SUNAT… · S/ ' + _facMoney(en.total) + '</div>' +
+            '<div class="fac-fb-t">Enviando a SUNAT… · ' + _facSimCPE() + ' ' + _facMoney(en.total) + '</div>' +
             '<div class="fac-fb-s">' + _facEsc((en._snap && en._snap.label) || 'Comprobante') + ' — puedes seguir emitiendo, te aviso al confirmar</div>' +
           '</div>' +
         '</div>';
@@ -9576,15 +9597,15 @@ function _facSectionBody(S) {
       ${(S.exportacion && S.items.length < 2) ? '<div class="fac-it-inv-hint">⚠ Exportación exige un PAQUETE: 2 o más servicios distintos (ej. bote + guiado)</div>' : ''}
       ${S.obsOpen ? `<textarea id="fac-obs" class="fac-obs-ta" rows="2" maxlength="250" placeholder="Observaciones (opcional) — salen impresas en el CPE. Ej: Servicio 02/08 · Delfín · 12 pax" oninput="_facState.obs=this.value">${_facEsc(S.obs || '')}</textarea>` : ''}
       <div style="background:var(--bg2,rgba(255,255,255,0.03));border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:12px">
-        <div style="display:flex;justify-content:space-between;color:var(--text-muted)"><span>${S.exportacion?'Exportación':'Gravada'}</span><span id="fac-tg">S/ ${(S.exportacion?tot.total:tot.grav).toFixed(2)}</span></div>
+        <div style="display:flex;justify-content:space-between;color:var(--text-muted)"><span>${S.exportacion?'Exportación':'Gravada'}</span><span id="fac-tg">${_facSimCPE()} ${(S.exportacion?tot.total:tot.grav).toFixed(2)}</span></div>
         <div style="display:flex;justify-content:space-between;align-items:center;color:var(--text-muted)">
           <span style="display:flex;align-items:center;gap:7px">IGV ${S.exportacion?'(0% · exportación)':'(18%)'}
             <span id="fac-exp-slot">${_facExpChipHTML()}</span>
           </span>
-          <span id="fac-ti">S/ ${tot.igv.toFixed(2)}</span>
+          <span id="fac-ti">${_facSimCPE()} ${tot.igv.toFixed(2)}</span>
         </div>
-        ${tot.gratis > 0 ? `<div style="display:flex;justify-content:space-between;color:#c084fc"><span>🎁 Cortesías (op. gratuita)</span><span>S/ ${tot.gratis.toFixed(2)}</span></div>` : ''}
-        <div style="display:flex;justify-content:space-between;font-weight:900;color:var(--text);margin-top:4px;font-size:15px"><span>TOTAL A COBRAR</span><span id="fac-tt">S/ ${tot.total.toFixed(2)}</span></div>
+        ${tot.gratis > 0 ? `<div style="display:flex;justify-content:space-between;color:#c084fc"><span>🎁 Cortesías (op. gratuita)</span><span>${_facSimCPE()} ${tot.gratis.toFixed(2)}</span></div>` : ''}
+        <div style="display:flex;justify-content:space-between;font-weight:900;color:var(--text);margin-top:4px;font-size:15px"><span>TOTAL A COBRAR</span><span id="fac-tt">${_facSimCPE()} ${tot.total.toFixed(2)}</span></div>
       </div>
       <div id="fac-pago-slot">${_facPagoHTML(tot)}</div>
       <button id="fac-emitir" onclick="_facEmitir()" class="btn-primary" ${_facReglasOk()?'':'disabled'} style="width:100%;padding:10px;font-size:13px;font-weight:800;border-radius:11px;${_facReglasOk()?'':'opacity:.5;cursor:not-allowed'}">${_facReglasOk()?'🧾 Emitir comprobante':'⛔ Faltan requisitos SUNAT'}</button>
@@ -10922,7 +10943,7 @@ function _facHistCardHTML(c, S, opts) {
       '<div class="fac-hcard-main' + (hasNC ? ' tap' : '') + '"' + headClick + '>' +
         '<div class="fac-hcard-top">' +
           '<div class="fac-hcard-name' + (anu ? ' anu' : '') + '">' + _facEsc(c.cliente_nombre || 'Sin nombre') + '</div>' +
-          '<span class="fac-hcard-monto">S/ ' + _facMoney(c.total) + '</span>' +
+          '<span class="fac-hcard-monto">' + _facSim(c.moneda) + ' ' + _facMoney(c.total) + '</span>' +
         '</div>' +
         '<div class="fac-hcard-sub">' +
           '<div class="fac-hcard-chips">' +
@@ -11157,7 +11178,8 @@ function _facPdfPreviewHTML(c, fmt) {
   const pagoDet = _facEsc(_facPagoDetalle(c));   // fila propia: efectivo / virtual / tarjeta / mixto detallado
   const vendedor = _facEsc(String(c.creado_por || '').trim());
   const vendedorLine = vendedor ? `Emitido por: ${vendedor}` : '';
-  const totRowsHtml = _facTotRows(T).map(r => `<div class="fpdf-tot-row"><span>${_facEsc(r.lbl)}</span><b>S/ ${_facMoney(r.val)}</b></div>`).join('');
+  const sim = _facSim(T.moneda);   // S/ o US$ según la moneda del comprobante
+  const totRowsHtml = _facTotRows(T).map(r => `<div class="fpdf-tot-row"><span>${_facEsc(r.lbl)}</span><b>${sim} ${_facMoney(r.val)}</b></div>`).join('');
   const detrHtmlA4 = _facDetraccionHTML(c, T, false);
   const detrHtml80 = _facDetraccionHTML(c, T, true);
   // Observaciones del emisor (opcional) + sello de EXPORTACIÓN (turismo receptivo, 0% IGV).
@@ -11207,7 +11229,7 @@ function _facPdfPreviewHTML(c, fmt) {
         </table>
         <div class="fpdf-a4-tot">
           ${totRowsHtml}
-          <div class="fpdf-tot-row fpdf-tot-grand"><span>TOTAL</span><span>S/ ${_facMoney(T.total)}</span></div>
+          <div class="fpdf-tot-row fpdf-tot-grand"><span>TOTAL</span><span>${sim} ${_facMoney(T.total)}</span></div>
         </div>
       </div>
       <div style="margin-top:8px;font-size:9px;font-weight:700;color:#333;letter-spacing:.01em">${letras}${esExportDoc ? ' &nbsp; ' + expBadgeA4 : ''}</div>
@@ -11261,7 +11283,7 @@ function _facPdfPreviewHTML(c, fmt) {
     <div class="fpdf-hr"></div>
     <div style="font-size:11px">
       ${totRowsHtml}
-      <div class="fpdf-tot-row fpdf-tot-grand"><span>TOTAL</span><span>S/ ${_facMoney(T.total)}</span></div>
+      <div class="fpdf-tot-row fpdf-tot-grand"><span>TOTAL</span><span>${sim} ${_facMoney(T.total)}</span></div>
     </div>
     <div style="font-size:8.5px;font-weight:700;color:#333;margin-top:5px;text-align:center;line-height:1.3">${letras}</div>
     ${esExportDoc ? `<div style="text-align:center;margin-top:3px">${expBadge80}</div>` : ''}
@@ -11379,7 +11401,7 @@ async function _facGenPDF(c, fmtOverride) {
     const gRow = (lbl, val, big) => {
       doc.setFont('helvetica', big ? 'bold' : 'normal'); doc.setFontSize(big ? 13 : 9.5);
       doc.setTextColor(...(big ? guinda : ink));
-      doc.text(lbl, glx, gy); doc.text('S/ ' + _facMoney(val), grx, gy, { align: 'right' });
+      doc.text(lbl, glx, gy); doc.text(_facSim(T.moneda) + ' ' + _facMoney(val), grx, gy, { align: 'right' });
       gy += big ? 10 : 7;
     };
     totR.forEach(r => gRow(r.lbl, r.val, false));
@@ -11491,7 +11513,7 @@ async function _facGenPDF(c, fmtOverride) {
     doc.setTextColor(...gray); doc.setFontSize(7); doc.text(_FAC_UNIDAD + ' · ' + i.cantidad + ' x ' + _facMoney(i.precio), mm, y); doc.setTextColor(...ink); doc.setFontSize(8); y += 3.8;
   });
   doc.setDrawColor(...guinda); doc.setLineWidth(0.4); doc.line(mm, y, w - mm, y); y += 4.2;
-  const trow = (lbl, val, bold, big) => { doc.setFont('helvetica', bold ? 'bold' : 'normal'); doc.setFontSize(big ? 11 : 8); doc.setTextColor(...(big ? guinda : ink)); doc.text(lbl, mm, y); doc.text('S/ ' + _facMoney(val), w - mm, y, { align: 'right' }); y += big ? 6 : 3.8; };
+  const trow = (lbl, val, bold, big) => { doc.setFont('helvetica', bold ? 'bold' : 'normal'); doc.setFontSize(big ? 11 : 8); doc.setTextColor(...(big ? guinda : ink)); doc.text(lbl, mm, y); doc.text(_facSim(T.moneda) + ' ' + _facMoney(val), w - mm, y, { align: 'right' }); y += big ? 6 : 3.8; };
   totR.forEach(r => trow(r.lbl, r.val, false, false));
   y += 1; trow('TOTAL', T.total, true, true);
   // Monto en letras
@@ -11574,7 +11596,7 @@ async function _facMostrarImagen(c, btn) {
   ov.innerHTML = `<div class="fac-img-box">
     <button class="fac-img-x" onclick="_facCerrarImagen()" aria-label="Cerrar">×</button>
     <div class="fac-img-scroll"><img src="${dataUrl}" alt="Comprobante ${_facEsc(_facNumFmt(c))}" class="fac-img-pic"></div>
-    <div class="fac-img-cap">${_facEsc(_facTituloDoc(c))} · ${_facEsc(_facNumFmt(c))} · S/ ${_facMoney(_facPdfTotales(c).total)}</div>
+    <div class="fac-img-cap">${_facEsc(_facTituloDoc(c))} · ${_facEsc(_facNumFmt(c))} · ${_facSim(c.moneda)} ${_facMoney(_facPdfTotales(c).total)}</div>
   </div>`;
   ov.style.display = 'flex'; requestAnimationFrame(() => ov.classList.add('visible'));
 }
@@ -11684,7 +11706,7 @@ window._facDescargarPDF = async function (id, btn) {
 function _facWAMensaje(c, T, origen, linksBlock) {
   const num = _facNumFmt(c), tipo = _facTipoWord(c);
   const nom = String(c.cliente_nombre || '').trim();
-  const marca = _FAC_EMISOR.marca, total = 'S/ ' + _facMoney(T.total);
+  const marca = _FAC_EMISOR.marca, total = _facSim(T.moneda) + ' ' + _facMoney(T.total);
   const esExp = (Number(T.exportacion) || 0) > 0;
   const L = linksBlock || '';
   if (origen === 'ops') {   // muelle · cálido y cercano
@@ -13856,7 +13878,7 @@ const ViewCatalogos = {
     const svcLoading  = ref(false);
     let   svcLoaded   = false;
     const svcModal = ref({ show: false, mode: 'crear', saving: false, deleting: false, error: '',
-      id: '', nombre: '', descripcion: '', precio: '', unidad: 'ZZ' });
+      id: '', nombre: '', descripcion: '', precio: '', unidad: 'ZZ', moneda: 'PEN' });
     // listar_servicios_full trae TAMBIÉN los inactivos + activo/paquete_zarpe (listar_servicios los oculta)
     async function loadServicios(force) {
       if (svcLoaded && !force) return;
@@ -13868,7 +13890,7 @@ const ViewCatalogos = {
       try { sndTap(); haptic(8); } catch (e) {}
       svcModal.value = { show: true, mode: item ? 'editar' : 'crear', saving: false, deleting: false, error: '',
         id: item?.id || '', nombre: item?.nombre || '', descripcion: item?.descripcion || '',
-        precio: item ? String(item.precio || '') : '', unidad: item?.unidad || 'ZZ',
+        precio: item ? String(item.precio || '') : '', unidad: item?.unidad || 'ZZ', moneda: item?.moneda || 'PEN',
         activo: item ? item.activo !== false : true, paquete: !!item?.paquete_zarpe, confirmBorrar: false };
     }
     // Alta/baja del servicio en el paquete por defecto del zarpe (se guarda al instante)
@@ -13906,7 +13928,7 @@ const ViewCatalogos = {
       m.saving = true; m.error = '';
       try {
         const r = await apiPost({ accion: 'set_servicio', id: m.id || '', nombre: m.nombre.trim(),
-          descripcion: m.descripcion || '', precio: parseFloat(m.precio) || 0, unidad: m.unidad || 'ZZ', activo: m.activo !== false });
+          descripcion: m.descripcion || '', precio: parseFloat(m.precio) || 0, unidad: m.unidad || 'ZZ', activo: m.activo !== false, moneda: m.moneda || 'PEN' });
         if (!r.ok) throw new Error(r.error || 'Error');
         svcModal.value.show = false;
         await loadServicios(true);
@@ -14452,12 +14474,13 @@ const ViewCatalogos = {
             <div style="flex:1;min-width:0;">
               <div style="font-weight:800;font-size:14px;">{{ s.nombre }}</div>
               <div style="font-size:11px;color:var(--text-muted);margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                <span :class="s.moneda==='USD' ? 'ps-chip green' : 'ps-chip'" :style="s.moneda==='USD' ? 'background:rgba(74,222,128,.14);border:1px solid rgba(74,222,128,.4);color:#4ade80' : ''">{{ s.moneda==='USD' ? 'US$ Dólares' : 'S/ Soles' }}</span>
                 <span :class="s.unidad==='NIU' ? 'ps-chip gold' : 'ps-chip blue'">{{ s.unidad==='NIU' ? '📦 Bien · NIU' : '🛎 Servicio · ZZ' }}</span>
                 <span v-if="s.descripcion" style="color:var(--text-muted);">{{ s.descripcion }}</span>
                 <span v-if="s.activo===false" class="ps-chip red">inactivo</span>
               </div>
             </div>
-            <div style="font-size:15px;font-weight:900;color:var(--gold);flex-shrink:0;">S/ {{ fmt(s.precio) }}</div>
+            <div style="font-size:15px;font-weight:900;flex-shrink:0;white-space:nowrap;" :style="s.moneda==='USD' ? 'color:#4ade80' : 'color:var(--gold)'">{{ s.moneda==='USD' ? 'US$' : 'S/' }} {{ fmt(s.precio) }}</div>
           </div>
         </div>
       </div>
@@ -14600,6 +14623,18 @@ const ViewCatalogos = {
                   <button @click="bumpSvc(1)" type="button"
                     style="width:50px;background:rgba(201,168,76,0.05);border:none;color:var(--gold);font-size:24px;font-weight:700;cursor:pointer;flex-shrink:0;border-left:1px solid var(--border);">+</button>
                 </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:7px;">
+                <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;font-weight:700;">Moneda</span>
+                <div style="display:flex;gap:6px;">
+                  <button v-for="mo in [{k:'PEN',l:'S/ Soles'},{k:'USD',l:'US$ Dólares'}]" :key="mo.k" @click="svcModal.moneda=mo.k" type="button"
+                    :style="svcModal.moneda===mo.k
+                      ? 'flex:1;min-height:44px;padding:10px 4px;border-radius:10px;font-size:13px;font-weight:800;cursor:pointer;background:rgba(74,222,128,0.16);border:1.5px solid #4ade80;color:#4ade80;'
+                      : 'flex:1;min-height:44px;padding:10px 4px;border-radius:10px;font-size:13px;cursor:pointer;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);'">
+                    {{ mo.l }}
+                  </button>
+                </div>
+                <span style="font-size:10.5px;color:var(--text-muted);">El comprobante se emite en la moneda del servicio. No se pueden mezclar monedas en un mismo CPE.</span>
               </div>
               <div style="display:flex;flex-direction:column;gap:7px;">
                 <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;font-weight:700;">Unidad SUNAT</span>
@@ -15469,7 +15504,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '2.17.1';
+const APP_VERSION = '2.18.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
