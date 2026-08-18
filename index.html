@@ -1666,7 +1666,7 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 .fac-fb-ico { flex:0 0 auto; font-size:20px; line-height:1; animation:facFbPop .5s cubic-bezier(.34,1.9,.5,1) both; }
 .fac-fb-seen .fac-fb-ico { animation:none; }
 .fac-fb-body { flex:1; min-width:0; }
-.fac-fb-t { font-weight:800; font-size:13px; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fac-fb-t { font-weight:800; font-size:13px; line-height:1.3; overflow-wrap:anywhere; }
 .fac-fb.ok .fac-fb-t { color:#5df08e; }
 .fac-fb.err .fac-fb-t { color:#ff8b84; }
 .fac-fb-s { font-size:10.5px; color:var(--text-muted); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -1826,8 +1826,14 @@ select.config-input option { background: #1e0a10; color: var(--text); }
   transition:transform .34s cubic-bezier(.34,1.56,.64,1), opacity .26s;
 }
 .fac-emit-ov.visible .fac-emit-box { transform:none; opacity:1; }
-.fac-emit-head { display:flex; align-items:center; gap:10px; padding:18px 20px 12px; }
-.fac-emit-title { font-size:18px; font-weight:800; letter-spacing:-.3px; }
+.fac-emit-head { display:flex; align-items:center; gap:10px; padding:18px 20px 12px; flex-wrap:wrap; row-gap:8px; }
+/* El título no se parte; si el chip 📅 y el robot no caben, bajan a una segunda fila (móvil) */
+.fac-emit-title { font-size:18px; font-weight:800; letter-spacing:-.3px; white-space:nowrap; }
+@media (max-width:430px) {
+  .fac-emit-head { padding:14px 14px 10px; gap:8px; }
+  .fac-emit-title { font-size:16.5px; }
+  .fac-emit-head > .fac-emit-x { margin-left:auto; }
+}
 .fac-emit-sub { font-size:11px; color:var(--text-muted); margin-top:1px; }
 .fac-emit-x {
   width:34px; height:34px; border-radius:50%; flex:0 0 auto;
@@ -8510,8 +8516,10 @@ function _facSim(m) { return String(m || 'PEN').toUpperCase() === 'USD' ? 'US$' 
 function _facTotalSoles(total) {
   const S = _facState;
   if (!S || _facMonedaCPE() !== 'USD') return Number(total) || 0;
-  const tc = Number(S._tc) || 0;
-  return tc > 0 ? Math.round((Number(total) || 0) * tc * 100) / 100 : (Number(total) || 0);
+  // Sin TC cargado se usa un PISO conservador (el dólar no ha bajado de 3.0 en años): el umbral
+  // se exige de más y nunca se omite un requisito legal por no tener el dato.
+  const tc = Number(S._tc) > 0 ? Number(S._tc) : 3.0;
+  return Math.round((Number(total) || 0) * tc * 100) / 100;
 }
 
 function _facSimCPE() { return _facSim(_facMonedaCPE()); }
@@ -9643,12 +9651,12 @@ function _facSectionBody(S) {
       ${(S.exportacion && S.items.length < 2) ? '<div class="fac-it-inv-hint">⚠ Exportación exige un PAQUETE: 2 o más servicios distintos (ej. bote + guiado)</div>' : ''}
       ${S.obsOpen ? `<textarea id="fac-obs" class="fac-obs-ta" rows="2" maxlength="250" placeholder="Observaciones (opcional) — salen impresas en el CPE. Ej: Servicio 02/08 · Delfín · 12 pax" oninput="_facState.obs=this.value">${_facEsc(S.obs || '')}</textarea>` : ''}
       <div style="background:var(--bg2,rgba(255,255,255,0.03));border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:12px">
-        <div style="display:flex;justify-content:space-between;color:var(--text-muted)"><span>${S.exportacion?'Exportación':'Gravada'}</span><span id="fac-tg">${_facSimCPE()} ${(S.exportacion?tot.total:tot.grav).toFixed(2)}</span></div>
+        <div style="display:flex;justify-content:space-between;color:var(--text-muted)"><span>${S.exportacion?'Exportación':'Gravada'}</span><span id="fac-tg" style="white-space:nowrap">${_facSimCPE()} ${(S.exportacion?tot.total:tot.grav).toFixed(2)}</span></div>
         <div style="display:flex;justify-content:space-between;align-items:center;color:var(--text-muted)">
-          <span style="display:flex;align-items:center;gap:7px">IGV ${S.exportacion?'(0% · exportación)':'(18%)'}
+          <span style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;min-width:0">IGV ${S.exportacion?'(0% · exportación)':'(18%)'}
             <span id="fac-exp-slot">${_facExpChipHTML()}</span>
           </span>
-          <span id="fac-ti">${_facSimCPE()} ${tot.igv.toFixed(2)}</span>
+          <span id="fac-ti" style="white-space:nowrap;flex:0 0 auto">${_facSimCPE()} ${tot.igv.toFixed(2)}</span>
         </div>
         ${tot.gratis > 0 ? `<div style="display:flex;justify-content:space-between;color:#c084fc"><span>🎁 Cortesías (op. gratuita)</span><span>${_facSimCPE()} ${tot.gratis.toFixed(2)}</span></div>` : ''}
         <div style="display:flex;justify-content:space-between;font-weight:900;color:var(--text);margin-top:4px;font-size:15px"><span>TOTAL A COBRAR</span><span id="fac-tt">${_facSimCPE()} ${tot.total.toFixed(2)}</span></div>
@@ -10059,7 +10067,7 @@ window._facOpenEmit = function () {
   ov.innerHTML = `<div class="fac-emit-box" role="dialog" aria-modal="true">
     <div class="fac-emit-head">
       <div style="font-size:22px">🧾</div>
-      <div style="flex:1;min-width:0"><div class="fac-emit-title">Emitir CPE</div></div>
+      <div style="flex:1 1 auto;min-width:64px"><div class="fac-emit-title">Emitir CPE</div></div>
       <div id="fac-fecha-slot" style="flex:0 0 auto">${_facFechaChipHTML()}</div>
       <button class="fac-z-bot" onclick="_facZarpeAbrir()" title="Jalar zarpe con IA — facturar al grupo" aria-label="Jalar zarpe con IA">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
@@ -11287,7 +11295,7 @@ function _facPdfPreviewHTML(c, fmt) {
       <div class="fpdf-hr-solid"></div>
       <div class="fpdf-a4-meta">
         <div class="fpdf-a4-metacol"><div><span class="lbl">CLIENTE</span> ${nomCli}</div><div><span class="lbl">DOCUMENTO</span> ${docCli}</div><div><span class="lbl">FORMA DE PAGO</span> ${formaPago}</div>${pagoDet ? `<div><span class="lbl">TIPO DE PAGO</span> ${pagoDet}</div>` : ''}</div>
-        <div class="fpdf-a4-metacol r"><div><span class="lbl">FECHA</span> ${fecha || '—'}</div><div><span class="lbl">MONEDA</span> ${_facEsc(c.moneda || 'PEN')}</div><div><span class="lbl">OPERACIÓN</span> Venta interna</div></div>
+        <div class="fpdf-a4-metacol r"><div><span class="lbl">FECHA</span> ${fecha || '—'}</div><div><span class="lbl">MONEDA</span> ${_facEsc(c.moneda || 'PEN')}</div><div><span class="lbl">OPERACIÓN</span> ${esExportDoc ? 'Exportación de servicios' : 'Venta interna'}</div></div>
       </div>
       ${_facNCLegalHTML(c)}
       <div class="fpdf-a4-body">
@@ -11339,7 +11347,7 @@ function _facPdfPreviewHTML(c, fmt) {
     <div style="display:flex;justify-content:space-between;gap:8px;font-size:9.5px;margin-top:2px">
       <div><b>Pago:</b> ${formaPago}</div>
       ${pagoDet ? `<div><b>Tipo de pago:</b> ${pagoDet}</div>` : ''}
-      <div><b>Op.:</b> Venta interna</div>
+      <div><b>Op.:</b> ${esExportDoc ? 'Exportación' : 'Venta interna'}</div>
     </div>
     <div style="font-size:10px;margin-top:4px"><b>Cliente:</b> ${nomCli}<br><b>Doc:</b> ${docCli}</div>
     ${_facNCLegalHTML(c, true)}
@@ -11422,7 +11430,7 @@ async function _facGenPDF(c, fmtOverride) {
     doc.setTextColor(...gray); doc.setFont('helvetica', 'bold'); doc.text('FORMA DE PAGO', M, hy + 13);
     doc.setTextColor(...ink); doc.setFont('helvetica', 'normal'); doc.text(_facFormaPago(c), M + 34, hy + 13);
     doc.setTextColor(...gray); doc.setFont('helvetica', 'bold'); doc.text('OPERACIÓN', bx, hy + 13);
-    doc.setTextColor(...ink); doc.setFont('helvetica', 'normal'); doc.text('Venta interna', bx + 24, hy + 13);
+    doc.setTextColor(...ink); doc.setFont('helvetica', 'normal'); doc.text((Number(T.exportacion) || 0) > 0 ? 'Exportación de servicios' : 'Venta interna', bx + 24, hy + 13);
     // ── Bloque legal Nota de Crédito (SUNAT): a qué doc modifica + motivo ──
     let ncExtra = 0;
     if (ncL) {
@@ -11557,7 +11565,7 @@ async function _facGenPDF(c, fmtOverride) {
   // Forma de pago + tipo de operación (campos SUNAT)
   doc.setFontSize(7.5);
   doc.splitTextToSize('Pago: ' + _facFormaPago(c), cw).forEach(ln => { doc.text(ln, mm, y); y += 3.3; });
-  doc.text('Operación: Venta interna', mm, y); y += 4;
+  doc.text('Operación: ' + ((Number(T.exportacion) || 0) > 0 ? 'Exportación' : 'Venta interna'), mm, y); y += 4;
   doc.setFontSize(8);
   // ── Bloque legal Nota de Crédito (SUNAT) ──
   if (ncL) {
@@ -15576,7 +15584,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '2.19.1';
+const APP_VERSION = '2.19.2';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
