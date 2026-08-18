@@ -11078,7 +11078,15 @@ function _facFormaPagoBase(c) {
 }
 // Cómo pagó el cliente (efectivo / virtual / tarjeta / mixto con su desglose) — va en su propia
 // fila del comprobante; el mixto llega ya detallado desde el emisor.
-function _facPagoDetalle(c) { return String((c && c.medio_pago) || '').trim(); }
+function _facPagoDetalle(c) {
+  const m = String((c && c.medio_pago) || '').trim();
+  if (m) return m;
+  // CPE 100% gratuito (cortesía): no hubo cobro. Decirlo explícitamente — dejar la fila vacía
+  // parece un olvido y hace dudar de si el sistema registró el pago.
+  const grat = Number((c && c.total_gratuita) || 0), tot = Number((c && c.total) || 0);
+  if (grat > 0 && tot <= 0) return 'Cortesía · sin cobro';
+  return '';   // histórico anterior al registro del medio de pago: no se inventa
+}
 function _facFormaPago(c) {
   var s = _facFormaPagoBase(c); var m = _facPagoDetalle(c);
   return m ? s + ' · ' + m : s;
@@ -15461,7 +15469,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '2.17.0';
+const APP_VERSION = '2.17.1';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
