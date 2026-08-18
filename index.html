@@ -8260,7 +8260,7 @@ function _facCliInvalidez() {
     if (S.docTipo === '0' && S.doc && S.doc !== '00000000') return 'Empresa extranjera: activa 🌎 Exportación para facturarle (la factura nacional exige RUC)';
     return S.docTipo === '0' ? 'Factura exige RUC — Varios no factura' : 'Factura exige RUC — este documento no sirve aquí';
   }
-  if (S.tipo === 2 && S.docTipo === '0' && (!S.doc || S.doc === '00000000') && tot.total > 700) return 'Boleta > S/700 exige identificar al cliente';   // solo Varios; Tax-ID real ya identifica
+  if (S.tipo === 2 && S.docTipo === '0' && (!S.doc || S.doc === '00000000') && _facTotalSoles(tot.total) > 700) return 'Boleta > S/700 exige identificar al cliente';   // solo Varios; Tax-ID real ya identifica
   return null;
 }
 // Chip 🌎 Exportación (vive junto al IGV, SOLO en factura): aparece cuando la venta "huele" a
@@ -8318,10 +8318,23 @@ function _facReglas() {
     R.push({ label: 'Dirección fiscal', ok: dir.length > 0, hard: true });
   } else {
     // Boleta: cliente Varios permitido solo hasta S/700; por encima hay que identificar al cliente.
-    if (esVarios && tot.total > 700) R.push({ label: 'Cliente Varios solo en boletas hasta S/700 — identifica al cliente', ok: false, hard: true });
-    else if (tot.total > 700) R.push({ label: 'Identificar cliente (boleta mayor a S/700)', ok: doc.length > 0 && nom.length > 0, hard: true });   // esVarios ya se filtró arriba; Tax-ID real es válido
+    if (esVarios && _facTotalSoles(tot.total) > 700) R.push({ label: 'Cliente Varios solo en boletas hasta S/700 — identifica al cliente', ok: false, hard: true });
+    else if (_facTotalSoles(tot.total) > 700) R.push({ label: 'Identificar cliente (boleta mayor a S/700)', ok: doc.length > 0 && nom.length > 0, hard: true });   // esVarios ya se filtró arriba; Tax-ID real es válido
   }
   if (S.pagoTipo === 'mixto') { const p = _facPagoMxCalc(tot.total); R.push({ label: 'Mixto: reparte el total entre Efectivo y Virtual', ok: p.ef > 0 && p.vi > 0, hard: true }); }
+  // Requisitos básicos que ANTES solo se descubrían al tocar Emitir (el botón decía "listo" y
+  // rebotaba): identificación del cliente, carrito con monto, y las dos combinaciones ilegales.
+  if (!nom) R.push({ label: 'Falta el nombre / razón social del cliente', ok: false, hard: true });
+  if (S.docTipo !== '0' && !doc) R.push({ label: 'Falta el número de documento del cliente', ok: false, hard: true });
+  const _hayCobrado = S.items.some(i => !i.gratis && (parseFloat(i.precio) || 0) > 0);
+  const _hayGratis = S.items.some(i => i.gratis);
+  if (!S.items.length) R.push({ label: 'Agrega al menos un servicio', ok: false, hard: true });
+  else if (!_hayCobrado && !_hayGratis) R.push({ label: 'Agrega al menos un servicio con monto', ok: false, hard: true });
+  if (!_hayCobrado && _hayGratis && S.tipo === 1) R.push({ label: 'Una factura no puede ser 100% cortesía — usa boleta o agrega la línea cobrada', ok: false, hard: true });
+  if (_hayGratis && S.exportacion) R.push({ label: 'La cortesía 🎁 no se mezcla con exportación — quítala o desactiva 🌎', ok: false, hard: true });
+  // La fecha elegida puede quedar fuera de plazo si el modal cruzó la medianoche
+  if (S.fechaEmision && S.fechaEmision < _facFechaMenos(_facPlazoDias()))
+    R.push({ label: 'La fecha elegida quedó fuera del plazo SUNAT — elige otra', ok: false, hard: true });
   // SUNAT rechaza líneas en S/0 (error 3105). Antes esto solo se descubría AL EMITIR (el botón
   // decía "listo" y luego rebotaba sin explicar) → ahora se avisa aquí, nombrando el servicio.
   const cero = S.items.find(i => !i.gratis && (parseFloat(i.precio) || 0) <= 0);
@@ -8411,7 +8424,7 @@ function _facRefreshAnulSheet() {
   if (((_facState.solicitudes) || []).length === 0) { _facCerrarAnulSheet(); return; }
   ov.innerHTML = _facAnulSheetHTML(_facState);
 }
-function _facAddLibre() { sndTap(); haptic(8); _facState.items.push({ descripcion: '', cantidad: 1, precio: 0 }); _facItRebuildList(); }
+function _facAddLibre() { sndTap(); haptic(8); _facState.items.push({ descripcion: '', cantidad: 1, precio: 0, moneda: _facMonedaCPE() }); _facItRebuildList(); }
 // "+ obs": nota opcional del admin (viaja a NubeFact como observaciones — sale impresa; SUNAT no la valida).
 // Cerrar el cajón LIMPIA el texto: nada viaja invisible.
 function _facObsToggle() {
@@ -8442,7 +8455,7 @@ function _facItRow(it, i) {
       ? `<input id="fac-pedit-${i}" class="fac-it-pin" type="number" inputmode="decimal" value="${it.precio}" onblur="_facPrecioSet(${i},this.value)" onkeydown="if(event.key==='Enter'){this.blur()}">`
       : (it.gratis
         ? `<button class="fac-it-price gratis" onclick="_facPrecioEdit(${i})" title="GRATIS — valor referencial S/ ${Number(it.precio) || 0} (toca para editarlo)">🎁 GRATIS</button>`
-        : `<button class="fac-it-price${(Number(it.precio) || 0) <= 0 ? ' cero' : ''}" onclick="_facPrecioEdit(${i})" title="${(Number(it.precio) || 0) <= 0 ? 'Este servicio está en 0 — SUNAT no acepta líneas en cero. Toca para ponerle precio (o márcalo 🎁).' : 'Toca para editar el precio'}">${_facSim(it.moneda)} ${Number(it.precio) || 0}</button>`)}
+        : `<button class="fac-it-price${(Number(it.precio) || 0) <= 0 ? ' cero' : ''}" onclick="_facPrecioEdit(${i})" title="${(Number(it.precio) || 0) <= 0 ? 'Este servicio está en 0 — SUNAT no acepta líneas en cero. Toca para ponerle precio (o márcalo 🎁).' : 'Toca para editar el precio'}">${_facSim(it.moneda || _facMonedaCPE())} ${Number(it.precio) || 0}</button>`)}
     <div class="fac-it-qty">
       <button class="fac-it-qbtn minus" onclick="_facQty(${i},-1)" aria-label="Quitar uno">−</button>
       <span class="fac-it-qn">${q}</span>
@@ -8478,7 +8491,7 @@ function _facPagoStr(total) {
   const S = _facState;
   if (S.pagoTipo === 'virtual') return 'Virtual (transferencia/Yape)';
   if (S.pagoTipo === 'tarjeta') return 'Tarjeta' + (S.pagoRec === false ? ' (sin recargo)' : ' (incluye recargo ' + Math.round(_FAC_TARJETA.rate * 100) + '%)');
-  if (S.pagoTipo === 'mixto') { const p = _facPagoMxCalc(total); return 'Mixto: Efectivo S/' + p.ef.toFixed(2) + ' + Virtual S/' + p.vi.toFixed(2); }
+  if (S.pagoTipo === 'mixto') { const p = _facPagoMxCalc(total), sm = _facSimCPE(); return 'Mixto: Efectivo ' + sm + p.ef.toFixed(2) + ' + Virtual ' + sm + p.vi.toFixed(2); }
   return 'Efectivo';
 }
 // ── MONEDA DEL COMPROBANTE ──────────────────────────────────────────────────────────────────
@@ -8490,6 +8503,17 @@ function _facMonedaCPE() {
   return (it && String(it.moneda).toUpperCase() === 'USD') ? 'USD' : 'PEN';
 }
 function _facSim(m) { return String(m || 'PEN').toUpperCase() === 'USD' ? 'US$' : 'S/'; }
+// Total del CPE en SOLES: los umbrales legales (S/700 identificar, S/700 detracción, S/2000
+// bancarización) están en soles, así que una venta en dólares debe convertirse con el TC oficial
+// del día (_facState._tc, cargado al abrir Facturación). Sin TC se asume el peor caso (sin
+// conversión) para no saltarse un requisito por falta de dato.
+function _facTotalSoles(total) {
+  const S = _facState;
+  if (!S || _facMonedaCPE() !== 'USD') return Number(total) || 0;
+  const tc = Number(S._tc) || 0;
+  return tc > 0 ? Math.round((Number(total) || 0) * tc * 100) / 100 : (Number(total) || 0);
+}
+
 function _facSimCPE() { return _facSim(_facMonedaCPE()); }
 // ── FECHA DE EMISIÓN (solo panel · admin) ───────────────────────────────────────────────────
 // Plazo de ENVÍO a SUNAT: factura 3 días calendario desde el día siguiente a la emisión
@@ -8552,7 +8576,7 @@ function _facFechaSet(iso) {
   S.fechaEmision = (iso === _facHoyLima()) ? null : iso;   // null = hoy (comportamiento de siempre)
   try { sndOk(); haptic(10); } catch (e) {}
   document.querySelectorAll('.fac-fecha-pop').forEach(o => o.remove());
-  const sl = document.getElementById('fac-fecha-slot'); if (sl) sl.innerHTML = _facFechaChipHTML();
+  _facFechaRepintaChip();
   _facEmitLite();
 }
 // Al pasar de boleta (7 días) a factura (3), una fecha ya elegida puede quedar fuera de plazo.
@@ -8562,7 +8586,12 @@ function _facFechaAjustaPorTipo() {
   if (S.fechaEmision < lim) {
     S.fechaEmision = (lim === _facHoyLima()) ? null : lim;
     if (typeof showToast === 'function') showToast('📅 La factura solo admite hasta ' + _facPlazoDias() + ' días atrás — fecha ajustada');
+    _facFechaRepintaChip();   // el chip vive en la cabecera: sin esto mostraría una fecha y emitiría otra
   }
+}
+// Repinta el chip 📅 esté donde esté (la cabecera no se reconstruye en cada render del modal)
+function _facFechaRepintaChip() {
+  const sl = document.getElementById('fac-fecha-slot'); if (sl) sl.innerHTML = _facFechaChipHTML();
 }
 // Recargo por tarjeta (POS): 5% sobre lo COBRADO. Se puede apagar con el chip "+5%".
 function _facRecargoTarjeta(base) {
@@ -8584,10 +8613,10 @@ function _facPagoHTML(tot) {
     </div>
     ${T.rec > 0 ? `<div style="display:flex;justify-content:space-between;font-size:11px;color:#4ade80;margin:-4px 0 10px"><span>Recargo tarjeta ${Math.round(_FAC_TARJETA.rate * 100)}% (va en el comprobante)</span><span>+ ${_facSimCPE()} ${T.rec.toFixed(2)}</span></div>` : ''}
     ${S.pagoTipo === 'mixto' ? `<div style="display:flex;gap:8px;margin-bottom:8px">
-      <label style="flex:1;font-size:10px;font-weight:800;color:var(--text-muted)">EFECTIVO S/<input id="fac-mx-ef" type="number" inputmode="decimal" min="0" value="${p.ef || ''}" oninput="_facPagoMxInput('ef',this.value)" style="${inp};margin-top:3px"></label>
-      <label style="flex:1;font-size:10px;font-weight:800;color:var(--text-muted)">VIRTUAL S/<input id="fac-mx-vi" type="number" inputmode="decimal" min="0" value="${p.vi || ''}" oninput="_facPagoMxInput('vi',this.value)" style="${inp};margin-top:3px"></label>
+      <label style="flex:1;font-size:10px;font-weight:800;color:var(--text-muted)">EFECTIVO ${_facSimCPE()}<input id="fac-mx-ef" type="number" inputmode="decimal" min="0" value="${p.ef || ''}" oninput="_facPagoMxInput('ef',this.value)" style="${inp};margin-top:3px"></label>
+      <label style="flex:1;font-size:10px;font-weight:800;color:var(--text-muted)">VIRTUAL ${_facSimCPE()}<input id="fac-mx-vi" type="number" inputmode="decimal" min="0" value="${p.vi || ''}" oninput="_facPagoMxInput('vi',this.value)" style="${inp};margin-top:3px"></label>
     </div>` : ''}
-    ${(t >= 2000 && S.pagoTipo === 'efectivo' && !S.exportacion) ? '<div style="font-size:10.5px;color:#f0b13c;margin:-4px 0 10px">⚠ ≥ S/2000: SUNAT exige medio bancario — usa Virtual o Mixto</div>' : ''}`;
+    ${(_facTotalSoles(t) >= 2000 && S.pagoTipo === 'efectivo' && !S.exportacion) ? '<div style="font-size:10.5px;color:#f0b13c;margin:-4px 0 10px">⚠ ≥ S/2000: SUNAT exige medio bancario — usa Virtual o Mixto</div>' : ''}`;
 }
 function _facPagoCiclo() {
   const S = _facState;
@@ -8690,7 +8719,7 @@ function _facPrecioSet(i, v) {
   S._priceEdit = null;
   try { sndOk(); haptic(10); } catch (e) {}
   const el = document.getElementById('fac-pedit-' + i);
-  if (el) el.outerHTML = `<button class="fac-it-price" onclick="_facPrecioEdit(${i})" title="Toca para editar el precio">S/ ${S.items[i] ? (Number(S.items[i].precio) || 0) : 0}</button>`;
+  if (el) el.outerHTML = `<button class="fac-it-price" onclick="_facPrecioEdit(${i})" title="Toca para editar el precio">${_facSim((S.items[i] && S.items[i].moneda) || _facMonedaCPE())} ${S.items[i] ? (Number(S.items[i].precio) || 0) : 0}</button>`;
   _facEmitLite();
 }
 // ── Picker de servicios del catálogo: overlay con selección múltiple (sombreado + check) ──
@@ -8720,20 +8749,31 @@ function _facSvcPickAdd() {
   const ids = Object.keys(P.sel);
   if (P.zarpe != null) {                    // contexto zarpe: agrega a los servicios de ESA fila
     const Z = S._zarpe, f = Z && Z.filas[P.zarpe];
-    if (f) ids.forEach(id => { const sv = S.servicios.find(s => String(s.id) === String(id)); if (sv) f.servicios.push({ nombre: sv.nombre, precio: sv.precio || 0, cantidad: 1, gratis: false, unidad: sv.unidad || _FAC_UNIDAD }); });
+    // El lote de zarpe se factura SIEMPRE en soles (_facZarpeEmitir manda PEN) → un servicio en
+    // dólares aquí saldría convertido 1:1. Se rechaza antes de que entre a la fila.
+    const rechZ = [];
+    if (f) ids.forEach(id => {
+      const sv = S.servicios.find(s => String(s.id) === String(id)); if (!sv) return;
+      if (String(sv.moneda || 'PEN').toUpperCase() === 'USD') { rechZ.push(sv.nombre); return; }
+      f.servicios.push({ nombre: sv.nombre, precio: sv.precio || 0, cantidad: 1, gratis: false, unidad: sv.unidad || _FAC_UNIDAD, moneda: 'PEN' });
+    });
     S._svcPick = null;
     try { if (ids.length) { sndOk(); haptic([12, 30, 12]); } } catch (e) {}
     document.querySelectorAll('.fac-svcpick-ov').forEach(o => o.remove());
     _facZarpeRepaintFila(P.zarpe, true); _facZarpeUpdateEmitBtn(); _facZarpeGuardarDebounced();
+    if (rechZ.length) _facErr('«' + String(rechZ[0]).slice(0, 30) + '» está en dólares y el zarpe se factura en soles — emítelo aparte desde Emitir CPE.');
     return;
   }
-  // Un CPE = UNA moneda: si el carrito ya tiene una, los de otra moneda se descartan avisando.
-  const monCarrito = S.items.length ? _facMonedaCPE() : null;
+  // Un CPE = UNA moneda. La referencia es la del carrito y, si está VACÍO, la del PRIMER servicio
+  // de este mismo lote: si no, marcar dos monedas de una sola vez entraba sin control y la emisión
+  // reetiquetaba las líneas a una sola moneda (se facturaban dólares como soles).
+  let monRef = S.items.length ? _facMonedaCPE() : null;
   const rechazados = [];
   ids.forEach(id => {
     const sv = S.servicios.find(s => String(s.id) === String(id)); if (!sv) return;
     const mon = String(sv.moneda || 'PEN').toUpperCase() === 'USD' ? 'USD' : 'PEN';
-    if (monCarrito && mon !== monCarrito) { rechazados.push(sv.nombre); return; }
+    if (monRef === null) monRef = mon;                                    // el primero fija la moneda
+    if (mon !== monRef) { rechazados.push(sv.nombre); return; }
     S.items.push({ descripcion: sv.nombre, cantidad: 1, precio: sv.precio || 0, unidad: sv.unidad || _FAC_UNIDAD, moneda: mon });
   });
   S._svcPick = null;
@@ -8754,7 +8794,7 @@ function _facSvcPickHTML(S) {
         <button class="fac-svcpick-it${on ? ' on' : ''}" data-svc="${String(s.id).replace(/"/g, '')}" onclick="_facSvcPickToggle('${String(s.id).replace(/'/g, '')}')">
           <span class="fac-svcpick-chk">${on ? '✓' : ''}</span>
           <span class="fac-svcpick-main"><span class="fac-svcpick-t">${_facEsc(tit)}</span>${sub ? `<span class="fac-svcpick-s">${_facEsc(sub)}</span>` : ''}</span>
-          <span class="fac-svcpick-p">S/ ${s.precio}</span>
+          <span class="fac-svcpick-p">${_facSim(s.moneda)} ${s.precio}</span>
         </button>`; }).join('') : '<div class="fac-it-empty">No hay servicios en el catálogo — agrégalos en Catálogo → Servicios</div>'}
       </div>
       <button class="fac-svcpick-go" onclick="_facSvcPickAdd()" ${n ? '' : 'disabled'}>${n ? '✓ Agregar ' + n + ' servicio' + (n === 1 ? '' : 's') : 'Elige uno o más servicios'}</button>
@@ -9141,7 +9181,7 @@ function _facEmitir() {
   // El recargo por tarjeta viaja como LÍNEA del CPE (mismo tratamiento tributario que la venta):
   // así el comprobante declara exactamente lo que se cobró por el POS.
   if (tot.rec > 0) itemsSnap.push(Object.assign({ descripcion: _FAC_TARJETA.label, cantidad: 1, precio: tot.rec, unidad: _FAC_UNIDAD, moneda: _facMonedaCPE() }, S.exportacion ? { afectacion: 'exportacion' } : {}));
-  const snap = { tipo: S.tipo, label, items: itemsSnap, nombre: S.nombre.trim(), doc: esVariosEmit ? '' : S.doc.trim() };
+  const snap = { tipo: S.tipo, label, items: itemsSnap, nombre: S.nombre.trim(), doc: esVariosEmit ? '' : S.doc.trim(), moneda: _facMonedaCPE() };
   const payload = { accion: 'emitir_comprobante', tipo: S.tipo, serie: _facSerie(),
     cliente_doc_tipo: S.docTipo, cliente_doc: snap.doc, cliente_nombre: snap.nombre,
     cliente_email: S.email.trim(), cliente_tel: S.tel.trim(), cliente_dir: S.dir.trim(), es_extranjero: S.esExtranjero,
@@ -9149,7 +9189,7 @@ function _facEmitir() {
     exportacion: !!S.exportacion, medio_pago: soloGratis ? null : _facPagoStr(tot.total),
     forma_pago: 'CONTADO', credito_venc: null,   // decisión dueño: todo contado (el RPC conserva el soporte crédito por si se necesita)
     observaciones: (S.obs || '').trim() || null, fecha_emision: S.fechaEmision || null,   // null = hoy; el backend valida el plazo (3 factura / 7 boleta)
-    detraccion: (S.tipo === 1 && !S.exportacion && tot.total > (typeof _FAC_DETRACCION !== 'undefined' ? _FAC_DETRACCION.umbral : 700)),
+    detraccion: (S.tipo === 1 && !S.exportacion && _facTotalSoles(tot.total) > (typeof _FAC_DETRACCION !== 'undefined' ? _FAC_DETRACCION.umbral : 700)),
     moneda: _facMonedaCPE(), operador: (S.ses && S.ses.nombre) || 'PS',
     localId: S._emitLocalId };
   const entry = { _pending: true, serie: _facSerie(), numero: null, total: tot.total, estado: 'enviando', comp: null, _payload: payload, _snap: snap };
@@ -9158,10 +9198,12 @@ function _facEmitir() {
   S._emitFeed = { type: 'sending', entry };
   // form libre YA (optimista) — el modal sigue abierto para el siguiente
   S.items = []; S.email = ''; S.tel = ''; S.dir = ''; S.pagoTipo = 'efectivo'; S.pagoEf = ''; S.pagoRec = true; S.formaPago = 'CONTADO'; S.creditoVenc = ''; S.lookupState = 'idle'; S.obs = ''; S.obsOpen = false;
+  S.fechaEmision = null; S.exportacion = false; S.esExtranjero = false; S._priceEdit = null; S._svcPick = null;   // no deben heredarse al siguiente comprobante
   S.cliQuery = ''; S.cliResults = []; S.cliShowLupa = false; S.cliManual = false; S.manualDoc = ''; S.manualNombre = ''; S._lkFail = null;
   if (S.tipo === 2 && !S.exportacion) { S.docTipo = '0'; S.doc = '00000000'; S.nombre = 'VARIOS'; S.cliSel = true; }
   else { S.doc = ''; S.nombre = ''; S.cliSel = false; }
   S._emitLocalId = 'fac-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);   // localId nuevo para el próximo
+  _facFechaRepintaChip();   // la fecha volvió a HOY: el chip debe decirlo
   try { sndTap(); haptic([10, 20, 10]); } catch (e) {}
   _facRender();
   _facEmitSend(entry);
@@ -9175,7 +9217,7 @@ function _facEmitSend(entry) {
       const d = r.data, sn = entry._snap;
       const comp = Object.assign({
         id: d.id, tipo: sn.tipo, serie: d.serie, numero: d.numero, total: d.total, estado: d.estado,
-        enlace_pdf: d.pdf || d.enlace_pdf || '', moneda: 'PEN', _label: sn.label,
+        enlace_pdf: d.pdf || d.enlace_pdf || '', moneda: sn.moneda || 'PEN', _label: sn.label,
         cliente_nombre: sn.nombre, cliente_doc: sn.doc, cliente_email: '', cliente_tel: '',
         creado_por: (S.ses && S.ses.nombre) || 'PS', items: sn.items
       }, d);
@@ -9995,6 +10037,7 @@ window._facOpenEmit = function () {
   // el caso más común del muelle es boleta simple; la × lo vacía y abre la búsqueda.
   S.resultado = null; S.facModo = 'boleta'; S.tipo = 2; S.exportacion = false; S.esExtranjero = false;
   S.docTipo = '0'; S.doc = '00000000'; S.nombre = 'VARIOS'; S.email = ''; S.tel = ''; S.dir = ''; S.items = []; S.fechaEmision = null; S.pagoTipo = 'efectivo'; S.pagoEf = ''; S.pagoRec = true; S.formaPago = 'CONTADO'; S.creditoVenc = ''; S.lookupState = 'idle';
+  S.obs = ''; S.obsOpen = false; S._priceEdit = null; S._svcPick = null; S._lkFail = null; S._autoLkq = null;   // residuos de la apertura anterior
   clearTimeout(S._cliTimer); clearTimeout(S._cliDebounce);
   S.cliQuery = ''; S.cliResults = []; S.cliSel = true; S.cliShowLupa = false; S.cliManual = false;
   S.manualDoc = ''; S.manualNombre = ''; S.manualTipo = '1'; S._cliLoading = false; S._cliLupaLoading = false;
@@ -10619,6 +10662,17 @@ async function _facZarpeGuardar() {
   try { await apiPost({ accion: 'guardar_zarpe_tablilla', operacion: Z.sel.id, filas }); } catch (e) {}
 }
 // ── Emisión en lote (cascada de checks) ──
+// La fecha de emisión del lote sale del ZARPE (fecha real del servicio). Si el zarpe es más
+// antiguo que el plazo SUNAT (3 días factura / 7 boleta) se recorta al límite emitible: el
+// comprobante seguiría siendo válido, pero fuera de plazo SUNAT lo rechaza.
+function _facZarpeFechaEmision(tipo) {
+  const S = _facState, Z = S && S._zarpe;
+  const cruda = String((Z && Z.sel && (Z.sel.fecha || Z.sel.dia)) || '').slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(cruda)) return null;             // sin fecha legible → hoy (como antes)
+  const hoy = _facHoyLima(); if (cruda >= hoy) return null;
+  const limite = _facFechaMenos(_FAC_PLAZO[tipo === 1 ? 1 : 2]);
+  return cruda < limite ? limite : cruda;
+}
 async function _facZarpeEmitir() {
   const S = _facState, Z = S._zarpe; if (!Z || Z.emitiendo) return;
   const pend = Z.filas.map((f, i) => ({ f, i })).filter(o => o.f.estado !== 'facturado' && (o.f.servicios || []).some(s => (Number(s.cantidad) || 0) > 0));
@@ -10660,6 +10714,7 @@ async function _facZarpeEmitir() {
       r = await apiPost({ accion: 'emitir_comprobante', tipo, serie,
         cliente_doc_tipo: f.tipo_doc || (esFactura ? '6' : '1'), cliente_doc: String(f.documento || '').trim(),
         cliente_nombre: f.nombre || f.empresa || 'Cliente', items, moneda: 'PEN',
+        fecha_emision: _facZarpeFechaEmision(tipo),   // la del servicio, dentro del plazo SUNAT
         cliente_dir: (esFactura && !esExport) ? dirFactura : '',
         exportacion: esExport, es_extranjero: String(f.tipo_doc) === '7', detraccion: detrZ,
         operador: (S.ses && S.ses.nombre) || 'PS', localId: 'zarpe-' + f.id });
@@ -15509,7 +15564,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '2.18.1';
+const APP_VERSION = '2.19.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
