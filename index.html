@@ -3571,7 +3571,7 @@ const PS_POST = {
   actualizar_compra_ocr:   b => _psRpc('actualizar_compra_ocr', { p: { id: b.id, ruc_proveedor: b.ruc_proveedor || null, razon_social: b.razon_social || null, tipo_doc: b.tipo_doc || null, serie: b.serie || null, numero: b.numero || null, fecha: b.fecha || null, base: parseFloat(b.base) || 0, igv: parseFloat(b.igv) || 0, total: parseFloat(b.total) || 0, raw: b.raw || null } }),
   marcar_compra_ocr_fallo: b => _psRpc('marcar_compra_ocr_fallo', { p: { id: b.id, raw: b.raw || null } }),
   eliminar_compra:         b => _psRpc('eliminar_compra', { p: { id: b.id } }),
-  set_servicio: b => _psRpc('admin_set_servicio', { p_id: b.id || '', p_nombre: b.nombre, p_desc: b.descripcion || null, p_precio: parseFloat(b.precio) || 0, p_unidad: b.unidad || 'NIU', p_activo: b.activo !== false }).then(id => ({ id })),
+  set_servicio: b => _psRpc('admin_set_servicio', { p_id: b.id || '', p_nombre: b.nombre, p_desc: b.descripcion || null, p_precio: parseFloat(b.precio) || 0, p_unidad: b.unidad || 'ZZ', p_activo: b.activo !== false }).then(id => ({ id })),
   eliminar_servicio: b => _psRpc('admin_eliminar_servicio', { p_id: b.id }).then(() => ({ ok: true })),
   borrar_servicio_def: b => _psRpc('admin_borrar_servicio_def', { p_id: b.id }),
   servicio_paquete:  b => _psRpc('admin_servicio_paquete', { p_id: b.id, p_on: !!b.on }),
@@ -8582,14 +8582,14 @@ function _facSvcPickAdd() {
   const ids = Object.keys(P.sel);
   if (P.zarpe != null) {                    // contexto zarpe: agrega a los servicios de ESA fila
     const Z = S._zarpe, f = Z && Z.filas[P.zarpe];
-    if (f) ids.forEach(id => { const sv = S.servicios.find(s => String(s.id) === String(id)); if (sv) f.servicios.push({ nombre: sv.nombre, precio: sv.precio || 0, cantidad: 1, gratis: false }); });
+    if (f) ids.forEach(id => { const sv = S.servicios.find(s => String(s.id) === String(id)); if (sv) f.servicios.push({ nombre: sv.nombre, precio: sv.precio || 0, cantidad: 1, gratis: false, unidad: sv.unidad || _FAC_UNIDAD }); });
     S._svcPick = null;
     try { if (ids.length) { sndOk(); haptic([12, 30, 12]); } } catch (e) {}
     document.querySelectorAll('.fac-svcpick-ov').forEach(o => o.remove());
     _facZarpeRepaintFila(P.zarpe, true); _facZarpeUpdateEmitBtn(); _facZarpeGuardarDebounced();
     return;
   }
-  ids.forEach(id => { const sv = S.servicios.find(s => String(s.id) === String(id)); if (sv) S.items.push({ descripcion: sv.nombre, cantidad: 1, precio: sv.precio || 0 }); });
+  ids.forEach(id => { const sv = S.servicios.find(s => String(s.id) === String(id)); if (sv) S.items.push({ descripcion: sv.nombre, cantidad: 1, precio: sv.precio || 0, unidad: sv.unidad || _FAC_UNIDAD }); });
   S._svcPick = null;
   try { if (ids.length) { sndOk(); haptic([12, 30, 12]); } } catch (e) {}
   const ov = document.querySelector('.fac-svcpick-ov'); if (ov) ov.remove();   // cerrar overlay sin re-render global
@@ -8987,7 +8987,8 @@ function _facEmitir() {
   if (faltan.length) return _facErr('Requisito SUNAT: ' + faltan[0].label);
   if (!S._emitLocalId) S._emitLocalId = 'fac-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
   const label = S.tipo === 1 ? 'Factura' : (S.exportacion ? 'Exportación' : 'Boleta');
-  const itemsSnap = S.items.map(i => Object.assign({ descripcion: i.descripcion, cantidad: parseFloat(i.cantidad) || 0, precio: parseFloat(i.precio) || 0 }, i.gratis ? { afectacion: 'gratuito' } : {}));
+  // `unidad` = catálogo SUNAT 03 (ZZ servicio / NIU bien). El backend valida y cae a ZZ si falta.
+  const itemsSnap = S.items.map(i => Object.assign({ descripcion: i.descripcion, cantidad: parseFloat(i.cantidad) || 0, precio: parseFloat(i.precio) || 0, unidad: i.unidad || _FAC_UNIDAD }, i.gratis ? { afectacion: 'gratuito' } : {}));
   const snap = { tipo: S.tipo, label, items: itemsSnap, nombre: S.nombre.trim(), doc: esVariosEmit ? '' : S.doc.trim() };
   const payload = { accion: 'emitir_comprobante', tipo: S.tipo, serie: _facSerie(),
     cliente_doc_tipo: S.docTipo, cliente_doc: snap.doc, cliente_nombre: snap.nombre,
@@ -10474,7 +10475,7 @@ async function _facZarpeEmitir() {
   const btn = document.getElementById('fac-z-emit'); if (btn) { btn.disabled = true; btn.style.opacity = '.7'; btn.textContent = 'Emitiendo… 0/' + pend.length; }
   for (const { f, i } of pend) {
     const items = (f.servicios || []).filter(s => (Number(s.cantidad) || 0) > 0)
-      .map(s => Object.assign({ descripcion: s.nombre, cantidad: Number(s.cantidad) || 0, precio: Number(s.precio) || 0 }, s.gratis ? { afectacion: 'gratuito' } : {}));
+      .map(s => Object.assign({ descripcion: s.nombre, cantidad: Number(s.cantidad) || 0, precio: Number(s.precio) || 0, unidad: s.unidad || _FAC_UNIDAD }, s.gratis ? { afectacion: 'gratuito' } : {}));
     const esExport = !!f._export && String(f.tipo_doc) === '7' && items.length >= 2;   // pasaporte + paquete
     const esFactura = esExport || !!(f.empresa || String(f.tipo_doc) === '6');
     const tipo = esFactura ? 1 : 2;
@@ -13706,7 +13707,7 @@ const ViewCatalogos = {
     const svcLoading  = ref(false);
     let   svcLoaded   = false;
     const svcModal = ref({ show: false, mode: 'crear', saving: false, deleting: false, error: '',
-      id: '', nombre: '', descripcion: '', precio: '', unidad: 'NIU' });
+      id: '', nombre: '', descripcion: '', precio: '', unidad: 'ZZ' });
     // listar_servicios_full trae TAMBIÉN los inactivos + activo/paquete_zarpe (listar_servicios los oculta)
     async function loadServicios(force) {
       if (svcLoaded && !force) return;
@@ -13718,7 +13719,7 @@ const ViewCatalogos = {
       try { sndTap(); haptic(8); } catch (e) {}
       svcModal.value = { show: true, mode: item ? 'editar' : 'crear', saving: false, deleting: false, error: '',
         id: item?.id || '', nombre: item?.nombre || '', descripcion: item?.descripcion || '',
-        precio: item ? String(item.precio || '') : '', unidad: item?.unidad || 'NIU',
+        precio: item ? String(item.precio || '') : '', unidad: item?.unidad || 'ZZ',
         activo: item ? item.activo !== false : true, paquete: !!item?.paquete_zarpe, confirmBorrar: false };
     }
     // Alta/baja del servicio en el paquete por defecto del zarpe (se guarda al instante)
@@ -13756,7 +13757,7 @@ const ViewCatalogos = {
       m.saving = true; m.error = '';
       try {
         const r = await apiPost({ accion: 'set_servicio', id: m.id || '', nombre: m.nombre.trim(),
-          descripcion: m.descripcion || '', precio: parseFloat(m.precio) || 0, unidad: m.unidad || 'NIU', activo: m.activo !== false });
+          descripcion: m.descripcion || '', precio: parseFloat(m.precio) || 0, unidad: m.unidad || 'ZZ', activo: m.activo !== false });
         if (!r.ok) throw new Error(r.error || 'Error');
         svcModal.value.show = false;
         await loadServicios(true);
@@ -14302,7 +14303,7 @@ const ViewCatalogos = {
             <div style="flex:1;min-width:0;">
               <div style="font-weight:800;font-size:14px;">{{ s.nombre }}</div>
               <div style="font-size:11px;color:var(--text-muted);margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-                <span class="ps-chip">{{ s.unidad==='ZZ' ? 'Servicio (ZZ)' : 'Unidad (NIU)' }}</span>
+                <span :class="s.unidad==='NIU' ? 'ps-chip gold' : 'ps-chip blue'">{{ s.unidad==='NIU' ? '📦 Bien · NIU' : '🛎 Servicio · ZZ' }}</span>
                 <span v-if="s.descripcion" style="color:var(--text-muted);">{{ s.descripcion }}</span>
                 <span v-if="s.activo===false" class="ps-chip red">inactivo</span>
               </div>
@@ -14454,7 +14455,7 @@ const ViewCatalogos = {
               <div style="display:flex;flex-direction:column;gap:7px;">
                 <span style="font-size:10px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;font-weight:700;">Unidad SUNAT</span>
                 <div style="display:flex;gap:6px;">
-                  <button v-for="u in [{k:'NIU',l:'NIU · Unidad'},{k:'ZZ',l:'ZZ · Servicio'}]" :key="u.k" @click="svcModal.unidad=u.k" type="button"
+                  <button v-for="u in [{k:'ZZ',l:'🛎 Servicio · ZZ'},{k:'NIU',l:'📦 Bien · NIU'}]" :key="u.k" @click="svcModal.unidad=u.k" type="button"
                     :style="svcModal.unidad===u.k
                       ? 'flex:1;min-height:44px;padding:10px 4px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(201,168,76,0.2);border:1.5px solid var(--gold);color:var(--gold);'
                       : 'flex:1;min-height:44px;padding:10px 4px;border-radius:10px;font-size:13px;cursor:pointer;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);'">
@@ -15319,7 +15320,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '2.14.0';
+const APP_VERSION = '2.15.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
