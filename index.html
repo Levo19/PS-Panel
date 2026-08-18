@@ -3542,6 +3542,7 @@ const PS_GET = {
   // Catálogo admin: clientes frecuentes (CRUD) + servicios con inactivos/paquete de zarpe
   listar_clientes:        p => _psRpc('admin_listar_clientes', { p_q: (p && p.q) || '', p_limite: (p && p.limite) || 500 }),
   listar_servicios_full:  () => _psRpc('admin_listar_servicios_full'),
+  tipo_cambio:            () => _psRpc('tc_venta', { p_fecha: null }).then(v => ({ venta: v })),
   get_facturacion_config: () => _psRpc('get_facturacion_config'),
   consultar_documento:    p => _psRpc('consultar_documento', { p_numero: p.numero, p_tipo: p.tipo || null }),
   solicitudes_anulacion:  () => _psRpc('listar_solicitudes_anulacion'),
@@ -8081,6 +8082,9 @@ function _facInitState(ses, servicios, muelleOn, facCfg) {
 }
 async function _facCargarBase() {
   let servicios = [], muelleOn = false, facCfg = {};
+  // TC del día (informativo en el modal cuando el CPE va en dólares). Silencioso: si falla, no se muestra.
+  let tc = null;
+  try { const t = await apiGet('tipo_cambio'); if (t && t.ok && t.data && t.data.venta) tc = Number(t.data.venta); } catch (e) {}
   try {
     // NUNCA colgar el montaje: si los datos tardan >6s, seguimos con lo que haya (el hub igual pinta).
     const res = await Promise.race([
@@ -8089,7 +8093,7 @@ async function _facCargarBase() {
     ]);
     if (res) { const [sR, mR, cR] = res; servicios = (sR.ok && sR.data) || []; muelleOn = !!(mR.ok && mR.data); facCfg = (cR.ok && cR.data) || {}; }
   } catch (e) {}
-  return { servicios, muelleOn, facCfg };
+  return { servicios, muelleOn, facCfg, tc };
 }
 // ── Bridge MULTI-INSTANCIA (hay 2 componentes ViewFacturacion: portrait + landscape) ──
 // El estado se carga UNA vez (promesa compartida); cada instancia PINTA su propio contenedor.
@@ -8099,7 +8103,7 @@ async function _facEnsureState(el) {
   if (ses.rol !== 'Administrador') { if (el) el.innerHTML = '<div class="fac-mod-loading">Solo administradores pueden ver Facturación.</div>'; return false; }
   if (_facState) return true;
   if (el) el.innerHTML = '<div class="fac-mod-loading"><div class="spin"></div>Cargando facturación…</div>';
-  if (!_facStateLoading) _facStateLoading = (async () => { const b = await _facCargarBase(); _facState = _facInitState(ses, b.servicios, b.muelleOn, b.facCfg); })();
+  if (!_facStateLoading) _facStateLoading = (async () => { const b = await _facCargarBase(); _facState = _facInitState(ses, b.servicios, b.muelleOn, b.facCfg); _facState._tc = b.tc || null; })();
   try { await _facStateLoading; } catch (e) {}
   return !!_facState;
 }
@@ -9607,6 +9611,7 @@ function _facSectionBody(S) {
         ${tot.gratis > 0 ? `<div style="display:flex;justify-content:space-between;color:#c084fc"><span>🎁 Cortesías (op. gratuita)</span><span>${_facSimCPE()} ${tot.gratis.toFixed(2)}</span></div>` : ''}
         <div style="display:flex;justify-content:space-between;font-weight:900;color:var(--text);margin-top:4px;font-size:15px"><span>TOTAL A COBRAR</span><span id="fac-tt">${_facSimCPE()} ${tot.total.toFixed(2)}</span></div>
       </div>
+      ${_facMonedaCPE()==='USD' ? `<div style="display:flex;justify-content:space-between;font-size:10.5px;color:#4ade80;margin:-6px 0 10px"><span>Comprobante en DÓLARES${_facState._tc ? ' · T.C. ' + Number(_facState._tc).toFixed(3) : ''}</span><span>${_facState._tc ? '≈ S/ ' + (tot.total * Number(_facState._tc)).toFixed(2) : ''}</span></div>` : ''}
       <div id="fac-pago-slot">${_facPagoHTML(tot)}</div>
       <button id="fac-emitir" onclick="_facEmitir()" class="btn-primary" ${_facReglasOk()?'':'disabled'} style="width:100%;padding:10px;font-size:13px;font-weight:800;border-radius:11px;${_facReglasOk()?'':'opacity:.5;cursor:not-allowed'}">${_facReglasOk()?'🧾 Emitir comprobante':'⛔ Faltan requisitos SUNAT'}</button>
       <div id="fac-reglas" style="margin-top:10px">${_facReglasHTML()}</div>
@@ -15504,7 +15509,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '2.18.0';
+const APP_VERSION = '2.18.1';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
