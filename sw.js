@@ -2,7 +2,7 @@
 // PS Panel — Service Worker
 // Bumpa VERSION en cada deploy para invalidar caché
 // ============================================================
-const VERSION = '2.19.2';
+const VERSION = '2.20.0';
 const CACHE   = 'ps-panel-v' + VERSION;
 const ASSETS  = [
   './',
@@ -78,4 +78,33 @@ self.addEventListener('fetch', e => {
 
 self.addEventListener('message', e => {
   if (e.data === 'SKIP_WAITING') self.skipWaiting();
+});
+
+// ── WEB PUSH (guardián de comprobantes) ─────────────────────────────────────────────
+// La Edge `cpe-guardian` manda un resumen cuando un CPE no fue aceptado por NubeFact/SUNAT.
+// Se muestra la notificación con el ícono del panel; al tocarla se abre (o enfoca) el panel
+// directo en la alerta del módulo de facturación.
+self.addEventListener('push', e => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (_) { d = { title: 'PS Panel', body: e.data ? e.data.text() : '' }; }
+  const title = d.title || '🧾 Comprobantes por revisar';
+  const opts = {
+    body: d.body || '',
+    icon: d.icon || './icon-192.png',
+    badge: d.badge || './icon-192.png',
+    tag: d.tag || 'cpe-guardian',       // reemplaza el aviso anterior (no se apilan 5 iguales)
+    renotify: true,
+    requireInteraction: !!(d.casos && d.casos.length),   // los rechazos se quedan hasta que los mires
+    data: { url: d.url || './?fac=guardian' },
+    vibrate: [90, 40, 90]
+  };
+  e.waitUntil(self.registration.showNotification(title, opts));
+});
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  const target = new URL((e.notification.data && e.notification.data.url) || './', self.location.href).href;
+  e.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+    for (const c of list) { if ('focus' in c) { c.navigate ? c.navigate(target).catch(() => {}) : null; return c.focus(); } }
+    return clients.openWindow(target);
+  }));
 });

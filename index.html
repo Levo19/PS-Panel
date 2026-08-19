@@ -2140,6 +2140,46 @@ select.config-input option { background: #1e0a10; color: var(--text); }
 .fac-fecha-pop { position:fixed; inset:0; z-index:100030; background:rgba(10,6,8,.5); backdrop-filter:blur(2px); display:flex; align-items:flex-start; justify-content:center; padding:76px 16px 16px; animation:facPickOv .16s ease both; }
 .fac-fecha-card { width:100%; max-width:280px; background:var(--bg2,#17141a); border:1px solid rgba(201,168,76,.32); border-radius:16px; padding:12px; box-shadow:0 20px 50px rgba(0,0,0,.65); animation:facPickIn .22s cubic-bezier(.34,1.56,.64,1) both; display:flex; flex-direction:column; gap:2px; }
 .fac-shake { animation:facShake .42s; }
+/* ── Guardián de comprobantes: alerta en la balanza + sheet ── */
+.fac-guard-ok { display:flex; align-items:center; gap:7px; padding:8px 12px; margin-bottom:10px; border-radius:11px; font-size:11.5px; font-weight:700; color:#4ade80; background:rgba(74,222,128,.08); border:1px solid rgba(74,222,128,.25); cursor:pointer; }
+.fac-guard-alert { display:flex; align-items:center; gap:10px; width:100%; text-align:left; padding:10px 12px; margin-bottom:10px; border-radius:12px; cursor:pointer; color:var(--text);
+  background:rgba(240,177,60,.10); border:1px solid rgba(240,177,60,.45); animation:guardPulse 2.2s ease-in-out infinite; }
+.fac-guard-alert.rojo { background:rgba(248,113,113,.12); border-color:rgba(248,113,113,.6); animation:guardPulseRojo 1.4s ease-in-out infinite; }
+@keyframes guardPulse { 0%,100%{box-shadow:0 0 0 0 rgba(240,177,60,0)} 50%{box-shadow:0 0 0 4px rgba(240,177,60,.14)} }
+@keyframes guardPulseRojo { 0%,100%{box-shadow:0 0 0 0 rgba(248,113,113,0)} 50%{box-shadow:0 0 0 5px rgba(248,113,113,.2), 0 0 16px rgba(248,113,113,.3)} }
+.fac-guard-ico { font-size:20px; flex:0 0 auto; }
+.fac-guard-txt { flex:1; min-width:0; display:flex; flex-direction:column; gap:1px; }
+.fac-guard-txt b { font-size:12.5px; }
+.fac-guard-txt small { font-size:10.5px; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fac-guard-n { flex:0 0 auto; min-width:26px; height:26px; border-radius:999px; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:900; background:rgba(240,177,60,.22); color:#f0b13c; }
+.fac-guard-alert.rojo .fac-guard-n { background:rgba(248,113,113,.25); color:#f87171; }
+.fac-guard-sheet-ov { position:fixed; inset:0; z-index:100025; background:rgba(10,6,8,.6); backdrop-filter:blur(3px); display:flex; align-items:flex-end; justify-content:center; animation:facPickOv .18s ease both; }
+@media (min-width:700px) { .fac-guard-sheet-ov { align-items:center; padding:20px; } }
+.fac-guard-sheet { width:100%; max-width:560px; max-height:88vh; display:flex; flex-direction:column; background:var(--bg2,#17141a); border:1px solid rgba(201,168,76,.3); border-radius:22px 22px 0 0; box-shadow:0 -10px 50px rgba(0,0,0,.6); animation:facPickIn .26s cubic-bezier(.34,1.56,.64,1) both; }
+@media (min-width:700px) { .fac-guard-sheet { border-radius:20px; } }
+.fac-guard-sheet-h { display:flex; align-items:flex-start; gap:10px; padding:16px 18px 10px; border-bottom:1px solid var(--border); }
+.fac-guard-sheet-t { font-size:16px; font-weight:800; }
+.fac-guard-sheet-s { font-size:11px; color:var(--text-muted); margin-top:3px; line-height:1.4; }
+.fac-guard-push { padding:10px 18px; border-bottom:1px solid var(--border); }
+.fac-guard-push-row { display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:11.5px; color:var(--text-muted); }
+.fac-guard-push-row.on { color:#4ade80; }
+.fac-guard-push-row.off { color:var(--text-muted); font-size:11px; }
+.fac-guard-list { overflow-y:auto; padding:10px 14px 18px; display:flex; flex-direction:column; gap:8px; }
+.fac-guard-row { padding:10px 12px; border-radius:12px; border:1px solid var(--border); border-left:3px solid var(--c); background:rgba(255,255,255,.025); }
+.fac-guard-row-h { display:flex; align-items:center; gap:8px; }
+.fac-guard-row-ico { flex:0 0 auto; }
+.fac-guard-row-t { flex:1; min-width:0; font-weight:800; font-size:12.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fac-guard-row-m { flex:0 0 auto; font-weight:800; font-size:12.5px; font-variant-numeric:tabular-nums; }
+.fac-guard-row-s { font-size:10.5px; color:var(--c); font-weight:700; margin-top:2px; }
+.fac-guard-row-e { font-size:11px; color:var(--text); background:rgba(248,113,113,.08); border:1px solid rgba(248,113,113,.25); border-radius:8px; padding:6px 9px; margin-top:7px; line-height:1.4; overflow-wrap:anywhere; }
+.fac-guard-hint { font-size:10.5px; color:var(--text-muted); margin-top:7px; line-height:1.4; }
+.fac-guard-btn { margin-top:8px; padding:8px 12px; border-radius:9px; border:1px solid var(--gold); background:rgba(201,168,76,.14); color:var(--gold); font-weight:800; font-size:11.5px; cursor:pointer; }
+.fac-guard-btn.ghost { margin:0; border-color:var(--border); background:transparent; color:var(--text-muted); }
+.fac-guard-empty { padding:24px 12px; text-align:center; color:#4ade80; font-size:12.5px; font-weight:700; }
+.fac-reintento { margin-top:6px; padding:8px 11px; border-radius:10px; font-size:11px; line-height:1.45; color:var(--text); background:rgba(248,113,113,.10); border:1px solid rgba(248,113,113,.4); display:flex; gap:8px; align-items:flex-start; }
+.fac-reintento i { color:#f87171; }
+.fac-reintento button { margin-left:auto; flex:0 0 auto; border:none; background:transparent; color:var(--text-muted); font-size:16px; cursor:pointer; line-height:1; }
+
 @keyframes facShake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-7px)} 40%{transform:translateX(7px)} 60%{transform:translateX(-4px)} 80%{transform:translateX(4px)} }
 /* sección SERVICIOS inválida (export sin paquete) → mismo pulso rojo que el chip del cliente */
 .fac-it-list.inv { border-color:rgba(248,113,113,.65); animation:cliInvPulse 1.4s ease-in-out infinite; }
@@ -3549,6 +3589,7 @@ const PS_GET = {
   listar_clientes:        p => _psRpc('admin_listar_clientes', { p_q: (p && p.q) || '', p_limite: (p && p.limite) || 500 }),
   listar_servicios_full:  () => _psRpc('admin_listar_servicios_full'),
   tipo_cambio:            () => _psRpc('tc_venta', { p_fecha: null }).then(v => ({ venta: v })),
+  cpe_guardian:           p => _psRpc('cpe_guardian', { p_dias: (p && p.dias) || 60 }),
   get_facturacion_config: () => _psRpc('get_facturacion_config'),
   consultar_documento:    p => _psRpc('consultar_documento', { p_numero: p.numero, p_tipo: p.tipo || null }),
   solicitudes_anulacion:  () => _psRpc('listar_solicitudes_anulacion'),
@@ -3593,6 +3634,8 @@ const PS_POST = {
   servicio_paquete:  b => _psRpc('admin_servicio_paquete', { p_id: b.id, p_on: !!b.on }),
   guardar_cliente_admin: b => _psRpc('admin_guardar_cliente', { p: { doc_tipo: b.doc_tipo, doc_numero: String(b.doc_numero || '').trim(), nombre: b.nombre, direccion: b.direccion || '', email: b.email || '', telefono: b.telefono || '', es_extranjero: !!b.es_extranjero, doc_tipo_old: b.doc_tipo_old || '', doc_numero_old: b.doc_numero_old || '' } }),
   eliminar_cliente:  b => _psRpc('admin_eliminar_cliente', { p_doc_tipo: b.doc_tipo, p_doc: b.doc_numero }),
+  push_suscribir:    b => _psRpc('push_suscribir', { p: { app: 'ps', endpoint: b.endpoint, p256dh: b.p256dh, auth: b.auth, ua: b.ua || '' } }),
+  push_desuscribir:  b => _psRpc('push_desuscribir', { p_endpoint: b.endpoint }),
   set_facturacion_muelle: b => _psRpc('admin_set_facturacion_muelle', { p_on: !!b.on }).then(v => ({ on: v })),
   set_facturacion_config: b => _psRpc('admin_set_facturacion_config', { p_ruta: b.ruta || '', p_token: b.token || '', p_lookup_url: b.lookup_url || '', p_lookup_token: b.lookup_token || '', p_modo: b.modo || '', p_activo: typeof b.activo === 'boolean' ? b.activo : null }).then(() => ({ ok: true })),
   anular_comprobante: b => _psRpc('anular_comprobante', { p_id: b.id, p_motivo: b.motivo || 'Anulación' }),
@@ -8122,6 +8165,8 @@ function _facPaint(el) {
   _facRender();          // shell persistente (balanza izq + tabbar/slot der)
   _facLoadTrib();        // balanza con count-up (cache por período; no re-pide si ya está)
   _facLoadAnul();        // badge de solicitudes
+  _facLoadGuardian();    // 🛡 alerta de comprobantes no aceptados (balanza)
+  _facPushEstadoInicial();
   if (_facState.tab === 'historial') _facLoadHist();   // vista por defecto = historial (único spinner: 1ª carga)
   _facRTSubscribe();     // historial EN VIVO en el fondo (adición suave); guard interno = una sola vez
 }
@@ -8499,6 +8544,123 @@ function _facPagoStr(total) {
   if (S.pagoTipo === 'tarjeta') return 'Tarjeta' + (S.pagoRec === false ? ' (sin recargo)' : ' (incluye recargo ' + Math.round(_FAC_TARJETA.rate * 100) + '%)');
   if (S.pagoTipo === 'mixto') { const p = _facPagoMxCalc(total), sm = _facSimCPE(); return 'Mixto: Efectivo ' + sm + p.ef.toFixed(2) + ' + Virtual ' + sm + p.vi.toFixed(2); }
   return 'Efectivo';
+}
+// ── GUARDIÁN DE COMPROBANTES ────────────────────────────────────────────────────────────────
+// Vigila que cada CPE sea aceptado por NubeFact Y por SUNAT (RPC `cpe_guardian`, plazos prudentes:
+// rechazo NubeFact = inmediato · factura sin CDR >6h · boleta sin confirmación >36h · baja >48h ·
+// pendiente >2h). Alerta en la balanza + push (Edge `cpe-guardian`, cada hora). Al tocar un
+// rechazado se abre Emitir CPE precargado con el motivo para corregir y reemitir.
+const _FAC_VAPID_PUBLIC = 'BPkQPrB4ngVzP-8NZlNmSMA2DgpKGRwgpdRPuHaqKkobiGvyPWxbvPaA7MPe9ekyIicnQrNZL1SYMUu9H3fpMNE';
+async function _facLoadGuardian() {
+  const S = _facState; if (!S) return;
+  try { const r = await apiGet('cpe_guardian', { dias: 60 }); S._guardian = (r.ok && Array.isArray(r.data)) ? r.data : []; }
+  catch (e) { S._guardian = S._guardian || []; }
+  _facPaintGuardian();
+}
+function _facGuardianResumen() {
+  const g = (_facState && _facState._guardian) || [];
+  const n = c => g.filter(x => x.caso === c).length;
+  return { total: g.length, rechazo: n('nubefact_rechazo'), sinResp: n('sin_respuesta'), baja: n('baja_sin_resolver'), sunat: n('sunat_pendiente') };
+}
+// Símbolo de alerta en la balanza (rojo si hay rechazos, ámbar si solo pendientes, nada si limpio)
+function _facGuardianAlertHTML() {
+  const r = _facGuardianResumen();
+  if (!r.total) return '<div class="fac-guard-ok" onclick="_facGuardianAbrir()" title="Guardián de comprobantes: todo aceptado">🛡 <span>Comprobantes al día</span></div>';
+  const rojo = r.rechazo > 0;
+  const partes = [];
+  if (r.rechazo) partes.push(r.rechazo + ' rechazado' + (r.rechazo > 1 ? 's' : '') + ' por NubeFact');
+  if (r.sinResp) partes.push(r.sinResp + ' sin respuesta');
+  if (r.baja) partes.push(r.baja + ' anulación sin confirmar');
+  if (r.sunat) partes.push(r.sunat + ' sin confirmación SUNAT');
+  return `<button class="fac-guard-alert${rojo ? ' rojo' : ''}" onclick="_facGuardianAbrir()">
+    <span class="fac-guard-ico">${rojo ? '⚠️' : '⏳'}</span>
+    <span class="fac-guard-txt"><b>${r.total} comprobante${r.total > 1 ? 's' : ''} por revisar</b><small>${_facEsc(partes.join(' · '))}</small></span>
+    <span class="fac-guard-n">${r.total}</span></button>`;
+}
+function _facPaintGuardian() {
+  document.querySelectorAll('#fac-guardian-slot').forEach(el => { el.innerHTML = _facGuardianAlertHTML(); });
+}
+const _FAC_CASO_LBL = { nubefact_rechazo: ['⚠️', 'Rechazado por NubeFact', '#f87171'], sin_respuesta: ['❔', 'Sin respuesta', '#f0b13c'], baja_sin_resolver: ['⊘', 'Anulación sin confirmar', '#f0b13c'], sunat_pendiente: ['⏳', 'SUNAT sin confirmar', '#f0b13c'] };
+function _facGuardianAbrir() {
+  try { sndTap(); haptic(8); } catch (e) {}
+  const g = (_facState && _facState._guardian) || [];
+  document.querySelectorAll('.fac-guard-sheet-ov').forEach(o => o.remove());
+  const filas = g.length ? g.map(x => {
+    const L = _FAC_CASO_LBL[x.caso] || ['•', x.caso, 'var(--text-muted)'];
+    const motivo = String(x.errores || x.sunat_descripcion || x.explicacion || '').trim();
+    const num = _facEsc(x.serie + '-' + String(x.numero).padStart(6, '0'));
+    const acc = x.caso === 'nubefact_rechazo'
+      ? `<button class="fac-guard-btn" onclick="_facGuardianReintentar('${_facEsc(String(x.id))}')">✎ Corregir y reemitir</button>`
+      : (x.caso === 'sunat_pendiente' && Number(x.tipo) === 2
+        ? '<div class="fac-guard-hint">Boleta: SUNAT la confirma vía Resumen Diario. Si pasan más de 2 días, revisa en NubeFact que el resumen se haya enviado (con fecha anterior puede requerir habilitación en tu cuenta).</div>'
+        : '');
+    return `<div class="fac-guard-row" style="--c:${L[2]}">
+      <div class="fac-guard-row-h"><span class="fac-guard-row-ico">${L[0]}</span><span class="fac-guard-row-t">${num} · ${_facEsc(x.cliente_nombre || '')}</span><span class="fac-guard-row-m">${_facSim(x.moneda)} ${_facMoney(x.total)}</span></div>
+      <div class="fac-guard-row-s">${_facEsc(L[1])} · ${_facEsc(x.fecha || '')} · hace ${x.horas < 48 ? x.horas + ' h' : Math.round(x.horas / 24) + ' días'}</div>
+      ${motivo ? `<div class="fac-guard-row-e">${_facEsc(motivo.slice(0, 220))}</div>` : ''}
+      ${acc}</div>`;
+  }).join('') : '<div class="fac-guard-empty">🛡 Todos los comprobantes fueron aceptados por NubeFact y SUNAT.</div>';
+  const ov = document.createElement('div'); ov.className = 'fac-guard-sheet-ov';
+  ov.innerHTML = `<div class="fac-guard-sheet">
+    <div class="fac-guard-sheet-h"><div><div class="fac-guard-sheet-t">🛡 Guardián de comprobantes</div><div class="fac-guard-sheet-s">Cada CPE debe ser aceptado por NubeFact y por SUNAT. Aquí está lo que falta, con su motivo.</div></div>
+      <button class="fac-emit-x" onclick="this.closest('.fac-guard-sheet-ov').remove()" aria-label="Cerrar">×</button></div>
+    <div class="fac-guard-push" id="fac-guard-push">${_facPushEstadoHTML()}</div>
+    <div class="fac-guard-list">${filas}</div></div>`;
+  ov.onclick = e => { if (e.target === ov) ov.remove(); };
+  document.body.appendChild(ov);
+}
+// Reintento CORREGIDO: abre Emitir CPE con el comprobante rechazado precargado + el motivo visible
+function _facGuardianReintentar(id) {
+  const S = _facState; const c = ((S && S._guardian) || []).find(x => String(x.id) === String(id)); if (!c) return;
+  document.querySelectorAll('.fac-guard-sheet-ov').forEach(o => o.remove());
+  const full = ((S.comprobantes) || []).find(x => String(x.id) === String(id)) || c;
+  _facOpenEmit();
+  S.tipo = Number(full.tipo) === 1 ? 1 : 2; S.facModo = S.tipo === 1 ? 'factura' : 'boleta';
+  S.docTipo = String(full.cliente_doc_tipo || (S.tipo === 1 ? '6' : '1')); S.doc = String(full.cliente_doc || ''); S.nombre = String(full.cliente_nombre || '');
+  S.dir = String(full.cliente_dir || ''); S.cliSel = !!(S.doc || S.docTipo === '0');
+  S.exportacion = !!(Number(full.total_exportacion) > 0 || full.es_exportacion);
+  S.items = (Array.isArray(full.items) ? full.items : []).map(i => ({ descripcion: i.descripcion || '', cantidad: Number(i.cantidad) || 1, precio: Number(i.precio) || 0, unidad: i.unidad || _FAC_UNIDAD, moneda: full.moneda || 'PEN', gratis: i.afectacion === 'gratuito' }));
+  S._reintentoDe = { id: full.id, serie: full.serie, numero: full.numero, motivo: String(full.errores || '').trim() };
+  if (typeof _facRenderEmit === 'function') _facRenderEmit(); else _facRender();   // el modal Emitir se pinta con su propio render
+  if (typeof showToast === 'function') showToast('✎ Corrige el detalle y vuelve a emitir — el motivo del rechazo está arriba');
+}
+// ── Web Push (VAPID) del panel: suscripción del dispositivo del admin ──
+function _facPushSoportado() { return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window; }
+function _facPushEstadoHTML() {
+  if (!_facPushSoportado()) return '<div class="fac-guard-push-row off">🔕 Este navegador no admite avisos push (en iPhone: instala el panel en la pantalla de inicio).</div>';
+  const st = Notification.permission;
+  if (st === 'denied') return '<div class="fac-guard-push-row off">🔕 Avisos bloqueados en este navegador — actívalos en la configuración del sitio.</div>';
+  const on = !!(_facState && _facState._pushOn);
+  return `<div class="fac-guard-push-row ${on ? 'on' : ''}"><span>${on ? '🔔 Avisos push activos en este dispositivo' : '🔔 Recibir aviso push cuando un CPE no sea aceptado'}</span>
+    <button class="fac-guard-btn ${on ? 'ghost' : ''}" onclick="${on ? '_facPushDesactivar()' : '_facPushActivar()'}">${on ? 'Desactivar' : 'Activar'}</button></div>`;
+}
+function _facB64ToU8(b64) { const p = '='.repeat((4 - b64.length % 4) % 4); const s = (b64 + p).replace(/-/g, '+').replace(/_/g, '/'); const raw = atob(s); return Uint8Array.from([...raw].map(ch => ch.charCodeAt(0))); }
+async function _facPushEstadoInicial() {
+  try { if (!_facPushSoportado()) return; const reg = await navigator.serviceWorker.ready; const sub = await reg.pushManager.getSubscription(); if (_facState) _facState._pushOn = !!sub; } catch (e) {}
+}
+async function _facPushActivar() {
+  try { sndTap(); haptic(8); } catch (e) {}
+  try {
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') { if (typeof showToast === 'function') showToast('Sin permiso de notificaciones'); return; }
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: _facB64ToU8(_FAC_VAPID_PUBLIC) });
+    const j = sub.toJSON();
+    const r = await apiPost({ accion: 'push_suscribir', endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, ua: navigator.userAgent.slice(0, 180) });
+    if (!r.ok) throw new Error(r.error || 'No se pudo registrar');
+    _facState._pushOn = true; try { sndOk(); haptic([12, 30, 12]); } catch (e) {}
+    const el = document.getElementById('fac-guard-push'); if (el) el.innerHTML = _facPushEstadoHTML();
+    if (typeof showToast === 'function') showToast('🔔 Avisos push activados en este dispositivo');
+  } catch (e) { if (typeof showToast === 'function') showToast('⚠️ ' + ((e && e.message) || 'No se pudo activar el push')); }
+}
+async function _facPushDesactivar() {
+  try {
+    const reg = await navigator.serviceWorker.ready; const sub = await reg.pushManager.getSubscription();
+    if (sub) { await apiPost({ accion: 'push_desuscribir', endpoint: sub.endpoint }).catch(() => {}); await sub.unsubscribe(); }
+    _facState._pushOn = false;
+    const el = document.getElementById('fac-guard-push'); if (el) el.innerHTML = _facPushEstadoHTML();
+  } catch (e) {}
 }
 // ── MONEDA DEL COMPROBANTE ──────────────────────────────────────────────────────────────────
 // SUNAT: un CPE lleva UNA sola moneda. La del comprobante = la del primer servicio del carrito;
@@ -9128,7 +9290,7 @@ async function _facEmitirNC(id) {
       S._histOpen = S._histOpen || {}; S._histOpen[id] = true;   // abre el acordeón → la NC se ve desplegada de una
       _facRebuildCard(id, true);
     }
-    clearTimeout(S._ncReload); S._ncReload = setTimeout(function () { if (_facState) _facLoadHist(); }, 2200);   // reconcilia con el server
+    clearTimeout(S._ncReload); S._ncReload = setTimeout(function () { if (_facState) { _facLoadHist(); _facLoadGuardian(); } }, 2200);   // reconcilia con el server
   } else { if (comp) _facRebuildCard(id); _facErr((r.error || 'No se pudo emitir la Nota de Crédito').replace(/^.*?:\s*/, '')); }
 }
 async function _facAnular(id) {
@@ -9629,7 +9791,7 @@ function _facSectionBody(S) {
       </div>`;
     } else {
       const segBtn = (m, label) => { const on = S.facModo === m; return `<button onclick="_facSetModo('${m}')" style="flex:1;padding:9px 4px;border-radius:10px;font-weight:800;font-size:12px;cursor:pointer;border:1px solid ${on?'var(--gold)':'var(--border)'};background:${on?'rgba(201,168,76,0.16)':'transparent'};color:${on?'var(--gold)':'var(--text-muted)'}">${label}</button>`; };
-      body = `<div class="fac-emit-stable">
+      body = `${S._reintentoDe ? `<div class="fac-reintento"><b>✎ Reemisión de ${_facEsc(S._reintentoDe.serie + '-' + String(S._reintentoDe.numero).padStart(6,'0'))}</b> — NubeFact lo rechazó: <i>${_facEsc((S._reintentoDe.motivo || 'sin detalle').slice(0, 200))}</i>. Corrige y emite (saldrá con número nuevo).<button onclick="_facState._reintentoDe=null;(typeof _facRenderEmit==='function'?_facRenderEmit():_facRender())" title="Quitar aviso">×</button></div>` : ''}<div class="fac-emit-stable">
       ${_facEmitFeedHTML(S)}
       <div style="display:flex;gap:6px;margin-bottom:12px">
         ${segBtn('boleta', 'Boleta · ' + ((S.facCfg&&S.facCfg.serie_boleta)||'B002'))}
@@ -9909,6 +10071,7 @@ function _facBuildShellInto(ov) {
     <div class="fac-mod-cols2">
       <div class="fac-mod-l">
         <div id="fac-balanza-panel"></div>
+        <div id="fac-guardian-slot">${_facGuardianAlertHTML()}</div>
         <div class="fac-l-actions">
           <button class="fac-emit-cta" onclick="_facOpenEmit()"><span style="font-size:17px;line-height:1">＋</span> Emitir CPE</button>
           <div id="fac-muelle-row">${_facMuelleSwitchHTML(S)}</div>
@@ -10052,7 +10215,7 @@ window._facOpenEmit = function () {
   // el caso más común del muelle es boleta simple; la × lo vacía y abre la búsqueda.
   S.resultado = null; S.facModo = 'boleta'; S.tipo = 2; S.exportacion = false; S.esExtranjero = false;
   S.docTipo = '0'; S.doc = '00000000'; S.nombre = 'VARIOS'; S.email = ''; S.tel = ''; S.dir = ''; S.items = []; S.fechaEmision = null; S.pagoTipo = 'efectivo'; S.pagoEf = ''; S.pagoRec = true; S.formaPago = 'CONTADO'; S.creditoVenc = ''; S.lookupState = 'idle';
-  S.obs = ''; S.obsOpen = false; S._priceEdit = null; S._svcPick = null; S._lkFail = null; S._autoLkq = null;   // residuos de la apertura anterior
+  S.obs = ''; S.obsOpen = false; S._priceEdit = null; S._svcPick = null; S._lkFail = null; S._autoLkq = null; S._reintentoDe = null;   // residuos de la apertura anterior
   clearTimeout(S._cliTimer); clearTimeout(S._cliDebounce);
   S.cliQuery = ''; S.cliResults = []; S.cliSel = true; S.cliShowLupa = false; S.cliManual = false;
   S.manualDoc = ''; S.manualNombre = ''; S.manualTipo = '1'; S._cliLoading = false; S._cliLupaLoading = false;
@@ -10069,6 +10232,7 @@ window._facOpenEmit = function () {
       <div style="font-size:22px">🧾</div>
       <div style="flex:1 1 auto;min-width:64px"><div class="fac-emit-title">Emitir CPE</div></div>
       <div id="fac-fecha-slot" style="flex:0 0 auto">${_facFechaChipHTML()}</div>
+
       <button class="fac-z-bot" onclick="_facZarpeAbrir()" title="Jalar zarpe con IA — facturar al grupo" aria-label="Jalar zarpe con IA">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
           <g class="zbot-head">
@@ -15584,7 +15748,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '2.19.2';
+const APP_VERSION = '2.20.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
