@@ -5088,14 +5088,26 @@ const ViewLanchas = {
       const origen  = p.origenId ? contactosOps.value.find(c => c.id === p.origenId) : null;
       p.saving = true; p.error = '';
       try {
-        const r = await apiPost({ accion: 'crear_pase_directo',
+        const payload = { accion: 'crear_pase_directo',
           id_contacto: origen ? origen.id : null,
           nombre_contacto: origen ? origen.nombre : (String(p.origenQ || '').trim() || null),  // texto libre si no eligió contacto
           id_aliado: p.aliadoId, cant_pax: pax,
           operador: session.nombre || 'PS',
           fecha: currentFecha.value,                           // la fecha que se está VIENDO (retroactivo solo admin)
           monto: p.montoTocado ? _money(p.monto) : null,       // manual gana; auto (tarifa del origen) lo calcula el backend
-          localId: p.localId });
+          localId: p.localId };
+        let r;
+        try { r = await apiPost(payload); }
+        catch (e1) {
+          // "fetch is aborted" = la base tardó más que el timeout del panel; el registro PUEDE haber
+          // entrado igual (caso real 23-ago). Mismo localId ⇒ reintentar es SEGURO: si ya entró,
+          // el backend devuelve el mismo pase, jamás lo duplica.
+          if (!/abort/i.test(String((e1 && (e1.name + ' ' + e1.message)) || ''))) throw e1;
+          showToast('⏳ La base tardó — verificando el registro…');
+          await new Promise(rs => setTimeout(rs, 2500));
+          try { r = await apiPost(payload); }
+          catch (e2) { throw new Error('La red tardó demasiado. El pase PUEDE haberse registrado igual — revisa la lista antes de volver a intentarlo.'); }
+        }
         if (!r.ok) throw new Error(r.error || 'Error al registrar el pase');
         paseSueltoModal.value.show = false;
         try { sndOk(); haptic([15, 40, 15]); } catch (e) {}
@@ -15786,7 +15798,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '2.21.0';
+const APP_VERSION = '2.21.1';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');
