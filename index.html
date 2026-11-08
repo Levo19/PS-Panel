@@ -8712,6 +8712,69 @@ async function _facPushDesactivar() {
     const el = document.getElementById('fac-guard-push'); if (el) el.innerHTML = _facPushEstadoHTML();
   } catch (e) {}
 }
+// ── PUSH OBLIGATORIO en el PS Panel (8-nov-2026, pedido de Luis) ─────────────────────────────
+// Sin avisos push no se usa el panel: por aquí llegan las alertas del VIGÍA DEL MUELLE ("el operador
+// no registró nada hoy → un resumen de hoy no sale del sistema") y las del guardián de comprobantes.
+// Con permiso dado pero sin red, NO bloquea (reintenta al volver).
+async function _psPushAsegurar() {
+  const reg = await navigator.serviceWorker.ready;
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: _facB64ToU8(_FAC_VAPID_PUBLIC) });
+  let est = null; try { est = await _psRpc('push_estado', { p_endpoint: sub.endpoint }); } catch (e) {}
+  if (!est || !est.suscrito) {
+    const j = sub.toJSON();
+    const r = await apiPost({ accion: 'push_suscribir', endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, ua: navigator.userAgent.slice(0, 180) });
+    if (!r || !r.ok) throw new Error((r && r.error) || 'No se pudo registrar');
+  }
+  if (typeof _facState !== 'undefined' && _facState) _facState._pushOn = true;
+  return true;
+}
+function _psPushGateUI(modo) {
+  let ov = document.getElementById('ps-push-gate');
+  if (!ov) {
+    ov = document.createElement('div'); ov.id = 'ps-push-gate';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:2147482000;background:rgba(14,13,11,.97);color:#f3ecd9;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px 22px;text-align:center;font-family:inherit;overflow:auto;';
+    document.body.appendChild(ov);
+  }
+  const esIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  const pasos = modo === 'bloqueado'
+    ? (esIOS ? 'Abre <b>Ajustes → Notificaciones → PS Panel</b> y activa <b>Permitir notificaciones</b>.'
+             : 'Toca el <b>candado 🔒</b> junto a la dirección → <b>Configuración del sitio / Permisos</b> → <b>Notificaciones → Permitir</b>. Luego toca “Ya lo activé”.')
+    : modo === 'nosoporta'
+      ? (esIOS ? 'En iPhone instala el panel: <b>Compartir ⬆️ → Agregar a inicio</b> y ábrelo desde ese ícono.' : 'Este navegador no admite notificaciones. Usa <b>Google Chrome</b>.')
+      : 'Te avisaremos al cierre del muelle si un operador <b>no registró nada</b> en el día (así sabrás que un resumen de ese día no salió del sistema) y cuando un comprobante no sea aceptado.';
+  ov.innerHTML = '<div style="font-size:52px;line-height:1">🔔</div>'
+    + '<div style="font-size:22px;font-weight:800;margin-top:14px">Activa las notificaciones</div>'
+    + '<div style="opacity:.85;margin-top:10px;max-width:380px;font-size:15px;line-height:1.45">Para usar el PS Panel es <b>obligatorio</b> recibir los avisos.</div>'
+    + '<div style="background:rgba(201,168,76,.12);border:1px solid rgba(201,168,76,.35);border-radius:14px;padding:14px;margin-top:18px;max-width:380px;font-size:14px;line-height:1.5">' + pasos + '</div>'
+    + '<button id="ps-pg-ok" style="margin-top:22px;background:linear-gradient(135deg,#c9a84c,#8a6a10);color:#1e1c18;border:0;border-radius:14px;padding:15px 26px;font-size:16px;font-weight:800;width:100%;max-width:340px;cursor:pointer">' + (modo === 'pedir' ? '🔔 Activar notificaciones' : 'Ya lo activé') + '</button>'
+    + '<div id="ps-pg-msg" style="margin-top:12px;font-size:13px;opacity:.8;min-height:18px"></div>';
+  ov.querySelector('#ps-pg-ok').onclick = async () => {
+    try { sndTap(); haptic(8); } catch (e) {}
+    if (modo !== 'pedir') { location.reload(); return; }
+    const msg = ov.querySelector('#ps-pg-msg');
+    try {
+      const perm = await Notification.requestPermission();
+      if (perm !== 'granted') { _psPushGateUI(perm === 'denied' ? 'bloqueado' : 'pedir'); return; }
+      msg.textContent = 'Activando…';
+      await _psPushAsegurar();
+      ov.remove(); try { sndOk(); haptic([12, 30, 12]); } catch (e) {}
+      if (typeof showToast === 'function') showToast('🔔 Avisos activados en este dispositivo');
+    } catch (e) {
+      if (Notification.permission === 'granted') { ov.remove(); setTimeout(_psPushGate, 60000); }
+      else msg.textContent = '⚠️ ' + ((e && e.message) || 'No se pudo activar');
+    }
+  };
+}
+async function _psPushGate() {
+  if (!_facPushSoportado()) { _psPushGateUI('nosoporta'); return; }
+  if (Notification.permission !== 'granted') { _psPushGateUI(Notification.permission === 'denied' ? 'bloqueado' : 'pedir'); return; }
+  const ov = document.getElementById('ps-push-gate'); if (ov) ov.remove();
+  try { await _psPushAsegurar(); } catch (e) { /* sin red/sesión: se reintenta al volver */ }
+}
+window._psPushGate = _psPushGate;
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && window._psLogueado) _psPushGate(); });
+
 // ── MONEDA DEL COMPROBANTE ──────────────────────────────────────────────────────────────────
 // SUNAT: un CPE lleva UNA sola moneda. La del comprobante = la del primer servicio del carrito;
 // agregar uno de otra moneda se BLOQUEA (no se convierte a espaldas del usuario: el precio que se
@@ -15513,6 +15576,11 @@ createApp({
       } catch (e) {}
     }
     resolverGoogle();
+    // Push OBLIGATORIO: apenas hay sesión (Google o restaurada) se exige el permiso
+    watch(() => session.value && session.value.nombre, (n) => {
+      window._psLogueado = !!n;
+      if (n) setTimeout(() => { try { _psPushGate(); } catch (e) {} }, 900);
+    }, { immediate: true });
 
     // ── Module loading ────────────────────────────────────────
     const today = () => new Date().toISOString().slice(0, 10);
@@ -15798,7 +15866,7 @@ createApp({
 }).mount('#app');
 
 // ── Service Worker + Actualización ──────────────────────────
-const APP_VERSION = '2.21.1';
+const APP_VERSION = '2.22.0';
 console.log('%c PS Panel %c v' + APP_VERSION + ' ',
   'background:#5E6684;color:#fff;font-weight:800;font-size:13px;border-radius:5px 0 0 5px;padding:4px 9px',
   'background:#C9A84C;color:#3d0508;font-weight:800;font-size:13px;border-radius:0 5px 5px 0;padding:4px 9px');

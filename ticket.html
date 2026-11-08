@@ -346,6 +346,14 @@ function render(data) {
 
   const f = fmtFecha(fecha);
 
+  // ── Código de verificación (8-nov-2026) ──────────────────────
+  // Huella de los registros REALES del día en la base (ids, pax y montos). El mismo día siempre da el
+  // mismo código; un ticket escrito a mano o con datos cambiados no puede tener el código que muestra
+  // el PS Panel para esa fecha. Sin registros = no hay código ("SIN REGISTROS").
+  const _verifBase = fecha + '|' + allMovs.map(m => m.id + '/' + (m.cant_pax||0) + '/' + (m.monto_total||0) + '/' + (m.estado||'')).sort().join(',')
+    + '|' + allCaja.map(c => c.id + '/' + (c.monto||0)).sort().join(',');
+  const verifCod = (allMovs.length || allCaja.length) ? (function(){ let h = 5381, g = 52711; for (let i = 0; i < _verifBase.length; i++) { const ch = _verifBase.charCodeAt(i); h = (Math.imul(h, 33) ^ ch) >>> 0; g = (Math.imul(g, 31) + ch) >>> 0; } return (h.toString(36) + g.toString(36)).toUpperCase().slice(-8).replace(/(.{4})/, '$1-'); })() : 'SIN REGISTROS';
+
   // ── Salidas ──────────────────────────────────────────────────
   const salidasHtml = ops.map((op, i) => {
     const movs = (op.movimientos||[]).filter(m => m.estado !== 'Cancelado' && !m.id_contacto_pase);
@@ -509,6 +517,7 @@ function render(data) {
       t += `  ${sep}\n  TOTAL  ${S(totalEgr)}\n\n`;
     }
 
+    t += `🔐 *Código de verificación: ${verifCod}*\n${SEP}\n\n`;
     t += `💰 *NETO DEL DIA*\n${SEP}\n`;
     t += `  Ingresos  ${S(totalIng)}\n`;
     t += `  Egresos   ${S(totalEgr)}\n`;
@@ -525,6 +534,7 @@ function render(data) {
         }
       });
     }
+    t += `\n${SEP}\n🔐 Verificación ${verifCod} · generado por el sistema ${new Date().toLocaleString('es-PE',{ timeZone:'America/Lima', day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })}\n_Si el código no coincide con el del PS Panel para esta fecha, el ticket fue modificado._`;
     return t;
   };
 
@@ -538,6 +548,7 @@ function render(data) {
     <div>
       <div class="tk-fecha">${f.fecha}</div>
       <div class="tk-dia">${f.dia}</div>
+      <div class="tk-dia" style="font-size:11px;letter-spacing:.06em;opacity:.8">🔐 ${verifCod}</div>
     </div>
   </div>
 
@@ -611,9 +622,11 @@ function renderError(msg) {
     const h = new URLSearchParams((location.hash||'').replace(/^#/,''));
     const at = h.get('at'), rt = h.get('rt');
     if(at && rt){
-      // Solo aplico el token del enlace si NO hay ya sesión propia (no pisar la del PS Panel).
-      let yaHay=false; try{ const s=await Promise.race([sb.auth.getSession(), new Promise((_,rej)=>setTimeout(()=>rej(new Error('T')),4000))]); yaHay=!!(s&&s.data&&s.data.session); }catch(_){}
-      if(!yaHay){ try{ await sb.auth.setSession({ access_token: at, refresh_token: rt }); }catch(_){} }
+      // Solo conservo la sesión propia si es una sesión GOOGLE vigente (la del PS Panel). Una sesión
+      // vieja de PIN (cuentas emp-XX, retiradas en jul-2026) ya no tiene permisos: antes ganaba
+      // sobre el enlace y el ticket salía vacío (caso Augusto 23-oct). Se descarta y se usa el enlace.
+      let yaHay=false; try{ const s=await Promise.race([sb.auth.getSession(), new Promise((_,rej)=>setTimeout(()=>rej(new Error('T')),4000))]); const ses=s&&s.data&&s.data.session; yaHay=!!(ses && ((ses.user||{}).app_metadata||{}).provider==='google'); }catch(_){}
+      if(!yaHay){ try{ await sb.auth.signOut({ scope:'local' }); }catch(_){} try{ await sb.auth.setSession({ access_token: at, refresh_token: rt }); }catch(_){} }
       try{ history.replaceState(null,'',location.pathname+location.search); }catch(_){}
     }
   }catch(e){}

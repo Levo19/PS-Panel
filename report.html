@@ -1345,9 +1345,11 @@ function renderError(msg) {
     const h = new URLSearchParams((location.hash||'').replace(/^#/,''));
     const at = h.get('at'), rt = h.get('rt');
     if(at && rt){
-      // Solo aplico el token del enlace si NO hay ya sesión propia (no pisar la del PS Panel).
-      let yaHay=false; try{ const s=await Promise.race([sb.auth.getSession(), new Promise((_,rej)=>setTimeout(()=>rej(new Error('T')),4000))]); yaHay=!!(s&&s.data&&s.data.session); }catch(_){}
-      if(!yaHay){ try{ await sb.auth.setSession({ access_token: at, refresh_token: rt }); }catch(_){} }
+      // Solo conservo la sesión propia si es una sesión GOOGLE vigente (la del PS Panel). Una sesión
+      // vieja de PIN (cuentas emp-XX, retiradas en jul-2026) ya no tiene permisos: antes ganaba
+      // sobre el enlace y el ticket salía vacío (caso Augusto 23-oct). Se descarta y se usa el enlace.
+      let yaHay=false; try{ const s=await Promise.race([sb.auth.getSession(), new Promise((_,rej)=>setTimeout(()=>rej(new Error('T')),4000))]); const ses=s&&s.data&&s.data.session; yaHay=!!(ses && ((ses.user||{}).app_metadata||{}).provider==='google'); }catch(_){}
+      if(!yaHay){ try{ await sb.auth.signOut({ scope:'local' }); }catch(_){} try{ await sb.auth.setSession({ access_token: at, refresh_token: rt }); }catch(_){} }
       try{ history.replaceState(null,'',location.pathname+location.search); }catch(_){}
     }
   }catch(e){}
